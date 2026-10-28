@@ -1,0 +1,40 @@
+<!--
+  The satchel: pinch an item to take it in hand. Item buttons item-0..item-11
+  are filled in by SatchelSystem; craft buttons appear at a workbench.
+-->
+<style>
+  .root { flex-direction: column; width: 460px; padding-top: 20px; padding-bottom: 20px; padding-left: 24px; padding-right: 24px; gap: 10px; }
+  .title { color: #1c1d20; font-size: 24px; font-weight: 700; }
+  .title:dark { color: #f3eadb; }
+  .sub { color: #55504a; font-size: 14px; }
+  .sub:dark { color: #b9ab95; }
+  .grid { flex-direction: row; flex-wrap: wrap; gap: 8px; }
+  .item { width: 134px; }
+  .row { flex-direction: row; gap: 10px; }
+</style>
+<Panel class="root">
+  <div class="title">Satchel</div>
+  <div id="satchel-sub" class="sub">Pinch an item to take it in hand.</div>
+  <div class="grid">
+    <Button id="item-0" class="item" variant="secondary" size="sm"><ButtonLabel id="item-0-label">-</ButtonLabel></Button>
+    <Button id="item-1" class="item" variant="secondary" size="sm"><ButtonLabel id="item-1-label">-</ButtonLabel></Button>
+    <Button id="item-2" class="item" variant="secondary" size="sm"><ButtonLabel id="item-2-label">-</ButtonLabel></Button>
+    <Button id="item-3" class="item" variant="secondary" size="sm"><ButtonLabel id="item-3-label">-</ButtonLabel></Button>
+    <Button id="item-4" class="item" variant="secondary" size="sm"><ButtonLabel id="item-4-label">-</ButtonLabel></Button>
+    <Button id="item-5" class="item" variant="secondary" size="sm"><ButtonLabel id="item-5-label">-</ButtonLabel></Button>
+    <Button id="item-6" class="item" variant="secondary" size="sm"><ButtonLabel id="item-6-label">-</ButtonLabel></Button>
+    <Button id="item-7" class="item" variant="secondary" size="sm"><ButtonLabel id="item-7-label">-</ButtonLabel></Button>
+    <Button id="item-8" class="item" variant="secondary" size="sm"><ButtonLabel id="item-8-label">-</ButtonLabel></Button>
+    <Button id="item-9" class="item" variant="secondary" size="sm"><ButtonLabel id="item-9-label">-</ButtonLabel></Button>
+    <Button id="item-10" class="item" variant="secondary" size="sm"><ButtonLabel id="item-10-label">-</ButtonLabel></Button>
+    <Button id="item-11" class="item" variant="secondary" size="sm"><ButtonLabel id="item-11-label">-</ButtonLabel></Button>
+  </div>
+  <div class="row">
+    <Button id="craft-cord" size="sm"><ButtonIcon><Hammer></Hammer></ButtonIcon><ButtonLabel>Twist cord</ButtonLabel></Button>
+    <Button id="craft-drill" size="sm"><ButtonIcon><Hammer></Hammer></ButtonIcon><ButtonLabel>Build bow drill</ButtonLabel></Button>
+  </div>
+  <div class="row">
+    <Button id="stow-button" variant="secondary" size="sm"><ButtonIcon><Undo2></Undo2></ButtonIcon><ButtonLabel id="stow-label">Put back</ButtonLabel></Button>
+    <Button id="satchel-close" variant="secondary" size="sm"><ButtonIcon><X></X></ButtonIcon><ButtonLabel>Close</ButtonLabel></Button>
+  </div>
+</Panel>

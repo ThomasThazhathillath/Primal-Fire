@@ -1,0 +1,54 @@
+<!--
+  Quest + XP HUD. In the browser it is pinned top-left (ScreenSpace); in VR it
+  follows lazily, low and to the left, inside a comfortable field of view.
+  Step lines step-0..step-5 and the toast line are filled in by HudSystem.
+-->
+<style>
+  .root { flex-direction: column; width: 400px; padding-top: 20px; padding-bottom: 20px; padding-left: 24px; padding-right: 24px; gap: 8px; }
+  .row { flex-direction: row; justify-content: space-between; align-items: center; }
+  .eyebrow { color: #8a5a00; font-size: 13px; font-weight: 700; letter-spacing: 1.5px; }
+  .eyebrow:dark { color: #ffb547; }
+  .title { color: #1c1d20; font-size: 26px; font-weight: 700; }
+  .title:dark { color: #f3eadb; }
+  .desc { color: #55504a; font-size: 15px; line-height: 1.3; }
+  .desc:dark { color: #b9ab95; }
+  .step { color: #2a2620; font-size: 16px; line-height: 1.3; }
+  .step:dark { color: #f3eadb; }
+  .level { color: #2a2620; font-size: 16px; font-weight: 700; }
+  .level:dark { color: #f3eadb; }
+  .bar { height: 6px; width: 350px; background-color: #3a3128; border-radius: 3px; }
+  .fill { height: 6px; width: 0px; background-color: #ffb547; border-radius: 3px; }
+  .toast { color: #1c1d20; font-size: 16px; font-weight: 700; padding-top: 6px; }
+  .toast:dark { color: #ffd27a; }
+  .buttons { flex-direction: row; gap: 10px; padding-top: 6px; }
+</style>
+<Panel class="root">
+  <div class="row">
+    <div id="quest-num" class="eyebrow">QUEST 1 / 6</div>
+    <div id="level" class="level">Level 1  0 XP</div>
+  </div>
+  <div class="bar"><div id="xp-fill" class="fill"></div></div>
+  <div id="quest-title" class="title">Scavenger</div>
+  <div id="quest-desc" class="desc">...</div>
+  <div id="step-0" class="step">-</div>
+  <div id="step-1" class="step">-</div>
+  <div id="step-2" class="step">-</div>
+  <div id="step-3" class="step">-</div>
+  <div id="step-4" class="step">-</div>
+  <div id="step-5" class="step">-</div>
+  <div id="toast" class="toast"> </div>
+  <div class="buttons">
+    <Button id="hint-button" size="sm">
+      <ButtonIcon><Lightbulb></Lightbulb></ButtonIcon>
+      <ButtonLabel>Hint</ButtonLabel>
+    </Button>
+    <Button id="satchel-button" size="sm">
+      <ButtonIcon><Backpack></Backpack></ButtonIcon>
+      <ButtonLabel>Satchel</ButtonLabel>
+    </Button>
+    <Button id="notebook-button" size="sm">
+      <ButtonIcon><BookOpen></BookOpen></ButtonIcon>
+      <ButtonLabel id="notebook-label">Notebook 0/31</ButtonLabel>
+    </Button>
+  </div>
+</Panel>

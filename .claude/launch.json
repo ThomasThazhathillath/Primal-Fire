@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "prototype",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["-e", "const h=require('http'),f=require('fs'),p=require('path');const root=p.join(process.cwd(),'docs','prototype');h.createServer((q,r)=>{let u=decodeURIComponent(q.url.split('?')[0]);if(u.endsWith('/'))u+='index.html';const fp=p.join(root,u);if(!fp.startsWith(root))return r.writeHead(403).end();f.readFile(fp,(e,d)=>{if(e)return r.writeHead(404).end('not found');const t={'.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json'}[p.extname(fp)]||'application/octet-stream';r.writeHead(200,{'Content-Type':t,'Cache-Control':'no-store'}).end(d)})}).listen(5173,()=>console.log('http://localhost:5173'))"],
+      "port": 5173
+    }
+  ]
+}

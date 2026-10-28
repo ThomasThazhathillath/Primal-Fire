@@ -1,0 +1,1692 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PRIMAL Prototype</title>
+<style>
+  :root{--panel:rgba(18,15,12,.8);--line:rgba(255,220,170,.18);--ink:#f3eadb;--muted:#b9ab95;--accent:#ffb547;--good:#7fd37f;--bad:#ff8a6a;--note:#8fc7ff}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:#000;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink)}
+  #app canvas{display:block}
+  .panel{position:fixed;background:var(--panel);border:1px solid var(--line);border-radius:12px;backdrop-filter:blur(6px);padding:12px 14px;z-index:5}
+  #quest{top:14px;left:14px;width:330px}
+  .qnum{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+  .qtitle{font-size:19px;font-weight:700;margin:2px 0 4px}
+  .qdesc{font-size:13px;color:var(--muted);margin-bottom:8px;line-height:1.4}
+  #quest ul{list-style:none;margin:0;padding:0}
+  #quest li{font-size:13px;padding:3px 0 3px 24px;position:relative;line-height:1.35}
+  #quest li::before{content:"";position:absolute;left:2px;top:5px;width:12px;height:12px;border:1.5px solid var(--muted);border-radius:3px}
+  #quest li.done{color:var(--muted);text-decoration:line-through}
+  #quest li.done::before{background:var(--good);border-color:var(--good)}
+  #quest .foot{margin-top:8px;font-size:12px;color:var(--muted)}
+  .btn{background:rgba(255,181,71,.14);border:1px solid rgba(255,181,71,.5);color:var(--ink);border-radius:8px;padding:6px 11px;font:inherit;font-size:12.5px;cursor:pointer}
+  .btn:hover{background:rgba(255,181,71,.3)}
+  .btn.big{font-size:16px;padding:10px 22px}
+  #xp{top:14px;right:14px;width:220px}
+  #xp .lv{display:flex;justify-content:space-between;align-items:baseline;font-weight:700}
+  #xp .lv small{color:var(--muted);font-weight:500}
+  #xp .sub2{font-size:12px;color:var(--muted)}
+  .bar{height:7px;background:rgba(255,255,255,.1);border-radius:6px;overflow:hidden;margin:6px 0 8px}
+  .bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,#ff9a3c,#ffd27a);transition:width .4s}
+  #compass{position:fixed;top:12px;left:50%;transform:translateX(-50%);width:440px;height:34px;z-index:5;overflow:hidden;border-radius:10px;background:linear-gradient(90deg,transparent,rgba(18,15,12,.75) 15%,rgba(18,15,12,.75) 85%,transparent);pointer-events:none}
+  #compass .tk{position:absolute;top:4px;transform:translateX(-50%);font-size:12px;color:var(--muted);font-weight:700}
+  #compass .tk.card{color:var(--ink)}
+  #compass .mk{position:absolute;top:17px;transform:translateX(-50%);font-size:11px;white-space:nowrap;color:var(--accent)}
+  #compass .mk.hint{color:#7dff8a}
+  #compass .mid{position:absolute;left:50%;top:0;width:2px;height:8px;background:var(--accent);transform:translateX(-50%)}
+  #toasts{position:fixed;top:56px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:6px;z-index:8;pointer-events:none}
+  .toast{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 14px;font-size:14px;max-width:560px;text-align:center;animation:tin .25s ease-out}
+  .toast.good{border-color:rgba(127,211,127,.6)} .toast.bad{border-color:rgba(255,138,106,.6)} .toast.note{border-color:rgba(143,199,255,.6)}
+  .toast.xp{color:var(--accent);font-weight:700;background:transparent;border:none;text-shadow:0 1px 4px #000}
+  .toast.disc{font-size:20px;font-weight:700;letter-spacing:.04em;border-color:var(--accent);padding:10px 22px}
+  @keyframes tin{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+  #meter{position:fixed;bottom:84px;left:50%;transform:translateX(-50%);width:400px;display:none;z-index:5}
+  #meter .ml{font-size:13px;margin-bottom:6px;text-align:center}
+  #meter .bar{margin:0;height:10px}
+  #cross{position:fixed;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:rgba(255,255,255,.85);box-shadow:0 0 3px #000;z-index:4;pointer-events:none}
+  #cross.on{width:14px;height:14px;margin:-7px 0 0 -7px;background:transparent;border:2px solid #ffd27a}
+  #tip{position:fixed;left:50%;top:calc(50% + 18px);transform:translateX(-50%);pointer-events:none;background:rgba(0,0,0,.7);padding:5px 10px;border-radius:7px;font-size:13px;z-index:9;display:none;white-space:nowrap}
+  #handHint{position:fixed;right:18px;bottom:18px;font-size:12.5px;color:var(--muted);z-index:5;text-align:right;line-height:1.6}
+  #handHint b{color:var(--ink)}
+  #satchelMini{left:14px;bottom:14px;max-width:360px;padding:8px 11px;font-size:12.5px}
+  #satchelMini .st{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-bottom:4px}
+  .chip{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.06);border:1px solid var(--line);color:var(--ink);border-radius:999px;padding:4px 9px;font:inherit;font-size:12.5px;cursor:pointer;margin:2px}
+  .chip:hover{border-color:var(--accent)}
+  .chip i{width:9px;height:9px;border-radius:50%;display:inline-block;border:1px solid rgba(255,255,255,.3)}
+  .chip b{color:var(--accent)}
+  .empty{font-size:12.5px;color:var(--muted)}
+  #card{position:fixed;right:14px;bottom:70px;width:360px;z-index:6;transform:translateX(420px);transition:transform .35s ease;border-color:rgba(143,199,255,.5)}
+  #card.show{transform:none}
+  #card .ct{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--note)}
+  #card h3{margin:3px 0 8px;font-size:18px}
+  #card p{margin:0 0 7px;font-size:13px;line-height:1.45}
+  #card b{color:var(--accent);font-weight:600}
+  .overlay{position:fixed;inset:0;background:rgba(5,6,10,.78);display:none;align-items:center;justify-content:center;z-index:20}
+  .overlay.show{display:flex}
+  .sheet{background:#17130f;border:1px solid var(--line);border-radius:16px;padding:26px 30px;max-width:720px;width:calc(100% - 32px);max-height:86vh;overflow:auto}
+  .sheet h1{margin:0;font-size:38px;letter-spacing:.04em}
+  .sheet h1 span{color:var(--accent)}
+  .sheet .sub{color:var(--muted);margin:4px 0 16px}
+  .sheet p{line-height:1.55}
+  .sheet ul{line-height:1.7;padding-left:20px}
+  .sheet kbd,#handHint kbd{background:#2b241c;border:1px solid #4a3d2d;border-radius:5px;padding:1px 6px;font-size:12px;color:var(--ink)}
+  .proto{font-size:12.5px;color:var(--muted);border-left:3px solid var(--accent);padding-left:10px;margin:14px 0}
+  #nbList h4{margin:18px 0 6px;color:var(--accent);font-size:14px;letter-spacing:.08em;text-transform:uppercase}
+  .entry{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px}
+  .entry h5{margin:0 0 5px;font-size:15px}
+  .entry p{margin:3px 0;font-size:13px;line-height:1.45}
+  .entry .k{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin-right:4px}
+  .entry.locked{opacity:.45;font-style:italic}
+  #lens .sheet{display:flex;gap:22px;align-items:center;max-width:780px}
+  #lensCanvas{width:340px;height:340px;flex:none}
+  #lensRead p{margin:6px 0;font-size:14px}
+  #lensRead .lbl{color:var(--muted)}
+  #inv .sheet{max-width:560px}
+  #invItems{margin:10px 0 14px}
+  #resume .sheet{text-align:center;max-width:420px}
+  #log{position:fixed;right:14px;top:120px;width:420px;max-width:calc(100% - 28px);max-height:230px;z-index:7;font:11.5px/1.45 ui-monospace,Consolas,monospace;padding:8px 10px;display:flex;flex-direction:column}
+  #log.hide{display:none}
+  #log .lh{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;color:var(--accent);font-family:system-ui}
+  #logLines{overflow:auto;white-space:pre-wrap;color:#d8ccb8}
+  #logLines .bad{color:var(--bad)} #logLines .ok{color:var(--good)}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:16px 0}
+  .stats div{background:#221c15;border-radius:10px;padding:10px;text-align:center}
+  .stats b{display:block;font-size:22px;color:var(--accent)}
+  .stats span{font-size:12px;color:var(--muted)}
+  @media (max-width:1100px){
+    #quest{width:250px;padding:9px 11px} .qtitle{font-size:16px} .qdesc{display:none} #quest li{font-size:12px}
+    #xp{width:170px;padding:9px 11px} #compass{width:300px} #card{width:300px} #meter{width:300px} #handHint{display:none}
+  }
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
+</head>
+<body>
+<div id="app"></div>
+
+<div id="quest" class="panel"></div>
+<div id="xp" class="panel">
+  <div class="lv"><span id="lvText">Level 1</span><small id="xpText">0 XP</small></div>
+  <div class="bar"><i id="xpBar"></i></div>
+  <div class="sub2">📓 Notebook <span id="nbCount">0/0</span> · <kbd>N</kbd></div>
+</div>
+<div id="compass"><div class="mid"></div></div>
+<div id="cross"></div>
+<div id="tip"></div>
+<div id="satchelMini" class="panel"><div class="st">Satchel · <kbd>Tab</kbd></div><div id="satMini"></div></div>
+<div id="handHint"><kbd>WASD</kbd> walk · <kbd>Shift</kbd> run · <kbd>Click</kbd> use · <kbd>Right-click</kbd>/<kbd>Q</kbd> stow<br><kbd>Tab</kbd> satchel · <kbd>H</kbd> hint · <kbd>N</kbd> notebook · <kbd>C</kbd> craft at bench</div>
+<div id="toasts"></div>
+<div id="meter" class="panel"><div class="ml" id="meterLabel"></div><div class="bar"><i id="meterBar"></i></div></div>
+<div id="card" class="panel">
+  <div class="ct">New observation</div>
+  <h3 id="cardTitle"></h3>
+  <p id="cardObs"></p>
+  <p id="cardPri"></p>
+  <p id="cardLim"></p>
+  <button class="btn" id="cardBtn">Got it</button>
+</div>
+
+<div id="intro" class="overlay show"><div class="sheet">
+  <h1>PRIMAL: <span>First Fire</span></h1>
+  <div class="sub">Prototype · a hands-first science-survival experiment</div>
+  <p>You wake in the ruins of a research shelter, deep in a forest. Every machine has rusted to dust — centuries have passed.
+  Someone carved a <b>Science Roadmap</b> into a stone wall: a path from fire to electricity.
+  Nothing is handed to you. Explore, find what the land offers, and rebuild — one experiment at a time.</p>
+  <ul>
+    <li><kbd>W A S D</kbd> walk · <kbd>Shift</kbd> run · <b>mouse</b> look (click the scene to capture the mouse, <kbd>Esc</kbd> to release)</li>
+    <li>Aim the dot at something within arm’s reach and <b>click</b> to gather, place or use it</li>
+    <li><kbd>Tab</kbd> opens your satchel to take something in hand · <b>right-click</b> or <kbd>Q</kbd> puts it back</li>
+    <li>Bow drill and fanning: aim at it, <b>hold</b> the mouse button and move the mouse <b>left ↔ right</b></li>
+    <li><kbd>H</kbd> hint — ask again for a more specific one · <kbd>N</kbd> notebook · <kbd>C</kbd> craft at the workbench · <kbd>L</kbd> event log</li>
+  </ul>
+  <div class="proto">The mouse stands in for your hands. In VR, you’d teleport by hand anywhere on the forest floor, pluck and grab things, and the satchel is a pouch on your hip.</div>
+  <button class="btn big" id="beginBtn">Wake up</button>
+</div></div>
+
+<div id="resume" class="overlay"><div class="sheet">
+  <h2 style="margin:0 0 8px">Paused</h2>
+  <p style="color:var(--muted)">Click to look around again.</p>
+  <button class="btn big" id="resumeBtn">Resume</button>
+</div></div>
+
+<div id="inv" class="overlay"><div class="sheet">
+  <h1 style="font-size:26px">🎒 Satchel</h1>
+  <div class="sub">Click an item to take it in hand. Right-click or <kbd>Q</kbd> later puts it back.</div>
+  <div id="invItems"></div>
+  <button class="btn" id="invClose">Close <kbd>Tab</kbd></button>
+</div></div>
+
+<div id="notebook" class="overlay"><div class="sheet">
+  <h1 style="font-size:28px">📓 Lab Notebook</h1>
+  <div class="sub">Failures are data. Every outcome you witness is recorded here — try to find them all.</div>
+  <div id="nbList"></div>
+  <p><button class="btn" id="nbClose">Close</button></p>
+</div></div>
+
+<div id="lens" class="overlay"><div class="sheet">
+  <canvas id="lensCanvas" width="680" height="680"></canvas>
+  <div id="lensRead"></div>
+</div></div>
+
+<div id="ending" class="overlay"><div class="sheet">
+  <h1>Chapter 1 complete — <span>First Light</span></h1>
+  <p>From bare hands to fire, charcoal and clean water. You explored the forest, built your first tool,
+  and every discovery became the raw material for the next. The Roadmap now glows all the way to <b>CHEMISTRY</b>.</p>
+  <div class="stats" id="stats"></div>
+  <p style="color:var(--muted)">Ahead, dark nodes wait: Glass · Soap · Lime · Iron · Magnetism · Electricity.</p>
+  <p><button class="btn big" id="keepBtn">Keep exploring</button> &nbsp; <button class="btn" id="restartBtn">Restart</button></p>
+</div></div>
+
+<div id="log" class="panel hide"><div class="lh"><b>Event log</b><span><button class="btn" id="logCopy">Copy</button> <button class="btn" id="logHide">Hide (L)</button></span></div><div id="logLines"></div></div>
+
+<script type="module">
+import * as THREE from 'three';
+
+// ================= helpers =================
+const $ = id => document.getElementById(id);
+const rand = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const srand = mulberry32(11);
+const srr = (a, b) => a + srand() * (b - a);
+// cheap 2D value noise for ground colour
+function hash2(x, z) { const s = Math.sin(x * 127.1 + z * 311.7) * 43758.5453; return s - Math.floor(s); }
+function vnoise(x, z) { const xi = Math.floor(x), zi = Math.floor(z), xf = x - xi, zf = z - zi; const u = xf * xf * (3 - 2 * xf), v = zf * zf * (3 - 2 * zf);
+  return lerp(lerp(hash2(xi, zi), hash2(xi + 1, zi), u), lerp(hash2(xi, zi + 1), hash2(xi + 1, zi + 1), u), v); }
+
+// ================= renderer / scene =================
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+$('app').appendChild(renderer.domElement);
+const canvas = renderer.domElement;
+
+const scene = new THREE.Scene();
+const DAY = { bg: new THREE.Color(0x9fbfcc), hemi: 0.95, sun: 2.3, sunColor: new THREE.Color(0xfff0d6) };
+const NIGHT = { bg: new THREE.Color(0x0a1022), hemi: 0.1, sun: 0.12, sunColor: new THREE.Color(0x7d8fe0) };
+scene.background = DAY.bg.clone();
+scene.fog = new THREE.Fog(DAY.bg.clone(), 9, 52);
+
+const EYE = 1.65;
+const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.05, 160);
+camera.rotation.order = 'YXZ';
+scene.add(camera); // so the held item (a camera child) renders
+const hemi = new THREE.HemisphereLight(0xe2efff, 0x4b3b28, DAY.hemi); scene.add(hemi);
+const sun = new THREE.DirectionalLight(DAY.sunColor.clone(), DAY.sun);
+sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -18, right: 18, top: 18, bottom: -18, near: 1, far: 60 });
+sun.shadow.bias = -0.0006;
+scene.add(sun); scene.add(sun.target);
+
+function mat(color, o = {}) {
+  const m = new THREE.MeshStandardMaterial({ color, roughness: 0.92, metalness: 0, flatShading: true, ...o });
+  m.userData.baseEmissive = m.emissive.getHex(); m.userData.baseColor = m.color.getHex();
+  return m;
+}
+function mesh(geo, m, x = 0, y = 0, z = 0) {
+  const me = new THREE.Mesh(geo, m); me.position.set(x, y, z); me.castShadow = true; me.receiveShadow = true; return me;
+}
+function disc(r, color, x, z, y = 0.01) {
+  const d = new THREE.Mesh(new THREE.CircleGeometry(r, 28), mat(color)); d.rotation.x = -Math.PI / 2; d.position.set(x, y, z); d.receiveShadow = true; scene.add(d); return d;
+}
+function makeLabel(text, { w = 1, h = 0.22, color = '#fff7e6', bg = null, weight = 700 } = {}) {
+  const c = document.createElement('canvas'); c.width = 1024; c.height = Math.round(1024 * h / w);
+  const g = c.getContext('2d');
+  if (bg) { g.fillStyle = bg; g.beginPath(); g.roundRect(4, 4, c.width - 8, c.height - 8, c.height / 2.4); g.fill(); }
+  let font = Math.round(c.height * 0.56);
+  g.font = `${weight} ${font}px system-ui, sans-serif`;
+  while (g.measureText(text).width > c.width * 0.88 && font > 10) { font -= 4; g.font = `${weight} ${font}px system-ui, sans-serif`; }
+  g.fillStyle = color; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, c.width / 2, c.height / 2 + 2);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  return new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false }));
+}
+
+// ================= particles =================
+const PU = { uScale: { value: 1 } };
+const P_VS = `attribute float aSize; attribute float aAlpha; attribute vec3 aColor; varying float vA; varying vec3 vC; uniform float uScale;
+void main(){ vec4 mv = modelViewMatrix * vec4(position,1.0); gl_PointSize = aSize * uScale / max(0.05,-mv.z); gl_Position = projectionMatrix * mv; vA = aAlpha; vC = aColor; }`;
+const P_FS = `varying float vA; varying vec3 vC;
+void main(){ float d = length(gl_PointCoord - 0.5); if(d > 0.5) discard; gl_FragColor = vec4(vC, smoothstep(0.5, 0.0, d) * vA);
+#include <colorspace_fragment>
+}`;
+const systems = [];
+class Particles {
+  constructor(o) {
+    this.o = Object.assign({ max: 160, additive: false, life: [0.6, 1.2], vel: [0.2, 0.5], spread: 0.05, size: [0.08, 0.02], alpha: 0.9, up: 0.5, drift: 0.15, c0: 0xffaa33, c1: 0xff3300 }, o);
+    const n = this.o.max; this.n = n;
+    this.pos = new Float32Array(n * 3); this.col = new Float32Array(n * 3); this.siz = new Float32Array(n); this.alp = new Float32Array(n);
+    this.vel = new Float32Array(n * 3); this.age = new Float32Array(n); this.lif = new Float32Array(n);
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(this.pos, 3));
+    g.setAttribute('aColor', new THREE.BufferAttribute(this.col, 3));
+    g.setAttribute('aSize', new THREE.BufferAttribute(this.siz, 1));
+    g.setAttribute('aAlpha', new THREE.BufferAttribute(this.alp, 1));
+    this.geo = g;
+    this.mat = new THREE.ShaderMaterial({ uniforms: PU, vertexShader: P_VS, fragmentShader: P_FS, transparent: true, depthWrite: false, blending: this.o.additive ? THREE.AdditiveBlending : THREE.NormalBlending });
+    this.points = new THREE.Points(g, this.mat); this.points.frustumCulled = false; scene.add(this.points);
+    this.emitter = new THREE.Vector3(); this.rate = 0; this.acc = 0; this.ptr = 0; this.alphaMul = 1; this.sizeMul = 1;
+    this.c0 = new THREE.Color(this.o.c0); this.c1 = new THREE.Color(this.o.c1); this._c = new THREE.Color();
+    systems.push(this);
+  }
+  spawn() {
+    const i = this.ptr; this.ptr = (this.ptr + 1) % this.n; const o = this.o, s = o.spread;
+    this.pos[i*3] = this.emitter.x + rand(-s, s); this.pos[i*3+1] = this.emitter.y + rand(-s, s) * 0.3; this.pos[i*3+2] = this.emitter.z + rand(-s, s);
+    this.vel[i*3] = rand(-o.drift, o.drift); this.vel[i*3+1] = rand(o.vel[0], o.vel[1]); this.vel[i*3+2] = rand(-o.drift, o.drift);
+    this.age[i] = 0; this.lif[i] = rand(o.life[0], o.life[1]);
+  }
+  update(dt) {
+    this.acc += this.rate * dt;
+    while (this.acc >= 1) { this.acc -= 1; this.spawn(); }
+    const o = this.o;
+    for (let i = 0; i < this.n; i++) {
+      if (this.lif[i] <= 0) { this.alp[i] = 0; continue; }
+      this.age[i] += dt;
+      if (this.age[i] >= this.lif[i]) { this.lif[i] = 0; this.alp[i] = 0; continue; }
+      const t = this.age[i] / this.lif[i];
+      this.vel[i*3+1] += o.up * dt;
+      this.pos[i*3] += this.vel[i*3] * dt; this.pos[i*3+1] += this.vel[i*3+1] * dt; this.pos[i*3+2] += this.vel[i*3+2] * dt;
+      this._c.copy(this.c0).lerp(this.c1, t);
+      this.col[i*3] = this._c.r; this.col[i*3+1] = this._c.g; this.col[i*3+2] = this._c.b;
+      this.siz[i] = lerp(o.size[0], o.size[1], t) * this.sizeMul;
+      this.alp[i] = Math.sin(Math.PI * Math.min(1, t * 1.15)) * o.alpha * this.alphaMul;
+    }
+    for (const k of ['position', 'aColor', 'aSize', 'aAlpha']) this.geo.attributes[k].needsUpdate = true;
+  }
+}
+
+// ================= world layout =================
+// Camp is a clearing in the middle of the forest. Gathering places are hidden out in the woods.
+const LANDMARKS = [
+  { id: 'camp',    name: 'Camp',              pos: [0, -2],     r: 11, clear: 11, found: true, icon: '⌂' },
+  { id: 'meadow',  name: 'Sunny Meadow',      pos: [26, 20],    r: 10, clear: 11, icon: '✦' },
+  { id: 'glade',   name: 'Lightning Glade',   pos: [-24, 16],   r: 8,  clear: 7.5, icon: '✦' },
+  { id: 'bend',    name: 'Clay Bend',         pos: [10.5, -29], r: 8,  clear: 5.5, icon: '✦' },
+  { id: 'outpost', name: 'Collapsed Outpost', pos: [-31, -27],  r: 9,  clear: 8, icon: '✦' },
+];
+const LM = Object.fromEntries(LANDMARKS.map(l => [l.id, l]));
+const STREAM = [[9, 75], [8, 50], [5.5, 30], [7, 14], [6.2, 4], [6, -4], [7.5, -14], [12.5, -26], [13.5, -34], [18, -48], [22, -75]].map(([x, z]) => new THREE.Vector2(x, z));
+function streamDist(x, z) {
+  let best = 1e9; const p = new THREE.Vector2(x, z), ab = new THREE.Vector2(), ap = new THREE.Vector2();
+  for (let i = 0; i < STREAM.length - 1; i++) {
+    const a = STREAM[i], b = STREAM[i + 1]; ab.subVectors(b, a); ap.subVectors(p, a);
+    const t = clamp(ap.dot(ab) / ab.lengthSq(), 0, 1); best = Math.min(best, p.distanceTo(new THREE.Vector2(a.x + ab.x * t, a.y + ab.y * t)));
+  }
+  return best;
+}
+const inClearing = (x, z, pad = 0) => LANDMARKS.some(l => Math.hypot(x - l.pos[0], z - l.pos[1]) < l.clear + pad);
+const WORLD_R = 68;
+
+// --- ground with colour variation (forest floor, clearings, meadow)
+(function ground() {
+  const geo = new THREE.PlaneGeometry(260, 260, 130, 130); geo.rotateX(-Math.PI / 2);
+  const pos = geo.attributes.position, cols = new Float32Array(pos.count * 3), c = new THREE.Color();
+  const floor = new THREE.Color(0x4a5630), dirt = new THREE.Color(0x5e4c35), meadow = new THREE.Color(0x8f9446), camp = new THREE.Color(0x7a6547), bank = new THREE.Color(0x7d6a4c);
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), z = pos.getZ(i);
+    c.copy(floor).lerp(dirt, vnoise(x * 0.12, z * 0.12) * 0.7);
+    const dm = Math.hypot(x - LM.meadow.pos[0], z - LM.meadow.pos[1]); if (dm < 12) c.lerp(meadow, clamp(1.3 - dm / 10, 0, 1));
+    const dc = Math.hypot(x - 0, z + 2); if (dc < 10) c.lerp(camp, clamp(1.4 - dc / 8, 0, 1));
+    const sd = streamDist(x, z); if (sd < 2.2) c.lerp(bank, clamp(1 - (sd - 0.6) / 1.6, 0, 1));
+    cols[i * 3] = c.r; cols[i * 3 + 1] = c.g; cols[i * 3 + 2] = c.b;
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(cols, 3));
+  const g = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, flatShading: true })); g.receiveShadow = true; scene.add(g);
+})();
+// --- stream ribbon
+const streamMat = new THREE.MeshStandardMaterial({ color: 0x3f7f9e, roughness: 0.15, metalness: 0.25 });
+const streamGroup = new THREE.Group(); scene.add(streamGroup);
+for (let i = 0; i < STREAM.length - 1; i++) {
+  const a = STREAM[i], b = STREAM[i + 1], len = a.distanceTo(b);
+  const seg = new THREE.Mesh(new THREE.PlaneGeometry(1.3, len + 1.2), streamMat); seg.rotation.x = -Math.PI / 2;
+  const holder = new THREE.Group(); holder.position.set((a.x + b.x) / 2, 0.02, (a.y + b.y) / 2); holder.rotation.y = Math.atan2(b.x - a.x, b.y - a.y); holder.add(seg); streamGroup.add(holder);
+  for (let k = 0; k < len; k += 1.1) for (const side of [-1, 1]) {
+    if (srand() < 0.55) continue; const t = k / len, nx = -(b.y - a.y) / len, nz = (b.x - a.x) / len, off = side * srr(0.75, 1.0);
+    scene.add(mesh(new THREE.DodecahedronGeometry(srr(0.08, 0.2)), mat(0x7d7a72), a.x + (b.x - a.x) * t + nx * off, 0.03, a.y + (b.y - a.y) * t + nz * off));
+  }
+}
+
+// --- colliders (circles) with a coarse spatial hash for the forest
+const COLS = new Map(), CELL = 4;
+function addCollider(x, z, r) { const k = `${Math.floor(x / CELL)},${Math.floor(z / CELL)}`; if (!COLS.has(k)) COLS.set(k, []); COLS.get(k).push([x, z, r]); }
+function wallCollider(x0, z0, x1, z1, r = 0.3) { const n = Math.ceil(Math.hypot(x1 - x0, z1 - z0) / (r * 1.2)); for (let i = 0; i <= n; i++) addCollider(lerp(x0, x1, i / n), lerp(z0, z1, i / n), r); }
+
+// --- forest (instanced)
+(function forest() {
+  const trees = [];
+  let tries = 0;
+  while (trees.length < 720 && tries++ < 20000) {
+    const a = srand() * Math.PI * 2, r = 9 + Math.sqrt(srand()) * 66; const x = Math.cos(a) * r, z = Math.sin(a) * r;
+    if (inClearing(x, z, 1.5) || streamDist(x, z) < 2.2) continue;
+    if (trees.some(t => Math.hypot(t[0] - x, t[1] - z) < 1.7)) continue;
+    trees.push([x, z, 0.75 + srand() * 0.9]);
+  }
+  const n = trees.length, tmpM = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3(), col = new THREE.Color();
+  const trunk = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.11, 0.17, 1.6, 6).translate(0, 0.8, 0), new THREE.MeshStandardMaterial({ color: 0x5a4027, flatShading: true, roughness: 1 }), n);
+  const layers = [0, 1, 2].map(() => new THREE.InstancedMesh(new THREE.ConeGeometry(1, 1.5, 7), new THREE.MeshStandardMaterial({ color: 0xffffff, flatShading: true, roughness: 1 }), n));
+  trees.forEach(([x, z, sc], i) => {
+    q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), srand() * 6);
+    tmpM.compose(p.set(x, 0, z), q, s.set(sc, sc * 1.1, sc)); trunk.setMatrixAt(i, tmpM);
+    const g = [0x2f5a2c, 0x3a6a33, 0x2c4f2a, 0x355f30][Math.floor(srand() * 4)];
+    layers.forEach((L, k) => { const rr = (1.2 - k * 0.3) * sc; tmpM.compose(p.set(x, (1.5 + k * 0.75) * sc, z), q, s.set(rr, sc, rr)); L.setMatrixAt(i, tmpM); L.setColorAt(i, col.setHex(g).offsetHSL(0, 0, (k - 1) * 0.02)); });
+    addCollider(x, z, 0.22 * sc + 0.08);
+  });
+  for (const m of [trunk, ...layers]) { m.castShadow = true; m.receiveShadow = true; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; scene.add(m); }
+  // undergrowth bushes (no collision) and boulders (collision)
+  const bushes = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), new THREE.MeshStandardMaterial({ color: 0xffffff, flatShading: true, roughness: 1 }), 420);
+  let b = 0; tries = 0;
+  while (b < 420 && tries++ < 8000) {
+    const a = srand() * Math.PI * 2, r = 7 + srand() * 62; const x = Math.cos(a) * r, z = Math.sin(a) * r;
+    if (inClearing(x, z, -1) || streamDist(x, z) < 1.4) continue;
+    const sc = srr(0.25, 0.6); tmpM.compose(p.set(x, sc * 0.5, z), q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), srand() * 6), s.set(sc, sc * 0.75, sc));
+    bushes.setMatrixAt(b, tmpM); bushes.setColorAt(b, col.setHex([0x3d5f2e, 0x4a6b34, 0x36542a][b % 3])); b++;
+  }
+  bushes.count = b; bushes.castShadow = true; bushes.receiveShadow = true; scene.add(bushes);
+  for (let i = 0; i < 70; i++) {
+    const a = srand() * Math.PI * 2, r = 8 + srand() * 60; const x = Math.cos(a) * r, z = Math.sin(a) * r;
+    if (inClearing(x, z) || streamDist(x, z) < 1.5) continue;
+    const sc = srr(0.2, 0.9); scene.add(mesh(new THREE.DodecahedronGeometry(sc), mat([0x8a857b, 0x77736b, 0x6e6a62][i % 3]), x, sc * 0.35, z));
+    if (sc > 0.45) addCollider(x, z, sc * 0.9);
+  }
+})();
+
+// --- camp: the research-shelter ruins with a tall rusted mast you can see over the trees
+(function campRuins() {
+  const conc = mat(0x9a948a), moss = mat(0x4f6b35), rust = mat(0x7a3e22, { roughness: 0.7 });
+  const g = new THREE.Group();
+  g.add(mesh(new THREE.BoxGeometry(2.6, 1.7, 0.25), conc, 0, 0.85, 0));
+  g.add(mesh(new THREE.BoxGeometry(2.6, 0.06, 0.3), moss, 0, 1.72, 0));
+  g.add(mesh(new THREE.BoxGeometry(0.25, 1.1, 1.9), conc, 1.3, 0.55, 0.9));
+  const beam = mesh(new THREE.BoxGeometry(0.12, 0.12, 2.6), rust, 0.2, 0.7, 1.1); beam.rotation.set(0.35, 0.3, 0); g.add(beam);
+  g.position.set(-6.2, 0, -6.4); g.rotation.y = 0.5; scene.add(g);
+  wallCollider(-7.3, -7.0, -5.0, -5.8, 0.25);
+  // the mast: a landmark visible from far away
+  const m = new THREE.Group();
+  for (let i = 0; i < 4; i++) { const leg = mesh(new THREE.CylinderGeometry(0.05, 0.08, 13, 4), rust); const a = i / 4 * Math.PI * 2 + 0.78; leg.position.set(Math.cos(a) * 0.35, 6.5, Math.sin(a) * 0.35); leg.rotation.set(Math.sin(a) * 0.05, 0, -Math.cos(a) * 0.05); m.add(leg); }
+  for (let y = 1; y < 12.5; y += 1.4) { const r = mesh(new THREE.TorusGeometry(0.42 - y * 0.012, 0.025, 4, 4), rust); r.rotation.x = Math.PI / 2; r.rotation.z = Math.PI / 4; r.position.y = y; m.add(r); }
+  const dish = mesh(new THREE.SphereGeometry(0.7, 10, 6, 0, Math.PI * 2, 0, Math.PI / 3), rust); dish.position.set(0.3, 11.5, 0.2); dish.rotation.set(1.2, 0.3, 0.2); m.add(dish);
+  m.position.set(-7.4, 0, -3.2); m.rotation.z = 0.06; scene.add(m); addCollider(-7.4, -3.2, 0.6);
+})();
+
+// ================= interaction registry =================
+const pickables = [];
+function makeInteractive(root, ref) { root.userData.ref = ref; ref.root = root; root.traverse(o => { if (o.isMesh) pickables.push(o); }); return ref; }
+function refOf(o) { while (o) { if (o.userData.ref) return o.userData.ref; o = o.parent; } return null; }
+function chainVisible(o) { while (o) { if (!o.visible) return false; o = o.parent; } return true; }
+makeInteractive(streamGroup, { kind: 'stream' });
+
+// ================= items =================
+const ITEMS = {
+  dryGrass:    { name: 'Dry grass', cats: ['tinder'], color: 0xd9c27a, shape: 'tuft' },
+  dampMoss:    { name: 'Damp moss', cats: ['tinder'], color: 0x47703a, shape: 'moss' },
+  twigs:       { name: 'Twigs', cats: ['fuel'], color: 0x8a6a45, shape: 'twigs' },
+  logs:        { name: 'Log', cats: ['fuel'], color: 0x6b4a2b, shape: 'log' },
+  fibers:      { name: 'Plant fibres', cats: ['craft'], color: 0x7a9a42, shape: 'fibers' },
+  cord:        { name: 'Cord', cats: ['craft'], color: 0xc9b48a, shape: 'cord' },
+  spindle:     { name: 'Straight stick', cats: ['craft'], color: 0xc49a66, shape: 'stick' },
+  board:       { name: 'Flat board', cats: ['craft'], color: 0x9a7650, shape: 'board' },
+  greenBranch: { name: 'Flexible branch', cats: ['craft'], color: 0x6a8a3a, shape: 'bent' },
+  clay:        { name: 'Clay', cats: ['clay'], color: 0xb06a45, shape: 'lump' },
+  gravel:      { name: 'Gravel', cats: ['filter'], color: 0x8c8c8c, shape: 'gravel' },
+  sand:        { name: 'Sand', cats: ['filter'], color: 0xe0cf9a, shape: 'pile' },
+  cloth:       { name: 'Cloth', cats: ['filter'], color: 0xe8e2d0, shape: 'cloth' },
+  charcoal:    { name: 'Charcoal', cats: ['filter', 'fuel'], color: 0x1d1d1f, shape: 'lump' },
+  pot:         { name: 'Clay pot', cats: ['pot'], color: 0xa4552f, shape: 'pot' },
+  lens:        { name: 'Lens', cats: ['lens'], color: 0xb8a070, shape: 'lens' },
+  ember:       { name: 'Ember', cats: ['ember'], color: 0xff6a1a, shape: 'ember' },
+  torch:       { name: 'Burning stick', cats: ['torch'], color: 0x6b4a2b, shape: 'torch' },
+};
+const SATCHEL_ORDER = ['dryGrass', 'dampMoss', 'twigs', 'logs', 'fibers', 'cord', 'spindle', 'board', 'greenBranch', 'clay', 'gravel', 'sand', 'cloth', 'charcoal', 'pot', 'lens'];
+function buildItemMesh(id) {
+  const d = ITEMS[id], g = new THREE.Group();
+  switch (d.shape) {
+    case 'tuft': for (let i = 0; i < 12; i++) { const c = mesh(new THREE.ConeGeometry(0.012, 0.17, 4), mat(i % 2 ? d.color : 0xcab26a)); c.position.set(rand(-0.05, 0.05), 0.07, rand(-0.05, 0.05)); c.rotation.set(rand(-0.7, 0.7), 0, rand(-0.7, 0.7)); g.add(c); } break;
+    case 'moss': { const c = mesh(new THREE.SphereGeometry(0.07, 8, 6), mat(d.color, { roughness: 1 })); c.scale.y = 0.5; c.position.y = 0.03; g.add(c); break; }
+    case 'twigs': for (let i = 0; i < 6; i++) { const c = mesh(new THREE.CylinderGeometry(0.008, 0.011, 0.3, 5), mat(d.color)); c.rotation.set(0, rand(-0.5, 0.5), Math.PI / 2); c.position.set(0, 0.012 + i * 0.01, rand(-0.04, 0.04)); g.add(c); } break;
+    case 'log': { const c = mesh(new THREE.CylinderGeometry(0.05, 0.056, 0.36, 7), mat(d.color)); c.rotation.z = Math.PI / 2; c.position.y = 0.052; g.add(c); break; }
+    case 'fibers': for (let i = 0; i < 7; i++) { const c = mesh(new THREE.CylinderGeometry(0.003, 0.004, 0.34, 3), mat(d.color)); c.rotation.set(rand(-0.15, 0.15), rand(0, 3), Math.PI / 2 + rand(-0.2, 0.2)); c.position.set(0, 0.01 + i * 0.004, rand(-0.02, 0.02)); g.add(c); } break;
+    case 'cord': { const c = mesh(new THREE.TorusGeometry(0.06, 0.008, 5, 18), mat(d.color)); c.rotation.x = Math.PI / 2; c.position.y = 0.01; g.add(c); const c2 = c.clone(); c2.scale.setScalar(0.75); c2.position.y = 0.02; g.add(c2); break; }
+    case 'stick': { const c = mesh(new THREE.CylinderGeometry(0.012, 0.013, 0.32, 6), mat(d.color)); c.rotation.z = Math.PI / 2; c.position.y = 0.013; g.add(c); break; }
+    case 'board': { const c = mesh(new THREE.BoxGeometry(0.34, 0.025, 0.09), mat(d.color)); c.position.y = 0.013; g.add(c); break; }
+    case 'bent': { const c = mesh(new THREE.TorusGeometry(0.2, 0.012, 5, 16, 1.5), mat(d.color)); c.rotation.set(Math.PI / 2, 0, Math.PI * 1.25); c.position.set(0, 0.012, 0.12); g.add(c); break; }
+    case 'lump': for (let i = 0; i < (id === 'charcoal' ? 4 : 1); i++) { const c = mesh(new THREE.DodecahedronGeometry(id === 'charcoal' ? 0.035 : 0.06, 0), mat(d.color, id === 'charcoal' ? { roughness: 0.55, metalness: 0.15 } : {})); c.position.set(id === 'charcoal' ? rand(-0.04, 0.04) : 0, 0.04, id === 'charcoal' ? rand(-0.04, 0.04) : 0); c.scale.y = 0.75; c.rotation.y = rand(0, 6); g.add(c); } break;
+    case 'gravel': for (let i = 0; i < 8; i++) { const c = mesh(new THREE.DodecahedronGeometry(rand(0.018, 0.03), 0), mat([0x8c8c8c, 0x777570, 0xa09a90][i % 3])); c.position.set(rand(-0.05, 0.05), 0.02 + (i > 5 ? 0.025 : 0), rand(-0.05, 0.05)); g.add(c); } break;
+    case 'pile': g.add(mesh(new THREE.ConeGeometry(0.085, 0.07, 9), mat(d.color), 0, 0.035, 0)); break;
+    case 'cloth': { const c = mesh(new THREE.BoxGeometry(0.17, 0.018, 0.13), mat(d.color)); c.position.y = 0.012; c.rotation.y = 0.2; g.add(c); break; }
+    case 'ember': { const c = mesh(new THREE.IcosahedronGeometry(0.022, 1), new THREE.MeshStandardMaterial({ color: 0x331100, emissive: 0xff5a10, emissiveIntensity: 2.5 })); c.position.y = 0.025; g.add(c); g.userData.glow = c; break; }
+    case 'torch': { const c = mesh(new THREE.CylinderGeometry(0.012, 0.016, 0.42, 5), mat(d.color)); c.rotation.z = Math.PI / 2 - 0.35; c.position.y = 0.06; g.add(c);
+      const f = new THREE.Mesh(new THREE.IcosahedronGeometry(0.035, 1), new THREE.MeshBasicMaterial({ color: 0xffa040 })); f.position.set(0.2, 0.13, 0); g.add(f); g.userData.flame = f; break; }
+    case 'pot': {
+      const pts = [[0, 0], [0.07, 0], [0.1, 0.04], [0.112, 0.09], [0.092, 0.14], [0.098, 0.165], [0.09, 0.165]].map(p => new THREE.Vector2(p[0], p[1]));
+      g.add(mesh(new THREE.LatheGeometry(pts, 18), mat(d.color, { side: THREE.DoubleSide })));
+      const w = new THREE.Mesh(new THREE.CircleGeometry(0.098, 20), new THREE.MeshStandardMaterial({ color: 0x6b5a3a, roughness: 0.2 })); w.rotation.x = -Math.PI / 2; w.position.y = 0.125; w.visible = false; g.add(w); g.userData.water = w; break; }
+    case 'lens': {
+      const inner = new THREE.Group();
+      inner.add(mesh(new THREE.TorusGeometry(0.05, 0.008, 6, 24), mat(0xb8a070, { metalness: 0.5, roughness: 0.4 })));
+      inner.add(new THREE.Mesh(new THREE.CircleGeometry(0.05, 20), new THREE.MeshStandardMaterial({ color: 0xcfe8ff, transparent: true, opacity: 0.45, roughness: 0.05 })));
+      inner.add(mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.09, 5), mat(0x6b4a2b), 0, -0.095, 0));
+      inner.rotation.x = -1.1; inner.position.y = 0.04; g.add(inner); break; }
+  }
+  return g;
+}
+function makeItem(id) { return { id, mesh: buildItemMesh(id) }; }
+
+// ================= slots =================
+const slots = {};
+const ZERO = new THREE.Vector3();
+function makeSlot(id, o) {
+  const s = Object.assign({ id, item: null, r: 0.12, h: 0.22, colY: null, label: id }, o);
+  s.pos = new THREE.Vector3(...o.pos);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(s.r, 0.009, 6, 32), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.25, depthWrite: false }));
+  ring.rotation.x = Math.PI / 2; ring.position.copy(s.pos); ring.position.y += s.ringY ?? 0.006; ring.renderOrder = 2;
+  scene.add(ring); s.ring = ring;
+  // DoubleSide + half-segment twist: rays that graze a seam still register
+  const col = new THREE.Mesh(new THREE.CylinderGeometry(s.r * 1.35, s.r * 1.35, s.h, 12), new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide }));
+  col.position.copy(s.pos); col.position.y += s.colY ?? (s.h / 2 - 0.02); col.rotation.y = Math.PI / 12;
+  scene.add(col); s.col = col;
+  makeInteractive(col, { kind: 'slot', slot: s });
+  slots[id] = s; return s;
+}
+function slotMesh(slot, item) {
+  if (slot.display === 'layer') {
+    if (!item.layer) item.layer = mesh(new THREE.CylinderGeometry(0.077, 0.077, 0.13, 18), mat(ITEMS[item.id].color));
+    item.mesh.removeFromParent(); return item.layer;
+  }
+  return item.mesh;
+}
+function placeIn(slot, item) {
+  slot.item = item;
+  const m = slotMesh(slot, item);
+  scene.add(m); // re-parents from the camera (hand) if needed
+  m.position.copy(slot.pos).add(slot.offset || ZERO);
+  m.rotation.set(0, slot.rotY || 0, slot.tilt || 0);
+}
+function takeFrom(slot) { const it = slot.item; slot.item = null; if (it && it.layer) it.layer.removeFromParent(); return it; }
+function setSlotEnabled(slot, on) { slot.col.visible = on; slot.ring.visible = on; }
+
+// ================= game state =================
+const F = { fireLit: false, emberMade: false, charcoalMade: false, filtered: false, waterSafe: false, finale: false, pouring: false, experiments: 0, cordMade: false, hasDrill: false };
+const fire = { state: 'unlit', t: 0, oxygen: 0, emberLife: 0, level: 0, hot: false, stage: null, burnT: 0 };
+const FL = { tinder: null, kindling: null, fuel: null }; // the fire lay: nest → twig teepee → log teepee
+const kiln = { state: 'idle', t: 0 };
+const drill = { active: false, heat: 0, stroke: 0, bow: 0, lastDir: 0, sawCD: 0 };
+const ember = { item: null, life: 0 };
+const SATCHEL = {}, GATHERED = {};
+const G = id => GATHERED[id] || 0;
+const player = { x: 0, z: 2.5, yaw: 0, pitch: -0.12 };
+const keys = {};
+let held = null, holdMode = null;
+let T = 0, startTime = 0, started = false;
+const TINDER_WINDOW = 7, KINDLING_WINDOW = 9; // seconds to feed the next fuel before the flame dies
+const REACH = 3.2;
+const LOG = [];
+
+// ================= CAMP: FIRE PIT =================
+const FP = new THREE.Vector3(0, 0, -3.0);
+(function firePit() {
+  for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; scene.add(mesh(new THREE.DodecahedronGeometry(rand(0.07, 0.1)), mat(0x77736b), FP.x + Math.cos(a) * 0.48, 0.05, FP.z + Math.sin(a) * 0.48)); }
+  disc(0.44, 0x2e2620, FP.x, FP.z, 0.012);
+  scene.add(mesh(new THREE.CylinderGeometry(0.15, 0.17, 0.05, 9), mat(0x86827a), 0.62, 0.025, -2.55)); // cook stone
+  addCollider(FP.x, FP.z, 0.5);
+})();
+const layerVis = { tinder: null, kindling: null, fuel: null };
+const UP = new THREE.Vector3(0, 1, 0);
+function buildLayerVis(layer, id) {
+  const g = new THREE.Group(); const mats = [];
+  if (layer === 'tinder') { const m = buildItemMesh(id); m.scale.setScalar(1.4); g.add(m); }
+  else if (id === 'charcoal') {
+    for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2; const c = mesh(new THREE.DodecahedronGeometry(0.045), mat(0x1d1d1f, { roughness: 0.5 })); c.position.set(Math.cos(a) * 0.25, 0.035, Math.sin(a) * 0.25); g.add(c); mats.push(c.material); }
+  } else {
+    // a teepee of sticks leaning in over the nest: thin twigs inside, thick logs outside
+    const big = id === 'logs', n = big ? 6 : 11, R = big ? 0.32 : 0.17, H = big ? 0.5 : 0.3, rad = big ? 0.038 : 0.009;
+    for (let i = 0; i < n; i++) {
+      const a = i / n * Math.PI * 2 + (big ? 0.26 : 0) + rand(-0.08, 0.08);
+      const base = new THREE.Vector3(Math.cos(a) * R, 0.01, Math.sin(a) * R);
+      const top = new THREE.Vector3(Math.cos(a + 0.4) * 0.025, H + rand(-0.03, 0.03), Math.sin(a + 0.4) * 0.025);
+      const len = base.distanceTo(top) + (big ? 0.06 : 0.04);
+      const s = mesh(new THREE.CylinderGeometry(rad * 0.75, rad, len, big ? 7 : 5), mat(big ? [0x6b4a2b, 0x5e4127, 0x74523a][i % 3] : [0x8a6a45, 0x7d5f3e][i % 2]));
+      s.position.copy(base).add(top).multiplyScalar(0.5);
+      s.quaternion.setFromUnitVectors(UP, top.clone().sub(base).normalize());
+      g.add(s); mats.push(s.material);
+    }
+  }
+  g.position.copy(FP); g.userData.mats = mats; scene.add(g); return g;
+}
+function setLayer(layer, it) {
+  held = null; FL[layer] = it; it.mesh.removeFromParent();
+  layerVis[layer] = buildLayerVis(layer, it.id);
+  dlog(`fire lay: ${it.id} → ${layer}`, 'ok'); sfx('place');
+}
+function clearLayer(layer) {
+  if (layerVis[layer]) { layerVis[layer].removeFromParent(); layerVis[layer] = null; }
+  const it = FL[layer]; FL[layer] = null; return it;
+}
+const busyMsg = () => fire.state === 'burning' ? 'The fire is burning — click it with an empty hand to take a burning stick.'
+  : fire.state === 'dying' || fire.state === 'hiss' ? 'The flame is dying out — wait a moment, then rebuild the nest.' : 'Careful — the fire is starting.';
+const FEEDABLE = ['unlit', 'smoulder', 'igniting'];
+function pitWants(id) {
+  const c = ITEMS[id].cats;
+  if (id === 'ember') return fire.state === 'unlit' && !!FL.tinder;
+  if (fire.state === 'burning') return id === 'charcoal' && !fire.hot;
+  if (!FEEDABLE.includes(fire.state)) return false;
+  if (c.includes('tinder')) return fire.state === 'unlit' && !FL.tinder;
+  if (id === 'twigs') return !FL.kindling;
+  if (id === 'logs' || id === 'charcoal') return !FL.fuel;
+  return false;
+}
+function pitIntercept(it) {
+  if (it.id === 'ember') {
+    if (fire.state !== 'unlit') { toast('The fire is already going.'); return true; }
+    if (!FL.tinder) { toast('The ember needs something to catch in — there’s nothing in the pit.', 'bad'); return true; }
+    held = null; killEmber(false); F.experiments++;
+    if (FL.tinder.id === 'dampMoss') { fire.state = 'hiss'; fire.t = 0; sfx('hiss'); toast('Ssssss…'); }
+    else { fire.state = 'smoulder'; fire.oxygen = 0; fire.emberLife = 14; toast('The ember sits in the nest, glowing faintly…', 'note'); }
+    return true;
+  }
+  if (fire.state === 'burning') {
+    if (it.id === 'charcoal' && !fire.hot) { held = null; destroy(it); fire.hot = true; sfx('whoosh'); toast('The charcoal glows white-hot — and barely smokes.', 'good'); observe('f_charcoal'); }
+    else toast(busyMsg());
+    return true;
+  }
+  if (!FEEDABLE.includes(fire.state)) { toast(busyMsg(), 'bad'); return true; }
+  const c = ITEMS[it.id].cats;
+  if (c.includes('tinder')) {
+    if (fire.state !== 'unlit') toast('The tinder is already catching.');
+    else if (FL.tinder) toast('There is already tinder in the nest.');
+    else setLayer('tinder', it);
+    return true;
+  }
+  if (it.id === 'twigs') { if (FL.kindling) toast('The twig teepee is already built.'); else setLayer('kindling', it); return true; }
+  if (it.id === 'logs' || it.id === 'charcoal') { if (FL.fuel) toast('There is already fuel around the fire.'); else setLayer('fuel', it); return true; }
+  toast('That doesn’t belong in the fire pit.', 'bad'); return true;
+}
+function pitEmptyClick() {
+  if (fire.state === 'burning') { pickUp(makeItem('torch')); toast('You pull a burning stick from the fire.'); return true; }
+  if (fire.state === 'smoulder') return true; // handled as a hold-to-fan action
+  if (fire.state !== 'unlit') { toast(busyMsg()); return true; }
+  const layer = FL.fuel ? 'fuel' : FL.kindling ? 'kindling' : FL.tinder ? 'tinder' : null;
+  if (!layer) { toast('A ring of stones around old ashes. A fire pit.'); return true; }
+  pickUp(clearLayer(layer)); dlog(`took ${layer} back from the fire lay`); return true;
+}
+makeSlot('pit', { pos: [0, 0.01, -3.0], r: 0.32, h: 0.55, label: 'Fire pit', accept: () => 'That doesn’t belong in the fire pit.', wantsIntercept: pitWants, intercept: pitIntercept, onEmptyClick: pitEmptyClick });
+makeSlot('cook', { pos: [0.62, 0.05, -2.55], r: 0.13, label: 'Flat stone', accept: id => id === 'pot' ? true : 'A flat, heat-proof stone by the fire.' });
+makeSlot('notch', { pos: [-0.25, 0.012, -2.5], r: 0.07, h: 0.12, label: 'Ember tray', accept: id => id === 'ember' ? true : 'Only an ember goes on the tray.' });
+setSlotEnabled(slots.notch, false);
+
+// bow drill (appears once crafted)
+const drillG = new THREE.Group(); drillG.position.set(-0.6, 0, -2.7);
+drillG.add(mesh(new THREE.BoxGeometry(0.36, 0.03, 0.09), mat(0x9a7650), 0, 0.015, 0));
+const spindle = mesh(new THREE.CylinderGeometry(0.013, 0.013, 0.27, 6), mat(0xc49a66), 0, 0.165, 0); drillG.add(spindle);
+drillG.add(mesh(new THREE.BoxGeometry(0.08, 0.03, 0.07), mat(0x5e5146), 0, 0.31, 0));
+const bowG = new THREE.Group(); bowG.position.set(0, 0.15, 0.05);
+const bowStick = mesh(new THREE.TorusGeometry(0.24, 0.011, 5, 16, 1.4), mat(0x6a8a3a)); bowStick.rotation.set(Math.PI / 2, 0, Math.PI / 2 - 0.7 + Math.PI); bowStick.position.z = 0.2; bowG.add(bowStick);
+bowG.add(mesh(new THREE.BoxGeometry(0.4, 0.004, 0.004), mat(0xc9b48a)));
+drillG.add(bowG); scene.add(drillG); drillG.visible = false;
+scene.add(mesh(new THREE.BoxGeometry(0.16, 0.012, 0.11), mat(0x7a5a3a), -0.25, 0.006, -2.5)); // bark tray
+makeInteractive(drillG, { kind: 'drill' });
+
+// fire VFX
+const flame = new Particles({ max: 260, additive: true, life: [0.35, 0.85], vel: [0.25, 0.65], spread: 0.08, size: [0.18, 0.03], alpha: 0.85, up: 0.5, drift: 0.07, c0: 0xffd27a, c1: 0xff3a0a });
+const smoke = new Particles({ max: 200, life: [2.5, 4.5], vel: [0.3, 0.5], spread: 0.06, size: [0.12, 0.7], alpha: 0.32, up: 0.08, drift: 0.08, c0: 0x6f6f6f, c1: 0x9a9a9a });
+const sparks = new Particles({ max: 60, additive: true, life: [0.6, 1.3], vel: [0.6, 1.2], spread: 0.1, size: [0.025, 0.01], alpha: 1, up: 0.2, drift: 0.25, c0: 0xffd080, c1: 0xff5010 });
+const dsmoke = new Particles({ max: 80, life: [0.8, 1.6], vel: [0.1, 0.25], spread: 0.02, size: [0.03, 0.16], alpha: 0.45, up: 0.05, drift: 0.04, c0: 0xbbb4a8, c1: 0xdedad2 });
+const steam = new Particles({ max: 120, life: [1, 2], vel: [0.2, 0.4], spread: 0.05, size: [0.05, 0.32], alpha: 0.35, up: 0.05, drift: 0.05, c0: 0xffffff, c1: 0xe8e8e8 });
+flame.emitter.set(FP.x, 0.06, FP.z); smoke.emitter.set(FP.x, 0.35, FP.z); sparks.emitter.set(FP.x, 0.2, FP.z); dsmoke.emitter.set(-0.6, 0.03, -2.7);
+const fireLight = new THREE.PointLight(0xff8a3a, 0, 14, 1.4); fireLight.position.set(FP.x, 0.5, FP.z); scene.add(fireLight);
+const nestGlow = new THREE.Mesh(new THREE.IcosahedronGeometry(0.03, 1), new THREE.MeshBasicMaterial({ color: 0xff5a10, transparent: true })); nestGlow.position.set(FP.x, 0.06, FP.z); nestGlow.visible = false; scene.add(nestGlow);
+
+// ================= CAMP: WORKBENCH =================
+const BP = new THREE.Vector3(-1.8, 0, -3.6);
+(function bench() {
+  const stone = mat(0x86827a);
+  scene.add(mesh(new THREE.BoxGeometry(0.16, 0.4, 0.4), stone, BP.x - 0.38, 0.2, BP.z));
+  scene.add(mesh(new THREE.BoxGeometry(0.16, 0.4, 0.4), stone, BP.x + 0.38, 0.2, BP.z));
+  scene.add(mesh(new THREE.BoxGeometry(1.05, 0.07, 0.52), mat(0x8e6e4c), BP.x, 0.435, BP.z));
+  const tab = mesh(new THREE.BoxGeometry(1.05, 0.42, 0.06), mat(0x7d7468), BP.x, 0.68, BP.z - 0.29); tab.rotation.x = -0.15; scene.add(tab);
+  const l1 = makeLabel('CORD  =  3 plant fibres', { w: 0.95, h: 0.09, color: '#f1e3c4' }); l1.position.set(BP.x, 0.78, BP.z - 0.255); l1.rotation.x = -0.15; scene.add(l1);
+  const l2 = makeLabel('BOW DRILL  =  straight stick + flat board + flexible branch + cord', { w: 0.98, h: 0.075, color: '#f1e3c4', weight: 600 }); l2.position.set(BP.x, 0.64, BP.z - 0.235); l2.rotation.x = -0.15; scene.add(l2);
+  wallCollider(BP.x - 0.45, BP.z, BP.x + 0.45, BP.z, 0.3);
+})();
+const BENCH = ['b1', 'b2', 'b3', 'b4'];
+BENCH.forEach((k, i) => makeSlot(k, { pos: [BP.x - 0.36 + i * 0.24, 0.47, BP.z + 0.04], r: 0.09, h: 0.16, label: `Workbench`,
+  accept: id => ['ember', 'torch', 'pot', 'lens'].includes(id) ? 'That isn’t a crafting material.' : true }));
+
+// ================= CAMP: CHARCOAL MOUND =================
+const KP = new THREE.Vector3(-4.0, 0, -2.6);
+const mound = mesh(new THREE.SphereGeometry(1, 22, 12, 0, Math.PI * 2, 0, Math.PI / 2), mat(0x6e5236)); mound.scale.set(0.75, 0.5, 0.62); mound.position.copy(KP); scene.add(mound);
+makeInteractive(mound, { kind: 'mound' }); addCollider(KP.x, KP.z, 0.75);
+function hole(x, y, z, r, rx = 0, ry = 0) { const h = new THREE.Mesh(new THREE.CircleGeometry(r, 16), new THREE.MeshBasicMaterial({ color: 0x140d08 })); h.position.set(x, y, z); h.rotation.set(rx, ry, 0); scene.add(h); }
+hole(KP.x, 0.501, KP.z, 0.14, -Math.PI / 2);
+hole(-4.33, 0.2, -2.095, 0.06, -0.55, -0.55); hole(-3.67, 0.2, -2.095, 0.06, -0.55, 0.55); hole(-4.0, 0.12, -1.995, 0.065, -0.2, 0);
+const kilnBusy = () => kiln.state === 'burning' ? 'The mound is burning. Click it to open it when you think it is ready.' : null;
+makeSlot('wood', { pos: [KP.x, 0.46, KP.z], r: 0.15, label: 'Earth mound — opening', accept: id => kilnBusy() || (id === 'logs' ? true : 'Load a log into the mound.') });
+makeSlot('vent1', { pos: [-4.33, 0.15, -2.07], r: 0.075, h: 0.14, label: 'Air vent', accept: id => kilnBusy() || (id === 'clay' ? true : 'That won’t seal a vent.') });
+makeSlot('vent2', { pos: [-3.67, 0.15, -2.07], r: 0.075, h: 0.14, label: 'Air vent', accept: id => kilnBusy() || (id === 'clay' ? true : 'That won’t seal a vent.') });
+makeSlot('port', { pos: [-4.0, 0.06, -1.95], r: 0.075, h: 0.14, label: 'Ignition port',
+  accept: id => kilnBusy() || (id !== 'torch' ? 'It would need to be lit from here.' : slots.wood.item ? true : 'There’s nothing inside to burn yet.'),
+  onPlace: () => {
+    kiln.state = 'burning'; kiln.t = 0; F.experiments++; sfx('whoosh');
+    toast(kilnSealed() ? 'Lit — with both vents sealed. Watch the smoke.' : 'Lit — with the vents open.', 'note');
+  } });
+const kilnSealed = () => !!(slots.vent1.item && slots.vent2.item);
+const ksmoke = new Particles({ max: 200, life: [2.5, 4], vel: [0.25, 0.4], spread: 0.08, size: [0.15, 0.75], alpha: 0.5, up: 0.04, drift: 0.08, c0: 0xf4f4f0, c1: 0xdedede });
+ksmoke.emitter.set(KP.x, 0.55, KP.z);
+const vf1 = new Particles({ max: 90, additive: true, life: [0.3, 0.6], vel: [0.3, 0.6], spread: 0.03, size: [0.12, 0.03], alpha: 0.85, up: 0.4, drift: 0.05, c0: 0xffd27a, c1: 0xff3a0a });
+const vf2 = new Particles({ max: 90, additive: true, life: [0.3, 0.6], vel: [0.3, 0.6], spread: 0.03, size: [0.12, 0.03], alpha: 0.85, up: 0.4, drift: 0.05, c0: 0xffd27a, c1: 0xff3a0a });
+vf1.emitter.set(-4.33, 0.22, -2.06); vf2.emitter.set(-3.67, 0.22, -2.06);
+const kilnLight = new THREE.PointLight(0xff7a2a, 0, 6, 1.6); kilnLight.position.set(KP.x, 0.5, -1.8); scene.add(kilnLight);
+let kilnResult = null;
+
+// ================= CAMP: FILTER (by the stream) =================
+const WP = new THREE.Vector3(4.3, 0, -2.75);
+(function filterStand() {
+  const wood = mat(0x6b4a2b);
+  scene.add(mesh(new THREE.CylinderGeometry(0.022, 0.025, 1.5, 6), wood, WP.x - 0.18, 0.75, WP.z));
+  scene.add(mesh(new THREE.CylinderGeometry(0.022, 0.025, 1.5, 6), wood, WP.x + 0.18, 0.75, WP.z));
+  scene.add(mesh(new THREE.BoxGeometry(0.42, 0.03, 0.04), wood, WP.x, 1.3, WP.z + 0.06));
+  scene.add(mesh(new THREE.BoxGeometry(0.42, 0.03, 0.04), wood, WP.x, 0.68, WP.z + 0.06));
+  const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.087, 0.087, 0.72, 20, 1, true), new THREE.MeshStandardMaterial({ color: 0xcfe6ef, transparent: true, opacity: 0.22, roughness: 0.05, side: THREE.DoubleSide, depthWrite: false }));
+  tube.position.set(WP.x, 0.98, WP.z); scene.add(tube);
+  const lab = makeLabel('FILTER  (water flows top → bottom)', { w: 1.1, h: 0.1, bg: 'rgba(0,0,0,.45)' }); lab.position.set(WP.x, 1.62, WP.z); lab.rotation.y = -0.9; scene.add(lab);
+  addCollider(WP.x, WP.z, 0.3);
+})();
+// the tube packs from the bottom up, like a real filter: each layer you add sits on top of the last
+const LAYERS = ['L1', 'L2', 'L3', 'L4']; // L1 = top … L4 = bottom
+const tubeDesc = () => { const st = LAYERS.slice().reverse().map(k => slots[k].item?.id).filter(Boolean); return st.length ? `Filter tube — bottom → top: ${st.map(id => ITEMS[id].name.toLowerCase()).join(', ')}` : 'Filter tube — empty'; };
+const layerAccept = id => F.pouring ? 'Wait — water is flowing through.' : ITEMS[id].cats.includes('filter') ? true : 'That won’t make a useful filter layer.';
+function tubeAdd(it) {
+  if (!ITEMS[it.id].cats.includes('filter') || F.pouring) return false;
+  const k = LAYERS.slice().reverse().find(k => !slots[k].item);
+  if (!k) { toast('The tube is full.'); return true; }
+  held = null; placeIn(slots[k], it); sfx('place'); dlog(`filter: ${it.id} → ${k}`, 'ok'); return true;
+}
+function tubeTake() {
+  if (F.pouring) { toast('Wait — water is flowing through.'); return true; }
+  const k = LAYERS.find(k => slots[k].item); if (!k) { toast('An empty tube, open at both ends. Water would flow top to bottom.'); return true; }
+  pickUp(takeFrom(slots[k])); return true;
+}
+LAYERS.forEach((k, i) => makeSlot(k, { pos: [WP.x, 1.245 - i * 0.135, WP.z], r: 0.097, h: 0.13, colY: 0, ringY: 0, display: 'layer', label: 'Filter tube',
+  accept: layerAccept, wantsIntercept: id => ITEMS[id].cats.includes('filter') && k === LAYERS.slice().reverse().find(x => !slots[x].item), intercept: tubeAdd, onEmptyClick: tubeTake }));
+makeSlot('top', { pos: [WP.x, 1.36, WP.z], r: 0.11, h: 0.2, colY: 0.1, label: 'Filter inlet', tilt: 0.9,
+  accept: () => 'Water could be poured in here.',
+  wantsIntercept: id => id === 'pot',
+  intercept: it => { if (it.id !== 'pot') return false; if (!POT.water.has) { toast('The pot is empty.', 'bad'); return true; } if (F.pouring) return true; pour(); return true; } });
+makeSlot('catch', { pos: [WP.x, 0.0, WP.z], r: 0.12, label: 'Under the filter', accept: id => id === 'pot' ? true : 'Something here should catch the water.' });
+const drip = new Particles({ max: 80, life: [0.12, 0.18], vel: [-0.6, -0.4], spread: 0.01, size: [0.025, 0.02], alpha: 0.9, up: -4, drift: 0.01, c0: 0x9fd0ff, c1: 0x6fa8d8 });
+drip.emitter.set(WP.x, 0.62, WP.z);
+
+const POT = makeItem('pot');
+POT.water = { has: false, turbid: 1, odor: true, alive: true, boiled: false, heat: 15, boilT: 0, filtered: false };
+const LENS = makeItem('lens');
+function updatePotVisual() {
+  const w = POT.water, m = POT.mesh.userData.water;
+  m.visible = w.has;
+  m.material.color.set(0x6b5a3a).lerp(new THREE.Color(0x86c2dc), 1 - clamp(w.turbid, 0, 1));
+}
+
+// ================= CAMP: SCIENCE ROADMAP WALL =================
+const WALLZ = -7.35;
+const wall = mesh(new THREE.BoxGeometry(6.8, 3.7, 0.5), mat(0x7d7468)); wall.position.set(0, 1.85, WALLZ - 0.25); scene.add(wall);
+makeInteractive(wall, { kind: 'wall' }); wallCollider(-3.4, WALLZ - 0.25, 3.4, WALLZ - 0.25, 0.35);
+{ const h = makeLabel('SCIENCE ROADMAP', { w: 3.2, h: 0.3, color: '#e9dcc4' }); h.position.set(0, 3.38, WALLZ + 0.01); scene.add(h);
+  const s = makeLabel('Every machine is gone. The science isn’t.', { w: 3.4, h: 0.16, color: '#cbbda3', weight: 500 }); s.position.set(0, 0.32, WALLZ + 0.01); scene.add(s); }
+const NODES = { fire: [-2.5, 1.8, 'FIRE'], charcoal: [-1.25, 2.6, 'CHARCOAL'], water: [-1.25, 1.0, 'CLEAN WATER'], chem: [0, 1.8, 'CHEMISTRY'],
+  glass: [1.25, 2.7, 'GLASS'], soap: [1.25, 1.8, 'SOAP'], lime: [1.25, 0.9, 'LIME'], iron: [2.5, 0.9, 'IRON'], magnet: [2.5, 1.8, 'MAGNETISM'], electric: [2.5, 2.7, 'ELECTRICITY'] };
+const EDGES = [['fire', 'charcoal'], ['fire', 'water'], ['charcoal', 'water'], ['charcoal', 'chem'], ['water', 'chem'], ['chem', 'glass'], ['chem', 'soap'], ['chem', 'lime'], ['lime', 'iron'], ['iron', 'magnet'], ['magnet', 'electric']];
+const nodeState = {};
+for (const [id, [x, y, name]] of Object.entries(NODES)) {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.06, 28), new THREE.MeshStandardMaterial({ color: 0x3a332c, emissive: 0xff7a1a, emissiveIntensity: 0, roughness: 0.8 }));
+  m.rotation.x = Math.PI / 2; m.position.set(x, y, WALLZ + 0.02); scene.add(m);
+  const lab = makeLabel(name, { w: 1.0, h: 0.2, color: '#f6e6c8' }); lab.position.set(x, y - 0.4, WALLZ + 0.012); lab.material.opacity = 0.35; scene.add(lab);
+  nodeState[id] = { mesh: m, label: lab, lit: false, glow: 0 };
+}
+const edgeState = EDGES.map(([a, b]) => {
+  const A = NODES[a], B = NODES[b]; const dx = B[0] - A[0], dy = B[1] - A[1], len = Math.hypot(dx, dy), ang = Math.atan2(dy, dx);
+  const base = new THREE.Mesh(new THREE.BoxGeometry(len, 0.055, 0.02), new THREE.MeshStandardMaterial({ color: 0x2b2620 }));
+  base.position.set((A[0] + B[0]) / 2, (A[1] + B[1]) / 2, WALLZ + 0.005); base.rotation.z = ang; scene.add(base);
+  const piv = new THREE.Group(); piv.position.set(A[0], A[1], WALLZ + 0.012); piv.rotation.z = ang;
+  const lit = new THREE.Mesh(new THREE.BoxGeometry(len, 0.04, 0.02), new THREE.MeshBasicMaterial({ color: 0xffa040 })); lit.position.x = len / 2; piv.add(lit);
+  piv.scale.x = 0.0001; piv.visible = false; scene.add(piv);
+  return { a, b, piv, p: 0, target: 0 };
+});
+function lightNode(id) {
+  nodeState[id].lit = true;
+  for (const e of edgeState) if ((e.b === id && nodeState[e.a].lit) || (e.a === id && nodeState[e.b].lit)) e.target = 1;
+}
+
+// ================= GATHERING: resources hidden around the forest =================
+const nodes = [];
+function makeNode(itemId, root, { charges = 1, regrow = 40, hide = true, label, first, unique = false } = {}) {
+  scene.add(root);
+  // padded invisible hit box: thin grass blades and twigs are otherwise fiddly to aim at (and to grab in VR)
+  root.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(root), size = box.getSize(new THREE.Vector3()), ctr = box.getCenter(new THREE.Vector3()).sub(root.position);
+  const hit = new THREE.Mesh(new THREE.BoxGeometry(Math.max(size.x, 0.18) + 0.06, Math.max(size.y, 0.18) + 0.05, Math.max(size.z, 0.18) + 0.06), new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide }));
+  hit.position.copy(ctr); hit.rotation.y = 0.13; hit.userData.hitbox = true; root.add(hit);
+  const n = { itemId, root, charges, max: charges, regrow, hide, t: 0, label, first, unique, x: root.position.x, z: root.position.z };
+  makeInteractive(root, { kind: 'node', node: n }); nodes.push(n); return n;
+}
+function grp(x, z, ...children) { const g = new THREE.Group(); g.position.set(x, 0, z); children.forEach(c => g.add(c)); return g; }
+const around = ([cx, cz], r0, r1) => { const a = srand() * Math.PI * 2, r = srr(r0, r1); return [cx + Math.cos(a) * r, cz + Math.sin(a) * r]; };
+function forestSpot(minR = 12, maxR = 58) {
+  for (let i = 0; i < 200; i++) { const a = srand() * Math.PI * 2, r = srr(minR, maxR), x = Math.cos(a) * r, z = Math.sin(a) * r; if (!inClearing(x, z, 1) && streamDist(x, z) > 2.5) return [x, z]; }
+  return [20, 0];
+}
+// builders
+function grassClump(x, z) { const g = grp(x, z); for (let i = 0; i < 26; i++) { const h = rand(0.28, 0.48); const c = mesh(new THREE.ConeGeometry(0.018, h, 4), mat([0xd9c27a, 0xcbb066, 0xe2cf8c][i % 3])); c.position.set(rand(-0.1, 0.1), h / 2, rand(-0.1, 0.1)); c.rotation.set(rand(-0.25, 0.25), 0, rand(-0.25, 0.25)); g.add(c); } return makeNode('dryGrass', g, { charges: 1, regrow: 45, label: 'Tall, pale grass that crackles when touched' }); }
+function fibrePlant(x, z) { const g = grp(x, z); for (let i = 0; i < 11; i++) { const h = rand(0.5, 0.75); const c = mesh(new THREE.ConeGeometry(0.012, h, 3), mat([0x6f8f3a, 0x7a9a42][i % 2])); c.position.set(rand(-0.06, 0.06), h / 2, rand(-0.06, 0.06)); c.rotation.set(rand(-0.35, 0.35), 0, rand(-0.35, 0.35)); g.add(c); }
+  g.add(mesh(new THREE.SphereGeometry(0.03, 6, 4), mat(0xd8d06a), 0, 0.72, 0)); return makeNode('fibers', g, { charges: 2, regrow: 45, label: 'A tall plant with long, stringy stems' }); }
+function twigPile(x, z) { const g = grp(x, z); for (let i = 0; i < 7; i++) { const c = mesh(new THREE.CylinderGeometry(0.008, 0.012, rand(0.25, 0.4), 5), mat([0x7d6a55, 0x8a7560][i % 2])); c.rotation.set(0, rand(0, 3), Math.PI / 2); c.position.set(rand(-0.06, 0.06), 0.01 + i * 0.008, rand(-0.06, 0.06)); g.add(c); }
+  return makeNode('twigs', g, { charges: 2, regrow: 50, label: 'Grey, fallen sticks', first: () => observe('g_dead') }); }
+function fallenLog(x, z, rot) { const g = grp(x, z); const l = mesh(new THREE.CylinderGeometry(0.16, 0.19, 1.8, 9), mat(0x5a4636)); l.rotation.set(0, rot, Math.PI / 2); l.position.y = 0.17; g.add(l);
+  addCollider(x, z, 0.5); return makeNode('logs', g, { charges: 3, regrow: 60, hide: false, label: 'A fallen, long-dead trunk', first: () => observe('g_dead') }); }
+function sapling(x, z) { const g = grp(x, z); g.add(mesh(new THREE.CylinderGeometry(0.025, 0.035, 1.2, 6), mat(0x6b5a3a), 0, 0.6, 0));
+  for (const [y, s] of [[0.75, 0.22], [1.0, 0.2], [1.22, 0.15]]) g.add(mesh(new THREE.IcosahedronGeometry(s, 0), mat(0x6fa040), rand(-0.05, 0.05), y, rand(-0.05, 0.05)));
+  for (const a of [0.5, 2.6]) { const b = mesh(new THREE.CylinderGeometry(0.008, 0.012, 0.4, 5), mat(0x6a8a3a)); b.position.set(Math.cos(a) * 0.15, 0.55, Math.sin(a) * 0.15); b.rotation.set(Math.sin(a) * 0.9, 0, -Math.cos(a) * 0.9); g.add(b); }
+  return makeNode('greenBranch', g, { charges: 2, regrow: 60, hide: false, label: 'A young, living sapling', first: () => observe('g_green') }); }
+function mossRock(x, z) { const g = grp(x, z); g.add(mesh(new THREE.DodecahedronGeometry(0.22), mat(0x77736b), 0, 0.13, 0));
+  const cap = mesh(new THREE.SphereGeometry(0.21, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2.4), mat(0x3f6a33, { roughness: 1 })); cap.position.y = 0.17; g.add(cap);
+  return makeNode('dampMoss', g, { charges: 2, regrow: 40, hide: false, label: 'A shaded rock furred with soft green moss', first: () => observe('g_moss') }); }
+
+// --- Sunny Meadow: dry grass, fibre plants, a sapling or two at the edge
+for (let i = 0; i < 8; i++) grassClump(...around(LM.meadow.pos, 0.5, 6.5));
+for (let i = 0; i < 4; i++) fibrePlant(...around(LM.meadow.pos, 5, 8.5));
+for (let i = 0; i < 2; i++) sapling(...around(LM.meadow.pos, 9, 10));
+// --- Lightning Glade: a shattered dead tree, split wood, a straight stick, twigs, a little dry grass in the new sunlight
+(function glade() {
+  const [cx, cz] = LM.glade.pos, g = new THREE.Group(), grey = mat(0x6e6760), black = mat(0x2a2522);
+  g.add(mesh(new THREE.CylinderGeometry(0.22, 0.35, 3.6, 8), grey, 0, 1.8, 0));
+  g.add(mesh(new THREE.CylinderGeometry(0.08, 0.22, 0.9, 6), black, 0.05, 3.9, 0));
+  for (const [y, a, l] of [[2.2, 0.6, 1.0], [2.8, 2.4, 0.8], [1.6, 4.4, 0.9]]) { const b = mesh(new THREE.CylinderGeometry(0.04, 0.07, l, 5), grey); b.position.set(Math.cos(a) * l * 0.4, y, Math.sin(a) * l * 0.4); b.rotation.set(Math.sin(a) * 0.9, 0, -Math.cos(a) * 0.9); g.add(b); }
+  g.position.set(cx, 0, cz); scene.add(g); addCollider(cx, cz, 0.45);
+  disc(1.6, 0x2b2420, cx, cz, 0.011); // scorched ground
+  const st = grp(cx + 0.35, cz + 0.25); const s = mesh(new THREE.CylinderGeometry(0.02, 0.022, 0.8, 6), mat(0xc49a66)); s.position.set(0, 0.36, 0); s.rotation.z = -0.3; st.add(s);
+  makeNode('spindle', st, { charges: 1, regrow: 60, label: 'A perfectly straight, dry stick' });
+  for (const [dx, dz, r] of [[1.6, 1.2, 0.4], [-1.4, 1.7, -0.6]]) { const b = grp(cx + dx, cz + dz); const p = mesh(new THREE.BoxGeometry(0.55, 0.04, 0.16), mat(0x9a7650), 0, 0.02, 0); p.rotation.y = r; b.add(p);
+    makeNode('board', b, { charges: 1, regrow: 70, label: 'A flat slab of wood split off by the lightning' }); }
+  fallenLog(cx + 2.4, cz - 1.4, 0.9);
+  for (let i = 0; i < 3; i++) twigPile(...around(LM.glade.pos, 2, 5));
+  for (let i = 0; i < 2; i++) grassClump(...around(LM.glade.pos, 3, 5.5));
+})();
+// --- Clay Bend: where the stream slows on a bend it drops clay, sand and gravel
+(function bend() {
+  const [cx, cz] = LM.bend.pos;
+  { const g = grp(cx + 0.2, cz + 0.6); const d = new THREE.Mesh(new THREE.CircleGeometry(0.45, 24), mat(0xb06a45)); d.rotation.x = -Math.PI / 2; d.position.y = 0.013; g.add(d);
+    for (let i = 0; i < 5; i++) g.add(mesh(new THREE.DodecahedronGeometry(0.06), mat(0xa65f3d), rand(-0.25, 0.25), 0.03, rand(-0.25, 0.25)));
+    makeNode('clay', g, { charges: 4, regrow: 30, hide: false, label: 'Sticky, reddish earth at the water’s edge', first: () => observe('g_clay') }); }
+  { const g = grp(cx + 0.9, cz - 1.6); const d = new THREE.Mesh(new THREE.CircleGeometry(0.55, 24), mat(0xe0cf9a)); d.rotation.x = -Math.PI / 2; d.position.y = 0.014; d.scale.set(1, 0.6, 1); g.add(d);
+    makeNode('sand', g, { charges: 4, regrow: 30, hide: false, label: 'A bar of fine, pale grains' }); }
+  { const g = grp(cx - 0.5, cz + 2.0); for (let i = 0; i < 18; i++) g.add(mesh(new THREE.DodecahedronGeometry(rand(0.025, 0.05)), mat([0x8c8c8c, 0x777570, 0xa09a90][i % 3]), rand(-0.25, 0.25), 0.02, rand(-0.18, 0.18)));
+    makeNode('gravel', g, { charges: 4, regrow: 30, hide: false, label: 'Rounded little stones' }); }
+  mossRock(cx - 1.4, cz - 1.0);
+})();
+// --- Collapsed Outpost: one-of-a-kind finds among the rubble
+(function outpost() {
+  const [cx, cz] = LM.outpost.pos, conc = mat(0x948e84), rust = mat(0x7a3e22, { roughness: 0.7 }), moss = mat(0x4f6b35);
+  const g = new THREE.Group();
+  g.add(mesh(new THREE.BoxGeometry(4, 2.2, 0.3), conc, 0, 1.1, -2));
+  g.add(mesh(new THREE.BoxGeometry(4, 0.08, 0.35), moss, 0, 2.22, -2));
+  g.add(mesh(new THREE.BoxGeometry(0.3, 1.4, 3), conc, -2, 0.7, -0.5));
+  g.add(mesh(new THREE.BoxGeometry(0.3, 0.6, 1.4), conc, 2, 0.3, -1.2));
+  const roof = mesh(new THREE.BoxGeometry(3.2, 0.12, 2.4), rust, 0.3, 0.7, -0.6); roof.rotation.set(0.35, 0.1, 0.25); g.add(roof);
+  for (let i = 0; i < 14; i++) g.add(mesh(new THREE.BoxGeometry(rand(0.15, 0.4), rand(0.08, 0.2), rand(0.15, 0.35)), conc, rand(-1.8, 1.8), 0.05, rand(-1.8, 1.5)));
+  g.position.set(cx, 0, cz); scene.add(g);
+  wallCollider(cx - 2, cz - 2, cx + 2, cz - 2, 0.3); wallCollider(cx - 2, cz - 2, cx - 2, cz + 1, 0.3);
+  { const n = grp(cx + 1.2, cz + 0.8); const c = mesh(new THREE.BoxGeometry(0.34, 0.01, 0.24), mat(0xe8e2d0)); c.position.y = 0.03; c.rotation.set(0.1, 0.5, 0.05); n.add(c);
+    makeNode('cloth', n, { charges: 2, regrow: 90, hide: false, label: 'Scraps of old woven fabric' }); }
+  const lf = grp(cx - 1.3, cz + 0.2); { const m = buildItemMesh('lens'); m.position.y = 0.05; lf.add(m); lf.add(mesh(new THREE.BoxGeometry(0.3, 0.1, 0.25), conc, 0.05, 0.03, -0.1)); }
+  window.__lensNode = makeNode('lens', lf, { charges: 1, regrow: 0, unique: true, label: 'Something glinting in the rubble' });
+  const pf = grp(cx + 0.3, cz - 1.1); { const m = buildItemMesh('pot'); m.rotation.z = 0.5; m.position.y = 0.04; pf.add(m); }
+  makeNode('pot', pf, { charges: 1, regrow: 0, unique: true, label: 'An old, intact clay pot' });
+})();
+const lensNode = window.__lensNode; delete window.__lensNode;
+const glint = new Particles({ max: 20, additive: true, life: [0.3, 0.6], vel: [0, 0.05], spread: 0.04, size: [0.06, 0.01], alpha: 1, up: 0, drift: 0.01, c0: 0xffffff, c1: 0xcfe8ff });
+glint.emitter.set(lensNode.x, 0.12, lensNode.z); glint.rate = 3;
+// --- scattered through the forest: twigs, fallen trunks, mossy rocks by the water, a few fibre plants and saplings by the stream
+for (let i = 0; i < 16; i++) twigPile(...forestSpot(12, 55));
+for (let i = 0; i < 4; i++) { const [x, z] = forestSpot(14, 50); fallenLog(x, z, srand() * 3); }
+for (const [x, z] of [[4.4, 16], [8.6, 30], [5.0, -9], [9.2, -18], [15.4, -40]]) mossRock(x, z);
+for (const [x, z] of [[8.4, 24], [3.6, 40]]) fibrePlant(x, z);
+sapling(9.0, 9); sapling(-12, -18);
+
+// ================= observations (lab notebook) =================
+const OBS = {
+  g_dead: { q: 'gather', title: 'Dead wood snaps', obs: 'The grey, fallen wood snapped cleanly with a dry crack.', pri: 'As wood dies, the water in its cells evaporates. Dry wood is light, brittle and burns readily — less of the fire’s heat is wasted boiling water away.', lim: 'Wood lying on wet ground can rot and soak water up again — dead and dry are not the same thing.' },
+  g_green: { q: 'gather', xp: 20, title: 'Green wood bends', obs: 'The sapling’s branch bent double instead of snapping — and sap beaded where it tore.', pri: 'Living wood is full of water held in its cells, which keeps its fibres flexible. That makes it poor fuel, but perfect for something that must bend without breaking — like a bow.', lim: 'Freshly cut wood can be roughly half water by weight.' },
+  g_moss: { q: 'gather', title: 'Moss is a sponge', obs: 'Squeezed, the moss from the shaded rock dripped cold water.', pri: 'Mosses have no roots; they absorb and hold water across their leaves like a sponge. Great at staying damp — terrible as tinder.', lim: 'Some mosses, like sphagnum, can hold many times their own weight in water.' },
+  g_clay: { q: 'gather', title: 'Clay is plastic', obs: 'The red earth by the stream squished, held your fingerprint and kept its shape.', pri: 'Clay is made of microscopic flat mineral plates. With water between them they slide (it’s plastic); dried, they stick; fired hot enough, they fuse into ceramic.', lim: '' },
+  g_cord: { q: 'gather', xp: 20, title: 'Twist makes strength', obs: 'One fibre snapped with a tug. Three twisted together held your full pull.', pri: 'Twisting presses fibres against each other; friction locks them so a pull is shared along the whole cord instead of breaking the weakest strand.', lim: '' },
+  g_bow: { q: 'gather', xp: 20, title: 'The bow drill is a machine', obs: 'With the cord looped around the spindle, each push of the bow spun it several turns.', pri: 'The bow turns a long back-and-forth arm stroke into fast rotation — a simple machine trading distance for speed. Faster spinning means more friction, and more heat.', lim: '' },
+  f_drill: { q: 'fire', xp: 20, title: 'Friction makes heat', obs: 'Sawing the bow spun the spindle against the board. Dark dust gathered in the notch, smoked — and began to glow.', pri: 'Friction converts kinetic energy (motion) into thermal energy (heat). The fine wood dust heats up until it smoulders into an ember.', lim: 'Real bow drills take practice: the right dry woods, steady pressure and a well-cut notch.' },
+  f_damp: { q: 'fire', title: 'Water steals heat', obs: 'The ember hissed in the damp moss and died in a puff of white steam.', pri: 'Water absorbs a lot of heat as it warms — and even more as it evaporates. While tinder is wet, it can’t reach its ignition temperature.', lim: 'Material that looks dry can still hold moisture. Fire-makers keep tinder in a dry pouch.' },
+  f_oxygen: { q: 'fire', title: 'Fire breathes', obs: 'Left alone, the ember glowed, dimmed and went dark.', pri: 'Burning is rapid oxidation — fuel reacting with oxygen. Gentle airflow delivers fresh O₂ to the glowing ember.', lim: 'Blow too hard on a weak ember and you can cool it or scatter it.' },
+  f_bigfuel: { q: 'fire', title: 'Surface area matters', obs: 'The tinder flared beneath the heavy logs — then the flame starved and died.', pri: 'Thin sticks have far more surface area for their mass, so they heat to ignition quickly. Thick fuel soaks up heat faster than a small flame can supply it.', lim: 'Big logs do burn — once a bed of hot coals and kindling is established.' },
+  f_nofuel: { q: 'fire', title: 'Tinder is only the spark', obs: 'The flame blazed for a few seconds and burned out — nothing bigger caught.', pri: 'Tinder has little mass, so it releases its energy fast. A fire needs a ladder of fuel: tinder → kindling → larger fuel.', lim: '' },
+  f_success: { q: 'fire', xp: 25, title: 'The fire triangle', obs: 'Ember, tinder, kindling and logs — with air — became a steady fire.', pri: 'Combustion needs three things at once: heat, fuel and oxygen. Remove any side of the triangle and the fire goes out — which is exactly how fire extinguishers work.', lim: 'Always clear the ground around a fire and never leave it unattended.' },
+  f_charcoal: { q: 'fire', xp: 20, title: 'Charcoal burns hotter', obs: 'Charcoal on the fire glowed brighter and almost without smoke.', pri: 'Charcoal is mostly carbon: its water and volatile gases are already gone, so its energy becomes heat instead of smoke. That intense heat is the key to future metalworking.', lim: 'Burning charcoal releases carbon monoxide — deadly in enclosed spaces.' },
+  c_ash: { q: 'charcoal', title: 'Too much oxygen → ash', obs: 'With the vents open, flames roared out and the log burned away to grey ash.', pri: 'With plenty of oxygen, wood burns completely: its carbon leaves as CO₂ and its hydrogen as water vapour. Only the minerals remain, as ash.', lim: '' },
+  c_early: { q: 'charcoal', title: 'Not finished yet', obs: 'Opened early, the log was black outside but brown and damp inside.', pri: 'Pyrolysis works from the outside in. White smoke is mostly water vapour; yellowish smoke carries volatile gases and tars still leaving the wood.', lim: '' },
+  c_success: { q: 'charcoal', xp: 25, title: 'Pyrolysis', obs: 'Sealed from the air, the log smoked white, then yellow, then thin blue — and came out as light, black charcoal.', pri: 'Heat without enough oxygen breaks wood down instead of burning it. Water leaves first, then gases and tars, leaving mostly carbon. Same wood + less oxygen = a different product.', lim: 'Real charcoal burns take hours to days, and smoke colour is only a rule of thumb.' },
+  w_raw: { q: 'water', title: 'Life in a drop', obs: 'Under the lens, stream water swarms with particles and tiny moving organisms.', pri: 'Natural water carries sediment and microorganisms — bacteria, protozoa and viruses. Some of them cause disease.', lim: 'Seeing bacteria really needs a microscope; the lens is a game simplification.' },
+  w_washout: { q: 'water', title: 'Layers need support', obs: 'Without cloth at the bottom, sand and grit washed straight into the pot.', pri: 'Each filter layer needs something beneath it that holds it in place. Cloth acts as the support screen.', lim: '' },
+  w_clog: { q: 'water', title: 'Coarse before fine', obs: 'With fine sand on top, the filter clogged and the water barely trickled through.', pri: 'Water should meet coarse layers first. Gravel catches big debris, so the fine sand below can trap small particles without clogging straight away.', lim: 'Real sand filters still clog over time and need cleaning.' },
+  w_odor: { q: 'water', title: 'Clear, but not clean', obs: 'The water looked clear, yet the lens still shows dissolved compounds tinting it.', pri: 'Sand only strains particles. Charcoal is extremely porous: its huge internal surface adsorbs (binds) some odour- and taste-causing compounds.', lim: 'Homemade charcoal is far weaker than activated charcoal — and neither reliably removes pathogens.' },
+  w_microbes: { q: 'water', xp: 20, title: 'Clear ≠ safe', obs: 'The filtered water looked clean — but under the lens, microbes are still swimming.', pri: 'Many pathogens are far smaller than the gaps between sand grains. A filter reduces particles; it does not make water reliably safe.', lim: 'Never trust a homemade filter alone to make water safe to drink.' },
+  w_boilmurky: { q: 'water', title: 'Boiled, but still dirty', obs: 'Boiling stopped the microbes — but every particle is still there.', pri: 'Heat inactivates microbes; it doesn’t remove sediment. Filtering first also helps, because particles can shield microbes from treatment.', lim: '' },
+  w_boil: { q: 'water', xp: 25, title: 'Heat disinfects', obs: 'After a rolling boil, the microbes under the lens no longer move.', pri: 'A rolling boil denatures the proteins and structures many pathogens need to survive.', lim: 'Boil about 1 minute (3 at high altitude). Boiling does NOT remove chemicals like heavy metals — it can even concentrate them.' },
+};
+const NB = new Set();
+function observe(id) {
+  if (NB.has(id)) return false;
+  NB.add(id); const o = OBS[id];
+  dlog(`observation: ${o.title}`, 'ok');
+  addXP(o.xp ?? 15); sfx('note'); showCard(o); renderXP();
+  return true;
+}
+
+// ================= quests: what you need, never where =================
+// Each step has two escalating hints (the science, then the kind of place); a third ask points the way.
+const QUESTS = [
+  { title: 'Scavenger', node: null, desc: 'To make fire from nothing you need tinder, kindling, fuel — and a tool that makes heat from friction.',
+    steps: [
+      { t: () => `Tinder: something dry and fine that catches a spark (${Math.min(2, G('dryGrass'))}/2)`, done: () => G('dryGrass') >= 2,
+        hints: ['Tinder must be bone-dry and fluffy. Think sun, not shade.', 'Grass dries out where sunlight reaches the ground — a big open clearing in the forest.'], near: ['dryGrass'] },
+      { t: () => `Kindling and fuel: small dry sticks (${Math.min(3, G('twigs'))}/3) and dry logs (${Math.min(2, G('logs'))}/2)`, done: () => G('twigs') >= 3 && G('logs') >= 2,
+        hints: ['Dead wood is dry; living wood is full of water.', 'Fallen sticks lie under the trees all through the forest. Fallen trunks give logs.'], near: ['twigs', 'logs'] },
+      { t: () => `Friction tool: a straight dry stick ${G('spindle') ? '✓' : '·'}  a flat board ${G('board') ? '✓' : '·'}  a springy bow ${G('greenBranch') ? '✓' : '·'}`, done: () => G('spindle') && G('board') && G('greenBranch'),
+        hints: ['A bow drill needs a spindle, a hearth board and a bow. The bow must bend without snapping — what kind of wood bends?', 'Lightning splits trees into dry, flat pieces. For the bow, look for young living trees in the sun.'], near: ['spindle', 'board', 'greenBranch'] },
+      { t: () => `Cord: stringy fibres you could twist (${Math.min(3, G('fibers'))}/3) — twisted at the camp workbench`, done: () => F.cordMade,
+        hints: ['Some tall plants have long, tough fibres in their stems.', 'They grow in open, sunny ground and along the stream.'], near: ['fibers'] },
+      { t: 'Build the friction tool at the camp workbench', done: () => F.hasDrill,
+        hints: ['The workbench is at camp — the recipes are carved into it. Place the parts and press C.', 'Follow the rusted mast back to camp.'], near: 'camp' }],
+    complete: () => F.hasDrill && G('dryGrass') >= 2 && G('twigs') >= 3 && G('logs') >= 2 },
+  { title: 'First Fire', node: 'fire', desc: 'Night will come. No lighters, no matches — only physics.',
+    steps: [
+      { t: 'Build a fire lay in the camp pit: tinder, kindling, fuel', done: () => F.fireLit || (FL.tinder && FL.kindling && FL.fuel),
+        hints: ['Fire climbs a ladder of fuel: the finest first, the biggest last.', 'A nest of tinder, a teepee of twigs around it, logs outside that.'], near: 'camp' },
+      { t: 'Make an ember with the bow drill', done: () => F.emberMade,
+        hints: ['Aim at the bow drill, hold the mouse button and saw left and right — fast.', 'Faster strokes, more friction, more heat.'], near: 'camp' },
+      { t: 'Bring the ember to the tinder and keep it alive', done: () => F.fireLit,
+        hints: ['A glowing ember is fuel reacting with oxygen. What does it need more of?', 'Hold the mouse on the ember and wiggle — fan it.'], near: 'camp' }],
+    complete: () => F.fireLit },
+  { title: 'Black Gold', node: 'charcoal', desc: 'A good water filter needs charcoal. But ordinary burning leaves only ash…',
+    steps: [
+      { t: () => `Something to seal the earth mound’s air vents (${Math.min(2, G('clay'))}/2)`, done: () => F.charcoalMade || G('clay') >= 2,
+        hints: ['You need something you can press into a gap that will hold its shape.', 'Streams drop fine sticky earth where the water slows down on a bend.'], near: ['clay'] },
+      { t: 'Load a log into the earth mound', done: () => F.charcoalMade || slots.wood.item, hints: ['The earth mound is at camp.', 'Put a log in the opening on top.'], near: 'camp' },
+      { t: 'Decide: leave the air vents open, or seal them?', done: () => F.charcoalMade || kiln.state !== 'idle' || kilnSealed(), hints: ['What happens to burning wood when oxygen runs short?', 'Same wood, less oxygen, different chemistry.'], near: 'camp' },
+      { t: 'Light it with fire from your fire', done: () => F.charcoalMade || kiln.state !== 'idle', hints: ['Take a burning stick from the fire with an empty hand.', 'Bring it to the ignition port at the front of the mound.'], near: 'camp' },
+      { t: 'Watch the smoke — open the mound at the right moment', done: () => F.charcoalMade, hints: ['Smoke tells you what is leaving the wood.', 'White → yellow → thin blue.'], near: 'camp' }],
+    complete: () => F.charcoalMade },
+  { title: 'Clear ≠ Safe', node: 'water', desc: 'The stream is murky. Make water that is clear, odour-free and disinfected — then prove it.',
+    steps: [
+      { t: () => `A container ${G('pot') ? '✓' : '·'} and a way to see what’s in the water ${G('lens') ? '✓' : '·'}`, done: () => F.waterSafe || (G('pot') && G('lens')),
+        hints: ['People lived in this forest once. Their buildings may still hold useful things.', 'An old outpost has collapsed somewhere deep in the woods.'], near: ['pot', 'lens'] },
+      { t: () => `Filter materials: something coarse ${G('gravel') ? '✓' : '·'} something fine ${G('sand') ? '✓' : '·'} a woven screen ${G('cloth') ? '✓' : '·'}`, done: () => F.waterSafe || (G('gravel') && G('sand') && G('cloth')),
+        hints: ['Moving water sorts stones by size and drops the finest grains where it slows.', 'A stream bend has stones and sand. Woven fabric survives only where people lived.'], near: ['gravel', 'sand', 'cloth'] },
+      { t: 'Fill the pot at the stream', done: () => F.waterSafe || POT.water.has, hints: ['Hold the pot and aim at the water.', 'The stream runs right past camp.'], near: 'camp' },
+      { t: 'Build a layered filter and pour the water through', done: () => F.waterSafe || F.filtered, hints: ['Water flows top to bottom. What should it meet first — and what holds everything in at the bottom?', 'Pack the tube from the bottom up: a screen first, then charcoal, then fine, then coarse on top. Then pour.'], near: 'camp' },
+      { t: 'Bring it to a rolling boil on your fire', done: () => F.waterSafe || POT.water.boiled, hints: ['Particles aren’t the only danger in water.', 'Set the pot on the flat stone by the fire.'], near: 'camp' },
+      { t: 'Verify it with the lens', done: () => F.waterSafe, hints: ['Hold the lens and aim at the pot.', 'Look for movement.'], near: 'camp' }],
+    complete: () => F.waterSafe },
+  { title: 'First Lab', node: 'chem', desc: 'Night is falling. Bring what you learned to the Science Roadmap.',
+    steps: [{ t: 'Touch the Science Roadmap', done: () => F.finale, hints: ['The carved wall at camp.', 'Walk up to it and click.'], near: 'camp' }],
+    complete: () => F.finale },
+];
+const LAST_QUEST = QUESTS.length - 1;
+let qi = 0, qSig = '';
+const hintLevel = {};
+let hintTarget = null, hintTargetUntil = 0;
+const stepText = s => typeof s.t === 'function' ? s.t() : s.t;
+function renderQuest() {
+  const q = QUESTS[qi];
+  if (!q) { $('quest').innerHTML = `<div class="qnum">Chapter 1</div><div class="qtitle">Complete</div><div class="qdesc">Keep exploring — can you find every observation in the notebook?</div>`; return; }
+  $('quest').innerHTML = `<div class="qnum">Quest ${qi + 1} / ${QUESTS.length}</div><div class="qtitle">${q.title}</div><div class="qdesc">${q.desc}</div>
+    <ul>${q.steps.map(s => `<li class="${s.done() ? 'done' : ''}">${stepText(s)}</li>`).join('')}</ul><div class="foot">Stuck? <kbd>H</kbd> for a hint — ask again for a clearer one.</div>`;
+}
+const DIRS = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
+const bearingTo = (x, z) => Math.atan2(x - player.x, -(z - player.z)); // 0 = north (−z), +π/2 = east
+function showHint() {
+  const q = QUESTS[qi]; if (!q) return;
+  const si = q.steps.findIndex(s => !s.done()); if (si < 0) return;
+  const s = q.steps[si], key = `${qi}.${si}`, lvl = hintLevel[key] || 0;
+  hintLevel[key] = Math.min(2, lvl + 1);
+  if (lvl < 2) { toast('💡 ' + s.hints[lvl], 'note', 8); return; }
+  // third ask: point the way
+  let tx, tz, what;
+  if (s.near === 'camp') { tx = FP.x; tz = FP.z; what = 'camp'; }
+  else {
+    let best = null;
+    for (const n of nodes) if (s.near.includes(n.itemId) && n.charges > 0 && !(n.unique && G(n.itemId))) { const d = Math.hypot(n.x - player.x, n.z - player.z); if (!best || d < best.d) best = { n, d }; }
+    if (!best) { toast('💡 ' + s.hints[1], 'note', 8); return; }
+    tx = best.n.x; tz = best.n.z; what = 'what you need';
+  }
+  const d = Math.hypot(tx - player.x, tz - player.z);
+  if (d < 4) { toast(`💡 It’s right around you — look closely.`, 'note', 6); return; }
+  const b = (bearingTo(tx, tz) * 180 / Math.PI + 360) % 360;
+  toast(`💡 Try ${DIRS[Math.round(b / 45) % 8]}, about ${Math.max(5, Math.round(d / 5) * 5)} m — ${what}. (marked ★ on the compass for a while)`, 'note', 9);
+  hintTarget = [tx, tz]; hintTargetUntil = T + 40;
+}
+function updateQuests() {
+  const q = QUESTS[qi]; if (!q) return;
+  if (q.complete()) {
+    addXP(100); sfx('quest');
+    if (q.node && q.node !== 'chem') { lightNode(q.node); toast(`Quest complete: ${q.title} — the Roadmap lights up: ${NODES[q.node][2]}`, 'good', 5); }
+    else if (!q.node) toast(`Quest complete: ${q.title}. Time for science.`, 'good', 5);
+    qi++; qSig = ''; hintTarget = null; renderQuest();
+    if (qi === LAST_QUEST) startNight();
+    return;
+  }
+  const sig = q.steps.map(s => (s.done() ? 1 : 0) + stepText(s)).join('|');
+  if (sig !== qSig) { qSig = sig; renderQuest(); }
+}
+
+// ================= XP =================
+let xp = 0, level = 1; const LV = [0, 100, 250, 450, 700, 1000, 1400, 99999];
+function addXP(n) {
+  xp += n; toast(`+${n} XP`, 'xp', 1.6);
+  while (xp >= LV[level]) { level++; toast(`Level up! You are now level ${level}.`, 'good'); sfx('level'); }
+  renderXP();
+}
+function renderXP() {
+  $('lvText').textContent = `Level ${level}`; $('xpText').textContent = `${xp} XP`;
+  $('xpBar').style.width = `${clamp((xp - LV[level - 1]) / (LV[level] - LV[level - 1]), 0, 1) * 100}%`;
+  $('nbCount').textContent = `${NB.size}/${Object.keys(OBS).length}`;
+}
+
+// ================= event log (play-test debugging) =================
+function dlog(msg, cls = '') {
+  const line = `${T.toFixed(1)}s [${player.x.toFixed(0)},${player.z.toFixed(0)}] fire=${fire.state}${fire.state === 'igniting' ? '/' + fire.stage : ''} held=${held ? held.id : '-'} · ${msg}`;
+  LOG.push(line); if (LOG.length > 400) LOG.shift();
+  console.log('[PRIMAL]', line);
+  const el = $('logLines'); const d = document.createElement('div'); d.className = cls; d.textContent = line; el.appendChild(d);
+  while (el.children.length > 150) el.firstChild.remove();
+  el.scrollTop = el.scrollHeight;
+}
+function describeRef(ref) {
+  if (!ref) return 'nothing';
+  switch (ref.kind) {
+    case 'slot': return `slot "${ref.slot.label}" (has ${ref.slot.item ? ref.slot.item.id : 'nothing'})`;
+    case 'node': return `resource ${ref.node.itemId} (${ref.node.charges} left)`;
+    default: return ref.kind;
+  }
+}
+$('logHide').onclick = () => $('log').classList.toggle('hide');
+$('logCopy').onclick = () => { navigator.clipboard?.writeText(LOG.join('\n')); toast('Log copied — paste it to Claude.'); };
+
+// ================= UI: toasts, cards, notebook, lens, satchel, compass =================
+function toast(msg, kind = '', secs = 3.4) {
+  if (kind !== 'xp') dlog(`toast: ${msg}`, kind === 'bad' ? 'bad' : kind === 'good' ? 'ok' : '');
+  const d = document.createElement('div'); d.className = 'toast ' + kind; d.textContent = msg; $('toasts').appendChild(d);
+  while ($('toasts').children.length > 5) $('toasts').firstChild.remove();
+  setTimeout(() => d.remove(), secs * 1000);
+}
+const cardQ = []; let cardOpen = false, cardTimer = 0;
+function showCard(o) { cardQ.push(o); if (!cardOpen) nextCard(); }
+function nextCard() {
+  const o = cardQ.shift();
+  if (!o) { $('card').classList.remove('show'); cardOpen = false; return; }
+  cardOpen = true; cardTimer = cardQ.length ? 8 : 14;
+  $('cardTitle').textContent = o.title;
+  $('cardObs').innerHTML = `<b>Observation:</b> ${o.obs}`;
+  $('cardPri').innerHTML = `<b>Principle:</b> ${o.pri}`;
+  $('cardLim').innerHTML = o.lim ? `<b>Real-world limit:</b> ${o.lim}` : '';
+  $('card').classList.add('show');
+}
+$('cardBtn').onclick = nextCard;
+
+const GROUPS = { gather: 'Materials', fire: 'Fire', charcoal: 'Charcoal', water: 'Water' };
+function openNotebook() {
+  let html = '';
+  for (const [g, name] of Object.entries(GROUPS)) {
+    const ids = Object.keys(OBS).filter(k => OBS[k].q === g);
+    html += `<h4>${name} — ${ids.filter(k => NB.has(k)).length}/${ids.length}</h4>`;
+    for (const k of ids) {
+      const o = OBS[k];
+      html += NB.has(k)
+        ? `<div class="entry"><h5>${o.title}</h5><p><span class="k">Observation</span>${o.obs}</p><p><span class="k">Principle</span>${o.pri}</p>${o.lim ? `<p><span class="k">Limit</span>${o.lim}</p>` : ''}</div>`
+        : `<div class="entry locked"><h5>??? — undiscovered</h5><p>Try a different approach. Failures count.</p></div>`;
+    }
+  }
+  $('nbList').innerHTML = html; openModal('notebook');
+}
+$('nbClose').onclick = () => closeModal('notebook');
+
+const chipHTML = (id, n) => `<button class="chip" data-id="${id}"><i style="background:#${ITEMS[id].color.toString(16).padStart(6, '0')}"></i>${ITEMS[id].name}${n > 1 ? ` <b>×${n}</b>` : ''}</button>`;
+function renderSatchel() {
+  const ids = SATCHEL_ORDER.filter(id => SATCHEL[id] > 0);
+  $('satMini').innerHTML = ids.length ? ids.map(id => `${ITEMS[id].name}${SATCHEL[id] > 1 ? ' ×' + SATCHEL[id] : ''}`).join(' · ') : '<span class="empty">Empty</span>';
+  $('invItems').innerHTML = ids.length ? ids.map(id => chipHTML(id, SATCHEL[id])).join('') : '<div class="empty">Nothing yet. Explore the forest and gather what you find.</div>';
+  for (const b of $('invItems').querySelectorAll('.chip')) b.onclick = () => { closeModal('inv', true); takeFromSatchel(b.dataset.id); };
+}
+function addToSatchel(id, n = 1, gathered = false) {
+  SATCHEL[id] = (SATCHEL[id] || 0) + n;
+  if (gathered) GATHERED[id] = (GATHERED[id] || 0) + n;
+  renderSatchel();
+}
+function takeFromSatchel(id) {
+  if (held) { toast('Your hands are full — right-click or Q to stow what you’re holding first.'); return; }
+  if (!SATCHEL[id]) return;
+  SATCHEL[id]--; renderSatchel();
+  const it = id === 'pot' ? POT : id === 'lens' ? LENS : makeItem(id);
+  dlog(`took ${id} from satchel`); pickUp(it);
+}
+$('invClose').onclick = () => closeModal('inv', true);
+$('satchelMini').style.cursor = 'pointer';
+$('satchelMini').onclick = () => { if (started && !modalOpen()) openModal('inv'); };
+
+let lensOpen = false;
+const LP = Array.from({ length: 120 }, () => ({ x: srand(), y: srand(), r: 2 + srand() * 6, c: srand() }));
+const MIC = Array.from({ length: 16 }, () => ({ x: srand() * 680, y: srand() * 680, a: srand() * 6.28, ph: srand() * 6 }));
+function inspectPot() {
+  const w = POT.water;
+  if (!w.has) { toast('The pot is empty.'); return; }
+  lensOpen = true; openModal('lens');
+  const part = w.turbid > 0.5 ? 'Many particles' : w.turbid >= 0.2 ? 'Some particles — cloudy' : 'Very few particles — clear';
+  $('lensRead').innerHTML = `<h3 style="margin:0 0 8px">Under the lens</h3>
+    <p><span class="lbl">Particles:</span> ${part}</p>
+    <p><span class="lbl">Microbes:</span> ${w.alive ? '<b style="color:#7CFF9A">moving — alive</b>' : 'still — inactivated'}</p>
+    <p><span class="lbl">Dissolved compounds:</span> ${w.odor ? 'yellowish tint, earthy smell' : 'none visible'}</p>
+    <p><span class="lbl">Temperature:</span> ${Math.round(w.heat)} °C</p>
+    <p style="color:var(--muted);font-size:12.5px;margin-top:14px">Click anywhere to close.</p>`;
+  let found = null;
+  if (w.alive && w.turbid >= 0.5) found = 'w_raw';
+  else if (w.alive && w.turbid < 0.2) found = 'w_microbes';
+  else if (!w.alive && w.turbid >= 0.2) found = 'w_boilmurky';
+  if (found) observe(found);
+  if (w.turbid < 0.2 && w.odor) observe('w_odor');
+  if (!w.alive && w.turbid < 0.2) {
+    observe('w_boil');
+    if (!w.odor) F.waterSafe = true;
+    else toast('Disinfected and clear — but it still smells. The filter is missing something.', 'note', 5);
+  }
+}
+function drawLens(dt) {
+  const c = $('lensCanvas'), g = c.getContext('2d'), W = c.width, R = W / 2 - 8, w = POT.water;
+  g.clearRect(0, 0, W, W); g.save(); g.beginPath(); g.arc(W / 2, W / 2, R, 0, 7); g.clip();
+  const t = clamp(w.turbid, 0, 1);
+  g.fillStyle = `rgb(${lerp(165, 110, t)},${lerp(215, 95, t)},${lerp(230, 60, t)})`; g.fillRect(0, 0, W, W);
+  if (w.odor) { g.fillStyle = `rgba(205,175,60,${w.turbid < 0.5 ? 0.25 : 0.12})`; g.fillRect(0, 0, W, W); }
+  const n = Math.round(t * LP.length);
+  for (let i = 0; i < n; i++) { const p = LP[i]; g.fillStyle = p.c > 0.5 ? 'rgba(90,65,35,.85)' : 'rgba(130,100,60,.8)'; g.beginPath(); g.arc(p.x * W, p.y * W, p.r * 1.6, 0, 7); g.fill(); }
+  for (const m of MIC) {
+    if (w.alive) { m.a += rand(-2, 2) * dt; m.x = (m.x + Math.cos(m.a) * 45 * dt + W) % W; m.y = (m.y + Math.sin(m.a) * 45 * dt + W) % W; m.ph += dt * 12; }
+    g.save(); g.translate(m.x, m.y); g.rotate(m.a);
+    g.fillStyle = w.alive ? '#5ee07a' : '#8c8c88'; g.strokeStyle = g.fillStyle; g.lineWidth = 2;
+    g.beginPath(); g.ellipse(0, 0, 16, 6, 0, 0, 7); g.fill();
+    g.beginPath(); g.moveTo(-16, 0); for (let k = 1; k <= 6; k++) g.lineTo(-16 - k * 4, Math.sin(m.ph + k) * (w.alive ? 4 : 0.5)); g.stroke();
+    g.restore();
+  }
+  g.restore();
+  g.lineWidth = 14; g.strokeStyle = '#8a7350'; g.beginPath(); g.arc(W / 2, W / 2, R, 0, 7); g.stroke();
+}
+$('lens').onclick = () => { lensOpen = false; closeModal('lens', true); };
+
+function setMeter(label, frac) { $('meter').style.display = 'block'; $('meterLabel').textContent = label; $('meterBar').style.width = `${clamp(frac, 0, 1) * 100}%`; }
+function hideMeter() { $('meter').style.display = 'none'; }
+
+// compass: cardinal directions + camp + places you have discovered (+ a hint marker when asked)
+function updateCompass() {
+  const el = $('compass'), W = el.clientWidth, span = 100 * Math.PI / 180, heading = -player.yaw;
+  const items = [];
+  for (const [i, nm] of ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'].entries()) items.push({ b: i * Math.PI / 4, html: nm, cls: 'tk' + (i % 2 ? '' : ' card') });
+  for (const l of LANDMARKS) if (l.found) items.push({ b: bearingTo(l.pos[0], l.pos[1]), html: `${l.icon} ${l.name}`, cls: 'mk' });
+  if (hintTarget && T < hintTargetUntil) items.push({ b: bearingTo(hintTarget[0], hintTarget[1]), html: '★', cls: 'mk hint' });
+  let html = '<div class="mid"></div>';
+  for (const it of items) {
+    let rel = it.b - heading; rel = Math.atan2(Math.sin(rel), Math.cos(rel));
+    if (Math.abs(rel) > span) continue;
+    html += `<div class="${it.cls}" style="left:${W / 2 + rel / span * (W / 2)}px">${it.html}</div>`;
+  }
+  el.innerHTML = html;
+}
+
+// ================= modals & pointer lock =================
+const MODALS = ['intro', 'notebook', 'lens', 'ending', 'inv', 'resume'];
+const modalOpen = () => MODALS.some(id => $(id).classList.contains('show'));
+let lockFailed = false;
+const locked = () => document.pointerLockElement === canvas;
+function requestLook() { if (!lockFailed && !locked()) { try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(() => { lockFailed = true; }); } catch { lockFailed = true; } } }
+function openModal(id) { $(id).classList.add('show'); if (locked()) document.exitPointerLock(); }
+function closeModal(id, relock = false) { $(id).classList.remove('show'); if (relock && started && !modalOpen()) requestLook(); }
+document.addEventListener('pointerlockchange', () => {
+  if (!locked() && started && !modalOpen()) $('resume').classList.add('show');
+  if (locked()) $('resume').classList.remove('show');
+});
+document.addEventListener('pointerlockerror', () => { lockFailed = true; toast('Mouse capture unavailable here — use the arrow keys to turn.', 'note', 6); });
+$('resumeBtn').onclick = () => { $('resume').classList.remove('show'); requestLook(); };
+
+// ================= audio =================
+let AC = null, master, noiseBuf = null;
+function ac() {
+  if (!AC) { AC = new (window.AudioContext || window.webkitAudioContext)(); master = AC.createGain(); master.gain.value = 0.6; master.connect(AC.destination); }
+  if (AC.state === 'suspended') AC.resume();
+  return AC;
+}
+function tone(f, d, type = 'sine', v = 0.12, delay = 0, f2 = null) {
+  const a = ac(), t = a.currentTime + delay, o = a.createOscillator(), g = a.createGain();
+  o.type = type; o.frequency.setValueAtTime(f, t); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + d);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+  o.connect(g).connect(master); o.start(t); o.stop(t + d + 0.05);
+}
+function noise(d, v = 0.1, type = 'bandpass', freq = 1500, q = 1, delay = 0) {
+  const a = ac();
+  if (!noiseBuf) { noiseBuf = a.createBuffer(1, a.sampleRate * 2, a.sampleRate); const ch = noiseBuf.getChannelData(0); for (let i = 0; i < ch.length; i++) ch[i] = Math.random() * 2 - 1; }
+  const s = a.createBufferSource(); s.buffer = noiseBuf; const f = a.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q;
+  const g = a.createGain(), t = a.currentTime + delay;
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+  s.connect(f).connect(g).connect(master); s.start(t, Math.random()); s.stop(t + d + 0.05);
+}
+function sfx(k) {
+  if (!AC) return;
+  switch (k) {
+    case 'pick': tone(620, 0.07, 'triangle', 0.07); break;
+    case 'gather': noise(0.12, 0.08, 'bandpass', rand(900, 1600), 1.5); tone(rand(700, 900), 0.08, 'triangle', 0.05, 0.05); break;
+    case 'step': noise(0.07, 0.025, 'lowpass', rand(300, 500), 0.7); break;
+    case 'place': tone(200, 0.12, 'sine', 0.16, 0, 110); noise(0.06, 0.05, 'lowpass', 800); break;
+    case 'good': [523, 659, 784].forEach((f, i) => tone(f, 0.25, 'triangle', 0.09, i * 0.09)); break;
+    case 'bad': tone(180, 0.3, 'sawtooth', 0.045, 0, 110); break;
+    case 'note': [784, 988, 1319].forEach((f, i) => tone(f, 0.35, 'sine', 0.06, i * 0.07)); break;
+    case 'disc': [330, 440, 554, 659].forEach((f, i) => tone(f, 0.6, 'sine', 0.07, i * 0.12)); break;
+    case 'quest': [392, 523, 659, 784, 1047].forEach((f, i) => tone(f, 0.45, 'triangle', 0.08, i * 0.1)); break;
+    case 'level': [523, 784, 1047].forEach((f, i) => tone(f, 0.3, 'square', 0.035, i * 0.08)); break;
+    case 'whoosh': noise(0.7, 0.14, 'lowpass', 500, 0.5); break;
+    case 'hiss': noise(1.4, 0.08, 'highpass', 3000, 0.5); break;
+    case 'pour': noise(2.0, 0.05, 'bandpass', 900, 2); break;
+    case 'pop': noise(0.04, 0.1, 'bandpass', rand(1200, 3200), 3); break;
+    case 'saw': noise(0.08, 0.035, 'bandpass', rand(300, 600), 2); break;
+  }
+}
+
+// ================= core actions =================
+const HAND = new THREE.Vector3(0.26, -0.3, -0.55);
+function pickUp(it) {
+  held = it; if (it.layer) it.layer.removeFromParent();
+  camera.add(it.mesh); it.mesh.position.copy(HAND); it.mesh.rotation.set(0.25, -0.5, 0); sfx('pick');
+}
+function destroy(it) { it.mesh.removeFromParent(); if (it.layer) it.layer.removeFromParent(); }
+function stowHeld() {
+  if (!held) return;
+  const it = held; held = null;
+  if (it === ember.item) { killEmber(true); return; }
+  if (it.id === 'torch') { destroy(it); toast('You stub out the burning stick.'); return; }
+  destroy(it); addToSatchel(it.id); dlog(`stowed ${it.id}`); sfx('place');
+}
+function killEmber(msg) {
+  if (!ember.item) return;
+  if (slots.notch.item === ember.item) slots.notch.item = null;
+  if (held === ember.item) held = null;
+  destroy(ember.item); ember.item = null;
+  if (msg) { toast('The ember cooled to ash.', 'bad'); sfx('bad'); }
+}
+function gather(n) {
+  if (n.charges <= 0) { toast(n.unique ? 'Nothing else here.' : 'Nothing left here for now — it will grow back.'); return; }
+  n.charges--;
+  const firstTime = !G(n.itemId);
+  addToSatchel(n.itemId, 1, true); sfx('gather');
+  dlog(`gathered ${n.itemId} (${n.charges} left)`, 'ok');
+  toast(firstTime ? `New: ${ITEMS[n.itemId].name} → satchel` : `+1 ${ITEMS[n.itemId].name}`, firstTime ? 'good' : '');
+  if (n.first) n.first();
+  if (n.charges <= 0) { n.t = n.regrow; if (n.hide || n.unique) n.root.visible = false; }
+}
+function craft() {
+  if (Math.hypot(player.x - BP.x, player.z - BP.z) > 3.5) { toast('You need to be at the workbench to craft.'); return; }
+  const ss = BENCH.map(k => slots[k]); const items = ss.filter(s => s.item).map(s => s.item.id);
+  if (!items.length) { toast('Lay materials on the workbench first.'); return; }
+  const cnt = {}; items.forEach(i => cnt[i] = (cnt[i] || 0) + 1);
+  const is = r => Object.keys(r).length === Object.keys(cnt).length && Object.entries(r).every(([k, v]) => cnt[k] === v);
+  const consume = () => ss.forEach(s => { if (s.item) destroy(takeFrom(s)); });
+  dlog(`craft attempt: ${JSON.stringify(cnt)}`);
+  if (is({ fibers: 3 })) { consume(); addToSatchel('cord'); F.cordMade = true; sfx('good'); toast('You twist the fibres together into a strong cord → satchel.', 'good'); observe('g_cord'); return; }
+  if (is({ spindle: 1, board: 1, greenBranch: 1, cord: 1 })) {
+    consume(); F.hasDrill = true; drillG.visible = true; setSlotEnabled(slots.notch, true); sfx('quest');
+    toast('Bow drill assembled! You set it down beside the fire pit.', 'good', 5); observe('g_bow'); return;
+  }
+  sfx('bad');
+  if (cnt.fibers && Object.keys(cnt).length === 1) toast(`One fibre is weak. It takes 3 twisted together (${cnt.fibers} on the bench).`, 'bad');
+  else toast('Nothing comes of that combination. Check the recipes carved on the bench.', 'bad');
+}
+function clickSlot(slot) {
+  if (held) {
+    if (held.id === 'lens') { if (slot.item === POT) inspectPot(); else toast('You peer through the lens. Nothing interesting.'); return; }
+    if (slot.intercept && slot.intercept(held)) return;
+    const r = slot.accept ? slot.accept(held.id) : true;
+    if (r !== true) { dlog(`REJECTED ${held.id} at "${slot.label}": ${r}`, 'bad'); toast(r, 'bad'); sfx('bad'); return; }
+    if (slot.item) { dlog(`REJECTED ${held.id} at "${slot.label}": occupied by ${slot.item.id}`, 'bad'); toast('Something is already there.', 'bad'); return; }
+    dlog(`placed ${held.id} at "${slot.label}"`, 'ok');
+    const it = held; held = null; placeIn(slot, it); sfx('place'); slot.onPlace && slot.onPlace(it);
+    return;
+  }
+  if (slot.onEmptyClick && slot.onEmptyClick(slot)) return;
+  if (['wood', 'vent1', 'vent2', 'port'].includes(slot.id) && kiln.state === 'burning') { clickMound(); return; }
+  if (!slot.item) { toast(`${slot.label}.`); return; }
+  if (slot.id === 'top' || (F.pouring && slot.display === 'layer')) { toast('Wait — water is flowing through.'); return; }
+  const it = takeFrom(slot); pickUp(it);
+}
+function handleClick(ref) {
+  dlog(`click → ${describeRef(ref)}`);
+  if (!ref) return;
+  switch (ref.kind) {
+    case 'node': gather(ref.node); break;
+    case 'slot': clickSlot(ref.slot); break;
+    case 'mound': clickMound(); break;
+    case 'stream':
+      if (held && held.id === 'pot') { POT.water = { has: true, turbid: 1, odor: true, alive: true, boiled: false, heat: 15, boilT: 0, filtered: false }; updatePotVisual(); sfx('pour'); toast('You scoop up murky stream water.', 'note'); }
+      else toast('Cold, murky water.');
+      break;
+    case 'drill': break;
+    case 'wall': clickWall(); break;
+  }
+}
+function clickMound() {
+  if (held) { toast('An earth mound with an opening on top, two air vents and a port at the front.'); return; }
+  if (kiln.state !== 'burning') { toast('An earth mound with an opening on top, two air vents and a port at the front.'); return; }
+  const sealed = kilnSealed();
+  let res;
+  if (!sealed) { if (kiln.t < 16) { toast('Flames are roaring out of the open vents — it’s still burning.'); return; } res = 'ash'; }
+  else res = kiln.t < 13 ? 'half' : 'charcoal';
+  resetKiln(); showKilnResult(res);
+  if (res === 'ash') { observe('c_ash'); toast('Only grey ash is left.', 'bad'); sfx('bad'); }
+  else if (res === 'half') { observe('c_early'); toast('Half-charred — still brown and damp inside.', 'bad'); sfx('bad'); }
+  else { F.charcoalMade = true; addToSatchel('charcoal', 3, true); observe('c_success'); sfx('good'); toast('Charcoal! Light, black and mostly carbon. 3 pieces → satchel.', 'good', 5); }
+}
+function resetKiln() { for (const k of ['wood', 'vent1', 'vent2', 'port']) { const s = slots[k]; if (s.item) { destroy(s.item); s.item = null; } } kiln.state = 'idle'; kiln.t = 0; }
+function showKilnResult(res) {
+  if (kilnResult) kilnResult.removeFromParent();
+  const g = new THREE.Group();
+  if (res === 'ash') g.add(mesh(new THREE.ConeGeometry(0.14, 0.07, 10), mat(0x9a9894), 0, 0.035, 0));
+  else if (res === 'half') { const l = mesh(new THREE.CylinderGeometry(0.05, 0.056, 0.36, 7), mat(0x3a2a1e)); l.rotation.z = Math.PI / 2; l.position.y = 0.05; g.add(l); }
+  else for (let i = 0; i < 6; i++) g.add(mesh(new THREE.DodecahedronGeometry(0.04), mat(0x1d1d1f, { roughness: 0.5, metalness: 0.15 }), rand(-0.1, 0.1), 0.04, rand(-0.08, 0.08)));
+  g.position.set(KP.x, 0.5, KP.z); scene.add(g); kilnResult = g;
+  after(5, () => { if (kilnResult === g) { g.removeFromParent(); kilnResult = null; } });
+}
+function pour() {
+  const it = held; held = null; placeIn(slots.top, it); F.pouring = true; drip.rate = 50; sfx('pour'); F.experiments++;
+  after(2.3, () => {
+    drip.rate = 0; F.pouring = false;
+    const r = evalFilter(), w = POT.water;
+    takeFrom(slots.top);
+    if (slots.catch.item) { const o = takeFrom(slots.catch); destroy(o); addToSatchel(o.id); }
+    placeIn(slots.catch, POT); POT.mesh.rotation.z = 0;
+    if (r.type === 'empty') toast('Nothing in the tube — the water just ran straight through.');
+    else if (r.type === 'washout') { w.turbid = Math.max(w.turbid, 0.85); observe('w_washout'); toast('Grit and sand washed straight through into the pot!', 'bad'); sfx('bad'); }
+    else if (r.type === 'clog') { observe('w_clog'); toast('The filter clogged — the water barely trickled through.', 'bad'); sfx('bad'); }
+    else {
+      w.turbid = Math.min(w.turbid, r.turbid); if (r.char) w.odor = false; w.filtered = true; F.filtered = true;
+      if (w.turbid < 0.2) { toast('The water runs out clear. But is it safe?', 'good', 5); sfx('good'); }
+      else toast('Clearer — but still cloudy.', 'note', 5);
+    }
+    updatePotVisual();
+  });
+}
+function evalFilter() {
+  const L = ['L1', 'L2', 'L3', 'L4'].map(k => slots[k].item ? slots[k].item.id : null);
+  const present = L.filter(Boolean);
+  if (!present.length) return { type: 'empty' };
+  if (present[present.length - 1] !== 'cloth') return { type: 'washout' };
+  const si = L.indexOf('sand'), gi = L.indexOf('gravel');
+  if (si >= 0 && (gi < 0 || gi > si)) return { type: 'clog' };
+  let turbid = si >= 0 ? 0.12 : gi >= 0 ? 0.55 : 0.75;
+  const char = L.includes('charcoal'); if (char) turbid *= 0.6;
+  return { type: 'ok', turbid, char };
+}
+function clickWall() {
+  if (qi < LAST_QUEST) { toast(`The Science Roadmap. ${Object.values(nodeState).filter(n => n.lit).length} of 10 nodes lit.`); return; }
+  if (F.finale) return;
+  F.finale = true; lightNode('chem'); sfx('quest');
+  for (const k of ['glass', 'soap', 'lime']) nodeState[k].tease = true;
+  toast('The light runs through the grooves… CHEMISTRY.', 'good', 5);
+  after(4.5, () => {
+    const secs = Math.round((performance.now() - startTime) / 1000);
+    const found = LANDMARKS.filter(l => l.found).length;
+    $('stats').innerHTML = `<div><b>${NB.size}/${Object.keys(OBS).length}</b><span>observations</span></div><div><b>${found}/${LANDMARKS.length}</b><span>places found</span></div><div><b>${level}</b><span>level · ${xp} XP</span></div><div><b>${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}</b><span>time</span></div>`;
+    openModal('ending');
+  });
+}
+$('keepBtn').onclick = () => closeModal('ending', true);
+$('restartBtn').onclick = () => location.reload();
+
+const night = { active: false, t: 0 };
+function startNight() { night.active = true; toast('The sun is setting. The air turns cold…', 'note', 5); }
+const timers = [];
+function after(s, fn) { timers.push({ t: s, fn }); }
+
+// ================= input =================
+const raycaster = new THREE.Raycaster(); raycaster.far = REACH + 1.5; // the stream gets a longer reach (you can lean over the bank)
+const CENTER = new THREE.Vector2(0, 0);
+let lookRef = null;
+function pickCenter() {
+  raycaster.setFromCamera(CENTER, camera);
+  // real geometry wins; a padded hit box only counts when nothing solid with a ref is under the crosshair
+  let fallback = null;
+  for (const h of raycaster.intersectObjects(pickables, false)) {
+    if (!chainVisible(h.object)) continue; const r = refOf(h.object); if (!r) continue;
+    if (r.kind !== 'stream' && h.distance > REACH) continue;
+    if (h.object.userData.hitbox) { fallback = fallback || r; continue; }
+    return r;
+  }
+  return fallback;
+}
+function onLookMove(mx, my) {
+  if (holdMode === 'drill') {
+    drill.stroke += Math.abs(mx);
+    const dir = Math.sign(mx);
+    if (dir && dir !== drill.lastDir) { drill.lastDir = dir; if (drill.sawCD <= 0) { sfx('saw'); drill.sawCD = 0.06; } }
+    drill.bow = clamp(drill.bow + mx * 0.0018, -0.13, 0.13); spindle.rotation.y += mx * 0.25;
+    return;
+  }
+  if (holdMode === 'fan') { if (fire.state === 'smoulder') fire.oxygen = Math.min(1, fire.oxygen + Math.hypot(mx, my) * 0.0007); return; }
+  player.yaw -= mx * 0.0022; player.pitch = clamp(player.pitch - my * 0.0022, -1.35, 1.2);
+}
+addEventListener('mousemove', e => { if (locked()) onLookMove(e.movementX, e.movementY); });
+function primaryDown() {
+  const ref = pickCenter();
+  if (ref !== lookRef) { setHighlight(lookRef, false); setHighlight(ref, true); lookRef = ref; }
+  if (ref && ref.kind === 'drill' && !held) {
+    if (ember.item) { toast('You already have an ember — quick, get it to the tinder!', 'note'); return; }
+    if (fire.state !== 'unlit') { toast(fire.state === 'burning' ? 'The fire is already burning.' : 'Watch the nest!'); return; }
+    holdMode = 'drill'; drill.active = true; dlog('started sawing'); return;
+  }
+  if (ref && ref.kind === 'slot' && ref.slot.id === 'pit' && fire.state === 'smoulder' && !held) { holdMode = 'fan'; dlog('started fanning'); return; }
+  handleClick(ref);
+}
+function primaryUp() { holdMode = null; drill.active = false; }
+canvas.addEventListener('mousedown', e => {
+  if (modalOpen()) return;
+  if (!locked() && !lockFailed) { requestLook(); return; }
+  if (e.button === 2) { stowHeld(); return; }
+  if (e.button === 0) primaryDown();
+});
+addEventListener('mouseup', e => { if (e.button === 0) primaryUp(); });
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+addEventListener('keydown', e => {
+  if (e.code === 'Tab') { e.preventDefault(); if (!started) return; if ($('inv').classList.contains('show')) closeModal('inv', true); else if (!modalOpen()) openModal('inv'); return; }
+  if (e.key === 'Escape') { if ($('lens').classList.contains('show')) { lensOpen = false; closeModal('lens'); } else for (const id of ['notebook', 'inv']) if ($(id).classList.contains('show')) closeModal(id); return; }
+  if (!started || ['intro', 'ending', 'lens'].some(id => $(id).classList.contains('show'))) return;
+  keys[e.code] = true;
+  const k = e.key.toLowerCase();
+  if (k === 'n') { $('notebook').classList.contains('show') ? closeModal('notebook', true) : openNotebook(); }
+  if (k === 'h') showHint();
+  if (k === 'l') $('log').classList.toggle('hide');
+  if (k === 'c') craft();
+  if (k === 'q') stowHeld();
+});
+addEventListener('keyup', e => { keys[e.code] = false; });
+addEventListener('blur', () => { for (const k in keys) keys[k] = false; primaryUp(); });
+$('beginBtn').onclick = () => {
+  started = true; closeModal('intro'); ac(); startTime = performance.now(); requestLook();
+  setTimeout(() => toast('You need fire. Look around camp — then the forest. (H for a hint)', 'note', 7), 600);
+};
+function fitCamera() {
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight);
+  const v = new THREE.Vector2(); renderer.getDrawingBufferSize(v); PU.uScale.value = v.y / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
+}
+addEventListener('resize', fitCamera);
+fitCamera();
+
+// ================= per-frame updates =================
+const tmpV = new THREE.Vector3();
+let stepAcc = 0;
+function updatePlayer(dt) {
+  const canMove = started && !modalOpen();
+  // arrow keys turn (also the fallback when mouse capture is unavailable)
+  if (canMove) { if (keys.ArrowLeft) player.yaw += dt * 1.8; if (keys.ArrowRight) player.yaw -= dt * 1.8; }
+  let fx = 0, fz = 0;
+  if (canMove) {
+    if (keys.KeyW || keys.ArrowUp) fz -= 1; if (keys.KeyS || keys.ArrowDown) fz += 1;
+    if (keys.KeyA) fx -= 1; if (keys.KeyD) fx += 1;
+  }
+  if (holdMode) fx = fz = 0;
+  const len = Math.hypot(fx, fz);
+  if (len > 0) {
+    const sp = (keys.ShiftLeft || keys.ShiftRight ? 6.2 : 3.4) * dt / len, sy = Math.sin(player.yaw), cy = Math.cos(player.yaw);
+    player.x += (fx * cy + fz * sy) * sp; player.z += (-fx * sy + fz * cy) * sp;
+    stepAcc += sp * len; if (stepAcc > 0.7) { stepAcc = 0; sfx('step'); }
+  }
+  // push out of trees, rocks and structures
+  const R = 0.32, cx = Math.floor(player.x / CELL), cz = Math.floor(player.z / CELL);
+  for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
+    const list = COLS.get(`${cx + i},${cz + j}`); if (!list) continue;
+    for (const [x, z, r] of list) { const dx = player.x - x, dz = player.z - z, d = Math.hypot(dx, dz), m = r + R; if (d < m && d > 1e-4) { player.x = x + dx / d * m; player.z = z + dz / d * m; } }
+  }
+  const dr = Math.hypot(player.x, player.z); if (dr > WORLD_R) { player.x *= WORLD_R / dr; player.z *= WORLD_R / dr; }
+  camera.position.set(player.x, EYE + (len > 0 ? Math.sin(T * 9) * 0.025 : 0), player.z);
+  camera.rotation.set(player.pitch, player.yaw, 0);
+  // the sun's shadow box follows you through the forest
+  sun.position.set(player.x + 8, 16, player.z + 6); sun.target.position.set(player.x, 0, player.z);
+}
+function updateDiscovery() {
+  for (const l of LANDMARKS) {
+    if (l.found) continue;
+    if (Math.hypot(player.x - l.pos[0], player.z - l.pos[1]) < l.r) {
+      l.found = true; sfx('disc'); toast(`Discovered: ${l.name}`, 'disc', 4); addXP(20); dlog(`discovered ${l.id}`, 'ok');
+    }
+  }
+}
+function setHighlight(ref, on) {
+  if (!ref || ref.kind === 'slot' || ref.kind === 'stream' || ref.kind === 'wall') return;
+  ref.root.traverse(o => { if (o.isMesh && o.material && o.material.emissive && o.material.userData.baseEmissive !== undefined) o.material.emissive.setHex(on ? 0x3a3020 : o.material.userData.baseEmissive); });
+}
+const lay = id => id ? ITEMS[id].name.toLowerCase() : '—';
+function tipFor(ref) {
+  switch (ref.kind) {
+    case 'node': { const n = ref.node, known = G(n.itemId) > 0;
+      if (n.charges <= 0) return `${known ? ITEMS[n.itemId].name : n.label} — nothing left for now`;
+      return known ? `${ITEMS[n.itemId].name} — ${n.label.toLowerCase()}` : n.label; }
+    case 'slot': { const s = ref.slot;
+      if (s.id === 'pit') return fire.state === 'burning' ? 'Fire — take a burning stick with an empty hand' : fire.state === 'smoulder' ? 'The ember — hold and wiggle to fan it' : `Fire pit · ${FL.tinder ? `nest: ${lay(FL.tinder.id)} · kindling: ${lay(FL.kindling?.id)} · fuel: ${lay(FL.fuel?.id)}` : 'a ring of stones'}`;
+      if (LAYERS.includes(s.id)) return tubeDesc();
+      return s.item ? `${s.label}: ${ITEMS[s.item.id].name}` : s.label; }
+    case 'drill': return 'Bow drill — hold and move the mouse left ↔ right';
+    case 'mound': return kiln.state === 'burning' ? `Earth mound — burning (${Math.floor(kiln.t)}s). Click to open it.` : 'Earth mound';
+    case 'stream': return held && held.id === 'pot' ? 'Stream — click to collect water' : 'Stream';
+    case 'wall': return 'Science Roadmap';
+  }
+  return '';
+}
+function updateLook() {
+  const ref = started && !modalOpen() && !holdMode ? pickCenter() : lookRef;
+  if (ref !== lookRef) { setHighlight(lookRef, false); setHighlight(ref, true); lookRef = ref; }
+  $('cross').classList.toggle('on', !!ref);
+  const tip = $('tip'); if (ref && !modalOpen()) { tip.style.display = 'block'; tip.textContent = tipFor(ref); } else tip.style.display = 'none';
+}
+function updateHeld() {
+  if (!held) return;
+  held.mesh.position.set(HAND.x, HAND.y + Math.sin(T * 2) * 0.006, HAND.z);
+}
+function updateDrill(dt) {
+  drill.sawCD -= dt;
+  const speed = drill.stroke / Math.max(dt, 1e-3); drill.stroke = 0;
+  if (drill.active) drill.heat += dt * clamp((speed - 350) / 1500, -0.35, 1) * 0.22;
+  else drill.heat -= dt * 0.08;
+  drill.heat = clamp(drill.heat, 0, 1);
+  if (!drill.active) drill.bow *= 0.9;
+  bowG.position.x = drill.bow;
+  dsmoke.rate = drill.heat > 0.15 ? drill.heat * 40 : 0;
+  if (drill.heat >= 1) {
+    drill.heat = 0; drill.active = false; holdMode = null;
+    const e = makeItem('ember'); ember.item = e; ember.life = 15; placeIn(slots.notch, e);
+    F.emberMade = true; sfx('good'); toast('An ember! It drops onto the bark tray. Quick — it won’t last.', 'good', 5);
+    observe('f_drill');
+  }
+}
+function updateEmber(dt) {
+  if (!ember.item) return;
+  ember.life -= dt;
+  const gl = ember.item.mesh.userData.glow; if (gl) gl.material.emissiveIntensity = 1.2 + Math.sin(T * 9) * 0.6 + ember.life / 15 * 1.5;
+  if (ember.life <= 0) killEmber(true);
+}
+function failFire(id, msg) {
+  fire.state = 'dying'; fire.t = 0;
+  // the tinder burns away and the twig teepee is charred, so a retry starts from a clean nest
+  for (const k of ['tinder', 'kindling']) { const it = clearLayer(k); if (it) destroy(it); }
+  observe(id); toast(msg, 'bad', 4.5); sfx('bad');
+}
+const CHAR = new THREE.Color(0x231a12);
+function updateFire(dt) {
+  let target = 0;
+  switch (fire.state) {
+    case 'hiss': fire.t += dt; smoke.c0.setHex(0xf0f0f0); smoke.rate = 45;
+      if (fire.t > 2.2) { fire.state = 'unlit'; observe('f_damp'); toast('The ember died in the damp moss.', 'bad'); sfx('bad'); }
+      break;
+    case 'smoulder':
+      fire.emberLife -= dt;
+      target = 0.04 + fire.oxygen * 0.12; smoke.c0.setHex(0x9a9a9a); smoke.rate = 6 + fire.oxygen * 25;
+      if (fire.oxygen >= 0.99) { fire.state = 'igniting'; fire.stage = 'tinder'; fire.t = 0; holdMode = null; sfx('whoosh'); toast(FL.kindling ? 'Flame! The tinder catches…' : 'Flame! But tinder burns fast…', 'good', 4); }
+      else if (fire.emberLife <= 0) { fire.state = 'unlit'; holdMode = null; observe('f_oxygen'); toast('The ember faded out.', 'bad'); sfx('bad'); }
+      else fire.oxygen = Math.max(0, fire.oxygen - dt * 0.02);
+      break;
+    case 'igniting':
+      fire.t += dt; smoke.c0.setHex(0x8a8a8a); smoke.rate = 22;
+      // each stage gives a window to feed the next size of fuel; the flame shrinks while it waits
+      target = fire.stage === 'tinder' ? 0.45 * (1 - 0.5 * clamp((fire.t - 1.6) / TINDER_WINDOW, 0, 1)) : 0.75 * (1 - 0.4 * clamp((fire.t - 1.8) / KINDLING_WINDOW, 0, 1));
+      if (fire.stage === 'tinder' && fire.t > 1.6) {
+        if (FL.kindling) { fire.stage = 'kindling'; fire.t = 0; sfx('whoosh'); if (!FL.fuel) toast('The twigs catch!', 'good', 4); }
+        else if (FL.fuel) failFire('f_bigfuel', 'The tiny tinder flame couldn’t heat the logs fast enough — it starved.');
+        else if (fire.t > 1.6 + TINDER_WINDOW) failFire('f_nofuel', 'The tinder burned out before anything bigger caught.');
+      } else if (fire.stage === 'kindling' && fire.t > 1.8) {
+        if (FL.fuel) { fire.state = 'burning'; fire.burnT = 0; F.fireLit = true; const t = clearLayer('tinder'); if (t) destroy(t); sfx('good'); toast('A steady fire. You made fire from nothing but wood, motion and air.', 'good', 5); observe('f_success'); }
+        else if (fire.t > 1.8 + KINDLING_WINDOW) failFire('f_nofuel', 'The twigs burned hot, then died — nothing bigger caught.');
+      }
+      break;
+    case 'dying': fire.t += dt; target = Math.max(0, 0.5 - fire.t * 0.3); smoke.rate = 18; if (fire.t > 2) fire.state = 'unlit'; break;
+    case 'burning': target = fire.hot ? 1.3 : 1; smoke.c0.setHex(0x6f6f6f); smoke.rate = fire.hot ? 4 : 16; fire.burnT += dt; break;
+    default: smoke.rate = 0;
+  }
+  fire.level += (target - fire.level) * Math.min(1, dt * 2.5);
+  const spreadT = fire.state === 'burning' ? 0.17 : fire.stage === 'kindling' && fire.state === 'igniting' ? 0.12 : 0.06;
+  flame.o.spread += (spreadT - flame.o.spread) * Math.min(1, dt * 2);
+  flame.rate = fire.level > 0.2 ? fire.level * 140 : 0;
+  flame.c0.setHex(fire.hot ? 0xfff2c0 : 0xffd27a); flame.sizeMul = 0.7 + fire.level * 0.5;
+  sparks.rate = fire.state === 'burning' ? (fire.hot ? 10 : 5) : 0;
+  fireLight.intensity = (fire.level * 5 + (night.active ? fire.level * 3 * night.t : 0)) * (0.85 + Math.random() * 0.3);
+  nestGlow.visible = fire.state === 'smoulder';
+  if (nestGlow.visible) { nestGlow.material.opacity = 0.5 + fire.oxygen * 0.5; nestGlow.scale.setScalar(0.8 + fire.oxygen * 0.8 + Math.sin(T * 10) * 0.1); }
+  const burning = fire.state === 'burning' || (fire.state === 'igniting' && fire.stage === 'kindling');
+  for (const k of ['kindling', 'fuel']) {
+    const v = layerVis[k]; if (!v) continue;
+    const c = burning ? clamp((fire.state === 'burning' ? fire.burnT + 2 : fire.t) / (k === 'kindling' ? 6 : 20), 0, 1) : 0;
+    for (const m of v.userData.mats) { m.color.setHex(m.userData.baseColor).lerp(CHAR, c); m.emissive.setHex(0xff4a10); m.emissiveIntensity = burning ? c * (0.25 + Math.random() * 0.25) : 0; }
+  }
+  if (AC && fire.level > 0.3 && Math.random() < dt * fire.level * 10 && Math.hypot(player.x - FP.x, player.z - FP.z) < 12) sfx('pop');
+}
+function updateKiln(dt) {
+  ksmoke.rate = 0; vf1.rate = vf2.rate = 0; kilnLight.intensity = 0;
+  if (kiln.state !== 'burning') return;
+  kiln.t += dt;
+  const pf = slots.port.item && slots.port.item.mesh.userData.flame; if (pf) pf.scale.setScalar(0.8 + Math.random() * 0.4);
+  if (!kilnSealed()) {
+    if (kiln.t < 16) { vf1.rate = vf2.rate = 40; ksmoke.rate = 28; ksmoke.c0.setHex(0x4e4e4e); ksmoke.c1.setHex(0x777777); ksmoke.alphaMul = 1; kilnLight.intensity = 3 * (0.8 + Math.random() * 0.4); }
+    else ksmoke.rate = 3;
+  } else {
+    const ph = kiln.t < 6 ? 0 : kiln.t < 13 ? 1 : 2;
+    const C = [[0xf4f4f0, 0xdedede], [0xd8c27a, 0xb9a77a], [0x9fb6e0, 0xb8c6e6]][ph];
+    ksmoke.c0.setHex(C[0]); ksmoke.c1.setHex(C[1]); ksmoke.rate = ph === 2 ? 10 : 32; ksmoke.alphaMul = ph === 2 ? 0.45 : 1;
+    kilnLight.intensity = 0.6;
+  }
+}
+function updatePot(dt) {
+  const w = POT.water, onStone = slots.cook.item === POT;
+  if (onStone && fire.state === 'burning' && w.has) {
+    w.heat = Math.min(100, w.heat + dt * (fire.hot ? 30 : 18));
+    if (w.heat >= 100) {
+      w.boilT += dt;
+      if (w.boilT >= 6 && w.alive) { w.alive = false; w.boiled = true; F.experiments++; sfx('good'); toast('Held at a rolling boil (≈1 minute, sped up).', 'good', 5); }
+    }
+  } else { w.heat = Math.max(15, w.heat - dt * 6); if (w.heat < 99) w.boilT = 0; }
+  if (POT.mesh.parent) { POT.mesh.getWorldPosition(tmpV); tmpV.y += 0.16; steam.emitter.copy(tmpV); }
+  steam.rate = w.has && w.heat > 60 && POT.mesh.parent ? (w.heat - 60) * 1.2 : 0;
+}
+function updateNodes(dt) {
+  for (const n of nodes) {
+    if (n.charges > 0 || n.unique) continue;
+    n.t -= dt;
+    if (n.t <= 0) { n.charges = n.max; n.root.visible = true; }
+  }
+  glint.rate = lensNode.charges > 0 ? 3 : 0;
+}
+function updateWall(dt) {
+  for (const n of Object.values(nodeState)) {
+    const tgt = n.lit ? 1 : n.tease ? 0.05 + Math.sin(T * 2) * 0.04 : 0;
+    n.glow += (tgt - n.glow) * Math.min(1, dt * 1.5);
+    n.mesh.material.emissiveIntensity = n.glow * (1.6 + (night.active ? night.t * 1.4 : 0));
+    n.label.material.opacity = 0.35 + n.glow * 0.65;
+  }
+  for (const e of edgeState) { e.p += (e.target - e.p) * Math.min(1, dt * 1.2); e.piv.visible = e.p > 0.01; e.piv.scale.x = Math.max(0.0001, e.p); }
+}
+const bgTmp = new THREE.Color();
+function updateNight(dt) {
+  if (!night.active) return;
+  night.t = Math.min(1, night.t + dt / 7);
+  const t = night.t;
+  bgTmp.copy(DAY.bg).lerp(NIGHT.bg, t); scene.background.copy(bgTmp); scene.fog.color.copy(bgTmp);
+  hemi.intensity = lerp(DAY.hemi, NIGHT.hemi, t); sun.intensity = lerp(DAY.sun, NIGHT.sun, t); sun.color.copy(DAY.sunColor).lerp(NIGHT.sunColor, t);
+  streamMat.color.setHex(0x3f7f9e).lerp(new THREE.Color(0x0e1e2e), t);
+}
+function updateMarkers() {
+  for (const s of Object.values(slots)) {
+    let op = 0, col = 0xffffff;
+    const hov = lookRef && lookRef.slot === s;
+    if (held) {
+      const want = (held.id === 'lens' && s.item === POT) || (s.wantsIntercept && s.wantsIntercept(held.id)) || (!s.item && s.accept && s.accept(held.id) === true);
+      if (want) { op = 0.55 + Math.sin(T * 6) * 0.3; col = 0x7dff8a; }
+      if (hov) op = want ? 1 : 0.35;
+    } else { op = s.item ? 0 : 0.15; if (hov) op = 0.7; }
+    if (s.display === 'layer' && !held && s.item) op = 0;
+    if (s.id === 'pit' && !held && (FL.tinder || fire.state !== 'unlit')) op = hov ? 0.5 : 0;
+    s.ring.material.opacity = op; s.ring.material.color.setHex(col);
+  }
+}
+function updateMeter() {
+  const w = POT.water, nearFire = Math.hypot(player.x - FP.x, player.z - FP.z) < 6;
+  if (drill.active || (drill.heat > 0.02 && nearFire)) return setMeter(drill.heat > 0.7 ? 'Friction heat — almost!' : 'Friction heat', drill.heat);
+  if (fire.state === 'igniting' && fire.stage === 'tinder' && fire.t > 1.6) return setMeter(`The tinder is burning out — ${Math.ceil(1.6 + TINDER_WINDOW - fire.t)}s`, 1 - (fire.t - 1.6) / TINDER_WINDOW);
+  if (fire.state === 'igniting' && fire.stage === 'kindling' && fire.t > 1.8) return setMeter(`The twigs are burning out — ${Math.ceil(1.8 + KINDLING_WINDOW - fire.t)}s`, 1 - (fire.t - 1.8) / KINDLING_WINDOW);
+  if (fire.state === 'smoulder') return setMeter(`The ember is fading — ${Math.ceil(fire.emberLife)}s`, fire.oxygen);
+  if (ember.item) return setMeter(`Ember cooling — ${Math.ceil(ember.life)}s`, ember.life / 15);
+  if (slots.cook.item === POT && w.has && nearFire) {
+    if (fire.state !== 'burning') return setMeter('Water: no heat', 0);
+    if (w.heat < 100) return setMeter(`Water temperature: ${Math.round(w.heat)} °C`, w.heat / 100);
+    return setMeter(w.alive ? `Rolling boil: ${w.boilT.toFixed(1)} / 6 s (≈1 minute, sped up)` : 'Boiled', w.alive ? w.boilT / 6 : 1);
+  }
+  if (kiln.state === 'burning' && Math.hypot(player.x - KP.x, player.z - KP.z) < 6) {
+    const sm = !kilnSealed() ? (kiln.t < 16 ? 'flames!' : 'dying down') : kiln.t < 6 ? 'thick white' : kiln.t < 13 ? 'yellowish' : 'thin blue';
+    return setMeter(`Mound burning · ${Math.floor(kiln.t)}s · smoke: ${sm}`, Math.min(1, kiln.t / 20));
+  }
+  if (F.pouring) return setMeter('Water trickling through the filter…', 1);
+  hideMeter();
+}
+
+// ================= start =================
+renderQuest(); renderXP(); renderSatchel(); updatePotVisual();
+let last = performance.now(), lastFireSig = '';
+function loop(now) { const dt = Math.min(0.05, (now - last) / 1000); last = now; frame(dt); requestAnimationFrame(loop); }
+function frame(dt) {
+  T += dt;
+  const fsig = fire.state + '/' + fire.stage;
+  if (fsig !== lastFireSig) { lastFireSig = fsig; dlog(`fire state → ${fire.state}${fire.state === 'igniting' ? ' (' + fire.stage + ' stage)' : ''} · nest=${FL.tinder?.id || '-'} kindling=${FL.kindling?.id || '-'} fuel=${FL.fuel?.id || '-'}`); }
+  updatePlayer(dt); updateDiscovery(); updateLook(); updateHeld();
+  updateDrill(dt); updateEmber(dt); updateFire(dt); updateKiln(dt); updatePot(dt); updateNodes(dt); updateWall(dt); updateNight(dt);
+  for (let i = timers.length - 1; i >= 0; i--) { timers[i].t -= dt; if (timers[i].t <= 0) { const f = timers[i].fn; timers.splice(i, 1); f(); } }
+  updateQuests(); updateMarkers(); updateMeter(); updateCompass();
+  for (const p of systems) p.update(dt);
+  if (lensOpen) drawLens(dt);
+  if (cardOpen) { cardTimer -= dt; if (cardTimer <= 0) nextCard(); }
+  renderer.render(scene, camera);
+}
+requestAnimationFrame(loop);
+
+// debug hooks for automated play-testing (no pointer lock needed)
+window.__primal = { F, fire, FL, kiln, POT, slots, nodes, SATCHEL, GATHERED, NB, LANDMARKS, drill, player, craft, takeFromSatchel, showHint, tick: (dt = 1 / 60) => frame(dt),
+  get held() { return held; }, get qi() { return qi; }, get look() { return lookRef; },
+  start() { started = true; closeModal('intro'); },
+  goTo(x, z, standoff = 1.4) { const d = Math.hypot(x - player.x, z - player.z) || 1; player.x = x - (x - player.x) / d * standoff; player.z = z - (z - player.z) / d * standoff; frame(1 / 60); },
+  face(x, y, z) { const dx = x - player.x, dz = z - player.z, dy = y - EYE; player.yaw = Math.atan2(-dx, -dz); player.pitch = Math.atan2(dy, Math.hypot(dx, dz)); frame(1 / 60); },
+  click(btn = 0) { if (btn === 2) stowHeld(); else { primaryDown(); primaryUp(); } frame(1 / 60); },
+  hold(frames, dx = 30) { primaryDown(); let d = 1; for (let i = 0; i < frames && holdMode; i++) { d = -d; onLookMove(d * dx, 0); frame(1 / 60); } primaryUp(); },
+  nodeOf(id, i = 0) { return nodes.filter(n => n.itemId === id)[i]; } };
+</script>
+</body>
+</html>

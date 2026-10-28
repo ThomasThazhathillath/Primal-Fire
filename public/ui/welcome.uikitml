@@ -1,0 +1,31 @@
+<!-- Title and onboarding: shown when you wake up. -->
+<style>
+  .panel-root { flex-direction: column; width: 420px; }
+  .panel-content { flex-direction: column; gap: 9px; padding: 24px; }
+  .eyebrow { color: #8a5a00; font-size: 14px; font-weight: 700; letter-spacing: 1.4px; }
+  .eyebrow:dark { color: #ffb547; }
+  .heading { color: #1c1d20; font-size: 34px; font-weight: 700; line-height: 40px; }
+  .heading:dark { color: #fafaf7; }
+  .body { color: #3a3b40; font-size: 18px; line-height: 25px; }
+  .body:dark { color: #e4dccd; }
+  .how { color: #55504a; font-size: 15px; line-height: 22px; }
+  .how:dark { color: #b9ab95; }
+  .button { justify-content: flex-start; margin-left: 24px; margin-right: 24px; margin-bottom: 14px; }
+</style>
+<Panel class="panel-root">
+  <div class="panel-content">
+    <div class="eyebrow">CHAPTER 1</div>
+    <div class="heading">PRIMAL: First Fire</div>
+    <div class="body">You wake on the forest floor with nothing. Every machine is gone. The science isn't.</div>
+    <div class="how">Point and pinch to gather. Your satchel hangs at your hip. Take out a stone and point at open ground to build.</div>
+    <div class="how">Stuck? Ask for a hint - ask again for a clearer one.</div>
+  </div>
+  <Button id="xr-button" class="button">
+    <ButtonIcon><RectangleGoggles></RectangleGoggles></ButtonIcon>
+    <ButtonLabel>Enter VR</ButtonLabel>
+  </Button>
+  <Button id="begin-button" class="button">
+    <ButtonIcon><Sunrise></Sunrise></ButtonIcon>
+    <ButtonLabel id="begin-label">Wake up</ButtonLabel>
+  </Button>
+</Panel>

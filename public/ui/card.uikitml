@@ -1,0 +1,23 @@
+<!-- A new Lab Notebook entry: Observation -> Principle -> Real-world limit. -->
+<style>
+  .root { flex-direction: column; width: 440px; padding-top: 22px; padding-bottom: 22px; padding-left: 26px; padding-right: 26px; gap: 10px; }
+  .eyebrow { color: #1f5f99; font-size: 13px; font-weight: 700; letter-spacing: 1.5px; }
+  .eyebrow:dark { color: #8fc7ff; }
+  .title { color: #1c1d20; font-size: 26px; font-weight: 700; }
+  .title:dark { color: #f3eadb; }
+  .label { color: #8a5a00; font-size: 12px; font-weight: 700; letter-spacing: 1px; }
+  .label:dark { color: #ffb547; }
+  .body { color: #2a2620; font-size: 16px; line-height: 1.35; }
+  .body:dark { color: #e9dfcd; }
+</style>
+<Panel class="root">
+  <div id="card-eyebrow" class="eyebrow">NEW OBSERVATION</div>
+  <div id="card-title" class="title">-</div>
+  <div class="label">OBSERVATION</div>
+  <div id="card-obs" class="body">-</div>
+  <div class="label">PRINCIPLE</div>
+  <div id="card-pri" class="body">-</div>
+  <div id="card-lim-label" class="label">REAL-WORLD LIMIT</div>
+  <div id="card-lim" class="body">-</div>
+  <Button id="card-ok" size="sm"><ButtonIcon><Check></Check></ButtonIcon><ButtonLabel>Got it</ButtonLabel></Button>
+</Panel>

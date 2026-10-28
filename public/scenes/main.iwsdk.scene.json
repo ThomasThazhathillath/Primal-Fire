@@ -1,0 +1,226 @@
+{
+  "version": "iwsdk.scene.v1",
+  "units": "meters",
+  "components": {
+    "com.iwsdk.components.DomeGradient": {
+      "sky": [
+        0.26,
+        0.48,
+        0.72,
+        1
+      ],
+      "equator": [
+        0.62,
+        0.72,
+        0.76,
+        1
+      ],
+      "ground": [
+        0.22,
+        0.25,
+        0.16,
+        1
+      ],
+      "elevationDeg": 30,
+      "azimuthDeg": -40,
+      "dither": true
+    },
+    "com.iwsdk.components.IBLGradient": {
+      "sky": [
+        0.6,
+        0.7,
+        0.8,
+        1
+      ],
+      "equator": [
+        0.62,
+        0.66,
+        0.6,
+        1
+      ],
+      "ground": [
+        0.3,
+        0.27,
+        0.2,
+        1
+      ],
+      "intensity": 0.6
+    }
+  },
+  "environment": {
+    "toneMapping": "aces",
+    "exposure": 1.0,
+    "shadows": false
+  },
+  "resources": {},
+  "nodes": [
+    {
+      "id": "forest-ground",
+      "name": "Forest Ground",
+      "framingRole": "support",
+      "content": {
+        "type": "asset",
+        "asset": "forest-ground"
+      },
+      "components": {
+        "LocomotionEnvironment": {},
+        "DomeFade": {
+          "start": 34,
+          "end": 62
+        }
+      }
+    },
+    {
+      "id": "stream",
+      "name": "Stream",
+      "content": {
+        "type": "asset",
+        "asset": "stream"
+      }
+    },
+    {
+      "id": "forest-trees",
+      "name": "Forest Trees",
+      "content": {
+        "type": "asset",
+        "asset": "forest-trees"
+      }
+    },
+    {
+      "id": "undergrowth",
+      "name": "Undergrowth",
+      "content": {
+        "type": "asset",
+        "asset": "undergrowth"
+      }
+    },
+    {
+      "id": "shattered-tree",
+      "name": "Lightning Glade Tree",
+      "content": {
+        "type": "asset",
+        "asset": "shattered-tree"
+      },
+      "transform": {
+        "position": [
+          -17,
+          0,
+          11
+        ]
+      }
+    },
+    {
+      "id": "ruins",
+      "name": "The Ruins",
+      "content": {
+        "type": "asset",
+        "asset": "ruins"
+      },
+      "transform": {
+        "position": [
+          -22,
+          0,
+          -19
+        ],
+        "rotationDeg": [
+          0,
+          49,
+          0
+        ]
+      }
+    },
+    {
+      "id": "split-rock",
+      "name": "Split Rock",
+      "content": {
+        "type": "asset",
+        "asset": "split-rock"
+      },
+      "transform": {
+        "position": [
+          -4,
+          0,
+          26
+        ],
+        "rotationDeg": [
+          0,
+          20,
+          0
+        ]
+      }
+    },
+    {
+      "id": "sky-light",
+      "name": "Sky Light",
+      "components": {
+        "com.iwsdk.components.HemisphereLight": {
+          "skyColor": [
+            0.75,
+            0.85,
+            1,
+            1
+          ],
+          "groundColor": [
+            0.3,
+            0.24,
+            0.15,
+            1
+          ],
+          "intensity": 1.6
+        }
+      }
+    },
+    {
+      "id": "sun",
+      "name": "Sun",
+      "transform": {
+        "position": [
+          20,
+          30,
+          10
+        ],
+        "rotationDeg": [
+          -55,
+          40,
+          0
+        ]
+      },
+      "components": {
+        "com.iwsdk.components.DirectionalLight": {
+          "color": [
+            1,
+            0.92,
+            0.8,
+            1
+          ],
+          "intensity": 2.2,
+          "castShadow": false
+        }
+      }
+    },
+    {
+      "id": "welcome-panel",
+      "name": "Welcome Panel",
+      "content": {
+        "type": "asset",
+        "asset": "welcome-panel"
+      },
+      "transform": {
+        "position": [
+          0,
+          1.45,
+          -2.1
+        ],
+        "rotationDeg": [
+          -4,
+          0,
+          0
+        ],
+        "scale": 0.26
+      },
+      "components": {
+        "RayInteractable": {}
+      }
+    }
+  ]
+}

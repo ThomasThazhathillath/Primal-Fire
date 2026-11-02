@@ -3,6 +3,7 @@ import projectOptions from 'virtual:iwsdk-project';
 import { installDebugHooks } from './debug-hooks.js';
 import { ActionSystem } from './systems/action-system.js';
 import { AudioSystem } from './systems/audio-system.js';
+import { BowSystem } from './systems/bow-system.js';
 import { BuildSystem } from './systems/build-system.js';
 import { DesktopControlsSystem } from './systems/desktop-controls-system.js';
 import { FireSystem } from './systems/fire-system.js';
@@ -26,6 +27,7 @@ World.create(
     .registerSystem(SatchelSystem)
     .registerSystem(FireSystem)
     .registerSystem(ActionSystem)
+    .registerSystem(BowSystem)
     .registerSystem(HudSystem)
     .registerSystem(IntroSystem)
     .registerSystem(AudioSystem);

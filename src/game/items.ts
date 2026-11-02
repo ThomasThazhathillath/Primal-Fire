@@ -32,7 +32,10 @@ export type ItemId =
   | 'flake'
   | 'knife'
   | 'axe'
-  | 'hammer';
+  | 'hammer'
+  | 'feather'
+  | 'bow'
+  | 'arrow';
 
 export type ItemCategory =
   | 'tinder'
@@ -125,6 +128,9 @@ export const ITEMS: Record<ItemId, ItemDef> = {
   knife: { name: 'Flint knife', cats: ['tool'], color: 0x8a8a96, weight: 0.3 },
   axe: { name: 'Stone axe', cats: ['tool'], color: 0x7d6a55, weight: 1.6 },
   hammer: { name: 'Stone hammer', cats: ['tool'], color: 0x857a6a, weight: 1.8 },
+  feather: { name: 'Feather', cats: ['craft'], color: 0xe8e2d0, weight: 0.01 },
+  bow: { name: 'Hunting bow', cats: ['tool'], color: 0x6a8a3a, weight: 0.6 },
+  arrow: { name: 'Arrow', cats: ['tool'], color: 0xc49a66, weight: 0.05 },
   bowDrill: { name: 'Bow drill', cats: ['tool'], color: 0xc49a66, weight: 0.8 },
 };
 
@@ -140,6 +146,9 @@ export const SATCHEL_ORDER: ItemId[] = [
   'board',
   'greenBranch',
   'bowDrill',
+  'bow',
+  'arrow',
+  'feather',
   'knife',
   'axe',
   'hammer',

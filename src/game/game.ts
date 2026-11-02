@@ -46,6 +46,7 @@ export type GameEvent =
   | { type: 'questComplete'; index: number; title: string; roadmapNode: string | null }
   | { type: 'discovered'; landmark: Landmark }
   | { type: 'fire'; stage: FireStage }
+  | { type: 'arrow'; hit: boolean }
   | { type: 'action'; id: string; progress: number; done: boolean };
 
 /** XP needed to reach each level (index = level − 1). */
@@ -185,7 +186,7 @@ export class Game {
       return false;
     }
     for (const [k, n] of Object.entries(r.inputs)) this.satchel.set(k as ItemId, this.count(k as ItemId) - (n ?? 0));
-    this.addItem(r.output);
+    this.addItem(r.output, r.count ?? 1);
     this.toolUses.delete(r.output);
     this.toast(`Made: ${itemName(r.output)}`, 'good');
     if (r.observation) this.observe(r.observation);
@@ -219,6 +220,24 @@ export class Game {
     for (const r of HAND_RECIPES) if (has(r.inputs)) out.push({ id: r.id, label: r.name, kind: 'bind' });
     for (const u of PACK_UPGRADES) if (!this.packUpgrades.has(u.id) && has(u.inputs)) out.push({ id: u.id, label: u.name, kind: 'pack' });
     return out;
+  }
+
+  /** Loose an arrow: needs the bow in hand and an arrow in the satchel. */
+  nockArrow(): boolean {
+    if (this.held !== 'bow') return false;
+    if (this.count('arrow') <= 0) {
+      this.toast('You have no arrows.', 'bad');
+      return false;
+    }
+    this.satchel.set('arrow', this.count('arrow') - 1);
+    this.emit({ type: 'satchel' });
+    this.emit({ type: 'arrow', hit: false });
+    return true;
+  }
+
+  /** An arrow that hit something solid has a chance to be recovered. */
+  recoverArrow(): void {
+    this.addItem('arrow');
   }
 
   // ------------------------------------------------------------ hand actions

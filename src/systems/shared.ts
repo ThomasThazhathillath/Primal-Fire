@@ -82,3 +82,13 @@ export function uiText(s: string): string {
     .replace(/[\u{1F300}-\u{1FAFF}]\s?/gu, '')
     .replace(/ {2,}/g, ' ');
 }
+
+/** Things arrows can hit (animals, practice targets). Other systems push/remove entries. */
+export interface ArrowTarget {
+  x: number;
+  y: number;
+  z: number;
+  r: number;
+  onHit?: () => void;
+}
+export const arrowTargets: ArrowTarget[] = [];

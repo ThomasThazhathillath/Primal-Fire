@@ -26,6 +26,8 @@ export interface HandRecipe {
   name: string;
   inputs: Partial<Record<ItemId, number>>;
   output: ItemId;
+  /** How many you get (default 1). */
+  count?: number;
   observation?: string;
 }
 
@@ -37,5 +39,11 @@ export const HAND_RECIPES: HandRecipe[] = [
   { id: 'pot', name: 'Shape clay pot', inputs: { clay: 2, sand: 1 }, output: 'pot' },
   { id: 'diggingStick', name: 'Sharpen digging stick', inputs: { spindle: 1, flake: 1 }, output: 'diggingStick' },
 ];
+
+export const BOW_RECIPES: HandRecipe[] = [
+  { id: 'bow', name: 'Strung bow', inputs: { greenBranch: 1, cord: 1 }, output: 'bow' },
+  { id: 'arrows', name: 'Fletch 2 arrows', inputs: { spindle: 2, flake: 1, feather: 2 }, output: 'arrow', count: 2 },
+];
+HAND_RECIPES.push(...BOW_RECIPES);
 
 export const toolFor = (item: ItemId): ToolDef | undefined => TOOLS.find((t) => t.bonus.includes(item));

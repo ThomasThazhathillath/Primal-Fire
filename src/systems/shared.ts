@@ -6,6 +6,8 @@ import type { Game } from '../game/game.js';
 
 export interface UiHooks {
   dropHeld(item: import('../game/items.js').ItemId): void;
+  /** Hide the item shown in your hand while an interaction draws its own model. */
+  setHeldVisible(visible: boolean): void;
   toggleSatchel(): void;
   openNotebook(): void;
   showHint(): void;
@@ -109,3 +111,10 @@ export const glowMaterial = new MeshBasicMaterial({
 export const glowMaterialHot = glowMaterial.clone();
 glowMaterialHot.color.setHex(0x40ff70);
 glowMaterialHot.opacity = 0.7;
+
+/**
+ * What the desktop arms should act out, driven every frame by InteractionSystem
+ * (not canned clips): `mode` picks the pose, `amount` 0..1 its progress,
+ * `x`/`y` small hand offsets in metres.
+ */
+export const handPose = { mode: 'free' as 'free' | 'bend' | 'swing' | 'knap' | 'twist' | 'drag' | 'place', amount: 0, x: 0, y: 0 };

@@ -52,6 +52,7 @@ export type GameEvent =
   | { type: 'fire'; stage: FireStage }
   | { type: 'arrow'; hit: boolean }
   | { type: 'reach' }
+  | { type: 'fx'; name: FxName; strength: number }
   | { type: 'interaction'; code: GuideFailureCode; detail?: string }
   | { type: 'drops' }
   | { type: 'gather'; item: ItemId; tool: ItemId | null }
@@ -89,6 +90,9 @@ export const RECIPES: Recipe[] = [
     flag: 'hasDrill',
   },
 ];
+
+/** Sounds/feedback cues from physical interactions. */
+export type FxName = 'creak' | 'crack' | 'snap' | 'chop' | 'glance' | 'bounce' | 'thud' | 'swish' | 'knap' | 'crush' | 'twist' | 'strain' | 'seat' | 'wobble';
 
 export interface WorldDrop {
   id: number;
@@ -256,6 +260,11 @@ export class Game {
     this.log.add(`interaction failed: ${code}${detail ? ` (${detail})` : ''}`, 'bad');
     this.toast(detail ? `${FAILURE_TEXT[code]} (${detail})` : FAILURE_TEXT[code], 'bad');
     this.emit({ type: 'interaction', code, detail });
+  }
+
+  /** Fire a feedback cue (sound, haptics, camera kick) from a physical interaction. */
+  fx(name: FxName, strength = 1): void {
+    this.emit({ type: 'fx', name, strength });
   }
 
   /** Finish the held item's hand action now (the physical motion succeeded). */

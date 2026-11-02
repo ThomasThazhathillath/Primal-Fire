@@ -10,6 +10,8 @@ import { RESOURCES } from './game/world-layout.js';
 import { Gatherable } from './components/game-components.js';
 import { BuildSystem } from './systems/build-system.js';
 import { DesktopControlsSystem } from './systems/desktop-controls-system.js';
+import { InteractionSystem } from './systems/interaction-system.js';
+import { hands, mouse } from './systems/hand-input-system.js';
 import { IntroSystem } from './systems/intro-system.js';
 import { ResourceSystem } from './systems/resource-system.js';
 import { SatchelSystem } from './systems/satchel-system.js';
@@ -36,6 +38,9 @@ export function installDebugHooks(world: World): void {
         ...s,
         charges: sys(ResourceSystem).entityFor(s.id)?.getValue(Gatherable, 'charges'),
       })),
+    /** Live interaction state (mode, bend stress, ...) for tests. */
+    interaction: () => sys(InteractionSystem),
+    input: { hands, mouse },
     take: (item: ItemId) => game.takeOut(item),
     stow: () => game.stow(),
     /** Point the blueprint ghost at (x, z) and pinch it. */

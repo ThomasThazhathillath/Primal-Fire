@@ -1,0 +1,497 @@
+// Physical interactions: reads `hands` (VR) / `mouse` (desktop) from
+// HandInputSystem, runs the pure rules in src/game/interact.ts, and draws the
+// result. Each mode starts from what you hold:
+//   branch / dry branch -> two-hand bend until it cracks and snaps
+//   axe / hammer        -> swing: head speed, edge alignment and contact
+//                          cut a growing notch; stone bounces, soil thuds Results go through
+// Game.completeAction / Game.work; failures through Game.interactionFailure.
+
+import {
+  AdditiveBlending,
+  Box3,
+  BoxGeometry,
+  BufferAttribute,
+  BufferGeometry,
+  createSystem,
+  CylinderGeometry,
+  type Entity,
+  Group,
+  Hovered,
+  Mesh,
+  Points,
+  PointsMaterial,
+  Quaternion,
+  Vector3,
+  VisibilityState,
+} from '@iwsdk/core';
+import { actionFor } from '../game/actions.js';
+import {
+  BendState,
+  HANDLE_LENGTH,
+  materialOf,
+  Notch,
+  strike,
+  SWING_TOOLS,
+  SWING_WEAK,
+  TOUGHNESS,
+  type GuideFailureCode,
+  type Material,
+} from '../game/interact.js';
+import { ITEMS, type ItemId } from '../game/items.js';
+import { Gatherable } from '../components/game-components.js';
+import { lambert } from '../scene-assets/materials.js';
+import { hands, mouse, pulse } from './hand-input-system.js';
+import { REACH, ResourceSystem } from './resource-system.js';
+import { camNudge, getGame, getUi, handPose } from './shared.js';
+
+type Mode = 'none' | 'bend' | 'swing';
+
+const crackMat = lambert(0x2a1d12);
+const halfGeo = new CylinderGeometry(0.016, 0.02, 0.32, 7);
+halfGeo.rotateZ(Math.PI / 2);
+const crackGeo = new BoxGeometry(0.012, 0.045, 0.045);
+/** Two-hand grips must be within this distance (m) of each other to hold one piece. */
+const TWO_HAND_REACH = 0.6;
+/** Desktop: pixels of downward drag per radian of bend. */
+const PX_PER_RAD = 170;
+/** Desktop: metres per second of head speed per pixel/second of downward flick. */
+const FLICK_SCALE = 0.0045;
+const CHIPS = 24;
+const notchMat = lambert(0x3a2614);
+const notchGeo = new BoxGeometry(0.1, 0.1, 1);
+notchGeo.rotateZ(Math.PI / 4); // a diamond: the top half reads as a V cut into the wood
+const bounds = new Box3();
+const CHIP_COLOR: Record<Material, number> = { wood: 0xd8b07a, stone: 0xfff2b0, soil: 0x6b5236 };
+
+export class InteractionSystem extends createSystem({
+  hoverGather: { required: [Gatherable, Hovered] },
+  spots: { required: [Gatherable] },
+}) {
+  private mode: Mode = 'none';
+  private viaVR = false;
+  private bend: BendState | null = null;
+  private stick = new Group();
+  private halves: [Group, Group] = [new Group(), new Group()];
+  private crack!: Mesh;
+  private fallT = -1;
+  private q0 = [new Quaternion(), new Quaternion()];
+  private tmpQ = new Quaternion();
+  private mid = new Vector3();
+  private axis = new Vector3();
+  private xAxis = new Vector3(1, 0, 0);
+  private worldRoot: Group | null = null;
+  // swing
+  private notches = new Map<string, Notch>();
+  private head = new Vector3();
+  private prevHead = new Vector3();
+  private headVel = new Vector3();
+  private down = new Vector3();
+  private hadHead = false;
+  private contact: Entity | null = null;
+  private groundContact = false;
+  private peakVy = 0;
+  /** Desktop: what you aimed at when you started the swing. */
+  private swingTarget: Entity | null = null;
+  private peakVx = 0;
+  private followT = -1;
+  private lastCode: GuideFailureCode | null = null;
+  private lastCodeAt = 0;
+  private clock = 0;
+  private tmp = new Vector3();
+  // chips (pooled particles)
+  private chips!: Points;
+  private chipPos = new Float32Array(CHIPS * 3);
+  private chipVel = new Float32Array(CHIPS * 3);
+  private chipLife = new Float32Array(CHIPS);
+
+  init(): void {
+    this.buildStick();
+    const geo = new BufferGeometry();
+    geo.setAttribute('position', new BufferAttribute(this.chipPos, 3));
+    this.chips = new Points(geo, new PointsMaterial({ color: 0xd8b07a, size: 0.03, transparent: true, depthWrite: false }));
+    this.chips.frustumCulled = false;
+    for (let i = 0; i < CHIPS; i++) this.chipPos[i * 3 + 1] = -50;
+    this.world.createTransformEntity(this.chips);
+  }
+
+  private buildStick(): void {
+    this.stick.name = 'BendStick';
+    this.stick.visible = false;
+    for (let i = 0; i < 2; i++) {
+      const half = new Mesh(halfGeo, lambert(0x7a5a3a));
+      half.position.x = i === 0 ? -0.16 : 0.16;
+      this.halves[i].add(half);
+      this.stick.add(this.halves[i]);
+    }
+    this.crack = new Mesh(crackGeo, crackMat);
+    this.crack.visible = false;
+    this.stick.add(this.crack);
+    this.world.createTransformEntity(this.stick);
+    this.worldRoot = this.stick.parent as Group;
+  }
+
+  private get session() {
+    return this.renderer.xr.getSession();
+  }
+
+  private immersive(): boolean {
+    return this.world.visibilityState.peek() !== VisibilityState.NonImmersive;
+  }
+
+  // ------------------------------------------------------------------ bend
+
+  private startBend(vr: boolean): void {
+    const game = getGame(this.world);
+    const held = game.held!;
+    this.mode = 'bend';
+    this.viaVR = vr;
+    this.bend = new BendState(TOUGHNESS[held] ?? 0.7);
+    (this.halves[0].children[0] as Mesh).material = lambert(ITEMS[held].color);
+    (this.halves[1].children[0] as Mesh).material = (this.halves[0].children[0] as Mesh).material;
+    this.stick.visible = true;
+    this.crack.visible = false;
+    this.fallT = -1;
+    this.halves[0].position.set(0, 0, 0);
+    this.halves[1].position.set(0, 0, 0);
+    getUi(this.world).setHeldVisible?.(false);
+    if (vr) {
+      this.worldRoot?.add(this.stick);
+      this.q0[0].copy(hands[0].quat);
+      this.q0[1].copy(hands[1].quat);
+    } else {
+      // Held across the body in both desktop hands.
+      this.camera.add(this.stick);
+      this.stick.position.set(0, -0.17, -0.48);
+      this.stick.rotation.set(0.25, 0, 0);
+    }
+  }
+
+  private endBend(): void {
+    const game = getGame(this.world);
+    const b = this.bend;
+    this.mode = 'none';
+    handPose.mode = 'free';
+    if (b && !b.snapped) {
+      const code = b.releaseCode();
+      // A plain click with no bend is not an attempt.
+      if (code && (b.flex > 0.1 || code === 'bend.released')) game.interactionFailure(code);
+      this.stick.visible = false;
+      getUi(this.world).setHeldVisible?.(true);
+    }
+    this.bend = null;
+  }
+
+  private updateBend(dt: number): void {
+    const b = this.bend!;
+    let angle: number;
+    if (this.viaVR) {
+      if (!hands[0].grip || !hands[1].grip) return this.endBend();
+      // How far each wrist has turned since the grab: bending a stick is both wrists rolling the ends down.
+      const a0 = 2 * Math.acos(Math.min(1, Math.abs(this.tmpQ.copy(this.q0[0]).dot(hands[0].quat))));
+      const a1 = 2 * Math.acos(Math.min(1, Math.abs(this.tmpQ.copy(this.q0[1]).dot(hands[1].quat))));
+      // Both must turn: one wrist alone just rotates the stick.
+      angle = Math.min(a0, a1) * 1.6;
+      this.mid.addVectors(hands[0].pos, hands[1].pos).multiplyScalar(0.5);
+      this.axis.subVectors(hands[1].pos, hands[0].pos).normalize();
+      this.stick.position.copy(this.mid);
+      this.stick.quaternion.setFromUnitVectors(this.xAxis, this.axis);
+    } else {
+      if (!mouse.down) return this.endBend();
+      angle = Math.max(0, mouse.dragY) / PX_PER_RAD;
+    }
+    const ev = b.update(angle, dt);
+    const game = getGame(this.world);
+    // The visible bend lags slightly behind the input: wood resists.
+    const f = b.flex * 0.55;
+    this.halves[0].rotation.z = f;
+    this.halves[1].rotation.z = -f;
+    this.crack.visible = b.cracks > 0;
+    this.crack.scale.set(1, 0.5 + b.cracks * 0.5, 1);
+    handPose.mode = 'bend';
+    handPose.amount = b.flex;
+    if (ev === 'creak') {
+      game.fx('creak', b.stress);
+      if (this.viaVR) {
+        pulse(this.session, 0, 0.15 + b.stress * 0.3, 30);
+        pulse(this.session, 1, 0.15 + b.stress * 0.3, 30);
+      }
+    } else if (ev === 'crack') {
+      game.fx('crack', b.cracks / 2);
+      if (this.viaVR) {
+        pulse(this.session, 0, 0.6, 60);
+        pulse(this.session, 1, 0.6, 60);
+      }
+    } else if (ev === 'snap') {
+      game.fx('snap', 1);
+      if (this.viaVR) {
+        pulse(this.session, 0, 1, 120);
+        pulse(this.session, 1, 1, 120);
+      }
+      game.completeAction();
+      this.fallT = 0;
+      this.mode = 'none';
+      handPose.mode = 'free';
+      this.bend = null;
+    }
+  }
+
+  /** The two halves spring apart and drop after a snap. */
+  private animateSnap(dt: number): void {
+    if (this.fallT < 0) return;
+    this.fallT += dt;
+    const t = this.fallT;
+    this.halves[0].position.set(-0.08 * t * 3, -2 * t * t, 0);
+    this.halves[1].position.set(0.08 * t * 3, -2 * t * t, 0);
+    this.halves[0].rotation.z = 0.5 + t * 4;
+    this.halves[1].rotation.z = -0.5 - t * 4;
+    this.crack.visible = false;
+    if (t > 0.6) {
+      this.fallT = -1;
+      this.stick.visible = false;
+      this.halves[0].rotation.z = this.halves[1].rotation.z = 0;
+      getUi(this.world).setHeldVisible?.(true);
+    }
+  }
+
+  // ------------------------------------------------------------------ swing
+
+  /** Report a failure, but not the same one over and over while you keep trying. */
+  private fail(code: GuideFailureCode): void {
+    if (code === this.lastCode && this.clock - this.lastCodeAt < 2.5) return;
+    this.lastCode = code;
+    this.lastCodeAt = this.clock;
+    getGame(this.world).interactionFailure(code);
+  }
+
+  private burstChips(at: Vector3, material: Material, amount: number): void {
+    (this.chips.material as PointsMaterial).color.setHex(CHIP_COLOR[material]);
+    (this.chips.material as PointsMaterial).blending = material === 'stone' ? AdditiveBlending : 1;
+    let n = Math.round(6 + amount * 18);
+    for (let i = 0; i < CHIPS && n > 0; i++) {
+      if (this.chipLife[i] > 0) continue;
+      n--;
+      const o = i * 3;
+      this.chipLife[i] = 0.4 + Math.random() * 0.4;
+      this.chipPos[o] = at.x;
+      this.chipPos[o + 1] = at.y;
+      this.chipPos[o + 2] = at.z;
+      this.chipVel[o] = (Math.random() - 0.5) * 2;
+      this.chipVel[o + 1] = 0.8 + Math.random() * 1.5;
+      this.chipVel[o + 2] = (Math.random() - 0.5) * 2;
+    }
+  }
+
+  private updateChips(dt: number): void {
+    for (let i = 0; i < CHIPS; i++) {
+      if (this.chipLife[i] <= 0) continue;
+      const o = i * 3;
+      this.chipLife[i] -= dt;
+      this.chipVel[o + 1] -= 9.8 * dt;
+      this.chipPos[o] += this.chipVel[o] * dt;
+      this.chipPos[o + 1] = Math.max(0.01, this.chipPos[o + 1] + this.chipVel[o + 1] * dt);
+      this.chipPos[o + 2] += this.chipVel[o + 2] * dt;
+      if (this.chipLife[i] <= 0) this.chipPos[o + 1] = -50;
+    }
+    this.chips.geometry.attributes.position.needsUpdate = true;
+  }
+
+  /** One blow of the tool head on `target` (null = bare ground). */
+  private blow(target: Entity | null, speed: number, align: number, at: Vector3, vr: boolean): void {
+    const game = getGame(this.world);
+    const tool = game.held as ItemId;
+    const resources = this.world.getSystem(ResourceSystem);
+    const spot = target ? resources?.spot(target.getValue(Gatherable, 'spotId') ?? '') : undefined;
+    const { material, hardness } = spot ? materialOf(spot.look) : { material: 'soil' as Material, hardness: 1 };
+    const r = strike(speed, align, material, tool);
+    const fx = r.outcome === 'chop' ? 'chop' : r.outcome === 'weak' ? 'thud' : r.outcome;
+    game.fx(fx, r.jolt);
+    if (vr) pulse(this.session, 1, 0.2 + r.jolt * 0.8, 40 + r.jolt * 80);
+    else camNudge.pitch = -0.012 - r.jolt * 0.03;
+    this.burstChips(at, material, r.outcome === 'chop' ? r.damage * 3 : r.outcome === 'bounce' ? 0.6 : 0.2);
+    if (r.code) this.fail(r.code);
+    if (!target || !spot || material !== 'wood' || r.damage <= 0) return;
+    let notch = this.notches.get(spot.id);
+    if (!notch) {
+      notch = new Notch();
+      this.notches.set(spot.id, notch);
+    }
+    const done = notch.hit(r.damage, hardness);
+    this.showNotch(target, notch.depth);
+    if (done) {
+      this.notches.delete(spot.id);
+      this.showNotch(target, 0);
+      game.fx('crack', 1);
+      resources?.tryGather(target);
+    }
+  }
+
+  /** A dark wedge cut into the wood that deepens with every good blow. */
+  private showNotch(target: Entity, depth: number): void {
+    const obj = target.object3D;
+    if (!obj) return;
+    let m = obj.getObjectByName('Notch') as Mesh | undefined;
+    if (!m && depth > 0) {
+      // Measure the wood itself (not the glow or hit proxy) once, in its own frame.
+      // Bounds in the object's own frame: clear its transform while measuring.
+      this.tmpQ.copy(obj.quaternion);
+      this.tmp.copy(obj.position);
+      obj.quaternion.identity();
+      obj.position.set(0, 0, 0);
+      obj.updateMatrixWorld(true);
+      bounds.makeEmpty();
+      for (const c of obj.children) if (c.name !== 'HitProxy' && c.name !== 'Glow') bounds.expandByObject(c);
+      obj.quaternion.copy(this.tmpQ);
+      obj.position.copy(this.tmp);
+      obj.updateMatrixWorld(true);
+      const alongX = bounds.max.x - bounds.min.x > bounds.max.z - bounds.min.z;
+      m = new Mesh(notchGeo, notchMat);
+      m.name = 'Notch';
+      m.position.set((bounds.min.x + bounds.max.x) / 2, bounds.max.y, (bounds.min.z + bounds.max.z) / 2);
+      // Cut across the grain.
+      m.rotation.y = alongX ? 0 : Math.PI / 2;
+      m.userData.width = Math.min(bounds.max.y - bounds.min.y, 0.4) * 1.2;
+      m.userData.top = bounds.max.y;
+      obj.add(m);
+    }
+    if (!m) return;
+    m.visible = depth > 0;
+    const w = (m.userData.width as number) ?? 0.2;
+    const k = 0.4 + depth * 1.2;
+    m.scale.set(k, k, w);
+    // Sunk into the wood so only a dark slit shows, widening as the cut deepens.
+    m.position.y = (m.userData.top as number) - 0.058 * k;
+  }
+
+  private updateSwingVR(dt: number): void {
+    const r = hands[1];
+    if (!r.tracked) {
+      this.hadHead = false;
+      return;
+    }
+    // Head = grip + handle along the hand's pointing axis (-Z); cutting direction = hand's down (-Y).
+    this.tmp.set(0, 0, -HANDLE_LENGTH).applyQuaternion(r.quat);
+    this.head.copy(r.pos).add(this.tmp);
+    this.down.set(0, -1, 0).applyQuaternion(r.quat);
+    if (this.hadHead) this.headVel.subVectors(this.head, this.prevHead).divideScalar(dt);
+    this.prevHead.copy(this.head);
+    this.hadHead = true;
+    const speed = this.headVel.length();
+    // Leave the current target before the next blow can land.
+    if (this.contact?.object3D) {
+      this.contact.object3D.getWorldPosition(this.tmp);
+      if (Math.hypot(this.head.x - this.tmp.x, this.head.z - this.tmp.z) > 0.5 || this.head.y > 0.8) this.contact = null;
+    }
+    if (this.groundContact && this.head.y > 0.08) this.groundContact = false;
+    if (this.contact || speed < 0.5) return;
+    for (const e of this.queries.spots.entities) {
+      const o = e.object3D;
+      if (!o || !o.visible) continue;
+      o.getWorldPosition(this.tmp);
+      if (Math.hypot(this.head.x - this.tmp.x, this.head.z - this.tmp.z) < 0.3 && this.head.y < 0.6) {
+        this.contact = e;
+        const align = speed > 0 ? Math.abs(this.headVel.dot(this.down)) / speed : 0;
+        this.blow(e, speed, align, this.head, true);
+        return;
+      }
+    }
+    if (!this.groundContact && this.head.y < 0.02) {
+      this.groundContact = true;
+      this.blow(null, speed, 1, this.head, true);
+    }
+  }
+
+  private updateSwingDesktop(): void {
+    if (mouse.pressed) {
+      this.mode = 'swing';
+      this.peakVy = this.peakVx = 0;
+      // You aim first, then swing: the target is locked when you press.
+      this.swingTarget = null;
+      for (const e of this.queries.hoverGather.entities) {
+        this.swingTarget = e;
+        break;
+      }
+    }
+    if (this.mode !== 'swing') return;
+    if (mouse.down) {
+      // Drag up to raise the tool, flick down to swing.
+      const raise = Math.max(0, Math.min(1, -mouse.dragY / 140));
+      handPose.mode = 'swing';
+      handPose.amount = raise;
+      handPose.x = 0;
+      handPose.y = raise * 0.1;
+      if (mouse.vy > this.peakVy) {
+        this.peakVy = mouse.vy;
+        this.peakVx = mouse.vx;
+      }
+      return;
+    }
+    // Released: the blow lands on whatever you aimed at.
+    this.mode = 'none';
+    this.followT = 0;
+    const speed = this.peakVy * FLICK_SCALE;
+    const align = this.peakVy > 0 ? this.peakVy / Math.hypot(this.peakVx, this.peakVy) : 0;
+    if (speed < 0.3) {
+      handPose.mode = 'free';
+      return; // just a click: not a swing
+    }
+    const resources = this.world.getSystem(ResourceSystem);
+    let target: Entity | null = null;
+    const e = this.swingTarget;
+    const spot = e ? resources?.spot(e.getValue(Gatherable, 'spotId') ?? '') : undefined;
+    if (e && spot && resources!.distanceTo(spot) <= REACH) target = e;
+    this.swingTarget = null;
+    if (target?.object3D) {
+      target.object3D.getWorldPosition(this.tmp);
+      this.tmp.y += 0.15;
+      this.blow(target, speed, align, this.tmp, false);
+    } else if (speed >= SWING_WEAK) {
+      getGame(this.world).fx('swish', Math.min(1, speed / 5));
+    }
+  }
+
+  // ------------------------------------------------------------------ frame
+
+  update(delta: number): void {
+    const dt = Math.min(delta, 0.05);
+    this.clock += dt;
+    this.animateSnap(dt);
+    const game = getGame(this.world);
+    const action = actionFor(game.held);
+    const vr = this.immersive();
+
+    if (this.mode === 'none' && this.fallT < 0 && action?.motion === 'snap') {
+      if (vr) {
+        const l = hands[0];
+        const r = hands[1];
+        const together = l.tracked && r.tracked && l.pos.distanceTo(r.pos) < TWO_HAND_REACH;
+        if (together && l.grip && r.grip && (l.gripDown || r.gripDown)) this.startBend(true);
+      } else if (mouse.pressed && this.queries.hoverGather.entities.size === 0) {
+        this.startBend(false);
+      }
+    }
+    if (this.mode === 'bend') this.updateBend(dt);
+
+    const swinging = !!game.held && SWING_TOOLS.includes(game.held);
+    if (swinging) {
+      if (vr) this.updateSwingVR(dt);
+      else this.updateSwingDesktop();
+    } else if (this.mode === 'swing') {
+      this.mode = 'none';
+      handPose.mode = 'free';
+    }
+    // Follow-through after a desktop blow.
+    if (this.followT >= 0) {
+      this.followT += dt;
+      handPose.mode = 'swing';
+      handPose.amount = Math.max(-0.6, 1 - this.followT * 9);
+      handPose.y = -this.followT * 0.4;
+      if (this.followT > 0.25) {
+        this.followT = -1;
+        handPose.mode = 'free';
+        handPose.y = 0;
+      }
+    }
+    this.updateChips(dt);
+  }
+}
+

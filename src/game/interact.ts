@@ -474,3 +474,41 @@ export const FAILURE_TEXT: Record<GuideFailureCode, string> = {
   'slab.notOnSupports': 'The slab is not resting on all three supports.',
   'slab.offCentre': 'The slab hangs off-centre - it tips toward the gap.',
 };
+
+// -------------------------------------------------------- what things are made of
+
+/** Material and hardness (blows of notch depth) of each resource look, for swings. */
+export const LOOK_MATERIAL: Record<string, { material: Material; hardness: number }> = {
+  fallenLog: { material: 'wood', hardness: 2.5 },
+  sapling: { material: 'wood', hardness: 1.5 },
+  dryBranch: { material: 'wood', hardness: 0.8 },
+  twigPile: { material: 'wood', hardness: 0.3 },
+  straightStick: { material: 'wood', hardness: 0.5 },
+  board: { material: 'wood', hardness: 1.2 },
+  forkedStick: { material: 'wood', hardness: 0.5 },
+  diggingStick: { material: 'wood', hardness: 0.5 },
+  bark: { material: 'wood', hardness: 0.4 },
+  cane: { material: 'wood', hardness: 0.4 },
+  grass: { material: 'wood', hardness: 0.2 },
+  fibrePlant: { material: 'wood', hardness: 0.3 },
+  vine: { material: 'wood', hardness: 0.3 },
+  leafLitter: { material: 'soil', hardness: 1 },
+  stone: { material: 'stone', hardness: 1 },
+  stoneDark: { material: 'stone', hardness: 1 },
+  stonePale: { material: 'stone', hardness: 1 },
+  wetStone: { material: 'stone', hardness: 1 },
+  slab: { material: 'stone', hardness: 1 },
+  mossRock: { material: 'stone', hardness: 1 },
+  clayPatch: { material: 'soil', hardness: 1 },
+  sandBar: { material: 'soil', hardness: 1 },
+  gravelBed: { material: 'soil', hardness: 1 },
+};
+
+export function materialOf(look: string): { material: Material; hardness: number } {
+  return LOOK_MATERIAL[look] ?? { material: 'soil', hardness: 1 };
+}
+
+/** Tools that are swung (head speed and contact decide the blow). */
+export const SWING_TOOLS: readonly ItemId[] = ['axe', 'hammer'];
+/** Handle length (m) from the grip to the head. */
+export const HANDLE_LENGTH = 0.42;

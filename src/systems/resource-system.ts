@@ -18,6 +18,7 @@ import {
   Vector3,
 } from '@iwsdk/core';
 import type { ItemId } from '../game/items.js';
+import { SWING_TOOLS } from '../game/interact.js';
 import { RESOURCES, type ResourceSpot } from '../game/world-layout.js';
 import { Gatherable } from '../components/game-components.js';
 import { itemMesh, resourceMesh } from '../scene-assets/item-meshes.js';
@@ -79,7 +80,14 @@ export class ResourceSystem extends createSystem({
       this.bySpot.set(spot.id, spot);
       this.entityBySpot.set(spot.id, e);
     }
-    this.cleanupFuncs.push(this.queries.pressed.subscribe('qualify', (e) => this.tryGather(e)));
+    this.cleanupFuncs.push(
+      this.queries.pressed.subscribe('qualify', (e) => {
+        // With an axe or hammer in hand you swing at things (InteractionSystem) instead of picking them.
+        const held = getGame(this.world).held;
+        if (held && SWING_TOOLS.includes(held)) return;
+        this.tryGather(e);
+      }),
+    );
     // Desktop crosshair: white = nothing, green = collectable, orange = too far.
     const ch = document.createElement('div');
     ch.style.cssText = 'position:fixed;left:50%;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border:2px solid #fff;border-radius:50%;pointer-events:none;z-index:5;opacity:.8;box-shadow:0 0 3px #000;transition:border-color .1s,transform .1s';

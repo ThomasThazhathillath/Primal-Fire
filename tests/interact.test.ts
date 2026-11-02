@@ -253,3 +253,16 @@ describe('game hooks', () => {
     expect(g.count('twigs')).toBe(3);
   });
 });
+
+import { LOOK_MATERIAL, materialOf } from '../src/game/interact.js';
+describe('materials', () => {
+  it('logs are hard wood, stones bounce, unknown is soil', () => {
+    expect(materialOf('fallenLog')).toEqual(LOOK_MATERIAL.fallenLog);
+    expect(materialOf('stone').material).toBe('stone');
+    expect(materialOf('???').material).toBe('soil');
+    const n = new Notch();
+    let blows = 0;
+    while (!n.hit(strike(4.5, 0.95, 'wood', 'axe').damage, LOOK_MATERIAL.fallenLog.hardness)) blows++;
+    expect(blows).toBeGreaterThanOrEqual(5);
+  });
+});

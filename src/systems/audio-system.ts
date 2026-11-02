@@ -126,6 +126,65 @@ export class AudioSystem extends createSystem({}) {
     }
   }
 
+  /** Physical-interaction sounds: all synthesized, short, and scaled by strength. */
+  private fx(name: string, k: number): void {
+    switch (name) {
+      case 'creak':
+        this.tone(70 + k * 60, 0.25, 'sawtooth', 0.05 + k * 0.08, 0, 55 + k * 40);
+        break;
+      case 'crack':
+        this.burst(2600, 0.06, 0.35);
+        this.burst(900, 0.1, 0.2);
+        break;
+      case 'snap':
+        this.burst(3000, 0.08, 0.5);
+        this.burst(600, 0.18, 0.35);
+        this.tone(160, 0.12, 'square', 0.15, 0, 70);
+        break;
+      case 'chop':
+        this.burst(450, 0.1, 0.25 + k * 0.25);
+        this.tone(120, 0.08, 'square', 0.1 + k * 0.1, 0, 70);
+        break;
+      case 'glance':
+        this.burst(2200, 0.12, 0.15);
+        this.tone(900, 0.15, 'triangle', 0.06, 0, 500);
+        break;
+      case 'bounce':
+        this.tone(1400, 0.25, 'triangle', 0.15, 0, 1100);
+        this.burst(4000, 0.05, 0.3);
+        break;
+      case 'thud':
+        this.tone(80, 0.15, 'sine', 0.25, 0, 50);
+        break;
+      case 'swish':
+        this.burst(1200, 0.12, 0.05 + k * 0.08);
+        break;
+      case 'knap':
+        this.burst(5000, 0.04, 0.35);
+        this.tone(2400, 0.05, 'triangle', 0.1, 0, 1800);
+        break;
+      case 'crush':
+        this.burst(1500, 0.12, 0.3);
+        break;
+      case 'twist':
+        this.burst(700 + k * 600, 0.05, 0.05);
+        break;
+      case 'strain':
+        this.tone(90, 0.2, 'sawtooth', 0.04 + k * 0.06, 0, 75);
+        break;
+      case 'seat':
+        this.tone(140, 0.12, 'sine', 0.25, 0, 90);
+        this.burst(800, 0.06, 0.15);
+        break;
+      case 'wobble':
+        this.tone(200, 0.08, 'square', 0.1);
+        this.tone(160, 0.08, 'square', 0.1, 0.1);
+        break;
+      default:
+        break;
+    }
+  }
+
   private onEvent(e: GameEvent): void {
     switch (e.type) {
       case 'toast':
@@ -152,6 +211,9 @@ export class AudioSystem extends createSystem({}) {
       case 'discovered':
         this.tone(440, 0.3, 'sine', 0.18);
         this.tone(660, 0.4, 'sine', 0.15, 0.12);
+        break;
+      case 'fx':
+        this.fx(e.name, e.strength);
         break;
       case 'gather':
         if (e.tool === 'axe' || e.tool === 'hammer') {

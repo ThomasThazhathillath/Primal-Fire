@@ -149,6 +149,9 @@ export class SatchelSystem extends createSystem({
     wire('satchel-close', () => this.setOpen(false));
 
     getUi(this.world).toggleSatchel = () => this.toggle();
+    getUi(this.world).setHeldVisible = (v: boolean) => {
+      if (this.heldObj) this.heldObj.visible = v;
+    };
     this.cleanupFuncs.push(
       game.on((e: GameEvent) => {
         if (e.type === 'satchel' || e.type === 'held') this.refresh();

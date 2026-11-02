@@ -20,7 +20,7 @@ import {
 import { ACTIONS } from '../game/actions.js';
 import type { GameEvent } from '../game/game.js';
 import { lambert } from '../scene-assets/materials.js';
-import { camNudge, getGame } from './shared.js';
+import { camNudge, getGame, handPose } from './shared.js';
 
 type Anim = 'idle' | 'reach' | 'swing' | 'snap' | 'rub' | 'knap';
 const SPARKS = 10;
@@ -98,6 +98,45 @@ export class HandsSystem extends createSystem({}) {
     } else if (e.type === 'arrow' && !e.hit) this.startAnim('reach', 0.3);
   }
 
+  /** Arms follow the live interaction state (see handPose in shared.ts). */
+  private posePhysical(R: Group, L: Group): void {
+    const a = handPose.amount;
+    switch (handPose.mode) {
+      case 'bend':
+        // Fists either side of the stick; wrists roll the ends down as the bend grows.
+        R.position.set(0.13, -0.19 - a * 0.03, -0.5);
+        L.position.set(-0.13, -0.19 - a * 0.03, -0.5);
+        R.rotation.set(0.25, 0.1, -0.15 - a * 0.7);
+        L.rotation.set(0.25, -0.1, 0.15 + a * 0.7);
+        break;
+      case 'swing':
+        R.position.set(0.18 + handPose.x, -0.15 + handPose.y, -0.5);
+        R.rotation.set(0.1 + a * 1.2, 0.2, 0);
+        break;
+      case 'knap':
+        L.position.set(-0.07, -0.17, -0.45);
+        L.rotation.set(0.5, -0.3, 0.2);
+        R.position.set(0.05 + handPose.x, -0.12 + handPose.y, -0.45);
+        R.rotation.set(0.4 + a * 0.6, 0.3, 0);
+        break;
+      case 'twist':
+        R.position.set(0.05 + handPose.x, -0.17, -0.47);
+        L.position.set(-0.05 - handPose.x, -0.17, -0.47);
+        R.rotation.set(0.2, 0.1, a * 6);
+        L.rotation.set(0.2, -0.1, -a * 6);
+        break;
+      case 'drag':
+      case 'place':
+        R.position.set(0.12 + handPose.x, -0.2 + handPose.y, -0.55);
+        L.position.set(-0.12 + handPose.x, -0.2 + handPose.y, -0.55);
+        R.rotation.set(0.6, 0, 0);
+        L.rotation.set(0.6, 0, 0);
+        break;
+      default:
+        break;
+    }
+  }
+
   private burst(): void {
     camNudge.pitch = -0.02;
     for (let i = 0; i < SPARKS; i++) {
@@ -137,6 +176,12 @@ export class HandsSystem extends createSystem({}) {
       if (k >= 1) this.anim = 'idle';
     }
     const arc = Math.sin(k * Math.PI);
+    // Live interactions drive the arms directly (no canned clip).
+    if (handPose.mode !== 'free') {
+      this.posePhysical(R, L);
+      this.updateSparks(delta);
+      return;
+    }
     switch (this.anim) {
       case 'reach':
         R.position.set(0.24 - 0.2 * arc, -0.2 + 0.1 * arc, -0.5 - 0.3 * arc);
@@ -176,7 +221,10 @@ export class HandsSystem extends createSystem({}) {
         break;
     }
 
-    // Sparks.
+    this.updateSparks(delta);
+  }
+
+  private updateSparks(delta: number): void {
     for (let i = 0; i < SPARKS; i++) {
       const o = i * 3;
       if (this.sparkLife[i] > 0) {

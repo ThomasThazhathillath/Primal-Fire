@@ -8,6 +8,8 @@ import { BuildSystem } from './systems/build-system.js';
 import { DesktopControlsSystem } from './systems/desktop-controls-system.js';
 import { DropSystem } from './systems/drop-system.js';
 import { FireSystem } from './systems/fire-system.js';
+import { HandInputSystem } from './systems/hand-input-system.js';
+import { InteractionSystem } from './systems/interaction-system.js';
 import { HandsSystem } from './systems/hands-system.js';
 import { HudSystem } from './systems/hud-system.js';
 import { IntroSystem } from './systems/intro-system.js';
@@ -23,12 +25,14 @@ World.create(
   (world.globals as Record<string, unknown>).game = game;
   world
     .registerSystem(WorldSystem)
+    .registerSystem(HandInputSystem)
     .registerSystem(DesktopControlsSystem)
     .registerSystem(ResourceSystem)
     .registerSystem(BuildSystem)
     .registerSystem(SatchelSystem)
     .registerSystem(FireSystem)
     .registerSystem(ActionSystem)
+    .registerSystem(InteractionSystem)
     .registerSystem(BowSystem)
     .registerSystem(DropSystem)
     .registerSystem(HandsSystem)

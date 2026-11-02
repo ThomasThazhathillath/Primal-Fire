@@ -8,6 +8,8 @@ export interface UiHooks {
   dropHeld(item: import('../game/items.js').ItemId): void;
   /** Hide the item shown in your hand while an interaction draws its own model. */
   setHeldVisible(visible: boolean): void;
+  /** Would a left press right now start a hand interaction (so it must not turn the view)? */
+  capturesPointer(): boolean;
   toggleSatchel(): void;
   openNotebook(): void;
   showHint(): void;

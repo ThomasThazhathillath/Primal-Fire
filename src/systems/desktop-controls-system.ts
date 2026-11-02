@@ -39,7 +39,8 @@ export class DesktopControlsSystem extends createSystem({}) {
     const onKeyUp = (e: KeyboardEvent) => this.keys.delete(e.code);
     const onDown = (e: PointerEvent) => {
       if (e.button === 2) this.dragging = true;
-      else if (e.button === 0) this.leftDown = { x: e.clientX, y: e.clientY };
+      // A left press that starts a hand interaction (bend, swing, place, ...) is not a look-drag.
+      else if (e.button === 0 && !getUi(this.world).capturesPointer?.()) this.leftDown = { x: e.clientX, y: e.clientY };
     };
     const onUp = (e: PointerEvent) => {
       if (e.button === 2) this.dragging = false;

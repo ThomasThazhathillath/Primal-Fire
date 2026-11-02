@@ -1,11 +1,13 @@
 // Snap-to-blueprint building. While you hold a structure's key part (a stone
 // for a fire pit, a slab for a workbench), a ghost outline follows the point
-// where your hand ray (or mouse) meets the ground. Pinch to place it, then
-// pinch each glowing snap spot to fill it from your hand or satchel.
+// where your hand ray (or mouse) meets the ground. Pinch to place it. Parts
+// then go on by hand: InteractionSystem previews the held part and seats it
+// where you release it (if it lands close enough to its glowing mark).
+// Pressing a part of an unfinished structure takes it back (supports) or
+// pushes on it to test stability (the slab).
 //
-// In VR, closing a pinch swings the hand's aim ray, so building listens to
-// WebXR selectstart and uses where the ray pointed ~150 ms before the pinch,
-// and a pinch near (not exactly on) a snap spot fills it.
+// In VR, closing a pinch swings the hand's aim ray, so placing an outline
+// listens to WebXR selectstart and uses where the ray pointed ~150 ms before.
 
 import {
   CircleGeometry,
@@ -15,9 +17,11 @@ import {
   Group,
   Mesh,
   MeshBasicMaterial,
+  type Object3D,
   Pressed,
   RayInteractable,
   RingGeometry,
+  SphereGeometry,
   TorusGeometry,
   Vector2,
   Vector3,
@@ -32,22 +36,24 @@ import {
   spotWorldPosition,
 } from '../game/blueprint.js';
 import type { GameEvent } from '../game/game.js';
-import { BlueprintGhost, SnapSpot } from '../components/game-components.js';
+import { BlueprintGhost, SnapSpot, StructurePart } from '../components/game-components.js';
 import { itemMesh } from '../scene-assets/item-meshes.js';
+import type { ItemId } from '../game/items.js';
+import { hands, mouse } from './hand-input-system.js';
 import { getGame } from './shared.js';
 
 /** How far away (m) you can point to place a blueprint. */
 const MAX_PLACE_DISTANCE = 6;
 /** How far back to look for a steady aim when a pinch starts (s). */
 const AIM_LOOKBACK = 0.15;
-/** A VR pinch within this distance (m) of an empty snap spot fills it. */
-const SPOT_RADIUS = 0.45;
 const HISTORY = 24;
 
 const ghostOk = new MeshBasicMaterial({ color: 0x7fd37f, transparent: true, opacity: 0.35, depthWrite: false, side: DoubleSide });
 const ghostBad = new MeshBasicMaterial({ color: 0xff8a6a, transparent: true, opacity: 0.35, depthWrite: false, side: DoubleSide });
 const spotMat = new MeshBasicMaterial({ color: 0xffb547, transparent: true, opacity: 0.85 });
 const ashMat = new MeshBasicMaterial({ color: 0x2b241e });
+const partGeo = new SphereGeometry(0.16, 8, 6);
+const partMat = new MeshBasicMaterial({ visible: false });
 
 interface StructureView {
   root: Entity;
@@ -58,7 +64,7 @@ export class BuildSystem extends createSystem({
   ghost: { required: [BlueprintGhost] },
   ghostPressed: { required: [BlueprintGhost, Pressed] },
   spots: { required: [SnapSpot] },
-  spotPressed: { required: [SnapSpot, Pressed] },
+  partPressed: { required: [StructurePart, Pressed] },
 }) {
   private ghostEntity!: Entity;
   private ghostRoot!: Group;
@@ -99,12 +105,12 @@ export class BuildSystem extends createSystem({
 
     this.cleanupFuncs.push(
       game.on((e: GameEvent) => {
-        if (e.type === 'held') this.setGhost(e.item ? (blueprintsForKeyItem(e.item)[0] ?? null) : null);
+        if (e.type === 'held') this.setGhost(this.ghostFor(e.item));
         if (e.type === 'structure') this.renderStructure(e.structure);
       }),
       // Pointer presses drive the browser; VR uses selectstart (below).
       this.queries.ghostPressed.subscribe('qualify', () => !this.immersive() && this.placeGhost()),
-      this.queries.spotPressed.subscribe('qualify', (e) => !this.immersive() && this.fill(e)),
+      this.queries.partPressed.subscribe('qualify', (e) => this.pressPart(e)),
     );
     const onSelectStart = (ev: XRInputSourceEvent) => this.onXRSelect(ev.inputSource.handedness);
     const onSessionStart = () => this.renderer.xr.getSession()?.addEventListener('selectstart', onSelectStart);
@@ -115,7 +121,31 @@ export class BuildSystem extends createSystem({
     });
     if (this.renderer.xr.getSession()) onSessionStart();
     for (const s of game.structures) this.renderStructure(s);
-    if (game.held) this.setGhost(blueprintsForKeyItem(game.held)[0] ?? null);
+    if (game.held) this.setGhost(this.ghostFor(game.held));
+  }
+
+  /** The blueprint a held item would start, unless an unfinished structure nearby wants it instead. */
+  private ghostFor(item: ItemId | null): BlueprintDef | null {
+    if (!item) return null;
+    const game = getGame(this.world);
+    if (game.wantsItem(item, game.player.x, game.player.z)) return null;
+    return blueprintsForKeyItem(item)[0] ?? null;
+  }
+
+  /** Slab: push down to test it (Shift / both hands: lift it back off). Support: take it back. */
+  private pressPart(e: Entity): void {
+    const game = getGame(this.world);
+    // Setting a part down (InteractionSystem) also presses whatever is under the pointer: ignore that.
+    if (game.held && game.wantsItem(game.held, game.player.x, game.player.z)) return;
+    const id = e.getValue(StructurePart, 'structureId') ?? 0;
+    const index = e.getValue(StructurePart, 'index') ?? 0;
+    if (index >= 0) {
+      game.takeBack(id, index);
+      return;
+    }
+    const lift = this.immersive() ? hands[0].grip && hands[1].grip : mouse.bothHands || mouse.shift;
+    if (lift) game.takeBack(id, -1);
+    else game.pushTest(id);
   }
 
   private setGhost(def: BlueprintDef | null): void {
@@ -153,32 +183,11 @@ export class BuildSystem extends createSystem({
       this.aimT.fill(-1);
       return;
     }
-    if (!this.steadyAim(this.stable)) return;
-    const game = getGame(this.world);
-    if (this.ghostKind) {
-      // placeBlueprint explains (toast) when the ground is unsuitable.
-      this.moveGhostTo(this.stable.x, this.stable.z);
-      this.placeGhost();
-      return;
-    }
-    // Fill the nearest empty snap spot near where you pointed.
-    let bestId = -1;
-    let bestIndex = -1;
-    let bestD = SPOT_RADIUS;
-    for (const s of game.structures) {
-      if (s.complete) continue;
-      for (let i = 0; i < s.spots.length; i++) {
-        if (s.spots[i]) continue;
-        const p = spotWorldPosition(s, i);
-        const d = Math.hypot(p.x - this.stable.x, p.z - this.stable.z);
-        if (d < bestD) {
-          bestD = d;
-          bestId = s.id;
-          bestIndex = i;
-        }
-      }
-    }
-    if (bestId >= 0) game.fillSpot(bestId, bestIndex);
+    if (!this.steadyAim(this.stable) || !this.ghostKind) return;
+    // placeBlueprint explains (toast) when the ground is unsuitable. Parts are
+    // set down by hand (InteractionSystem), not filled by pointing.
+    this.moveGhostTo(this.stable.x, this.stable.z);
+    this.placeGhost();
   }
 
   /** The ground point the aim ray had ~AIM_LOOKBACK s ago (steadier than now). */
@@ -235,10 +244,6 @@ export class BuildSystem extends createSystem({
     return res.ok;
   }
 
-  private fill(e: Entity): void {
-    getGame(this.world).fillSpot(e.getValue(SnapSpot, 'structureId') ?? 0, e.getValue(SnapSpot, 'index') ?? 0);
-  }
-
   private renderStructure(s: PlacedStructure): void {
     const old = this.views.get(s.id);
     if (old) {
@@ -250,24 +255,56 @@ export class BuildSystem extends createSystem({
     root.name = `Structure_${s.kind}_${s.id}`;
     root.position.set(s.x, 0, s.z);
     root.rotation.y = s.rotY;
+    const c = Math.cos(s.rotY);
+    const n = Math.sin(s.rotY);
+    /** World point -> this structure's local frame (inverse of spotWorldPosition). */
+    const local = (p: { x: number; z: number }) => ({ x: (p.x - s.x) * c - (p.z - s.z) * n, z: (p.x - s.x) * n + (p.z - s.z) * c });
+    const view: StructureView = { root: this.world.createTransformEntity(root), spots: [] };
     const key = itemMesh(s.key);
-    // An unfinished workbench shows its slab floating where it will rest.
-    key.position.set(def.key.x, def.key.y, def.key.z);
-    root.add(key);
+    if (def.keyLast && !s.keyPlaced) {
+      // Not on yet: a faint ghost shows where the slab will rest.
+      key.traverse((o) => {
+        if ((o as Mesh).isMesh) (o as Mesh).material = ghostOk;
+      });
+      key.position.set(def.key.x, def.key.y, def.key.z);
+      root.add(key);
+    } else if (s.keyPos && !s.complete) {
+      // Set down but not yet stable: its own entity so you can push on it (or lift it off).
+      const l = local(s.keyPos);
+      key.position.set(l.x, def.key.y, l.z);
+      root.add(key);
+      root.updateMatrixWorld(true);
+      const part = this.world.createTransformEntity(this.partProxy(key, s.rotY));
+      part.addComponent(StructurePart, { structureId: s.id, index: -1 });
+      part.addComponent(RayInteractable);
+      view.spots.push(part);
+    } else {
+      const l = s.keyPos ? local(s.keyPos) : def.key;
+      key.position.set(l.x, def.key.y, l.z);
+      root.add(key);
+    }
     if (s.kind === 'firePit' && s.complete) {
       const ash = new Mesh(new CircleGeometry(0.3, 20), ashMat);
       ash.rotation.x = -Math.PI / 2;
       ash.position.y = 0.012;
       root.add(ash);
     }
-    const view: StructureView = { root: this.world.createTransformEntity(root), spots: [] };
     def.spots.forEach((spotDef, i) => {
       const filled = s.spots[i];
       if (filled) {
         const m = itemMesh(filled);
-        m.position.set(spotDef.x, s.kind === 'workbench' || s.kind === 'firePit' ? 0 : spotDef.y, spotDef.z);
+        // Drawn where it actually landed when set by hand.
+        const at = s.spotPos?.[i] ? local(s.spotPos[i]!) : spotDef;
+        m.position.set(at.x, s.kind === 'workbench' || s.kind === 'firePit' ? 0 : spotDef.y, at.z);
         if (s.kind === 'workbench') m.scale.set(1.6, 3.2, 1.6); // stacked stone legs
         root.add(m);
+        if (!s.complete && !s.keyPlaced) {
+          root.updateMatrixWorld(true);
+          const part = this.world.createTransformEntity(this.partProxy(m, s.rotY));
+          part.addComponent(StructurePart, { structureId: s.id, index: i });
+          part.addComponent(RayInteractable);
+          view.spots.push(part);
+        }
         return;
       }
       const ring = new Mesh(new TorusGeometry(0.08, 0.015, 6, 20), spotMat);
@@ -281,6 +318,15 @@ export class BuildSystem extends createSystem({
       view.spots.push(e);
     });
     this.views.set(s.id, view);
+  }
+
+  /** An invisible press target over a part (the part itself stays in the structure's group). */
+  private partProxy(part: Object3D, rotY: number): Mesh {
+    const proxy = new Mesh(partGeo, partMat);
+    part.getWorldPosition(proxy.position);
+    proxy.position.y += 0.08;
+    proxy.rotation.y = rotY;
+    return proxy;
   }
 
   update(delta: number): void {

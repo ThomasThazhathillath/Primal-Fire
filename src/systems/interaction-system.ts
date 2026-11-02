@@ -5,7 +5,10 @@
 //   axe / hammer        -> swing: head speed, edge alignment and contact
 //                          cut a growing notch; stone bounces, soil thuds
 //   (empty hand) on a fallen log -> drag it along the ground with lag set by
-//                          its mass; two hands pull faster; it never lifts Results go through
+//                          its mass; two hands pull faster; it never lifts
+//   a part an unfinished build needs -> place: a preview follows your aim and
+//                          the part seats only if released close to its mark;
+//                          a slab needs both hands (VR: both grips; desktop: Shift) Results go through
 // Game.completeAction / Game.work; failures through Game.interactionFailure.
 
 import {
@@ -20,6 +23,8 @@ import {
   Group,
   Hovered,
   Mesh,
+  MeshBasicMaterial,
+  type Object3D,
   Points,
   PointsMaterial,
   Pressed,
@@ -42,13 +47,15 @@ import {
   type Material,
 } from '../game/interact.js';
 import { ITEMS, type ItemId } from '../game/items.js';
+import { BLUEPRINTS, DEFAULT_SPOT_TOLERANCE, spotWorldPosition } from '../game/blueprint.js';
+import { itemMesh } from '../scene-assets/item-meshes.js';
 import { Gatherable } from '../components/game-components.js';
 import { lambert } from '../scene-assets/materials.js';
 import { hands, mouse, pulse } from './hand-input-system.js';
 import { DRAG_LOOK, REACH, ResourceSystem } from './resource-system.js';
 import { camNudge, getGame, getUi, handPose } from './shared.js';
 
-type Mode = 'none' | 'bend' | 'swing' | 'drag';
+type Mode = 'none' | 'bend' | 'swing' | 'drag' | 'place';
 
 const crackMat = lambert(0x2a1d12);
 const halfGeo = new CylinderGeometry(0.016, 0.02, 0.32, 7);
@@ -61,6 +68,8 @@ const PX_PER_RAD = 170;
 /** Desktop: metres per second of head speed per pixel/second of downward flick. */
 const FLICK_SCALE = 0.0045;
 const CHIPS = 24;
+const previewGood = new MeshBasicMaterial({ color: 0x7fd37f, transparent: true, opacity: 0.55, depthWrite: false });
+const previewFar = new MeshBasicMaterial({ color: 0xffb547, transparent: true, opacity: 0.45, depthWrite: false });
 /** Mass (kg) of a fallen log: far over what you can lift. */
 const LOG_MASS = 35;
 /** A press that moves less than this (px / m) before release is a click, not a drag. */
@@ -118,6 +127,9 @@ export class InteractionSystem extends createSystem({
   private strainTimer = 0;
   private rayDir = new Vector3();
   private eye = new Vector3();
+  // place
+  private preview: Object3D | null = null;
+  private previewItem: ItemId | null = null;
   // chips (pooled particles)
   private chips!: Points;
   private chipPos = new Float32Array(CHIPS * 3);
@@ -127,6 +139,7 @@ export class InteractionSystem extends createSystem({
   init(): void {
     this.buildStick();
     this.cleanupFuncs.push(this.queries.pressedGather.subscribe('qualify', (e) => this.maybeStartDrag(e)));
+    getUi(this.world).capturesPointer = () => this.capturesPointer();
     const geo = new BufferGeometry();
     geo.setAttribute('position', new BufferAttribute(this.chipPos, 3));
     this.chips = new Points(geo, new PointsMaterial({ color: 0xd8b07a, size: 0.03, transparent: true, depthWrite: false }));
@@ -485,8 +498,8 @@ export class InteractionSystem extends createSystem({
     if (this.viaVR) this.groundPoint(this.dragStart);
   }
 
-  /** Where the pointer (mouse ray, or right-hand ray in VR) meets the ground. */
-  private groundPoint(out: Vector3): boolean {
+  /** Where the pointer (mouse ray, or right-hand ray in VR) meets the ground (or the plane at `planeY`). */
+  private groundPoint(out: Vector3, planeY = 0): boolean {
     if (this.viaVR) {
       const sp = this.player.raySpaces.right;
       if (!sp) return false;
@@ -502,7 +515,7 @@ export class InteractionSystem extends createSystem({
         .normalize();
     }
     if (this.rayDir.y > -0.02) return false;
-    out.addScaledVector(this.rayDir, -out.y / this.rayDir.y);
+    out.addScaledVector(this.rayDir, (planeY - out.y) / this.rayDir.y);
     // Never further than you can reach.
     this.camera.getWorldPosition(this.eye);
     const dx = out.x - this.eye.x;
@@ -543,7 +556,7 @@ export class InteractionSystem extends createSystem({
     }
     this.tmp.sub(this.grabOffset);
     // Both hands (VR: both grips; desktop: Shift) pull harder.
-    d.hands = this.viaVR ? (hands[0].grip && hands[1].grip ? 2 : 1) : mouse.shift ? 2 : 1;
+    d.hands = this.viaVR ? (hands[0].grip && hands[1].grip ? 2 : 1) : mouse.bothHands ? 2 : 1;
     if (!d.update(this.tmp.x, this.tmp.z, dt)) {
       this.fail('drag.tooHeavy');
       return this.endDrag(false);
@@ -568,6 +581,95 @@ export class InteractionSystem extends createSystem({
     }
   }
 
+  // ------------------------------------------------------------------ place
+
+  private startPlace(vr: boolean): void {
+    const held = getGame(this.world).held!;
+    this.mode = 'place';
+    this.viaVR = vr;
+    if (this.previewItem !== held) {
+      if (this.preview) this.preview.removeFromParent();
+      this.preview = itemMesh(held);
+      this.preview.traverse((o) => {
+        if ((o as Mesh).isMesh) (o as Mesh).material = previewGood;
+      });
+      this.worldRoot?.add(this.preview);
+      this.previewItem = held;
+    }
+    this.preview!.visible = true;
+  }
+
+  private setPreviewMat(mat: MeshBasicMaterial): void {
+    this.preview?.traverse((o) => {
+      if ((o as Mesh).isMesh) (o as Mesh).material = mat;
+    });
+  }
+
+  private updatePlace(): void {
+    const game = getGame(this.world);
+    const held = game.held;
+    const releasing = this.viaVR ? !hands[1].grip : !mouse.down;
+    // A slab is aimed at its resting height (you look at where it will sit, not at the ground below).
+    const pending = held ? game.placementTarget(held, game.player.x, game.player.z, 6) : null;
+    const planeY = pending && pending.index < 0 ? BLUEPRINTS[pending.structure.kind].key.y : 0;
+    if (!held || !this.preview || !this.groundPoint(this.tmp, planeY)) {
+      if (releasing) this.endPlace();
+      return;
+    }
+    const target = game.placementTarget(held, this.tmp.x, this.tmp.z);
+    // Preview: where it will land, green when it would seat on its mark.
+    let seats = false;
+    if (target) {
+      const def = BLUEPRINTS[target.structure.kind];
+      const mark = target.index >= 0 ? spotWorldPosition(target.structure, target.index) : { x: target.structure.x, z: target.structure.z };
+      const tol = target.index >= 0 ? (def.spotTolerance ?? DEFAULT_SPOT_TOLERANCE) : 0.15;
+      seats = Math.hypot(mark.x - this.tmp.x, mark.z - this.tmp.z) <= tol;
+      this.preview.position.set(this.tmp.x, target.index < 0 ? def.key.y : 0.02, this.tmp.z);
+      this.preview.rotation.y = target.structure.rotY;
+    } else {
+      this.preview.position.set(this.tmp.x, 0.02, this.tmp.z);
+    }
+    this.setPreviewMat(seats ? previewGood : previewFar);
+    handPose.mode = 'place';
+    handPose.amount = 0;
+    handPose.x = 0;
+    handPose.y = -0.05;
+    if (!releasing) return;
+    const x = this.tmp.x;
+    const z = this.tmp.z;
+    this.endPlace();
+    if (!target) {
+      this.fail('place.tooFar');
+      return;
+    }
+    if (target.index >= 0) game.fillSpot(target.structure.id, target.index, undefined, { x, z });
+    else {
+      const both = this.viaVR ? hands[0].grip : mouse.bothHands;
+      game.placeKey(target.structure.id, x, z, both ? 2 : 1);
+    }
+  }
+
+  private endPlace(): void {
+    this.mode = 'none';
+    handPose.mode = 'free';
+    if (this.preview) this.preview.visible = false;
+  }
+
+  /** True when a left press now would start a hand interaction rather than a look-drag. */
+  private capturesPointer(): boolean {
+    const game = getGame(this.world);
+    const held = game.held;
+    if (held) {
+      if (actionFor(held) || SWING_TOOLS.includes(held)) return true;
+      if (game.wantsItem(held, game.player.x, game.player.z)) return true;
+    }
+    const resources = this.world.getSystem(ResourceSystem);
+    for (const e of this.queries.hoverGather.entities) {
+      if (resources?.spot(e.getValue(Gatherable, 'spotId') ?? '')?.look === DRAG_LOOK) return true;
+    }
+    return false;
+  }
+
   // ------------------------------------------------------------------ frame
 
   update(delta: number): void {
@@ -578,7 +680,14 @@ export class InteractionSystem extends createSystem({
     const action = actionFor(game.held);
     const vr = this.immersive();
 
-    if (this.mode === 'none' && this.fallT < 0 && action?.motion === 'snap') {
+    // Holding a part an unfinished build nearby needs: set it down by hand.
+    const wanted = !!game.held && game.wantsItem(game.held, game.player.x, game.player.z);
+    if (this.mode === 'none' && wanted) {
+      if (vr ? hands[1].gripDown : mouse.pressed && this.queries.hoverGather.entities.size === 0) this.startPlace(vr);
+    }
+    if (this.mode === 'place') this.updatePlace();
+
+    if (this.mode === 'none' && !wanted && this.fallT < 0 && action?.motion === 'snap') {
       if (vr) {
         const l = hands[0];
         const r = hands[1];

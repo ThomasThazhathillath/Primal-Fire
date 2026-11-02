@@ -2,7 +2,7 @@
 // call these actions and react to the events; tests drive them directly.
 
 import { actionFor } from './actions.js';
-import { FAILURE_TEXT, type GuideFailureCode } from './interact.js';
+import { checkPlace, FAILURE_TEXT, GrabTracker, slabStability, SUPPORT_NAMES, type GuideFailureCode } from './interact.js';
 import { HAND_RECIPES, TOOLS, toolFor } from './tools.js';
 import { capacityFor, itemsCount, itemsWeight, moveLimits, PACK_UPGRADES, type MoveLimits, type PackUpgrade } from './backpack.js';
 import { FireState, type FireSave, type FireStage } from './fire.js';
@@ -10,6 +10,8 @@ import {
   BLUEPRINTS,
   CAMP_RADIUS,
   checkPlacement,
+  DEFAULT_SPOT_TOLERANCE,
+  spotWorldPosition,
   STORAGE_SLOTS,
   type PlacedStructure,
   type PlacementResult,
@@ -580,7 +582,8 @@ export class Game {
       this.toast(check.message, 'bad');
       return check;
     }
-    const key = this.consumeHeld()!;
+    // A keyLast part (the slab) stays in your hand: the outline is only the plan.
+    const key = def.keyLast ? this.held : this.consumeHeld()!;
     const structure: PlacedStructure = {
       id: this.nextStructureId++,
       kind,
@@ -590,10 +593,16 @@ export class Game {
       key,
       spots: def.spots.map(() => null),
       complete: false,
+      ...(def.keyLast ? { keyPlaced: false } : {}),
     };
     this.structures.push(structure);
     this.log.add(`placed ${kind} #${structure.id} at ${x.toFixed(1)},${z.toFixed(1)} key=${key}`, 'ok');
-    this.toast(`${def.name}: fill the glowing spots to finish it.`, 'note');
+    this.toast(
+      def.keyLast
+        ? `${def.name}: set a part on every glowing mark first, then lift the ${itemName(key).toLowerCase()} on top.`
+        : `${def.name}: fill the glowing spots to finish it.`,
+      'note',
+    );
     if (kind === 'shelter') this.science('shelter.site.chosen');
     this.emit({ type: 'structure', structure });
     return { ok: true, structure };
@@ -603,10 +612,20 @@ export class Game {
    * Put an item into a snap spot: the held item if it fits, otherwise the
    * first fitting item from the satchel (or `prefer`, when given and present).
    */
-  fillSpot(structureId: number, index: number, prefer?: ItemId): boolean {
+  fillSpot(structureId: number, index: number, prefer?: ItemId, at?: { x: number; z: number }): boolean {
     const s = this.structures.find((t) => t.id === structureId);
     if (!s || s.complete || s.spots[index] === undefined || s.spots[index] !== null) return false;
-    const spot = BLUEPRINTS[s.kind].spots[index];
+    const def = BLUEPRINTS[s.kind];
+    const spot = def.spots[index];
+    const target = spotWorldPosition(s, index);
+    if (at) {
+      // Released by hand: it seats only if it landed close enough to the mark.
+      const check = checkPlace(at.x, at.z, target.x, target.z, def.spotTolerance ?? DEFAULT_SPOT_TOLERANCE);
+      if (!check.ok) {
+        this.interactionFailure(def.keyLast ? 'support.tooFar' : 'place.tooFar', `${Math.round(check.error * 100)} cm off`);
+        return false;
+      }
+    }
     let item: ItemId | null = null;
     if (this.held && spot.accepts.includes(this.held)) {
       item = this.consumeHeld();
@@ -625,8 +644,121 @@ export class Game {
       return false;
     }
     s.spots[index] = item;
+    s.spotPos ??= def.spots.map(() => null);
+    s.spotPos[index] = at ? { x: at.x, z: at.z } : { x: target.x, z: target.z };
     this.log.add(`filled ${s.kind}#${s.id}[${index}] with ${item}`);
-    if (s.spots.every((v) => v !== null)) this.completeStructure(s);
+    if (at) this.fx('seat', 0.6);
+    if (s.spots.every((v) => v !== null)) {
+      if (def.keyLast && !s.keyPlaced) this.toast(`Supports set. Now lift the ${itemName(s.key).toLowerCase()} on with both hands.`, 'note');
+      else this.completeStructure(s);
+    }
+    this.emit({ type: 'structure', structure: s });
+    return true;
+  }
+
+  /**
+   * Where releasing `item` at (x, z) would put it: the nearest open spot that
+   * accepts it within `radius` m, or (index -1) the key position of a keyLast
+   * structure whose spots are all filled. Null when nothing nearby wants it.
+   */
+  placementTarget(item: ItemId, x: number, z: number, radius = 0.7): { structure: PlacedStructure; index: number } | null {
+    let best: { structure: PlacedStructure; index: number } | null = null;
+    let bestD = radius;
+    for (const s of this.structures) {
+      if (s.complete) continue;
+      const def = BLUEPRINTS[s.kind];
+      if (def.keyLast && !s.keyPlaced && def.keyAccepts.includes(item) && s.spots.every((v) => v !== null)) {
+        const d = Math.hypot(s.x - x, s.z - z);
+        if (d < bestD) {
+          bestD = d;
+          best = { structure: s, index: -1 };
+        }
+      }
+      if (s.keyPlaced) continue;
+      def.spots.forEach((spot, i) => {
+        if (s.spots[i] !== null || !spot.accepts.includes(item)) return;
+        const p = spotWorldPosition(s, i);
+        const d = Math.hypot(p.x - x, p.z - z);
+        if (d < bestD) {
+          bestD = d;
+          best = { structure: s, index: i };
+        }
+      });
+    }
+    return best;
+  }
+
+  /** An unfinished structure within `radius` m still wants `item` (a spot or its key part). */
+  wantsItem(item: ItemId, x: number, z: number, radius = 6): boolean {
+    return this.placementTarget(item, x, z, radius) !== null;
+  }
+
+  /**
+   * Set the key part (a slab) down on a keyLast structure at (x, z). Heavy
+   * parts need both hands. The structure is finished only when the push test
+   * passes; otherwise it wobbles and the failure names the bad support.
+   */
+  placeKey(structureId: number, x: number, z: number, hands: number): boolean {
+    const s = this.structures.find((t) => t.id === structureId);
+    const def = s ? BLUEPRINTS[s.kind] : null;
+    if (!s || !def?.keyLast || s.keyPlaced || s.complete) return false;
+    if (!this.held || !def.keyAccepts.includes(this.held)) return false;
+    if (!GrabTracker.canLift(ITEMS[this.held].weight, hands)) {
+      this.interactionFailure('grab.tooHeavy');
+      return false;
+    }
+    if (s.spots.some((v) => v === null)) {
+      this.interactionFailure('slab.beforeSupports');
+      return false;
+    }
+    s.key = this.consumeHeld()!;
+    s.keyPlaced = true;
+    s.keyPos = { x, z };
+    this.fx('seat', 1);
+    this.log.add(`set ${s.key} on ${s.kind}#${s.id} at ${x.toFixed(2)},${z.toFixed(2)}`);
+    this.emit({ type: 'structure', structure: s });
+    this.pushTest(structureId);
+    return true;
+  }
+
+  /** Press down on the slab: is it stable? Finishes the structure when it is. */
+  pushTest(structureId: number): boolean {
+    const s = this.structures.find((t) => t.id === structureId);
+    if (!s || !s.keyPlaced || s.complete || !s.keyPos) return false;
+    const r = slabStability(s.spotPos ?? [], s.keyPos);
+    if (r.stable) {
+      this.completeStructure(s);
+      this.emit({ type: 'structure', structure: s });
+      return true;
+    }
+    this.fx('wobble', 1);
+    this.interactionFailure(r.code!, r.support !== null ? `the ${SUPPORT_NAMES[r.support] ?? 'last'} support` : undefined);
+    return false;
+  }
+
+  /**
+   * Pick a part back up off an unfinished structure (index -1 = the key part).
+   * The slab must come off before a support can be moved.
+   */
+  takeBack(structureId: number, index: number): boolean {
+    const s = this.structures.find((t) => t.id === structureId);
+    if (!s || s.complete) return false;
+    if (index < 0) {
+      if (!s.keyPlaced) return false;
+      if (this.held) this.stow();
+      s.keyPlaced = false;
+      s.keyPos = undefined;
+      this.held = s.key;
+      this.emit({ type: 'held', item: s.key });
+    } else {
+      const item = s.spots[index];
+      if (!item || s.keyPlaced) return false;
+      if (this.held) this.stow();
+      s.spots[index] = null;
+      if (s.spotPos) s.spotPos[index] = null;
+      this.held = item;
+      this.emit({ type: 'held', item });
+    }
     this.emit({ type: 'structure', structure: s });
     return true;
   }
@@ -819,7 +951,13 @@ export class Game {
       gathered: Object.fromEntries(this.gathered),
       notebook: [...this.notebook],
       events: [...this.events],
-      structures: this.structures.map((s) => ({ ...s, spots: [...s.spots], store: s.store ? { ...s.store } : undefined })),
+      structures: this.structures.map((s) => ({
+        ...s,
+        spots: [...s.spots],
+        spotPos: s.spotPos?.map((p) => (p ? { ...p } : null)),
+        keyPos: s.keyPos ? { ...s.keyPos } : undefined,
+        store: s.store ? { ...s.store } : undefined,
+      })),
       discovered: [...this.discovered],
       flags: [...this.flags],
       player: { ...this.player },

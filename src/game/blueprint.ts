@@ -5,6 +5,7 @@
 // Definitions and placement rules are plain data so they can be unit-tested.
 
 import type { ItemId } from './items.js';
+import { SUPPORT_TOLERANCE } from './interact.js';
 import {
   nearestTreeDistance,
   STREAM_BANK,
@@ -38,6 +39,14 @@ export interface BlueprintDef {
   completeObservation?: string;
   /** Third-level hint text when nothing is built yet. */
   groundAdvice: string;
+  /**
+   * The key part goes on LAST (a workbench slab on its supports): placing the
+   * outline does not use it up, and the structure is finished by setting the
+   * key part down and passing the push test.
+   */
+  keyLast?: boolean;
+  /** How close (m) a released part must land to its spot to seat there. */
+  spotTolerance?: number;
 }
 
 const STONES: ItemId[] = ['dryStone', 'wetStone'];
@@ -68,6 +77,8 @@ export const BLUEPRINTS: Record<StructureKind, BlueprintDef> = {
     name: 'Workbench',
     keyAccepts: ['slab', 'board'],
     key: { x: 0, y: 0.36, z: 0 },
+    keyLast: true,
+    spotTolerance: SUPPORT_TOLERANCE,
     spots: [0, 1, 2].map((i) => ({
       ...ring(i, 3, 0.26),
       y: 0.1,
@@ -151,6 +162,12 @@ export interface PlacedStructure {
   /** What fills each snap spot, in BLUEPRINTS[kind].spots order. */
   spots: Array<ItemId | null>;
   complete: boolean;
+  /** keyLast structures: has the key part been set down yet? */
+  keyPlaced?: boolean;
+  /** Where the key part actually landed (world), when placed by hand. */
+  keyPos?: { x: number; z: number };
+  /** Where each part actually landed (world), when placed by hand. */
+  spotPos?: Array<{ x: number; z: number } | null>;
   /** Stored items (storage structures only). */
   store?: Partial<Record<ItemId, number>>;
 }
@@ -208,3 +225,6 @@ export function spotWorldPosition(
     z: s.z - local.x * n + local.z * c,
   };
 }
+
+/** Default distance (m) a released part may land from its spot and still seat. */
+export const DEFAULT_SPOT_TOLERANCE = 0.3;

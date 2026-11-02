@@ -27,7 +27,7 @@ import { bagPrompt, gatherPrompt } from '../game/prompts.js';
 import { SatchelSystem } from './satchel-system.js';
 import { OBSERVATION_COUNT, OBSERVATIONS } from '../game/observations.js';
 import { QUESTS } from '../game/quests.js';
-import { Gatherable, SatchelItem, SnapSpot, WorldDropItem } from '../components/game-components.js';
+import { Gatherable, SatchelItem, SnapSpot, StructurePart, WorldDropItem } from '../components/game-components.js';
 import { REACH, ResourceSystem } from './resource-system.js';
 import { getGame, getUi, hidePanel, placeInFront, uiText } from './shared.js';
 
@@ -40,6 +40,7 @@ export class HudSystem extends createSystem({
   hoverSpot: { required: [SnapSpot, Hovered] },
   hoverDrop: { required: [WorldDropItem, Hovered] },
   hoverBag: { required: [SatchelItem, Hovered] },
+  hoverPart: { required: [StructurePart, Hovered] },
 }) {
   private hud!: UIKitMLAsset;
   private hudEntity!: Entity;
@@ -115,6 +116,8 @@ export class HudSystem extends createSystem({
       this.queries.hoverDrop.subscribe('disqualify', (e) => this.clearTip(e)),
       this.queries.hoverBag.subscribe('qualify', (e) => (this.tipTarget = e)),
       this.queries.hoverBag.subscribe('disqualify', (e) => this.clearTip(e)),
+      this.queries.hoverPart.subscribe('qualify', (e) => (this.tipTarget = e)),
+      this.queries.hoverPart.subscribe('disqualify', (e) => this.clearTip(e)),
     );
     this.ready = true;
     this.renderQuest();
@@ -286,6 +289,18 @@ export class HudSystem extends createSystem({
       sub = 'Pick up what you dropped';
       e.object3D.getWorldPosition(this.tmp);
       this.tmp.y += 0.6;
+    } else if (e.hasComponent(StructurePart)) {
+      const s = game.structures.find((t) => t.id === e.getValue(StructurePart, 'structureId'));
+      if (!s) return;
+      const index = e.getValue(StructurePart, 'index') ?? 0;
+      const vr = this.world.visibilityState.peek() !== VisibilityState.NonImmersive;
+      title = index < 0 ? itemName(s.key) : itemName(s.spots[index] ?? s.key);
+      sub =
+        index < 0
+          ? `Press down to test if it is stable - ${vr ? 'grip with both hands' : 'Shift+drag'} to lift and move it`
+          : 'Pick it back up to set it again';
+      e.object3D.getWorldPosition(this.tmp);
+      this.tmp.y += 0.35;
     } else if (e.hasComponent(SatchelItem)) {
       const id = this.world.getSystem(SatchelSystem)?.bagItemAt(e.getValue(SatchelItem, 'index') ?? 0);
       if (!id) return;
@@ -298,7 +313,7 @@ export class HudSystem extends createSystem({
       if (!s) return;
       const spotDef = BLUEPRINTS[s.kind].spots[e.getValue(SnapSpot, 'index') ?? 0];
       title = spotDef.label;
-      sub = `Pinch to place: ${spotDef.accepts.map((id) => itemName(id).toLowerCase()).join(' or ')}`;
+      sub = `Hold ${spotDef.accepts.map((id) => itemName(id).toLowerCase()).join(' or ')} and set it down on the glow`;
       const p = spotWorldPosition(s, e.getValue(SnapSpot, 'index') ?? 0);
       this.tmp.set(p.x, p.y + 0.35, p.z);
     }

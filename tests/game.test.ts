@@ -37,6 +37,8 @@ function build(g: Game, kind: 'workbench' | 'firePit', x: number, z: number, key
   const s = res.structure!;
   g.addItem(fill, s.spots.length);
   s.spots.forEach((_, i) => expect(g.fillSpot(s.id, i)).toBe(true));
+  // A workbench slab goes on last, lifted with both hands, then passes the push test.
+  if (kind === 'workbench') expect(g.placeKey(s.id, s.x, s.z, 2)).toBe(true);
   expect(s.complete).toBe(true);
   return s;
 }
@@ -245,6 +247,8 @@ describe('filter blueprint', () => {
     const s = g.placeBlueprint('workbench', -1, -2).structure!;
     g.addItem('forkedStick', 3);
     s.spots.forEach((_, i) => g.fillSpot(s.id, i));
+    expect(s.complete).toBe(false); // the board is still in hand
+    expect(g.placeKey(s.id, s.x, s.z, 1)).toBe(true); // a board is light enough for one hand
     expect(s.complete).toBe(true);
   });
 });

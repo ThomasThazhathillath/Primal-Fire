@@ -58,6 +58,8 @@ export const mouse = {
   wheel: 0,
   /** Shift held: "use both hands" for heavy things. */
   shift: false,
+  /** Shift was held at any moment since the press (survives letting go just before release). */
+  bothHands: false,
   /** Seconds since press. */
   heldFor: 0,
 };
@@ -111,7 +113,9 @@ export class HandInputSystem extends createSystem({}) {
 
     const canvas = this.renderer.domElement;
     const onDown = (e: PointerEvent) => {
+      mouse.shift = e.shiftKey;
       if (e.button !== 0) return;
+      mouse.bothHands = e.shiftKey;
       mouse.down = true;
       this.pendingPress = true;
       mouse.dragX = mouse.dragY = 0;
@@ -120,11 +124,15 @@ export class HandInputSystem extends createSystem({}) {
       this.lastY = e.clientY;
     };
     const onUp = (e: PointerEvent) => {
+      mouse.shift = e.shiftKey;
+      if (e.shiftKey) mouse.bothHands = true;
       if (e.button !== 0 || !mouse.down) return;
       mouse.down = false;
       this.pendingRelease = true;
     };
     const onMove = (e: PointerEvent) => {
+      mouse.shift = e.shiftKey;
+      if (mouse.down && e.shiftKey) mouse.bothHands = true;
       mouse.x = e.clientX;
       mouse.y = e.clientY;
       this.moved = true;
@@ -134,6 +142,7 @@ export class HandInputSystem extends createSystem({}) {
     };
     const onKey = (e: KeyboardEvent) => {
       mouse.shift = e.shiftKey;
+      if (mouse.down && e.shiftKey) mouse.bothHands = true;
     };
     canvas.addEventListener('pointerdown', onDown);
     window.addEventListener('pointerup', onUp);

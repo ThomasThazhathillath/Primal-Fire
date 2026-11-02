@@ -38,3 +38,10 @@ export const SatchelItem = createComponent('SatchelItem', {
 export const WorldDropItem = createComponent('WorldDropItem', {
   dropId: { type: Types.Int32, default: 0 },
 });
+
+/** A part sitting on an unfinished structure: press a support to take it back, press the slab to push-test it. */
+export const StructurePart = createComponent('StructurePart', {
+  structureId: { type: Types.Int32, default: 0 },
+  /** -1 = the key part (slab). */
+  index: { type: Types.Int8, default: 0 },
+});

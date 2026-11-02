@@ -1,6 +1,7 @@
 // Game state and rules, independent of rendering and input. IWSDK systems
 // call these actions and react to the events; tests drive them directly.
 
+import { actionFor } from './actions.js';
 import { capacityFor, itemsCount, itemsWeight, moveLimits, PACK_UPGRADES, type MoveLimits, type PackUpgrade } from './backpack.js';
 import { FireState, type FireSave, type FireStage } from './fire.js';
 import {
@@ -43,7 +44,8 @@ export type GameEvent =
   | { type: 'quest'; index: number }
   | { type: 'questComplete'; index: number; title: string; roadmapNode: string | null }
   | { type: 'discovered'; landmark: Landmark }
-  | { type: 'fire'; stage: FireStage };
+  | { type: 'fire'; stage: FireStage }
+  | { type: 'action'; id: string; progress: number; done: boolean };
 
 /** XP needed to reach each level (index = level − 1). */
 export const LEVELS = [0, 100, 250, 450, 700, 1000, 1400, 99999];
@@ -105,6 +107,8 @@ export class Game {
   readonly log: EventLog;
   readonly fire = new FireState(this);
   readonly packUpgrades = new Set<string>();
+  /** Effort put into the held item's hand action (0..1 of what it needs). */
+  actionProgress = 0;
   private flags = new Set<FlagId>();
   private hintLevels = new Map<string, number>();
   private listeners = new Set<(e: GameEvent) => void>();
@@ -164,6 +168,33 @@ export class Game {
     this.toast(`Made: ${u.name}. Your pack holds more.`, 'good');
     if (u.observation) this.observe(u.observation);
     this.emit({ type: 'satchel' });
+    return true;
+  }
+
+  // ------------------------------------------------------------ hand actions
+
+  /**
+   * Put `effort` into the held item's hand action (bend/rub metres or strikes).
+   * Returns true when the action finishes.
+   */
+  work(effort: number): boolean {
+    const a = actionFor(this.held);
+    if (!a || effort <= 0) return false;
+    if (a.needs?.some((n) => this.count(n) <= 0)) {
+      if (this.actionProgress === 0) this.toast(`You need ${a.needs.map((n) => itemName(n).toLowerCase()).join(' and ')} in your satchel.`, 'bad');
+      return false;
+    }
+    this.actionProgress = Math.min(1, this.actionProgress + effort / a.work);
+    const done = this.actionProgress >= 1 - 1e-9;
+    this.emit({ type: 'action', id: a.id, progress: this.actionProgress, done });
+    if (!done) return false;
+    this.actionProgress = 0;
+    this.consumeHeld();
+    for (const [id, n] of Object.entries(a.outputs)) this.addItem(id as ItemId, n);
+    this.log.add(`action ${a.id} done`, 'ok');
+    this.toast(`${a.name}: you now have ${Object.entries(a.outputs).map(([id, n]) => `${n} ${itemName(id as ItemId).toLowerCase()}`).join(', ')}.`, 'good');
+    if (a.observation) this.observe(a.observation);
+    this.checkQuests();
     return true;
   }
 
@@ -260,6 +291,7 @@ export class Game {
     if (this.held) this.stow();
     this.satchel.set(id, this.count(id) - 1);
     this.held = id;
+    this.actionProgress = 0;
     this.log.add(`took out ${id}`);
     this.emit({ type: 'satchel' });
     this.emit({ type: 'held', item: id });

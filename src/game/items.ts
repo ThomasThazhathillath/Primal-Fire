@@ -26,7 +26,10 @@ export type ItemId =
   | 'diggingStick'
   | 'forkedStick'
   | 'cane'
-  | 'bowDrill';
+  | 'bowDrill'
+  | 'branch'
+  | 'flint'
+  | 'flake';
 
 export type ItemCategory =
   | 'tinder'
@@ -113,6 +116,9 @@ export const ITEMS: Record<ItemId, ItemDef> = {
     weight: 0.4,
     firstObservation: 'g_hollow',
   },
+  branch: { name: 'Dead branch', cats: ['fuel', 'craft'], color: 0x7a5a3a, weight: 1.2 },
+  flint: { name: 'Flint nodule', cats: ['stone', 'craft'], color: 0x4a4a55, weight: 0.7 },
+  flake: { name: 'Sharp flake', cats: ['stone', 'craft'], color: 0x6b6b78, weight: 0.1 },
   bowDrill: { name: 'Bow drill', cats: ['tool'], color: 0xc49a66, weight: 0.8 },
 };
 
@@ -128,6 +134,9 @@ export const SATCHEL_ORDER: ItemId[] = [
   'board',
   'greenBranch',
   'bowDrill',
+  'branch',
+  'flint',
+  'flake',
   'dryStone',
   'wetStone',
   'slab',

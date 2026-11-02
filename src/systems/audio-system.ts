@@ -153,6 +153,10 @@ export class AudioSystem extends createSystem({}) {
         this.tone(440, 0.3, 'sine', 0.18);
         this.tone(660, 0.4, 'sine', 0.15, 0.12);
         break;
+      case 'action':
+        if (e.done) this.tone(330, 0.15, 'square', 0.15, 0, 660);
+        else this.burst(1200 + e.progress * 1500, 0.05, 0.1);
+        break;
       case 'fire':
         if (e.stage !== this.lastStage) {
           if (e.stage === 'burning') [196, 262, 330].forEach((f, i) => this.tone(f, 0.5, 'triangle', 0.18, i * 0.08));

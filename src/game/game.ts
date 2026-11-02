@@ -2,6 +2,7 @@
 // call these actions and react to the events; tests drive them directly.
 
 import { actionFor } from './actions.js';
+import { FAILURE_TEXT, type GuideFailureCode } from './interact.js';
 import { HAND_RECIPES, TOOLS, toolFor } from './tools.js';
 import { capacityFor, itemsCount, itemsWeight, moveLimits, PACK_UPGRADES, type MoveLimits, type PackUpgrade } from './backpack.js';
 import { FireState, type FireSave, type FireStage } from './fire.js';
@@ -51,6 +52,7 @@ export type GameEvent =
   | { type: 'fire'; stage: FireStage }
   | { type: 'arrow'; hit: boolean }
   | { type: 'reach' }
+  | { type: 'interaction'; code: GuideFailureCode; detail?: string }
   | { type: 'drops' }
   | { type: 'gather'; item: ItemId; tool: ItemId | null }
   | { type: 'action'; id: string; progress: number; done: boolean };
@@ -247,6 +249,20 @@ export class Game {
     if (this.stash(item, 1) === 0) return false;
     this.toast(`Stored ${itemName(item).toLowerCase()}.`);
     return true;
+  }
+
+  /** A physical attempt failed: tell the player why (guides listen to this too). */
+  interactionFailure(code: GuideFailureCode, detail?: string): void {
+    this.log.add(`interaction failed: ${code}${detail ? ` (${detail})` : ''}`, 'bad');
+    this.toast(detail ? `${FAILURE_TEXT[code]} (${detail})` : FAILURE_TEXT[code], 'bad');
+    this.emit({ type: 'interaction', code, detail });
+  }
+
+  /** Finish the held item's hand action now (the physical motion succeeded). */
+  completeAction(): boolean {
+    const a = actionFor(this.held);
+    if (!a) return false;
+    return this.work(a.work * (1 - this.actionProgress) + 1e-6);
   }
 
   /** Cue for the hands to reach (opening the bag, taking something out). */

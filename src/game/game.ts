@@ -466,6 +466,7 @@ export class Game {
       discovered: [...this.discovered],
       flags: [...this.flags],
       player: { ...this.player },
+      held: this.held,
     };
   }
 
@@ -484,6 +485,8 @@ export class Game {
     for (const f of data.flags) g.flags.add(f);
     g.player.x = data.player.x;
     g.player.z = data.player.z;
+    // Older saves have no `held`; a stale id would crash the item meshes.
+    g.held = data.held && data.held in ITEMS ? data.held : null;
     return g;
   }
 }
@@ -501,4 +504,5 @@ export interface SaveData {
   discovered: string[];
   flags: FlagId[];
   player: { x: number; z: number };
+  held?: ItemId | null;
 }

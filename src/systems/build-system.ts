@@ -242,9 +242,8 @@ export class BuildSystem extends createSystem({
   private renderStructure(s: PlacedStructure): void {
     const old = this.views.get(s.id);
     if (old) {
-      for (const e of old.spots) e.destroy();
-      old.root.object3D?.removeFromParent();
-      old.root.destroy();
+      for (const e of old.spots) e.dispose();
+      old.root.dispose();
     }
     const def = BLUEPRINTS[s.kind];
     const root = new Group();

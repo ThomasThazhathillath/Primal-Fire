@@ -87,19 +87,28 @@ export interface Tree {
   rotY: number;
   /** Index into the canopy palette. */
   tint: number;
+  /** 0 = pine, 1 = broadleaf, 2 = dead snag. */
+  kind: 0 | 1 | 2;
+  /** Height multiplier on top of `scale` (young trees are short, old ones tall). */
+  height: number;
+  /** Trunk width multiplier. */
+  girth: number;
+  /** Tilt away from vertical (rad) and its compass direction. */
+  lean: number;
+  leanDir: number;
 }
 
 const TREE_SEED = 11;
-/** Fewer trees than the prototype's 720: Quest's browser has a tight budget. */
-const TREE_TARGET = 380;
-const TREE_SPACING = 2.0;
+/** Dense forest, but all trees are two instanced draw calls (see forest.scene-asset). */
+const TREE_TARGET = 900;
+const TREE_SPACING = 1.6;
 
 function generateTrees(): Tree[] {
   const rng = mulberry32(TREE_SEED);
   const trees: Tree[] = [];
   const grid = new SpatialGrid<Tree>(4);
   let tries = 0;
-  while (trees.length < TREE_TARGET && tries++ < 30000) {
+  while (trees.length < TREE_TARGET && tries++ < 60000) {
     const a = rng() * Math.PI * 2;
     const r = 7 + Math.sqrt(rng()) * (WORLD_RADIUS + 8 - 7);
     const x = Math.cos(a) * r;
@@ -114,7 +123,31 @@ function generateTrees(): Tree[] {
       scale: 0.8 + rng() * 0.9,
       rotY: rng() * Math.PI * 2,
       tint: Math.floor(rng() * 4),
+      kind: 0,
+      height: 1,
+      girth: 1,
+      lean: 0,
+      leanDir: rng() * Math.PI * 2,
     };
+    // Broadleaf trees favour the damper ground near the stream; ~8% are dead snags.
+    const roll = rng();
+    const wet = streamDistance(x, z) < 14;
+    tree.kind = roll < 0.08 ? 2 : roll < (wet ? 0.5 : 0.3) ? 1 : 0;
+    const age = rng();
+    if (age < 0.22) {
+      // Young: short and slim.
+      tree.scale *= 0.55;
+      tree.height = 0.9 + rng() * 0.3;
+    } else if (age > 0.85) {
+      // Old giant: tall and thick.
+      tree.scale *= 1.25;
+      tree.height = 1.15 + rng() * 0.35;
+      tree.girth = 1.3;
+    } else {
+      tree.height = 0.85 + rng() * 0.5;
+      tree.girth = 0.85 + rng() * 0.35;
+    }
+    tree.lean = tree.kind === 2 ? rng() * 0.3 : rng() < 0.18 ? 0.08 + rng() * 0.16 : rng() * 0.04;
     trees.push(tree);
     grid.insert(x, z, tree);
   }
@@ -170,7 +203,13 @@ export type ResourceLook =
   | 'slab'
   | 'forkedStick'
   | 'diggingStick'
-  | 'cane';
+  | 'cane'
+  | 'dryBranch'
+  | 'leafLitter'
+  | 'vine'
+  | 'bark'
+  | 'stoneDark'
+  | 'stonePale';
 
 const LABELS: Record<ResourceLook, string> = {
   grass: 'Tall, pale grass that crackles when touched',
@@ -192,6 +231,12 @@ const LABELS: Record<ResourceLook, string> = {
   forkedStick: 'A sturdy stick that splits into a Y',
   diggingStick: 'A thick stick, hard and pointed at one end',
   cane: 'Tall, jointed stems by the water',
+  dryBranch: 'A long, brittle branch fallen from a dead tree',
+  leafLitter: 'A drift of crisp, brown leaves',
+  vine: 'A tough, trailing vine hanging from the trees',
+  bark: 'A curl of bark peeling from a dead trunk',
+  stoneDark: 'A heavy, dark stone, rough to the touch',
+  stonePale: 'A pale, chalky stone with a flat face',
 };
 
 const LOOK_ITEM: Record<ResourceLook, ItemId> = {
@@ -214,6 +259,12 @@ const LOOK_ITEM: Record<ResourceLook, ItemId> = {
   forkedStick: 'forkedStick',
   diggingStick: 'diggingStick',
   cane: 'cane',
+  dryBranch: 'dryBranch',
+  leafLitter: 'leafLitter',
+  vine: 'vine',
+  bark: 'bark',
+  stoneDark: 'dryStone',
+  stonePale: 'dryStone',
 };
 
 const LOOK_CHARGES: Partial<Record<ResourceLook, [number, number]>> = {
@@ -237,7 +288,70 @@ const LOOK_CHARGES: Partial<Record<ResourceLook, [number, number]>> = {
   forkedStick: [1, 90],
   diggingStick: [1, 0],
   cane: [2, 60],
+  dryBranch: [2, 80],
+  leafLitter: [2, 40],
+  vine: [2, 70],
+  bark: [2, 90],
+  stoneDark: [1, 0],
+  stonePale: [1, 0],
 };
+
+/** Where a scatter rule may place spots. */
+export type ScatterZone = 'forest' | 'stream';
+
+export interface ScatterRule {
+  look: ResourceLook;
+  count: number;
+  zone: ScatterZone;
+  /** Forest: distance from the origin. Stream: distance from the water's centreline. */
+  minR: number;
+  maxR: number;
+  /** Min distance to a tree trunk (default 0.7). */
+  treeClear?: number;
+  /** Min distance to any other resource spot (default 1.2). */
+  spacing?: number;
+}
+
+/** Ground clutter to scatter through the playable area. Data only: add rows freely. */
+export const SCATTER_RULES: ScatterRule[] = [
+  { look: 'twigPile', count: 40, zone: 'forest', minR: 6, maxR: 44 },
+  { look: 'dryBranch', count: 34, zone: 'forest', minR: 6, maxR: 44 },
+  { look: 'leafLitter', count: 40, zone: 'forest', minR: 5, maxR: 44, spacing: 1 },
+  { look: 'bark', count: 18, zone: 'forest', minR: 8, maxR: 44, treeClear: 0.9 },
+  { look: 'vine', count: 18, zone: 'forest', minR: 9, maxR: 44, treeClear: 0.9 },
+  { look: 'fibrePlant', count: 14, zone: 'forest', minR: 8, maxR: 42 },
+  { look: 'stone', count: 14, zone: 'forest', minR: 6, maxR: 44 },
+  { look: 'stoneDark', count: 14, zone: 'forest', minR: 8, maxR: 44 },
+  { look: 'stonePale', count: 10, zone: 'forest', minR: 8, maxR: 44 },
+  { look: 'slab', count: 6, zone: 'forest', minR: 12, maxR: 44 },
+  { look: 'grass', count: 10, zone: 'forest', minR: 8, maxR: 40 },
+  { look: 'mossRock', count: 8, zone: 'forest', minR: 8, maxR: 42 },
+  { look: 'clayPatch', count: 5, zone: 'stream', minR: 0.9, maxR: 1.6 },
+  { look: 'wetStone', count: 10, zone: 'stream', minR: 0.8, maxR: 1.5 },
+  { look: 'gravelBed', count: 4, zone: 'stream', minR: 0.9, maxR: 1.7 },
+  { look: 'sandBar', count: 3, zone: 'stream', minR: 0.9, maxR: 1.5 },
+  { look: 'cane', count: 5, zone: 'stream', minR: 1.1, maxR: 2.2 },
+];
+
+function scatterPoint(rule: ScatterRule, rng: () => number): [number, number] | null {
+  if (rule.zone === 'forest') {
+    const a = rng() * Math.PI * 2;
+    const r = range(rng, rule.minR, rule.maxR);
+    const x = Math.cos(a) * r;
+    const z = Math.sin(a) * r;
+    return streamDistance(x, z) > STREAM_BANK + 0.3 ? [x, z] : null;
+  }
+  // Stream: pick a point along the centreline, step sideways.
+  const i = Math.floor(rng() * (STREAM.length - 1));
+  const t = rng();
+  const [ax, az] = STREAM[i];
+  const [bx, bz] = STREAM[i + 1];
+  const len = Math.hypot(bx - ax, bz - az) || 1;
+  const off = range(rng, rule.minR, rule.maxR) * (rng() < 0.5 ? -1 : 1);
+  const x = ax + (bx - ax) * t - ((bz - az) / len) * off;
+  const z = az + (bz - az) * t + ((bx - ax) / len) * off;
+  return Math.hypot(x, z) < WORLD_RADIUS - 2 ? [x, z] : null;
+}
 
 function generateResources(): ResourceSpot[] {
   const rng = mulberry32(23);
@@ -346,6 +460,25 @@ function generateResources(): ResourceSpot[] {
   }
   add('sapling', 6.6, 7);
   add('sapling', -9, -13);
+
+  // Rule-driven scatter (own RNG, appended last so the hand-placed spots
+  // above keep their ids). Extend SCATTER_RULES to add more of anything.
+  const srng = mulberry32(101);
+  const sgrid = new SpatialGrid<ResourceSpot>(3);
+  for (const sp of spots) sgrid.insert(sp.x, sp.z, sp);
+  for (const rule of SCATTER_RULES) {
+    for (let placed = 0, tries = 0; placed < rule.count && tries < rule.count * 60; tries++) {
+      const pt = scatterPoint(rule, srng);
+      if (!pt) continue;
+      const [x, z] = pt;
+      if (inClearing(x, z, rule.zone === 'stream' ? 0 : 1)) continue;
+      if (nearestTreeDistance(x, z) < (rule.treeClear ?? 0.7)) continue;
+      if (sgrid.nearest(x, z, rule.spacing ?? 1.2)) continue;
+      add(rule.look, x, z);
+      sgrid.insert(x, z, spots[spots.length - 1]);
+      placed++;
+    }
+  }
   return spots;
 }
 

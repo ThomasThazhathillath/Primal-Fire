@@ -1,5 +1,5 @@
 // Browser (non-VR) controls, for desk testing and visitors without a headset:
-// WASD / arrows to walk, Q/E or right-drag to look, click to use.
+// WASD / arrows to walk, Q/E or drag (left or right button) to look, click to use.
 // H hint · Tab satchel · N notebook · R put back what you hold.
 // In VR none of this runs: you teleport and use your hands.
 
@@ -11,12 +11,15 @@ const EYE_HEIGHT = 1.6;
 const WALK = 3;
 const RUN = 6;
 const TURN = 1.8;
+/** Pixels a left-press must travel before it counts as a look-drag, not a click. */
+const DRAG_SLOP = 5;
 
 export class DesktopControlsSystem extends createSystem({}) {
   private keys = new Set<string>();
   private yaw = 0;
   private pitch = -0.08;
   private dragging = false;
+  private leftDown: { x: number; y: number } | null = null;
   private move = new Vector3();
   private target = new Vector3();
 
@@ -36,11 +39,19 @@ export class DesktopControlsSystem extends createSystem({}) {
     const onKeyUp = (e: KeyboardEvent) => this.keys.delete(e.code);
     const onDown = (e: PointerEvent) => {
       if (e.button === 2) this.dragging = true;
+      else if (e.button === 0) this.leftDown = { x: e.clientX, y: e.clientY };
     };
     const onUp = (e: PointerEvent) => {
       if (e.button === 2) this.dragging = false;
+      else if (e.button === 0) {
+        this.leftDown = null;
+        this.dragging = false;
+      }
     };
     const onMove = (e: PointerEvent) => {
+      if (this.leftDown && !this.dragging && Math.hypot(e.clientX - this.leftDown.x, e.clientY - this.leftDown.y) > DRAG_SLOP) {
+        this.dragging = true;
+      }
       if (!this.dragging || !this.active()) return;
       this.yaw -= e.movementX * 0.004;
       this.pitch = Math.max(-1.2, Math.min(1.2, this.pitch - e.movementY * 0.004));

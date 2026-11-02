@@ -35,7 +35,12 @@ export type ItemId =
   | 'hammer'
   | 'feather'
   | 'bow'
-  | 'arrow';
+  | 'arrow'
+  // WORLD stream: ground-litter materials.
+  | 'dryBranch'
+  | 'leafLitter'
+  | 'vine'
+  | 'bark';
 
 export type ItemCategory =
   | 'tinder'
@@ -132,6 +137,11 @@ export const ITEMS: Record<ItemId, ItemDef> = {
   bow: { name: 'Hunting bow', cats: ['tool'], color: 0x6a8a3a, weight: 0.6 },
   arrow: { name: 'Arrow', cats: ['tool'], color: 0xc49a66, weight: 0.05 },
   bowDrill: { name: 'Bow drill', cats: ['tool'], color: 0xc49a66, weight: 0.8 },
+  // WORLD stream: ground-litter materials.
+  dryBranch: { name: 'Dry branch', cats: ['fuel'], color: 0x7a6248, weight: 0.9 },
+  leafLitter: { name: 'Dry leaves', cats: ['tinder'], color: 0xa8793a, weight: 0.05 },
+  vine: { name: 'Vine', cats: ['craft'], color: 0x4f7a34, weight: 0.15 },
+  bark: { name: 'Bark', cats: ['craft', 'tinder'], color: 0x6e5238, weight: 0.1 },
 };
 
 /** Display order in the satchel. */
@@ -168,6 +178,10 @@ export const SATCHEL_ORDER: ItemId[] = [
   'charcoal',
   'pot',
   'lens',
+  'dryBranch',
+  'leafLitter',
+  'vine',
+  'bark',
 ];
 
 export const itemName = (id: ItemId): string => ITEMS[id].name;

@@ -20,6 +20,8 @@ export interface QuestStep {
   done: (g: Game) => boolean;
   hints: [string, string];
   target: HintTarget;
+  /** Guide (src/game/guides.ts) that walks the player through this step. */
+  guide?: string;
 }
 
 export interface Quest {
@@ -59,6 +61,7 @@ const survivalQuests: Quest[] = [
       {
         text: (g) => `Shelter to keep rain off ${mark(g.hasEvent('shelter.roof.covered'))}`,
         done: onEvent('shelter.roof.covered'),
+        guide: 'shelter',
         hints: [
           'A roof needs a slope so water has somewhere to go. What can hold a sloped ridge up?',
           'Long sticks leaned on a branch or rock, then many layers of leaves, bark or branches.',
@@ -95,6 +98,7 @@ const survivalQuests: Quest[] = [
       {
         text: (g) => `Something sharp, made by breaking a stone ${mark(g.hasEvent('tool.knap.flake'))}`,
         done: onEvent('tool.knap.flake'),
+        guide: 'knap',
         hints: [
           'Some stones break into thin, glassy edges. Which ones, and how do you strike them?',
           'Look for dark, fine-grained stone near water or cliffs. Strike it with a harder stone.',
@@ -113,6 +117,7 @@ const survivalQuests: Quest[] = [
       {
         text: (g) => `Make a tool for chopping: head, handle and a firm lashing ${mark(g.hasEvent('tool.axe.made'))}`,
         done: onEvent('tool.axe.made'),
+        guide: 'axe',
         hints: [
           'A tool swung from a distance moves faster at the tip. What holds the head on?',
           'A stout stick, your stone edge and cord wrapped many times.',
@@ -314,6 +319,7 @@ export const QUESTS: Quest[] = [
       {
         text: (g) => `A steady surface to work on ${mark(g.hasStructure('workbench'))}`,
         done: (g) => g.hasStructure('workbench'),
+        guide: 'workbench',
         hints: [
           'A flat, heavy top on legs that can never wobble. How many legs is that?',
           'Flat slabs of stone break off on rocky, sunny ridges — and old builders left some behind.',
@@ -337,6 +343,7 @@ export const QUESTS: Quest[] = [
         text: (g) =>
           `Cord: stringy fibres you could twist (${count(g, 'fibers', 3)}) — twisted at your workbench`,
         done: (g) => g.flag('cordMade'),
+        guide: 'cord',
         hints: [
           'Some tall plants have long, tough fibres in their stems.',
           'They grow in open, sunny ground and along the stream.',
@@ -363,6 +370,7 @@ export const QUESTS: Quest[] = [
       {
         text: (g) => `A safe place for a fire ${mark(g.hasStructure('firePit'))}`,
         done: (g) => g.hasStructure('firePit'),
+        guide: 'firePit',
         hints: [
           'Fire must be contained, on bare ground, with nothing overhead that could catch.',
           'A ring of stones does it. Hold a stone low over open ground.',

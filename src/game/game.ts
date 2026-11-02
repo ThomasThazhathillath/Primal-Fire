@@ -18,6 +18,7 @@ import { ITEMS, itemName, SATCHEL_ORDER, type ItemId } from './items.js';
 import { EventLog } from './log.js';
 import { observationsForEvent, OBSERVATIONS } from './observations.js';
 import { isScienceEvent } from './science-events.js';
+import { GuideTracker, type GuideSave } from './guides.js';
 import { QUESTS, type QuestStep } from './quests.js';
 import { LANDMARKS, type Landmark } from './world-layout.js';
 
@@ -119,6 +120,8 @@ export class Game {
   readonly notebook: string[] = [];
   /** Science events that have fired (src/game/science-events.ts). */
   readonly events = new Set<string>();
+  /** Step-by-step crafting guidance (src/game/guides.ts). Never crafts for you. */
+  readonly guide: GuideTracker = new GuideTracker(this);
   readonly structures: PlacedStructure[] = [];
   /** Items dropped on the ground, pickable again. Not counted in carried weight. */
   readonly drops: WorldDrop[] = [];
@@ -735,7 +738,13 @@ export class Game {
     this.hintLevels.set(key, level + 1);
     const { step } = cur;
     let result: HintResult;
-    if (level === 0 || level === 1) {
+    // An active crafting guide supplies the text; the quest's own hints otherwise.
+    const guided = this.guide.hintText(level);
+    if (guided && guided.level < 2) {
+      result = { level: guided.level, text: guided.text };
+    } else if (guided) {
+      result = { level: 2, text: guided.text, target: this.directionHint(step, locate).target };
+    } else if (level === 0 || level === 1) {
       result = { level, text: step.hints[level] };
     } else {
       result = this.directionHint(step, locate);
@@ -794,6 +803,7 @@ export class Game {
       gathered: Object.fromEntries(this.gathered),
       notebook: [...this.notebook],
       events: [...this.events],
+      guide: this.guide.snapshot(),
       structures: this.structures.map((s) => ({ ...s, spots: [...s.spots], store: s.store ? { ...s.store } : undefined })),
       discovered: [...this.discovered],
       flags: [...this.flags],
@@ -816,6 +826,7 @@ export class Game {
     for (const [k, v] of Object.entries(data.gathered)) g.gathered.set(k as ItemId, v);
     g.notebook.push(...data.notebook);
     for (const e of data.events ?? []) g.events.add(e);
+    if (data.guide) g.guide.restore(data.guide);
     g.structures.push(...data.structures);
     g.nextStructureId = Math.max(0, ...data.structures.map((s) => s.id)) + 1;
     for (const d of data.discovered) g.discovered.add(d);
@@ -847,6 +858,7 @@ export interface SaveData {
   gathered: Partial<Record<ItemId, number>>;
   notebook: string[];
   events?: string[];
+  guide?: GuideSave;
   structures: PlacedStructure[];
   discovered: string[];
   flags: FlagId[];

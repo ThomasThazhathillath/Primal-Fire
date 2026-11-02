@@ -26,7 +26,12 @@ export type ItemId =
   | 'diggingStick'
   | 'forkedStick'
   | 'cane'
-  | 'bowDrill';
+  | 'bowDrill'
+  // WORLD stream: ground-litter materials.
+  | 'dryBranch'
+  | 'leafLitter'
+  | 'vine'
+  | 'bark';
 
 export type ItemCategory =
   | 'tinder'
@@ -106,6 +111,11 @@ export const ITEMS: Record<ItemId, ItemDef> = {
     firstObservation: 'g_hollow',
   },
   bowDrill: { name: 'Bow drill', cats: ['tool'], color: 0xc49a66 },
+  // WORLD stream: ground-litter materials.
+  dryBranch: { name: 'Dry branch', cats: ['fuel'], color: 0x7a6248 },
+  leafLitter: { name: 'Dry leaves', cats: ['tinder'], color: 0xa8793a },
+  vine: { name: 'Vine', cats: ['craft'], color: 0x4f7a34 },
+  bark: { name: 'Bark', cats: ['craft', 'tinder'], color: 0x6e5238 },
 };
 
 /** Display order in the satchel. */
@@ -133,6 +143,10 @@ export const SATCHEL_ORDER: ItemId[] = [
   'charcoal',
   'pot',
   'lens',
+  'dryBranch',
+  'leafLitter',
+  'vine',
+  'bark',
 ];
 
 export const itemName = (id: ItemId): string => ITEMS[id].name;

@@ -1,6 +1,7 @@
 import { World } from '@iwsdk/core';
 import projectOptions from 'virtual:iwsdk-project';
 import { installDebugHooks } from './debug-hooks.js';
+import { AudioSystem } from './systems/audio-system.js';
 import { BuildSystem } from './systems/build-system.js';
 import { DesktopControlsSystem } from './systems/desktop-controls-system.js';
 import { HudSystem } from './systems/hud-system.js';
@@ -22,6 +23,7 @@ World.create(
     .registerSystem(BuildSystem)
     .registerSystem(SatchelSystem)
     .registerSystem(HudSystem)
-    .registerSystem(IntroSystem);
+    .registerSystem(IntroSystem)
+    .registerSystem(AudioSystem);
   installDebugHooks(world);
 });

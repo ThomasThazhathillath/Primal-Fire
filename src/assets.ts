@@ -2,6 +2,7 @@ import { AssetType, defineAssets } from '@iwsdk/core';
 import {
   createForestGround,
   createForestTrees,
+  createMountains,
   createStream,
   createUndergrowth,
 } from './scene-assets/forest.scene-asset.js';
@@ -25,6 +26,7 @@ export default defineAssets({
   stream: createStream(),
   'forest-trees': createForestTrees(),
   undergrowth: createUndergrowth(),
+  mountains: createMountains(),
   'shattered-tree': createShatteredTree(),
   ruins: createRuins(),
   'split-rock': createSplitRock(),

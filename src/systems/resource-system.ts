@@ -20,6 +20,8 @@ import { getGame, hipPosition } from './shared.js';
 /** Max distance (m) from your head to something you can gather. */
 export const REACH = 4.5;
 const FLIGHT_TIME = 0.4;
+/** Spots farther than this (m) are hidden: they sit in full fog and cost draw calls. */
+const CULL_DISTANCE = 40;
 
 interface Flight {
   obj: Object3D;
@@ -133,8 +135,13 @@ export class ResourceSystem extends createSystem({
     if (this.regrowTimer < 1) return;
     this.regrowTimer = 0;
     const now = getGame(this.world).time;
+    this.camera.getWorldPosition(this.head);
     for (const e of this.queries.spots.entities) {
       const at = e.getValue(Gatherable, 'regrowAt') ?? 0;
+      if ((e.getValue(Gatherable, 'charges') ?? 0) > 0) {
+        const o = e.object3D!;
+        o.visible = Math.hypot(o.position.x - this.head.x, o.position.z - this.head.z) < CULL_DISTANCE;
+      }
       if (at <= 0 || now < at) continue;
       const spot = this.bySpot.get(e.getValue(Gatherable, 'spotId') ?? '');
       if (!spot) continue;

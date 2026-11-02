@@ -87,6 +87,14 @@
       }
     },
     {
+      "id": "mountains",
+      "name": "Mountain Ring",
+      "content": {
+        "type": "asset",
+        "asset": "mountains"
+      }
+    },
+    {
       "id": "undergrowth",
       "name": "Undergrowth",
       "content": {

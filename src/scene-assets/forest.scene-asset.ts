@@ -10,11 +10,13 @@ import {
   ConeGeometry,
   CylinderGeometry,
   DodecahedronGeometry,
+  DoubleSide,
   Group,
   IcosahedronGeometry,
   InstancedMesh,
   Matrix4,
   Mesh,
+  MeshBasicMaterial,
   MeshLambertMaterial,
   MeshPhongMaterial,
   Object3D,
@@ -26,6 +28,7 @@ import { clamp, mulberry32, range, valueNoise } from '../game/rng.js';
 import {
   inClearing,
   LANDMARK_BY_ID,
+  nearestTreeDistance,
   STREAM,
   STREAM_HALF_WIDTH,
   streamDistance,
@@ -183,10 +186,28 @@ function mergeNonIndexed(parts: BufferGeometry[]): BufferGeometry {
   return out;
 }
 
-/** All trees in one draw call. Instance colours vary each tree's shade. */
+/** A low-poly broadleaf: trunk + two lumpy canopy blobs, merged with vertex colours. */
+function broadleafGeometry(): BufferGeometry {
+  const parts: BufferGeometry[] = [];
+  const tint = (g: BufferGeometry, hex: number) => {
+    const g2 = g.toNonIndexed();
+    const arr = new Float32Array(g2.attributes.position.count * 3);
+    const tmp = new Color();
+    for (let i = 0; i < g2.attributes.position.count; i++) writeColor(arr, i, hex, tmp);
+    g2.setAttribute('color', new BufferAttribute(arr, 3));
+    g2.deleteAttribute('uv');
+    return g2;
+  };
+  parts.push(tint(new CylinderGeometry(0.13, 0.2, 2.0, 5).translate(0, 1.0, 0), 0x6a5a48));
+  parts.push(tint(new IcosahedronGeometry(1.15, 0).scale(1, 0.85, 1).translate(0, 2.7, 0), 0x4d7a35));
+  parts.push(tint(new IcosahedronGeometry(0.85, 0).translate(0.5, 3.4, 0.25), 0x5b8a3a));
+  return mergeNonIndexed(parts);
+}
+
+/** All trees: one InstancedMesh per species (2 draw calls). Instance colours vary each shade. */
 export function createForestTrees(): Object3D {
-  const mesh = new InstancedMesh(treeGeometry(), new MeshLambertMaterial({ vertexColors: true, flatShading: true }), TREES.length);
-  mesh.name = 'ForestTrees';
+  const root = new Group();
+  root.name = 'ForestTrees';
   const m = new Matrix4();
   const q = new Quaternion();
   const up = new Vector3(0, 1, 0);
@@ -195,13 +216,43 @@ export function createForestTrees(): Object3D {
   const col = new Color();
   // Multiplies the baked vertex colours: near-white keeps trunks brown.
   const shades = [0xffffff, 0xe6f0dc, 0xd2dccb, 0xf2f7e4];
-  TREES.forEach((t, i) => {
-    m.compose(p.set(t.x, 0, t.z), q.setFromAxisAngle(up, t.rotY), s.set(t.scale, t.scale * 1.1, t.scale));
-    mesh.setMatrixAt(i, m);
-    mesh.setColorAt(i, col.setHex(shades[t.tint]));
+  const geos = [treeGeometry(), broadleafGeometry()];
+  const names = ['Conifers', 'Broadleaves'];
+  geos.forEach((geo, kind) => {
+    const list = TREES.filter((t) => t.kind === kind);
+    const mesh = new InstancedMesh(geo, new MeshLambertMaterial({ vertexColors: true, flatShading: true }), Math.max(1, list.length));
+    mesh.name = names[kind];
+    list.forEach((t, i) => {
+      m.compose(p.set(t.x, 0, t.z), q.setFromAxisAngle(up, t.rotY), s.set(t.scale, t.scale * (kind ? 1 : 1.1), t.scale));
+      mesh.setMatrixAt(i, m);
+      mesh.setColorAt(i, col.setHex(shades[t.tint]));
+    });
+    mesh.count = list.length;
+    mesh.computeBoundingSphere();
+    root.add(mesh);
   });
-  mesh.computeBoundingSphere();
-  return mesh;
+  return root;
+}
+
+/** Six drooping fronds around a point, merged into one geometry. */
+function fernGeometry(): BufferGeometry {
+  const parts: BufferGeometry[] = [];
+  for (let k = 0; k < 6; k++) {
+    const frond = new ConeGeometry(0.09, 0.7, 3).translate(0, 0.35, 0).rotateZ(-0.9).translate(0.05, 0.02, 0).rotateY((k / 6) * Math.PI * 2);
+    parts.push(frond.toNonIndexed());
+  }
+  const out = new BufferGeometry();
+  for (const name of ['position', 'normal']) {
+    const total = parts.reduce((n, g) => n + g.attributes[name].array.length, 0);
+    const arr = new Float32Array(total);
+    let off = 0;
+    for (const g of parts) {
+      arr.set(g.attributes[name].array as Float32Array, off);
+      off += g.attributes[name].array.length;
+    }
+    out.setAttribute(name, new BufferAttribute(arr, 3));
+  }
+  return out;
 }
 
 /** Bushes (walk-through) and boulders, both instanced. */
@@ -251,5 +302,94 @@ export function createUndergrowth(): Object3D {
   }
   boulders.count = n;
   root.add(boulders);
+
+  // Ferns: a merged 6-frond tuft, instanced.
+  const FERNS = 700;
+  const ferns = new InstancedMesh(fernGeometry(), lambert(0xffffff, { side: DoubleSide }), FERNS);
+  ferns.name = 'Ferns';
+  n = 0;
+  for (let tries = 0; n < FERNS && tries < 12000; tries++) {
+    const a = rng() * Math.PI * 2;
+    const r = 4 + Math.sqrt(rng()) * (WORLD_RADIUS + 6);
+    const x = Math.cos(a) * r;
+    const z = Math.sin(a) * r;
+    if (inClearing(x, z, 0) || streamDistance(x, z) < 1.2) continue;
+    const sc = range(rng, 0.6, 1.3);
+    m.compose(p.set(x, 0, z), q.setFromAxisAngle(up, rng() * 6), s.set(sc, sc, sc));
+    ferns.setMatrixAt(n, m);
+    ferns.setColorAt(n, col.setHex([0x3f7a2e, 0x4e8a34, 0x356a2a, 0x5a9a3c][n % 4]));
+    n++;
+  }
+  ferns.count = n;
+  ferns.frustumCulled = false;
+  root.add(ferns);
+
+  // Fallen logs: decorative trunks lying in the leaf litter.
+  const LOGS = 40;
+  const logs = new InstancedMesh(new CylinderGeometry(0.16, 0.2, 1, 7).rotateZ(Math.PI / 2), lambert(0xffffff), LOGS);
+  logs.name = 'FallenTrunks';
+  n = 0;
+  for (let tries = 0; n < LOGS && tries < 3000; tries++) {
+    const a = rng() * Math.PI * 2;
+    const r = 7 + rng() * (WORLD_RADIUS - 4);
+    const x = Math.cos(a) * r;
+    const z = Math.sin(a) * r;
+    if (inClearing(x, z, 1) || streamDistance(x, z) < 2.4 || nearestTreeDistance(x, z, 2) < 1.2) continue;
+    const len = range(rng, 2, 4.5);
+    const th = range(rng, 0.8, 1.5);
+    m.compose(p.set(x, 0.16 * th, z), q.setFromAxisAngle(up, rng() * 6), s.set(len, th, th));
+    logs.setMatrixAt(n, m);
+    logs.setColorAt(n, col.setHex([0x5a4636, 0x4d3d2f, 0x66503c][n % 3]));
+    n++;
+  }
+  logs.count = n;
+  root.add(logs);
+  return root;
+}
+
+/**
+ * Distant ridges ringing the valley, outside the playable area. Each layer is
+ * one merged strip (unlit, fog-exempt) tinted towards the horizon colour with
+ * distance, so four draw calls give atmospheric depth.
+ */
+export function createMountains(): Object3D {
+  const root = new Group();
+  root.name = 'Mountains';
+  const horizon = new Color(0.62, 0.72, 0.76);
+  const near = new Color(0.07, 0.16, 0.16);
+  // [radius, peak height, noise frequency, seed, haze 0..1]
+  const layers: Array<[number, number, number, number, number]> = [
+    [96, 42, 7, 1, 0.38],
+    [130, 70, 5, 2, 0.52],
+    [170, 100, 4, 3, 0.68],
+    [215, 125, 3, 4, 0.82],
+  ];
+  const SEG = 128;
+  layers.forEach(([radius, peak, freq, seed, haze], li) => {
+    const verts = new Float32Array((SEG + 1) * 2 * 3);
+    const index: number[] = [];
+    for (let i = 0; i <= SEG; i++) {
+      const a = (i / SEG) * Math.PI * 2;
+      // Wrap noise seamlessly by sampling on a circle.
+      const nx = Math.cos(a) * freq + seed * 17;
+      const nz = Math.sin(a) * freq + seed * 31;
+      const h = peak * (0.25 + 0.75 * Math.pow(valueNoise(nx, nz) * 0.65 + valueNoise(nx * 2.3, nz * 2.3) * 0.35, 1.4));
+      const x = Math.cos(a) * radius;
+      const z = Math.sin(a) * radius;
+      verts.set([x, -6, z, x, h, z], i * 6);
+      if (i < SEG) {
+        const k = i * 2;
+        index.push(k, k + 1, k + 2, k + 1, k + 3, k + 2);
+      }
+    }
+    const geo = new BufferGeometry();
+    geo.setAttribute('position', new BufferAttribute(verts, 3));
+    geo.setIndex(index);
+    const mat = new MeshBasicMaterial({ color: near.clone().lerp(horizon, haze), fog: false, side: DoubleSide });
+    const mesh = new Mesh(geo, mat);
+    mesh.name = `Ridge${li}`;
+    mesh.frustumCulled = false;
+    root.add(mesh);
+  });
   return root;
 }

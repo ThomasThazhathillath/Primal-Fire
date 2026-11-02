@@ -12,6 +12,10 @@ export class AudioSystem extends createSystem({}) {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
   private windStarted = false;
+  private noise: AudioBuffer | null = null;
+  private crackleTimer = 0;
+  private lastHeat = 0;
+  private lastStage = '';
 
   init(): void {
     const game = getGame(this.world);
@@ -90,6 +94,38 @@ export class AudioSystem extends createSystem({}) {
     osc.stop(t0 + dur + 0.02);
   }
 
+  /** A short filtered noise burst: crackle (high, quiet) or saw scrape (mid). */
+  private burst(freq: number, dur: number, vol: number): void {
+    const ctx = this.ctx;
+    if (!ctx || !this.master || ctx.state !== 'running') return;
+    if (!this.noise) {
+      this.noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+      const d = this.noise.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = this.noise;
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.frequency.value = freq;
+    const g = ctx.createGain();
+    const t0 = ctx.currentTime;
+    g.gain.setValueAtTime(vol, t0);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    src.connect(f).connect(g).connect(this.master);
+    src.start(t0, Math.random() * 0.5, dur + 0.02);
+  }
+
+  update(delta: number): void {
+    const fire = getGame(this.world).fire;
+    if (fire.heat > this.lastHeat + 0.004) this.burst(900 + fire.heat * 900, 0.07, 0.12);
+    this.lastHeat = fire.heat;
+    if (fire.stage === 'burning' && (this.crackleTimer -= delta) <= 0) {
+      this.crackleTimer = 0.08 + Math.random() * 0.4;
+      this.burst(2200 + Math.random() * 2500, 0.04, 0.08 + 0.1 * fire.intensity);
+    }
+  }
+
   private onEvent(e: GameEvent): void {
     switch (e.type) {
       case 'toast':
@@ -116,6 +152,15 @@ export class AudioSystem extends createSystem({}) {
       case 'discovered':
         this.tone(440, 0.3, 'sine', 0.18);
         this.tone(660, 0.4, 'sine', 0.15, 0.12);
+        break;
+      case 'fire':
+        if (e.stage !== this.lastStage) {
+          if (e.stage === 'burning') [196, 262, 330].forEach((f, i) => this.tone(f, 0.5, 'triangle', 0.18, i * 0.08));
+          if (e.stage === 'out') this.burst(500, 0.6, 0.15);
+          this.lastStage = e.stage;
+        } else {
+          this.tone(740, 0.06, 'sine', 0.1); // fuel added / ember moved
+        }
         break;
       default:
         break;

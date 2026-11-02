@@ -29,6 +29,17 @@
     <Button id="item-10" class="item" variant="secondary" size="sm"><ButtonLabel id="item-10-label">-</ButtonLabel></Button>
     <Button id="item-11" class="item" variant="secondary" size="sm"><ButtonLabel id="item-11-label">-</ButtonLabel></Button>
   </div>
+  <div id="make-title" class="sub">Make by hand (you have the parts):</div>
+  <div class="grid">
+    <Button id="make-0" class="item" size="sm"><ButtonLabel id="make-0-label">-</ButtonLabel></Button>
+    <Button id="make-1" class="item" size="sm"><ButtonLabel id="make-1-label">-</ButtonLabel></Button>
+    <Button id="make-2" class="item" size="sm"><ButtonLabel id="make-2-label">-</ButtonLabel></Button>
+    <Button id="make-3" class="item" size="sm"><ButtonLabel id="make-3-label">-</ButtonLabel></Button>
+    <Button id="make-4" class="item" size="sm"><ButtonLabel id="make-4-label">-</ButtonLabel></Button>
+    <Button id="make-5" class="item" size="sm"><ButtonLabel id="make-5-label">-</ButtonLabel></Button>
+    <Button id="make-6" class="item" size="sm"><ButtonLabel id="make-6-label">-</ButtonLabel></Button>
+    <Button id="make-7" class="item" size="sm"><ButtonLabel id="make-7-label">-</ButtonLabel></Button>
+  </div>
   <div class="row">
     <Button id="craft-cord" size="sm"><ButtonIcon><Hammer></Hammer></ButtonIcon><ButtonLabel>Twist cord</ButtonLabel></Button>
     <Button id="craft-drill" size="sm"><ButtonIcon><Hammer></Hammer></ButtonIcon><ButtonLabel>Build bow drill</ButtonLabel></Button>

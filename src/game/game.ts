@@ -2,6 +2,7 @@
 // call these actions and react to the events; tests drive them directly.
 
 import { actionFor } from './actions.js';
+import { HAND_RECIPES, TOOLS, toolFor } from './tools.js';
 import { capacityFor, itemsCount, itemsWeight, moveLimits, PACK_UPGRADES, type MoveLimits, type PackUpgrade } from './backpack.js';
 import { FireState, type FireSave, type FireStage } from './fire.js';
 import {
@@ -109,6 +110,8 @@ export class Game {
   readonly packUpgrades = new Set<string>();
   /** Effort put into the held item's hand action (0..1 of what it needs). */
   actionProgress = 0;
+  /** Uses left on each tool in the satchel (absent = full). */
+  readonly toolUses = new Map<ItemId, number>();
   private flags = new Set<FlagId>();
   private hintLevels = new Map<string, number>();
   private listeners = new Set<(e: GameEvent) => void>();
@@ -169,6 +172,53 @@ export class Game {
     if (u.observation) this.observe(u.observation);
     this.emit({ type: 'satchel' });
     return true;
+  }
+
+  // ---------------------------------------------------------------- tools
+
+  /** Bind a tool in your hands from stone, stick and cord. */
+  bind(id: string): boolean {
+    const r = HAND_RECIPES.find((x) => x.id === id);
+    if (!r) return false;
+    if (!Object.entries(r.inputs).every(([k, n]) => this.count(k as ItemId) >= (n ?? 0))) {
+      this.toast(`${r.name} needs ${Object.entries(r.inputs).map(([k, n]) => `${n}x ${itemName(k as ItemId).toLowerCase()}`).join(', ')}.`, 'bad');
+      return false;
+    }
+    for (const [k, n] of Object.entries(r.inputs)) this.satchel.set(k as ItemId, this.count(k as ItemId) - (n ?? 0));
+    this.addItem(r.output);
+    this.toolUses.delete(r.output);
+    this.toast(`Made: ${itemName(r.output)}`, 'good');
+    if (r.observation) this.observe(r.observation);
+    this.log.add(`bound ${r.output}`, 'ok');
+    this.checkQuests();
+    return true;
+  }
+
+  /** The tool bonus when gathering `id`: spends one use. Returns extra items. */
+  private toolBonus(id: ItemId): number {
+    const t = toolFor(id);
+    if (!t || this.count(t.id) <= 0) return 0;
+    const left = (this.toolUses.get(t.id) ?? t.uses) - 1;
+    if (left <= 0) {
+      this.satchel.set(t.id, this.count(t.id) - 1);
+      this.toolUses.delete(t.id);
+      this.toast(`Your ${itemName(t.id).toLowerCase()} broke.`, 'bad');
+    } else this.toolUses.set(t.id, left);
+    return 1;
+  }
+
+  toolUsesLeft(id: ItemId): number | null {
+    const t = TOOLS.find((x) => x.id === id);
+    return t && this.count(id) > 0 ? (this.toolUses.get(id) ?? t.uses) : null;
+  }
+
+  /** Everything you can make right now with what you carry (no bench needed). */
+  makeList(): Array<{ id: string; label: string; kind: 'bind' | 'pack' }> {
+    const has = (inputs: Partial<Record<ItemId, number>>) => Object.entries(inputs).every(([k, n]) => this.count(k as ItemId) >= (n ?? 0));
+    const out: Array<{ id: string; label: string; kind: 'bind' | 'pack' }> = [];
+    for (const r of HAND_RECIPES) if (has(r.inputs)) out.push({ id: r.id, label: r.name, kind: 'bind' });
+    for (const u of PACK_UPGRADES) if (!this.packUpgrades.has(u.id) && has(u.inputs)) out.push({ id: u.id, label: u.name, kind: 'pack' });
+    return out;
   }
 
   // ------------------------------------------------------------ hand actions
@@ -274,7 +324,12 @@ export class Game {
     const first = this.gatheredCount(id) === 0;
     this.gathered.set(id, this.gatheredCount(id) + 1);
     this.addItem(id);
-    this.log.add(`gathered ${id} from ${sourceId}`);
+    const bonus = this.carriedCount < this.capacity.pockets ? this.toolBonus(id) : 0;
+    if (bonus) {
+      this.addItem(id, bonus);
+      this.gathered.set(id, this.gatheredCount(id) + bonus);
+    }
+    this.log.add(`gathered ${id} from ${sourceId}${bonus ? ' (+tool)' : ''}`);
     this.toast(`+1 ${itemName(id)}`);
     const obs = ITEMS[id].firstObservation;
     if (first && obs) this.observe(obs);
@@ -563,6 +618,7 @@ export class Game {
       player: { ...this.player },
       held: this.held,
       packUpgrades: [...this.packUpgrades],
+      toolUses: Object.fromEntries(this.toolUses),
       fire: this.fire.snapshot(),
     };
   }
@@ -583,6 +639,7 @@ export class Game {
     g.player.x = data.player.x;
     g.player.z = data.player.z;
     // Older saves have no `held`; a stale id would crash the item meshes.
+    for (const [k, v] of Object.entries(data.toolUses ?? {})) g.toolUses.set(k as ItemId, v);
     for (const u of data.packUpgrades ?? []) g.packUpgrades.add(u);
     if (data.fire) g.fire.restore(data.fire);
     g.held = data.held && data.held in ITEMS ? data.held : null;
@@ -594,6 +651,7 @@ export interface SaveData {
   v: 1;
   fire?: FireSave;
   packUpgrades?: string[];
+  toolUses?: Partial<Record<ItemId, number>>;
   time: number;
   xp: number;
   level: number;

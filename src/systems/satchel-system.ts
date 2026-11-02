@@ -25,6 +25,7 @@ import { lambert } from '../scene-assets/materials.js';
 import { getGame, getUi, hidePanel, hipPosition, placeInFront } from './shared.js';
 
 const SLOTS = 12;
+const MAKE_SLOTS = 8;
 
 export class SatchelSystem extends createSystem({
   pouchPressed: { required: [SatchelPouch, Pressed] },
@@ -33,6 +34,7 @@ export class SatchelSystem extends createSystem({
   private panel!: UIKitMLAsset;
   private panelEntity!: Entity;
   private open = false;
+  private makeItems: Array<{ id: string; label: string; kind: 'bind' | 'pack' } | undefined> = [];
   private slotItems: Array<ItemId | null> = [];
   private heldObj: Object3D | null = null;
   private hip = new Vector3();
@@ -63,6 +65,17 @@ export class SatchelSystem extends createSystem({
       const onClick = () => {
         const id = this.slotItems[i];
         if (id && game.takeOut(id)) this.setOpen(false);
+      };
+      button.addEventListener('click', onClick);
+      this.cleanupFuncs.push(() => button.removeEventListener('click', onClick));
+    }
+    for (let i = 0; i < MAKE_SLOTS; i++) {
+      const button = this.panel.requireElementById(`make-${i}`);
+      const onClick = () => {
+        const m = this.makeItems[i];
+        if (!m) return;
+        if (m.kind === 'bind') game.bind(m.id);
+        else game.upgradePack(m.id);
       };
       button.addEventListener('click', onClick);
       this.cleanupFuncs.push(() => button.removeEventListener('click', onClick));
@@ -125,6 +138,13 @@ export class SatchelSystem extends createSystem({
     const cap = game.capacity;
     const load = `${game.carriedWeight.toFixed(1)}/${cap.load} kg, ${game.carriedCount}/${cap.pockets} pockets`;
     const lim = game.moveLimits.encumbrance;
+    this.makeItems = game.makeList();
+    for (let i = 0; i < MAKE_SLOTS; i++) {
+      const m = this.makeItems[i];
+      this.panel.requireElementById(`make-${i}`).setProperties({ display: m ? 'flex' : 'none' });
+      if (m) this.panel.requireElementById<UIKit.Text>(`make-${i}-label`).setProperties({ text: m.label });
+    }
+    this.panel.requireElementById('make-title').setProperties({ display: this.makeItems.length ? 'flex' : 'none' });
     const sub = contents.length
       ? `${load}${lim === 'light' ? '' : lim === 'loaded' ? ' - heavy, no running' : ' - OVERLOADED, slow'}. Pinch an item to take it.`
       : 'Empty. Point at things in the forest and pinch to gather them.';

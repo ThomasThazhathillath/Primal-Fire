@@ -17,6 +17,7 @@ export const SCIENCE_EVENTS = {
   // --- crafting and building (already emitted by Game / fire.ts)
   'craft.cord': 'Cord twisted from fibres.',
   'craft.bowdrill': 'Bow drill assembled.',
+  'build.workbench.stable': 'The finished workbench passed the push test without rocking.',
   'build.workbench.done': 'Workbench (slab on three stones) completed.',
   'build.firepit.wetstone': 'A wet stream stone was used in the fire pit and then heated.',
   'build.firepit.litter': 'A fire was lit with dry litter close to the pit.',

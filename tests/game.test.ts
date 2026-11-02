@@ -186,7 +186,7 @@ describe('game flow', () => {
     expect(third.text).toMatch(/north|east|south|west/);
   });
 
-  it('gives ground advice for an unbuilt structure once you carry its key part', () => {
+  it('sources workbench hints from the guide once you carry its key part', () => {
     const g = new Game();
     gatherN(g, 'dryGrass', 2);
     gatherN(g, 'twigs', 3);
@@ -194,7 +194,8 @@ describe('game flow', () => {
     g.gather('slab');
     g.hint(locateFromLayout);
     g.hint(locateFromLayout);
-    expect(g.hint(locateFromLayout)!.text).toMatch(/Build it on/);
+    // The workbench guide is active; its gather step still needs three supports.
+    expect(g.hint(locateFromLayout)!.text).toMatch(/three stones or forked sticks/);
   });
 
   it('discovers places by walking near them', () => {

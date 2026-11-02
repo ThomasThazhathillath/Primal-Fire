@@ -21,6 +21,15 @@ import { ITEMS, itemName, SATCHEL_ORDER, type ItemId } from './items.js';
 import { EventLog } from './log.js';
 import { observationsForEvent, OBSERVATIONS } from './observations.js';
 import { isScienceEvent } from './science-events.js';
+import { GuideTracker, isGuideFailure, type GuideSave } from './guides.js';
+
+/** Interaction failures whose guide wording lives under a different code. */
+const GUIDE_CODE_FOR: Partial<Record<GuideFailureCode, string>> = {
+  'swing.weak': 'swing.tooWeak',
+  'knap.offEdge': 'knap.miss',
+  'knap.badAngle': 'knap.angleTooSteep',
+  'cord.sameDirection': 'twist.sameDirection',
+};
 import { QUESTS, type QuestStep } from './quests.js';
 import { LANDMARKS, type Landmark } from './world-layout.js';
 
@@ -127,6 +136,8 @@ export class Game {
   readonly notebook: string[] = [];
   /** Science events that have fired (src/game/science-events.ts). */
   readonly events = new Set<string>();
+  /** Step-by-step crafting guidance (src/game/guides.ts). Never crafts for you. */
+  readonly guide: GuideTracker = new GuideTracker(this);
   readonly structures: PlacedStructure[] = [];
   /** Items dropped on the ground, pickable again. Not counted in carried weight. */
   readonly drops: WorldDrop[] = [];
@@ -261,6 +272,8 @@ export class Game {
   interactionFailure(code: GuideFailureCode, detail?: string): void {
     this.log.add(`interaction failed: ${code}${detail ? ` (${detail})` : ''}`, 'bad');
     this.toast(detail ? `${FAILURE_TEXT[code]} (${detail})` : FAILURE_TEXT[code], 'bad');
+    const guideCode = GUIDE_CODE_FOR[code] ?? code;
+    if (isGuideFailure(guideCode)) this.guide.fail(guideCode, detail);
     this.emit({ type: 'interaction', code, detail });
   }
 
@@ -604,6 +617,8 @@ export class Game {
       'note',
     );
     if (kind === 'shelter') this.science('shelter.site.chosen');
+    // checkPlacement passed, so the ground is stable enough to build on.
+    if (kind === 'workbench') this.guide.mark('workbench.site.ready');
     this.emit({ type: 'structure', structure });
     return { ok: true, structure };
   }
@@ -649,6 +664,7 @@ export class Game {
     this.log.add(`filled ${s.kind}#${s.id}[${index}] with ${item}`);
     if (at) this.fx('seat', 0.6);
     if (s.spots.every((v) => v !== null)) {
+      if (s.kind === 'workbench') this.guide.mark('workbench.supports.placed');
       if (def.keyLast && !s.keyPlaced) this.toast(`Supports set. Now lift the ${itemName(s.key).toLowerCase()} on with both hands.`, 'note');
       else this.completeStructure(s);
     }
@@ -717,6 +733,7 @@ export class Game {
     this.fx('seat', 1);
     this.log.add(`set ${s.key} on ${s.kind}#${s.id} at ${x.toFixed(2)},${z.toFixed(2)}`);
     this.emit({ type: 'structure', structure: s });
+    if (s.kind === 'workbench') this.guide.mark('workbench.slab.aligned');
     this.pushTest(structureId);
     return true;
   }
@@ -727,6 +744,7 @@ export class Game {
     if (!s || !s.keyPlaced || s.complete || !s.keyPos) return false;
     const r = slabStability(s.spotPos ?? [], s.keyPos);
     if (r.stable) {
+      if (s.kind === 'workbench') this.guide.mark('workbench.push.stable');
       this.completeStructure(s);
       this.emit({ type: 'structure', structure: s });
       return true;
@@ -892,7 +910,13 @@ export class Game {
     this.hintLevels.set(key, level + 1);
     const { step } = cur;
     let result: HintResult;
-    if (level === 0 || level === 1) {
+    // An active crafting guide supplies the text; the quest's own hints otherwise.
+    const guided = this.guide.hintText(level);
+    if (guided && guided.level < 2) {
+      result = { level: guided.level, text: guided.text };
+    } else if (guided) {
+      result = { level: 2, text: guided.text, target: this.directionHint(step, locate).target };
+    } else if (level === 0 || level === 1) {
       result = { level, text: step.hints[level] };
     } else {
       result = this.directionHint(step, locate);
@@ -951,6 +975,7 @@ export class Game {
       gathered: Object.fromEntries(this.gathered),
       notebook: [...this.notebook],
       events: [...this.events],
+      guide: this.guide.snapshot(),
       structures: this.structures.map((s) => ({
         ...s,
         spots: [...s.spots],
@@ -979,6 +1004,7 @@ export class Game {
     for (const [k, v] of Object.entries(data.gathered)) g.gathered.set(k as ItemId, v);
     g.notebook.push(...data.notebook);
     for (const e of data.events ?? []) g.events.add(e);
+    if (data.guide) g.guide.restore(data.guide);
     g.structures.push(...data.structures);
     g.nextStructureId = Math.max(0, ...data.structures.map((s) => s.id)) + 1;
     for (const d of data.discovered) g.discovered.add(d);
@@ -1010,6 +1036,7 @@ export interface SaveData {
   gathered: Partial<Record<ItemId, number>>;
   notebook: string[];
   events?: string[];
+  guide?: GuideSave;
   structures: PlacedStructure[];
   discovered: string[];
   flags: FlagId[];

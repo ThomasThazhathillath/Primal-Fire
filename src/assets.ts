@@ -37,4 +37,5 @@ export default defineAssets({
   'satchel-panel': uikitml('satchel.uikitml', 'Satchel'),
   'card-panel': uikitml('card.uikitml', 'Notebook Card'),
   'tip-panel': uikitml('tip.uikitml', 'Tooltip'),
+  'guide-panel': uikitml('guide.uikitml', 'Guide Card'),
 });

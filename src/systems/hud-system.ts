@@ -23,9 +23,11 @@ import {
 import { spotWorldPosition, BLUEPRINTS } from '../game/blueprint.js';
 import type { GameEvent } from '../game/game.js';
 import { itemName } from '../game/items.js';
+import { bagPrompt, gatherPrompt } from '../game/prompts.js';
+import { SatchelSystem } from './satchel-system.js';
 import { OBSERVATION_COUNT, OBSERVATIONS } from '../game/observations.js';
 import { QUESTS } from '../game/quests.js';
-import { Gatherable, SnapSpot } from '../components/game-components.js';
+import { Gatherable, SatchelItem, SnapSpot, WorldDropItem } from '../components/game-components.js';
 import { REACH, ResourceSystem } from './resource-system.js';
 import { getGame, getUi, hidePanel, placeInFront, uiText } from './shared.js';
 
@@ -36,6 +38,8 @@ const BEACON_SECONDS = 45;
 export class HudSystem extends createSystem({
   hoverGather: { required: [Gatherable, Hovered] },
   hoverSpot: { required: [SnapSpot, Hovered] },
+  hoverDrop: { required: [WorldDropItem, Hovered] },
+  hoverBag: { required: [SatchelItem, Hovered] },
 }) {
   private hud!: UIKitMLAsset;
   private hudEntity!: Entity;
@@ -76,7 +80,7 @@ export class HudSystem extends createSystem({
     card.scale.setScalar(0.09);
     hidePanel(card);
     this.world.createTransformEntity(tip);
-    tip.scale.setScalar(0.06);
+    tip.scale.setScalar(0.085);
     hidePanel(tip);
 
     this.beacon = new Mesh(
@@ -107,6 +111,10 @@ export class HudSystem extends createSystem({
       this.queries.hoverSpot.subscribe('qualify', (e) => (this.tipTarget = e)),
       this.queries.hoverGather.subscribe('disqualify', (e) => this.clearTip(e)),
       this.queries.hoverSpot.subscribe('disqualify', (e) => this.clearTip(e)),
+      this.queries.hoverDrop.subscribe('qualify', (e) => (this.tipTarget = e)),
+      this.queries.hoverDrop.subscribe('disqualify', (e) => this.clearTip(e)),
+      this.queries.hoverBag.subscribe('qualify', (e) => (this.tipTarget = e)),
+      this.queries.hoverBag.subscribe('disqualify', (e) => this.clearTip(e)),
     );
     this.ready = true;
     this.renderQuest();
@@ -268,9 +276,23 @@ export class HudSystem extends createSystem({
       if (!spot) return;
       const known = game.gatheredCount(spot.itemId) > 0;
       title = known ? itemName(spot.itemId) : spot.label;
-      sub = resources!.distanceTo(spot) > REACH ? 'Too far - get closer' : 'Pinch to gather';
+      sub = resources!.distanceTo(spot) > REACH ? 'Too far - get closer' : gatherPrompt(spot.itemId, game.held, (i) => game.count(i) > 0);
+      e.object3D.getWorldPosition(this.tmp);
+      this.tmp.y += 0.75;
+    } else if (e.hasComponent(WorldDropItem)) {
+      const d = game.drops.find((x) => x.id === e.getValue(WorldDropItem, 'dropId'));
+      if (!d) return;
+      title = itemName(d.item);
+      sub = 'Pick up what you dropped';
       e.object3D.getWorldPosition(this.tmp);
       this.tmp.y += 0.6;
+    } else if (e.hasComponent(SatchelItem)) {
+      const id = this.world.getSystem(SatchelSystem)?.bagItemAt(e.getValue(SatchelItem, 'index') ?? 0);
+      if (!id) return;
+      title = itemName(id);
+      sub = bagPrompt(id, game.nearbyStorage() !== null);
+      e.object3D.getWorldPosition(this.tmp);
+      this.tmp.y += 0.3;
     } else {
       const s = game.structures.find((t) => t.id === e.getValue(SnapSpot, 'structureId'));
       if (!s) return;
@@ -285,6 +307,9 @@ export class HudSystem extends createSystem({
     this.tip.visible = true;
     this.tip.position.copy(this.tmp);
     this.camera.getWorldPosition(this.tmp);
+    // Keep the text a constant, readable apparent size from arm's length out to a few metres.
+    const dist = this.tmp.distanceTo(this.tip.position);
+    this.tip.scale.setScalar(Math.min(0.36, Math.max(0.085, dist * 0.09)));
     this.tip.rotation.set(0, Math.atan2(this.tmp.x - this.tip.position.x, this.tmp.z - this.tip.position.z), 0);
   }
 

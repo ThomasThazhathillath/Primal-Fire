@@ -1,7 +1,7 @@
 // Bow and arrows. In VR: hold the bow in your right hand, pinch with the left
 // to nock, pull back, and release the pinch; arrow speed follows how far you
 // drew and flies along the line from your drawing hand to the bow hand.
-// Browser fallback: press G to shoot along your view. A fixed pool of arrow
+// Browser fallback: press V to shoot along your view. A fixed pool of arrow
 // meshes means nothing is allocated per frame.
 
 import { ConeGeometry, createSystem, Group, Mesh, MeshBasicMaterial, Vector3, VisibilityState } from '@iwsdk/core';
@@ -34,7 +34,7 @@ export class BowSystem extends createSystem({}) {
       this.pool.push({ a: { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, alive: false }, mesh });
     }
     const onKey = (e: KeyboardEvent) => {
-      if (e.code === 'KeyG' && this.world.visibilityState.peek() === VisibilityState.NonImmersive) this.shootFromView();
+      if (e.code === 'KeyV' && this.world.visibilityState.peek() === VisibilityState.NonImmersive) this.shootFromView();
     };
     window.addEventListener('keydown', onKey);
     const onStart = (ev: XRInputSourceEvent) => {

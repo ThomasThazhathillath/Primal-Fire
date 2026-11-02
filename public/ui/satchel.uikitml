@@ -6,7 +6,7 @@
   .root { flex-direction: column; width: 460px; padding-top: 20px; padding-bottom: 20px; padding-left: 24px; padding-right: 24px; gap: 10px; }
   .title { color: #1c1d20; font-size: 24px; font-weight: 700; }
   .title:dark { color: #f3eadb; }
-  .sub { color: #55504a; font-size: 14px; }
+  .sub { color: #55504a; font-size: 18px; }
   .sub:dark { color: #b9ab95; }
   .grid { flex-direction: row; flex-wrap: wrap; gap: 8px; }
   .item { width: 134px; }

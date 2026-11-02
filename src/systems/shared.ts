@@ -1,10 +1,11 @@
 // Helpers shared by the game systems: access to the Game instance, the
 // player's head/hip, and placing panels in front of the player.
 
-import { type Object3D, Vector3, type World } from '@iwsdk/core';
+import { AdditiveBlending, MeshBasicMaterial, type Object3D, Vector3, type World } from '@iwsdk/core';
 import type { Game } from '../game/game.js';
 
 export interface UiHooks {
+  dropHeld(item: import('../game/items.js').ItemId): void;
   toggleSatchel(): void;
   openNotebook(): void;
   showHint(): void;
@@ -95,3 +96,16 @@ export const arrowTargets: ArrowTarget[] = [];
 
 /** Brief camera pitch kick (radians) from impacts; DesktopControlsSystem adds it and decays it. */
 export const camNudge = { pitch: 0 };
+
+/** Soft ground glow under every pickable thing. One shared material, pulsed once a frame by ResourceSystem. */
+export const glowMaterial = new MeshBasicMaterial({
+  color: 0xfff1a8,
+  transparent: true,
+  opacity: 0.3,
+  depthWrite: false,
+  blending: AdditiveBlending,
+});
+/** Brighter version for what you are aiming at. */
+export const glowMaterialHot = glowMaterial.clone();
+glowMaterialHot.color.setHex(0x40ff70);
+glowMaterialHot.opacity = 0.7;

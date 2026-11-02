@@ -7,7 +7,7 @@
   .title:dark { color: #f3eadb; }
   .label { color: #8a5a00; font-size: 12px; font-weight: 700; letter-spacing: 1px; }
   .label:dark { color: #ffb547; }
-  .body { color: #2a2620; font-size: 16px; line-height: 1.35; }
+  .body { color: #2a2620; font-size: 19px; line-height: 1.35; }
   .body:dark { color: #e9dfcd; }
 </style>
 <Panel class="root">

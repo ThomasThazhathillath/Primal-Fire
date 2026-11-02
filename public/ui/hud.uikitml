@@ -10,15 +10,15 @@
   .eyebrow:dark { color: #ffb547; }
   .title { color: #1c1d20; font-size: 26px; font-weight: 700; }
   .title:dark { color: #f3eadb; }
-  .desc { color: #55504a; font-size: 15px; line-height: 1.3; }
+  .desc { color: #55504a; font-size: 18px; line-height: 1.3; }
   .desc:dark { color: #b9ab95; }
-  .step { color: #2a2620; font-size: 16px; line-height: 1.3; }
+  .step { color: #2a2620; font-size: 19px; line-height: 1.3; }
   .step:dark { color: #f3eadb; }
   .level { color: #2a2620; font-size: 16px; font-weight: 700; }
   .level:dark { color: #f3eadb; }
   .bar { height: 6px; width: 350px; background-color: #3a3128; border-radius: 3px; }
   .fill { height: 6px; width: 0px; background-color: #ffb547; border-radius: 3px; }
-  .toast { color: #1c1d20; font-size: 16px; font-weight: 700; padding-top: 6px; }
+  .toast { color: #1c1d20; font-size: 20px; font-weight: 700; padding-top: 6px; }
   .toast:dark { color: #ffd27a; }
   .buttons { flex-direction: row; gap: 10px; padding-top: 6px; }
 </style>

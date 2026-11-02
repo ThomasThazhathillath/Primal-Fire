@@ -5,6 +5,7 @@
 import {
   createSystem,
   type Entity,
+  CircleGeometry,
   Group,
   Hovered,
   Mesh,
@@ -20,7 +21,7 @@ import type { ItemId } from '../game/items.js';
 import { RESOURCES, type ResourceSpot } from '../game/world-layout.js';
 import { Gatherable } from '../components/game-components.js';
 import { itemMesh, resourceMesh } from '../scene-assets/item-meshes.js';
-import { getGame, hipPosition } from './shared.js';
+import { getGame, glowMaterial, glowMaterialHot, hipPosition } from './shared.js';
 
 /** Max distance (m) from your head to something you can gather. */
 export const REACH = 4.5;
@@ -28,6 +29,7 @@ export const REACH = 4.5;
 const HIT_RADIUS = 0.4;
 const hitGeo = new SphereGeometry(HIT_RADIUS, 8, 6);
 const hitMat = new MeshBasicMaterial({ visible: false });
+const glowGeo = new CircleGeometry(0.22, 20);
 const FLIGHT_TIME = 0.4;
 /** Spots farther than this (m) are hidden: they sit in full fog and cost draw calls. */
 const CULL_DISTANCE = 40;
@@ -52,6 +54,7 @@ export class ResourceSystem extends createSystem({
   private regrowTimer = 0;
   private crosshair: HTMLDivElement | null = null;
   private litObj: Object3D | null = null;
+  private pulse = 0;
 
   init(): void {
     const fxRoot = this.world.createTransformEntity(new Group());
@@ -65,6 +68,11 @@ export class ResourceSystem extends createSystem({
       hit.name = 'HitProxy';
       hit.position.y = HIT_RADIUS * 0.8;
       obj.add(hit);
+      const glow = new Mesh(glowGeo, glowMaterial);
+      glow.name = 'Glow';
+      glow.rotation.x = -Math.PI / 2;
+      glow.position.y = 0.025;
+      obj.add(glow);
       const e = this.world.createTransformEntity(obj);
       e.addComponent(Gatherable, { spotId: spot.id, charges: spot.charges, regrowAt: 0 });
       e.addComponent(RayInteractable);
@@ -145,6 +153,11 @@ export class ResourceSystem extends createSystem({
     this.flights.push({ obj, from: obj.position.clone(), t: 0 });
   }
 
+  private setGlow(obj: Object3D | null, mat: typeof glowMaterial): void {
+    const glow = obj?.getObjectByName('Glow') as Mesh | undefined;
+    if (glow) glow.material = mat;
+  }
+
   /** Highlights the hovered resource (a gentle scale-up) and colours the crosshair by reach. */
   private updateHover(): void {
     let target: Object3D | null = null;
@@ -158,6 +171,8 @@ export class ResourceSystem extends createSystem({
     }
     if (target !== this.litObj) {
       this.litObj?.scale.setScalar(1);
+      this.setGlow(this.litObj, glowMaterial);
+      this.setGlow(target, glowMaterialHot);
       this.litObj = target;
     }
     target?.scale.setScalar(near ? 1.12 : 1.04);
@@ -170,6 +185,9 @@ export class ResourceSystem extends createSystem({
   }
 
   update(delta: number): void {
+    this.pulse += delta;
+    glowMaterial.opacity = 0.14 + 0.1 * Math.sin(this.pulse * 3);
+    glowMaterialHot.opacity = 0.45 + 0.15 * Math.sin(this.pulse * 6);
     this.updateHover();
     if (this.flights.length) {
       hipPosition(this.camera, this.hip);

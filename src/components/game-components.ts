@@ -33,3 +33,8 @@ export const FirePitSpot = createComponent('FirePitSpot', {});
 export const SatchelItem = createComponent('SatchelItem', {
   index: { type: Types.Int8, default: 0 },
 });
+
+/** An item lying on the ground that you dropped; pinch/click to pick it up. */
+export const WorldDropItem = createComponent('WorldDropItem', {
+  dropId: { type: Types.Int32, default: 0 },
+});

@@ -19,6 +19,7 @@ import {
   Vector3,
   VisibilityState,
 } from '@iwsdk/core';
+import { actionFor } from '../game/actions.js';
 import { RECIPES, type GameEvent } from '../game/game.js';
 import { itemName, type ItemId } from '../game/items.js';
 import { SatchelItem, SatchelPouch } from '../components/game-components.js';
@@ -67,6 +68,15 @@ export class SatchelSystem extends createSystem({
       }),
     );
 
+    const onKey = (ev: KeyboardEvent) => {
+      if (this.world.visibilityState.peek() !== VisibilityState.NonImmersive) return;
+      const item = this.targetItem();
+      if (!item) return;
+      if (ev.code === 'KeyG') getUi(this.world).dropHeld?.(item);
+      else if (ev.code === 'KeyF' && !actionFor(game.held)) game.stashItem(item);
+    };
+    window.addEventListener('keydown', onKey);
+    this.cleanupFuncs.push(() => window.removeEventListener('keydown', onKey));
     this.bag = buildOpenBag();
     this.bag.visible = false;
     this.world.createTransformEntity(this.bag);
@@ -147,6 +157,20 @@ export class SatchelSystem extends createSystem({
       this.world.visibilityState.subscribe(() => this.showHeld(game.held)),
     );
     this.refresh();
+  }
+
+  /** The item in bag slot `i` (for tooltips). */
+  bagItemAt(i: number): ItemId | null {
+    return this.slotItems[i] ?? null;
+  }
+
+  /** What G / F act on: the bag item you point at, else what you hold. */
+  private targetItem(): ItemId | null {
+    for (const e of this.queries.itemHovered.entities) {
+      const id = this.slotItems[e.getValue(SatchelItem, 'index') ?? 0];
+      if (id) return id;
+    }
+    return getGame(this.world).held;
   }
 
   /** VR: holding a hand behind your right shoulder for a moment opens the bag. */

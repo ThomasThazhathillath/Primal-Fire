@@ -51,6 +51,7 @@ export type GameEvent =
   | { type: 'fire'; stage: FireStage }
   | { type: 'arrow'; hit: boolean }
   | { type: 'reach' }
+  | { type: 'drops' }
   | { type: 'gather'; item: ItemId; tool: ItemId | null }
   | { type: 'action'; id: string; progress: number; done: boolean };
 
@@ -87,6 +88,13 @@ export const RECIPES: Recipe[] = [
   },
 ];
 
+export interface WorldDrop {
+  id: number;
+  item: ItemId;
+  x: number;
+  z: number;
+}
+
 export interface HintResult {
   level: 0 | 1 | 2;
   text: string;
@@ -112,6 +120,9 @@ export class Game {
   /** Science events that have fired (src/game/science-events.ts). */
   readonly events = new Set<string>();
   readonly structures: PlacedStructure[] = [];
+  /** Items dropped on the ground, pickable again. Not counted in carried weight. */
+  readonly drops: WorldDrop[] = [];
+  private nextDropId = 1;
   readonly discovered = new Set<string>(LANDMARKS.filter((l) => l.known).map((l) => l.id));
   readonly log: EventLog;
   readonly fire = new FireState(this);
@@ -181,6 +192,60 @@ export class Game {
     this.toast(`Made: ${u.name}. Your pack holds more.`, 'good');
     if (u.observation) this.observe(u.observation);
     this.emit({ type: 'satchel' });
+    return true;
+  }
+
+  /** Take one `item` from your hand (preferred) or satchel; null if you have none. */
+  private takeFromHolding(item: ItemId): boolean {
+    if (this.held === item) {
+      this.consumeHeld();
+      return true;
+    }
+    if (this.count(item) <= 0) return false;
+    this.satchel.set(item, this.count(item) - 1);
+    this.emit({ type: 'satchel' });
+    return true;
+  }
+
+  /** Drop an item on the ground at (x, z). It stays there (saved) until picked up. */
+  dropItem(item: ItemId, x: number, z: number): WorldDrop | null {
+    if (!this.takeFromHolding(item)) return null;
+    const drop: WorldDrop = { id: this.nextDropId++, item, x, z };
+    this.drops.push(drop);
+    this.log.add(`dropped ${item} at ${x.toFixed(1)},${z.toFixed(1)}`);
+    this.toast(`Dropped ${itemName(item).toLowerCase()}.`);
+    this.emit({ type: 'drops' });
+    return drop;
+  }
+
+  pickUpDrop(id: number): boolean {
+    const i = this.drops.findIndex((d) => d.id === id);
+    if (i < 0) return false;
+    if (this.carriedCount >= this.capacity.pockets) {
+      this.toast('Your pockets are full.', 'bad');
+      return false;
+    }
+    const [d] = this.drops.splice(i, 1);
+    this.addItem(d.item);
+    this.toast(`+1 ${itemName(d.item)}`);
+    this.emit({ type: 'drops' });
+    return true;
+  }
+
+  /** Put one `item` (held or carried) into nearby storage. */
+  stashItem(item: ItemId): boolean {
+    const box = this.nearbyStorage();
+    if (!box) {
+      this.toast('No storage basket nearby.', 'bad');
+      return false;
+    }
+    if (this.storedCount(box) >= STORAGE_SLOTS) {
+      this.toast('The basket is full.', 'bad');
+      return false;
+    }
+    if (this.held === item) this.stow();
+    if (this.stash(item, 1) === 0) return false;
+    this.toast(`Stored ${itemName(item).toLowerCase()}.`);
     return true;
   }
 
@@ -735,6 +800,7 @@ export class Game {
       player: { ...this.player },
       held: this.held,
       packUpgrades: [...this.packUpgrades],
+      drops: this.drops.map((d) => ({ ...d })),
       toolUses: Object.fromEntries(this.toolUses),
       fire: this.fire.snapshot(),
     };
@@ -758,6 +824,8 @@ export class Game {
     g.player.z = data.player.z;
     // Older saves have no `held`; a stale id would crash the item meshes.
     for (const [k, v] of Object.entries(data.toolUses ?? {})) g.toolUses.set(k as ItemId, v);
+    for (const d of data.drops ?? []) g.drops.push({ ...d });
+    g.nextDropId = Math.max(0, ...g.drops.map((d) => d.id)) + 1;
     for (const u of data.packUpgrades ?? []) g.packUpgrades.add(u);
     if (data.fire) g.fire.restore(data.fire);
     g.held = data.held && data.held in ITEMS ? data.held : null;
@@ -769,6 +837,7 @@ export interface SaveData {
   v: 1;
   fire?: FireSave;
   packUpgrades?: string[];
+  drops?: WorldDrop[];
   toolUses?: Partial<Record<ItemId, number>>;
   time: number;
   xp: number;

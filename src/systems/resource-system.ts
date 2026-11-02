@@ -6,6 +6,11 @@ import {
   createSystem,
   type Entity,
   Group,
+  Hovered,
+  Mesh,
+  MeshBasicMaterial,
+  SphereGeometry,
+  VisibilityState,
   type Object3D,
   Pressed,
   RayInteractable,
@@ -19,6 +24,10 @@ import { getGame, hipPosition } from './shared.js';
 
 /** Max distance (m) from your head to something you can gather. */
 export const REACH = 4.5;
+/** Radius (m) of the invisible hit sphere around each resource: sticks and pebbles are far too thin to click. */
+const HIT_RADIUS = 0.4;
+const hitGeo = new SphereGeometry(HIT_RADIUS, 8, 6);
+const hitMat = new MeshBasicMaterial({ visible: false });
 const FLIGHT_TIME = 0.4;
 /** Spots farther than this (m) are hidden: they sit in full fog and cost draw calls. */
 const CULL_DISTANCE = 40;
@@ -32,6 +41,7 @@ interface Flight {
 export class ResourceSystem extends createSystem({
   spots: { required: [Gatherable] },
   pressed: { required: [Gatherable, Pressed] },
+  hovered: { required: [Gatherable, Hovered] },
 }) {
   private bySpot = new Map<string, ResourceSpot>();
   private entityBySpot = new Map<string, Entity>();
@@ -40,6 +50,8 @@ export class ResourceSystem extends createSystem({
   private head = new Vector3();
   private hip = new Vector3();
   private regrowTimer = 0;
+  private crosshair: HTMLDivElement | null = null;
+  private litObj: Object3D | null = null;
 
   init(): void {
     const fxRoot = this.world.createTransformEntity(new Group());
@@ -49,6 +61,10 @@ export class ResourceSystem extends createSystem({
       obj.position.set(spot.x, 0, spot.z);
       obj.rotation.y = spot.rotY;
       obj.name = `Resource_${spot.id}`;
+      const hit = new Mesh(hitGeo, hitMat);
+      hit.name = 'HitProxy';
+      hit.position.y = HIT_RADIUS * 0.8;
+      obj.add(hit);
       const e = this.world.createTransformEntity(obj);
       e.addComponent(Gatherable, { spotId: spot.id, charges: spot.charges, regrowAt: 0 });
       e.addComponent(RayInteractable);
@@ -56,6 +72,20 @@ export class ResourceSystem extends createSystem({
       this.entityBySpot.set(spot.id, e);
     }
     this.cleanupFuncs.push(this.queries.pressed.subscribe('qualify', (e) => this.tryGather(e)));
+    // Desktop crosshair: white = nothing, green = collectable, orange = too far.
+    const ch = document.createElement('div');
+    ch.style.cssText = 'position:fixed;left:50%;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border:2px solid #fff;border-radius:50%;pointer-events:none;z-index:5;opacity:.8;box-shadow:0 0 3px #000;transition:border-color .1s,transform .1s';
+    document.body.appendChild(ch);
+    this.crosshair = ch;
+    const onMove = (ev: PointerEvent) => {
+      ch.style.left = `${ev.clientX}px`;
+      ch.style.top = `${ev.clientY}px`;
+    };
+    window.addEventListener('pointermove', onMove);
+    this.cleanupFuncs.push(() => {
+      ch.remove();
+      window.removeEventListener('pointermove', onMove);
+    });
   }
 
   spot(id: string): ResourceSpot | undefined {
@@ -115,7 +145,32 @@ export class ResourceSystem extends createSystem({
     this.flights.push({ obj, from: obj.position.clone(), t: 0 });
   }
 
+  /** Highlights the hovered resource (a gentle scale-up) and colours the crosshair by reach. */
+  private updateHover(): void {
+    let target: Object3D | null = null;
+    let near = false;
+    for (const e of this.queries.hovered.entities) {
+      if ((e.getValue(Gatherable, 'charges') ?? 0) <= 0) continue;
+      target = e.object3D ?? null;
+      const spot = this.bySpot.get(e.getValue(Gatherable, 'spotId') ?? '');
+      near = !!spot && this.distanceTo(spot) <= REACH;
+      break;
+    }
+    if (target !== this.litObj) {
+      this.litObj?.scale.setScalar(1);
+      this.litObj = target;
+    }
+    target?.scale.setScalar(near ? 1.12 : 1.04);
+    if (this.crosshair) {
+      const desktop = this.world.visibilityState.peek() === VisibilityState.NonImmersive;
+      this.crosshair.style.display = desktop ? 'block' : 'none';
+      this.crosshair.style.borderColor = target ? (near ? '#6fe07a' : '#ff9a3c') : '#fff';
+      this.crosshair.style.transform = target ? 'scale(1.5)' : 'scale(1)';
+    }
+  }
+
   update(delta: number): void {
+    this.updateHover();
     if (this.flights.length) {
       hipPosition(this.camera, this.hip);
       for (let i = this.flights.length - 1; i >= 0; i--) {

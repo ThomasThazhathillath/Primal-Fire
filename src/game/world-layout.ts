@@ -87,8 +87,15 @@ export interface Tree {
   rotY: number;
   /** Index into the canopy palette. */
   tint: number;
-  /** 0 = conifer, 1 = broadleaf. */
-  kind: 0 | 1;
+  /** 0 = pine, 1 = broadleaf, 2 = dead snag. */
+  kind: 0 | 1 | 2;
+  /** Height multiplier on top of `scale` (young trees are short, old ones tall). */
+  height: number;
+  /** Trunk width multiplier. */
+  girth: number;
+  /** Tilt away from vertical (rad) and its compass direction. */
+  lean: number;
+  leanDir: number;
 }
 
 const TREE_SEED = 11;
@@ -116,9 +123,31 @@ function generateTrees(): Tree[] {
       scale: 0.8 + rng() * 0.9,
       rotY: rng() * Math.PI * 2,
       tint: Math.floor(rng() * 4),
-      // Broadleaf trees favour the damper ground near the stream.
-      kind: rng() < (streamDistance(x, z) < 14 ? 0.5 : 0.22) ? 1 : 0,
+      kind: 0,
+      height: 1,
+      girth: 1,
+      lean: 0,
+      leanDir: rng() * Math.PI * 2,
     };
+    // Broadleaf trees favour the damper ground near the stream; ~8% are dead snags.
+    const roll = rng();
+    const wet = streamDistance(x, z) < 14;
+    tree.kind = roll < 0.08 ? 2 : roll < (wet ? 0.5 : 0.3) ? 1 : 0;
+    const age = rng();
+    if (age < 0.22) {
+      // Young: short and slim.
+      tree.scale *= 0.55;
+      tree.height = 0.9 + rng() * 0.3;
+    } else if (age > 0.85) {
+      // Old giant: tall and thick.
+      tree.scale *= 1.25;
+      tree.height = 1.15 + rng() * 0.35;
+      tree.girth = 1.3;
+    } else {
+      tree.height = 0.85 + rng() * 0.5;
+      tree.girth = 0.85 + rng() * 0.35;
+    }
+    tree.lean = tree.kind === 2 ? rng() * 0.3 : rng() < 0.18 ? 0.08 + rng() * 0.16 : rng() * 0.04;
     trees.push(tree);
     grid.insert(x, z, tree);
   }

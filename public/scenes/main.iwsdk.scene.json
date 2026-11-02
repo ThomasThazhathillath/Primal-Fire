@@ -87,6 +87,14 @@
       }
     },
     {
+      "id": "ground-detail",
+      "name": "Ground Detail",
+      "content": {
+        "type": "asset",
+        "asset": "ground-detail"
+      }
+    },
+    {
       "id": "mountains",
       "name": "Mountain Ring",
       "content": {

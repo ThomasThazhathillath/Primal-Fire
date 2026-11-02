@@ -2,6 +2,7 @@ import { AssetType, defineAssets } from '@iwsdk/core';
 import {
   createForestGround,
   createForestTrees,
+  createGroundDetail,
   createMountains,
   createStream,
   createUndergrowth,
@@ -27,6 +28,7 @@ export default defineAssets({
   'forest-trees': createForestTrees(),
   undergrowth: createUndergrowth(),
   mountains: createMountains(),
+  'ground-detail': createGroundDetail(),
   'shattered-tree': createShatteredTree(),
   ruins: createRuins(),
   'split-rock': createSplitRock(),

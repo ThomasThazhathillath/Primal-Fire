@@ -46,3 +46,30 @@ describe('tools', () => {
     expect(g2.toolUsesLeft('knife')).toBe(24);
   });
 });
+
+describe('science wiring', () => {
+  it('crafting and bow actions fire science events', () => {
+    const g = new Game();
+    g.addItem('flint');
+    g.addItem('dryStone', 2);
+    g.takeOut('flint');
+    for (let i = 0; i < 6; i++) g.work(1);
+    expect(g.hasEvent('tool.knap.flake')).toBe(true);
+    g.addItem('spindle', 3);
+    g.addItem('cord', 3);
+    g.bind('axe');
+    expect(g.hasEvent('tool.axe.made')).toBe(true);
+    g.addItem('feather', 2);
+    g.addItem('flake');
+    g.bind('arrows');
+    expect(g.hasEvent('hunt.fletch.made')).toBe(true);
+    g.gather('logs');
+    expect(g.hasEvent('tool.wedge.split')).toBe(true);
+    g.addItem('greenBranch');
+    g.addItem('cord');
+    g.bind('bow');
+    g.takeOut('bow');
+    g.nockArrow();
+    expect(g.hasEvent('hunt.arrow.fly')).toBe(true);
+  });
+});

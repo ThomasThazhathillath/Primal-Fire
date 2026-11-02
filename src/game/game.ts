@@ -116,6 +116,7 @@ export class Game {
   readonly packUpgrades = new Set<string>();
   /** Effort put into the held item's hand action (0..1 of what it needs). */
   actionProgress = 0;
+  private heavyTime = 0;
   /** Uses left on each tool in the satchel (absent = full). */
   readonly toolUses = new Map<ItemId, number>();
   private flags = new Set<FlagId>();
@@ -195,6 +196,7 @@ export class Game {
     this.toolUses.delete(r.output);
     this.toast(`Made: ${itemName(r.output)}`, 'good');
     if (r.observation) this.observe(r.observation);
+    for (const ev of r.science ?? []) this.science(ev);
     this.log.add(`bound ${r.output}`, 'ok');
     this.checkQuests();
     return true;
@@ -210,6 +212,8 @@ export class Game {
       this.toolUses.delete(t.id);
       this.toast(`Your ${itemName(t.id).toLowerCase()} broke.`, 'bad');
     } else this.toolUses.set(t.id, left);
+    if (t.id === 'knife') this.science('tool.edge.cut');
+    if (t.id === 'axe' && id === 'logs') this.science('tool.wedge.split');
     return 1;
   }
 
@@ -285,6 +289,7 @@ export class Game {
     this.satchel.set('arrow', this.count('arrow') - 1);
     this.emit({ type: 'satchel' });
     this.emit({ type: 'arrow', hit: false });
+    this.science('hunt.arrow.fly');
     return true;
   }
 
@@ -316,6 +321,7 @@ export class Game {
     this.log.add(`action ${a.id} done`, 'ok');
     this.toast(`${a.name}: you now have ${Object.entries(a.outputs).map(([id, n]) => `${n} ${itemName(id as ItemId).toLowerCase()}`).join(', ')}.`, 'good');
     if (a.observation) this.observe(a.observation);
+    if (a.science) this.science(a.science);
     this.checkQuests();
     return true;
   }
@@ -365,6 +371,9 @@ export class Game {
   tick(dt: number): void {
     this.time += dt;
     this.fire.tick(dt);
+    if (this.moveLimits.encumbrance !== 'light') {
+      if ((this.heavyTime += dt) > 30) this.science('body.carry.heavy');
+    } else this.heavyTime = 0;
   }
 
   setPlayerPosition(x: number, z: number): void {
@@ -484,6 +493,7 @@ export class Game {
     this.structures.push(structure);
     this.log.add(`placed ${kind} #${structure.id} at ${x.toFixed(1)},${z.toFixed(1)} key=${key}`, 'ok');
     this.toast(`${def.name}: fill the glowing spots to finish it.`, 'note');
+    if (kind === 'shelter') this.science('shelter.site.chosen');
     this.emit({ type: 'structure', structure });
     return { ok: true, structure };
   }
@@ -527,6 +537,13 @@ export class Game {
     this.toast(`${def.name} built!`, 'good');
     this.addXp(def.xp);
     if (def.completeObservation) this.observe(def.completeObservation);
+    if (s.kind === 'workbench') this.science('build.workbench.done');
+    if (s.kind === 'shelter') {
+      this.science('shelter.frame.built');
+      this.science('shelter.roof.covered');
+      if (s.spots.includes('dryGrass')) this.science('shelter.bed.insulated');
+      this.science('shelter.wind.blocked');
+    }
     this.checkQuests();
   }
 
@@ -563,6 +580,7 @@ export class Game {
     this.log.add(`crafted ${recipe.output}`, 'ok');
     this.toast(`Made: ${itemName(recipe.output)}`, 'good');
     this.observe(recipe.observation);
+    this.science(recipe.id === 'cord' ? 'craft.cord' : 'craft.bowdrill');
     this.checkQuests();
     return true;
   }

@@ -156,6 +156,7 @@ export class FireState {
     this.carryLeft = EMBER_CARRY_SECONDS;
     g.setFlag('emberMade');
     g.observe('f_drill');
+    g.science('fire.drill.ember');
     g.toast('An ember! Carry it to the tinder before it dies.', 'good');
     g.checkQuests();
     g.notifyFire();
@@ -169,6 +170,7 @@ export class FireState {
     if (this.mossDamp) {
       this.reset();
       g.observe('f_damp');
+    g.science('fire.ember.damp');
       g.toast('The damp moss hissed — the ember is dead. Use dry grass.', 'bad');
       g.notifyFire();
       return true;
@@ -194,6 +196,7 @@ export class FireState {
     this.embedded = false;
     if (this.fuelFirst) {
       g.observe('f_bigfuel');
+    g.science('fire.fuel.toobig');
       g.toast('The tinder flared, then the heavy logs smothered it. Kindling goes under logs.', 'bad');
       this.reset();
       g.notifyFire();
@@ -203,6 +206,7 @@ export class FireState {
     this.burnLeft = this.tinder * BURN_SECONDS.tinder + this.twigs * BURN_SECONDS.twigs + this.logs * BURN_SECONDS.logs;
     g.setFlag('fireLit');
     g.observe('f_success');
+    g.science('fire.lit');
     g.addXp(40);
     g.toast('Fire!', 'good');
     g.checkQuests();
@@ -230,6 +234,7 @@ export class FireState {
       if (this.carryLeft <= 0) {
         this.carrying = false;
         g.observe('f_oxygen');
+        g.science('fire.ember.unfed');
         g.toast('The ember went dark. Saw again.', 'bad');
         g.notifyFire();
       }
@@ -242,6 +247,7 @@ export class FireState {
         this.stage = 'lay';
         this.air = 0;
         g.observe('f_oxygen');
+        g.science('fire.ember.unfed');
         g.toast('The ember faded. It needs air — saw a new one.', 'bad');
         g.notifyFire();
       }
@@ -252,6 +258,7 @@ export class FireState {
         this.reset();
         this.stage = 'out';
         g.observe('f_nofuel');
+    g.science('fire.fuel.none');
         g.toast('The fire burned out. Lay more fuel to relight.', 'note');
         g.notifyFire();
       }

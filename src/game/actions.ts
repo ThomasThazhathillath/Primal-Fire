@@ -21,6 +21,8 @@ export interface ActionDef {
   /** Short instruction for the player. */
   hint: string;
   observation?: string;
+  /** Science event (src/game/science-events.ts) fired when finished. */
+  science?: string;
 }
 
 export const ACTIONS: ActionDef[] = [
@@ -42,6 +44,7 @@ export const ACTIONS: ActionDef[] = [
     outputs: { cord: 1 },
     hint: 'Rub the fibres against your thigh to twist them into string.',
     observation: 'g_cord',
+    science: 'craft.cord',
   },
   {
     id: 'knapFlint',
@@ -52,6 +55,7 @@ export const ACTIONS: ActionDef[] = [
     work: 6,
     outputs: { flake: 2 },
     hint: 'Strike the flint with a stone, again and again, to chip off sharp flakes.',
+    science: 'tool.knap.flake',
   },
 ];
 

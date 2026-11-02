@@ -38,7 +38,10 @@ export class BowSystem extends createSystem({}) {
     };
     window.addEventListener('keydown', onKey);
     const onStart = (ev: XRInputSourceEvent) => {
-      if (ev.inputSource.handedness === 'left' && getGame(this.world).held === 'bow') this.drawing = true;
+      if (ev.inputSource.handedness === 'left' && getGame(this.world).held === 'bow') {
+        this.drawing = true;
+        getGame(this.world).science('hunt.bow.drawn');
+      }
     };
     const onEnd = (ev: XRInputSourceEvent) => {
       if (ev.inputSource.handedness !== 'left' || !this.drawing) return;
@@ -102,6 +105,7 @@ export class BowSystem extends createSystem({}) {
       if (hit !== 'none') {
         getGame(this.world).log.add(`arrow ${hit}`);
         if (hit === 'target') {
+          getGame(this.world).science('hunt.arrow.hit');
           for (const t of arrowTargets) {
             if (Math.hypot(t.x - p.a.x, t.y - p.a.y, t.z - p.a.z) <= t.r + 0.6) {
               t.onHit?.();

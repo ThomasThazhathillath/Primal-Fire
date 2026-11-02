@@ -1,6 +1,7 @@
 // Game state and rules, independent of rendering and input. IWSDK systems
 // call these actions and react to the events; tests drive them directly.
 
+import { FireState, type FireSave, type FireStage } from './fire.js';
 import {
   BLUEPRINTS,
   checkPlacement,
@@ -40,7 +41,8 @@ export type GameEvent =
   | { type: 'structure'; structure: PlacedStructure }
   | { type: 'quest'; index: number }
   | { type: 'questComplete'; index: number; title: string; roadmapNode: string | null }
-  | { type: 'discovered'; landmark: Landmark };
+  | { type: 'discovered'; landmark: Landmark }
+  | { type: 'fire'; stage: FireStage };
 
 /** XP needed to reach each level (index = level − 1). */
 export const LEVELS = [0, 100, 250, 450, 700, 1000, 1400, 99999];
@@ -100,6 +102,7 @@ export class Game {
   readonly structures: PlacedStructure[] = [];
   readonly discovered = new Set<string>(LANDMARKS.filter((l) => l.known).map((l) => l.id));
   readonly log: EventLog;
+  readonly fire = new FireState(this);
   private flags = new Set<FlagId>();
   private hintLevels = new Map<string, number>();
   private listeners = new Set<(e: GameEvent) => void>();
@@ -171,6 +174,7 @@ export class Game {
 
   tick(dt: number): void {
     this.time += dt;
+    this.fire.tick(dt);
   }
 
   setPlayerPosition(x: number, z: number): void {
@@ -227,6 +231,22 @@ export class Game {
     this.addItem(id);
     this.log.add(`stowed ${id}`);
     this.emit({ type: 'held', item: null });
+  }
+
+  /** Spend one `id` from your hand, else the satchel. */
+  useItem(id: ItemId): boolean {
+    if (this.held === id) {
+      this.consumeHeld();
+      return true;
+    }
+    if (this.count(id) <= 0) return false;
+    this.satchel.set(id, this.count(id) - 1);
+    this.emit({ type: 'satchel' });
+    return true;
+  }
+
+  notifyFire(): void {
+    this.emit({ type: 'fire', stage: this.fire.stage });
   }
 
   private consumeHeld(): ItemId | null {
@@ -467,6 +487,7 @@ export class Game {
       flags: [...this.flags],
       player: { ...this.player },
       held: this.held,
+      fire: this.fire.snapshot(),
     };
   }
 
@@ -486,6 +507,7 @@ export class Game {
     g.player.x = data.player.x;
     g.player.z = data.player.z;
     // Older saves have no `held`; a stale id would crash the item meshes.
+    if (data.fire) g.fire.restore(data.fire);
     g.held = data.held && data.held in ITEMS ? data.held : null;
     return g;
   }
@@ -493,6 +515,7 @@ export class Game {
 
 export interface SaveData {
   v: 1;
+  fire?: FireSave;
   time: number;
   xp: number;
   level: number;

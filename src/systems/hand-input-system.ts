@@ -90,6 +90,8 @@ export class HandInputSystem extends createSystem({}) {
   private pendingWheel = 0;
   private pendingPress = false;
   private pendingRelease = false;
+  private attached: XRSession | null = null;
+  private attach: () => void = () => undefined;
 
   init(): void {
     const set = (ev: XRInputSourceEvent, which: boolean[], v: boolean) => {
@@ -101,15 +103,18 @@ export class HandInputSystem extends createSystem({}) {
     const onSelE = (e: XRInputSourceEvent) => set(e, this.select, false);
     const onSqS = (e: XRInputSourceEvent) => set(e, this.squeeze, true);
     const onSqE = (e: XRInputSourceEvent) => set(e, this.squeeze, false);
-    const attach = () => {
+    // Attach to each XR session once, whenever it appears (checked every frame:
+    // the renderer's sessionstart event is not reliable for sessions started elsewhere).
+    this.attach = () => {
       const s = this.renderer.xr.getSession();
-      s?.addEventListener('selectstart', onSelS);
-      s?.addEventListener('selectend', onSelE);
-      s?.addEventListener('squeezestart', onSqS);
-      s?.addEventListener('squeezeend', onSqE);
+      if (!s || s === this.attached) return;
+      this.attached = s;
+      this.select[0] = this.select[1] = this.squeeze[0] = this.squeeze[1] = false;
+      s.addEventListener('selectstart', onSelS);
+      s.addEventListener('selectend', onSelE);
+      s.addEventListener('squeezestart', onSqS);
+      s.addEventListener('squeezeend', onSqE);
     };
-    this.renderer.xr.addEventListener('sessionstart', attach);
-    if (this.renderer.xr.getSession()) attach();
 
     const canvas = this.renderer.domElement;
     const onDown = (e: PointerEvent) => {
@@ -151,7 +156,11 @@ export class HandInputSystem extends createSystem({}) {
     window.addEventListener('keydown', onKey);
     window.addEventListener('keyup', onKey);
     this.cleanupFuncs.push(() => {
-      this.renderer.xr.removeEventListener('sessionstart', attach);
+      const s = this.attached;
+      s?.removeEventListener('selectstart', onSelS);
+      s?.removeEventListener('selectend', onSelE);
+      s?.removeEventListener('squeezestart', onSqS);
+      s?.removeEventListener('squeezeend', onSqE);
       canvas.removeEventListener('pointerdown', onDown);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointermove', onMove);
@@ -163,6 +172,7 @@ export class HandInputSystem extends createSystem({}) {
 
   update(delta: number): void {
     const dt = Math.max(delta, 1e-4);
+    this.attach();
     // Desktop pointer.
     mouse.pressed = this.pendingPress;
     mouse.released = this.pendingRelease;

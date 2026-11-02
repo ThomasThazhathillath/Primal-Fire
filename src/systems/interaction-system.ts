@@ -93,7 +93,8 @@ export class InteractionSystem extends createSystem({
   private halves: [Group, Group] = [new Group(), new Group()];
   private crack!: Mesh;
   private fallT = -1;
-  private q0 = [new Quaternion(), new Quaternion()];
+  /** Left-to-right hand rotation when the two-hand grip closed. */
+  private relQ0 = new Quaternion();
   private tmpQ = new Quaternion();
   private mid = new Vector3();
   private axis = new Vector3();
@@ -190,8 +191,7 @@ export class InteractionSystem extends createSystem({
     getUi(this.world).setHeldVisible?.(false);
     if (vr) {
       this.worldRoot?.add(this.stick);
-      this.q0[0].copy(hands[0].quat);
-      this.q0[1].copy(hands[1].quat);
+      this.relQ0.copy(hands[0].quat).invert().multiply(hands[1].quat);
     } else {
       // Held across the body in both desktop hands.
       this.camera.add(this.stick);
@@ -220,11 +220,10 @@ export class InteractionSystem extends createSystem({
     let angle: number;
     if (this.viaVR) {
       if (!hands[0].grip || !hands[1].grip) return this.endBend();
-      // How far each wrist has turned since the grab: bending a stick is both wrists rolling the ends down.
-      const a0 = 2 * Math.acos(Math.min(1, Math.abs(this.tmpQ.copy(this.q0[0]).dot(hands[0].quat))));
-      const a1 = 2 * Math.acos(Math.min(1, Math.abs(this.tmpQ.copy(this.q0[1]).dot(hands[1].quat))));
-      // Both must turn: one wrist alone just rotates the stick.
-      angle = Math.min(a0, a1) * 1.6;
+      // Bend = how far the hands have turned RELATIVE to each other since the grab
+      // (both wrists turning the same way just rotates the stick).
+      this.tmpQ.copy(hands[0].quat).invert().multiply(hands[1].quat);
+      angle = 2 * Math.acos(Math.min(1, Math.abs(this.tmpQ.dot(this.relQ0))));
       this.mid.addVectors(hands[0].pos, hands[1].pos).multiplyScalar(0.5);
       this.axis.subVectors(hands[1].pos, hands[0].pos).normalize();
       this.stick.position.copy(this.mid);

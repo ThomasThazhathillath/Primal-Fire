@@ -50,6 +50,7 @@ export type GameEvent =
   | { type: 'discovered'; landmark: Landmark }
   | { type: 'fire'; stage: FireStage }
   | { type: 'arrow'; hit: boolean }
+  | { type: 'gather'; item: ItemId; tool: ItemId | null }
   | { type: 'action'; id: string; progress: number; done: boolean };
 
 /** XP needed to reach each level (index = level − 1). */
@@ -117,6 +118,7 @@ export class Game {
   /** Effort put into the held item's hand action (0..1 of what it needs). */
   actionProgress = 0;
   private heavyTime = 0;
+  private lastToolUsed: ItemId | null = null;
   /** Uses left on each tool in the satchel (absent = full). */
   readonly toolUses = new Map<ItemId, number>();
   private flags = new Set<FlagId>();
@@ -212,6 +214,7 @@ export class Game {
       this.toolUses.delete(t.id);
       this.toast(`Your ${itemName(t.id).toLowerCase()} broke.`, 'bad');
     } else this.toolUses.set(t.id, left);
+    this.lastToolUsed = t.id;
     if (t.id === 'knife') this.science('tool.edge.cut');
     if (t.id === 'axe' && id === 'logs') this.science('tool.wedge.split');
     return 1;
@@ -405,7 +408,9 @@ export class Game {
     const first = this.gatheredCount(id) === 0;
     this.gathered.set(id, this.gatheredCount(id) + 1);
     this.addItem(id);
+    this.lastToolUsed = null;
     const bonus = this.carriedCount < this.capacity.pockets ? this.toolBonus(id) : 0;
+    this.emit({ type: 'gather', item: id, tool: this.lastToolUsed });
     if (bonus) {
       this.addItem(id, bonus);
       this.gathered.set(id, this.gatheredCount(id) + bonus);

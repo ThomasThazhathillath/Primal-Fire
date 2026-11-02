@@ -7,6 +7,7 @@ import { BowSystem } from './systems/bow-system.js';
 import { BuildSystem } from './systems/build-system.js';
 import { DesktopControlsSystem } from './systems/desktop-controls-system.js';
 import { FireSystem } from './systems/fire-system.js';
+import { HandsSystem } from './systems/hands-system.js';
 import { HudSystem } from './systems/hud-system.js';
 import { IntroSystem } from './systems/intro-system.js';
 import { ResourceSystem } from './systems/resource-system.js';
@@ -28,6 +29,7 @@ World.create(
     .registerSystem(FireSystem)
     .registerSystem(ActionSystem)
     .registerSystem(BowSystem)
+    .registerSystem(HandsSystem)
     .registerSystem(HudSystem)
     .registerSystem(IntroSystem)
     .registerSystem(AudioSystem);

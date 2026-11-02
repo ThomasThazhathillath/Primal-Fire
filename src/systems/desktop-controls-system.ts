@@ -5,7 +5,7 @@
 
 import { createSystem, LocomotionSystem, Vector3, VisibilityState } from '@iwsdk/core';
 import { WORLD_RADIUS } from '../game/world-layout.js';
-import { getGame, getUi } from './shared.js';
+import { camNudge, getGame, getUi } from './shared.js';
 
 const EYE_HEIGHT = 1.6;
 const WALK = 3;
@@ -114,6 +114,7 @@ export class DesktopControlsSystem extends createSystem({}) {
     }
     this.player.rotation.set(0, this.yaw, 0);
     this.camera.position.set(0, EYE_HEIGHT, 0);
-    this.camera.rotation.set(this.pitch, 0, 0, 'YXZ');
+    camNudge.pitch *= Math.max(0, 1 - delta * 12);
+    this.camera.rotation.set(this.pitch + camNudge.pitch, 0, 0, 'YXZ');
   }
 }

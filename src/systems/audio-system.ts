@@ -153,6 +153,12 @@ export class AudioSystem extends createSystem({}) {
         this.tone(440, 0.3, 'sine', 0.18);
         this.tone(660, 0.4, 'sine', 0.15, 0.12);
         break;
+      case 'gather':
+        if (e.tool === 'axe' || e.tool === 'hammer') {
+          this.burst(300, 0.12, 0.3);
+          this.tone(110, 0.1, 'square', 0.2, 0, 60);
+        } else this.burst(1800, 0.06, 0.1);
+        break;
       case 'arrow':
         this.tone(e.hit ? 140 : 900, 0.12, 'triangle', 0.15, 0, e.hit ? 90 : 300);
         break;

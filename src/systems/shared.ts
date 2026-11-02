@@ -92,3 +92,6 @@ export interface ArrowTarget {
   onHit?: () => void;
 }
 export const arrowTargets: ArrowTarget[] = [];
+
+/** Brief camera pitch kick (radians) from impacts; DesktopControlsSystem adds it and decays it. */
+export const camNudge = { pitch: 0 };

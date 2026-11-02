@@ -1,12 +1,14 @@
 // World housekeeping: fog, Quest frame-rate/foveation, pausing on blur,
 // feeding the player's position to the game, and autosaving.
 
-import { Color, createSystem, Fog, Vector3, VisibilityState } from '@iwsdk/core';
+import { Color, createSystem, Fog, LocomotionSystem, Vector3, VisibilityState } from '@iwsdk/core';
 import { Game, type SaveData } from '../game/game.js';
 import { getGame } from './shared.js';
 
 const SAVE_KEY = 'primal-first-fire.save.v1';
 const SAVE_EVERY = 10;
+/** IWSDK's default sliding speed (m/s); scaled by how heavy your pack is. */
+const BASE_SLIDE = 4;
 
 export function loadGame(): Game {
   try {
@@ -37,6 +39,7 @@ export class WorldSystem extends createSystem({}) {
   private posTimer = 0;
   private saveTimer = 0;
   private head = new Vector3();
+  private slideSpeed = -1;
 
   init(): void {
     // Linear-space match for the dome's horizon colour, so trees fade into it.
@@ -73,6 +76,15 @@ export class WorldSystem extends createSystem({}) {
     if (!this.started || this.paused) return;
     const game = getGame(this.world);
     game.tick(delta);
+    // Heavy packs slow VR sliding too (desktop walking reads moveLimits itself).
+    const speed = BASE_SLIDE * game.moveLimits.speed * (game.moveLimits.canRun ? 1 : 0.8);
+    if (Math.abs(speed - this.slideSpeed) > 0.01) {
+      const loco = this.world.getSystem(LocomotionSystem);
+      if (loco) {
+        loco.config.slidingSpeed.value = speed;
+        this.slideSpeed = speed;
+      }
+    }
     if ((this.posTimer += delta) > 0.25) {
       this.posTimer = 0;
       this.camera.getWorldPosition(this.head);

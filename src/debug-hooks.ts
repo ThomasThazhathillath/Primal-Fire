@@ -47,6 +47,7 @@ export function installDebugHooks(world: World): void {
     fill: (structureId: number, index: number) => game.fillSpot(structureId, index),
     build: (kind: StructureKind) => game.structures.filter((s) => s.kind === kind),
     craft: (id: Recipe['id']) => game.craft(id),
+    upgradePack: (id: string) => game.upgradePack(id),
     hint: () => getUi(world).showHint?.(),
     satchel: () => sys(SatchelSystem).toggle(),
     notebook: () => getUi(world).openNotebook?.(),

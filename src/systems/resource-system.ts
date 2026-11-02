@@ -93,7 +93,7 @@ export class ResourceSystem extends createSystem({
       game.log.add(`gather ${spot.id}: out of reach`, 'bad');
       return false;
     }
-    game.gather(spot.itemId, spot.id);
+    if (!game.gather(spot.itemId, spot.id)) return false;
     this.launchFlight(spot.itemId, e.object3D!);
     const left = charges - 1;
     e.setValue(Gatherable, 'charges', left);

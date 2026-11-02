@@ -122,8 +122,11 @@ export class SatchelSystem extends createSystem({
           .setProperties({ text: entry.count > 1 ? `${itemName(entry.id)} x${entry.count}` : itemName(entry.id) });
       }
     }
+    const cap = game.capacity;
+    const load = `${game.carriedWeight.toFixed(1)}/${cap.load} kg, ${game.carriedCount}/${cap.pockets} pockets`;
+    const lim = game.moveLimits.encumbrance;
     const sub = contents.length
-      ? 'Pinch an item to take it in hand.'
+      ? `${load}${lim === 'light' ? '' : lim === 'loaded' ? ' - heavy, no running' : ' - OVERLOADED, slow'}. Pinch an item to take it.`
       : 'Empty. Point at things in the forest and pinch to gather them.';
     this.panel.requireElementById<UIKit.Text>('satchel-sub').setProperties({ text: sub });
     const bench = game.nearbyWorkbench() !== null;

@@ -1,6 +1,7 @@
 // Game state and rules, independent of rendering and input. IWSDK systems
 // call these actions and react to the events; tests drive them directly.
 
+import { capacityFor, itemsCount, itemsWeight, moveLimits, PACK_UPGRADES, type MoveLimits, type PackUpgrade } from './backpack.js';
 import { FireState, type FireSave, type FireStage } from './fire.js';
 import {
   BLUEPRINTS,
@@ -103,6 +104,7 @@ export class Game {
   readonly discovered = new Set<string>(LANDMARKS.filter((l) => l.known).map((l) => l.id));
   readonly log: EventLog;
   readonly fire = new FireState(this);
+  readonly packUpgrades = new Set<string>();
   private flags = new Set<FlagId>();
   private hintLevels = new Map<string, number>();
   private listeners = new Set<(e: GameEvent) => void>();
@@ -128,6 +130,41 @@ export class Game {
 
   toast(text: string, kind: ToastKind = 'info'): void {
     this.emit({ type: 'toast', text, kind });
+  }
+
+  // ------------------------------------------------------------- backpack
+
+  /** Total carried weight in kg, including what is in your hand. */
+  get carriedWeight(): number {
+    return itemsWeight(this.satchel) + (this.held ? ITEMS[this.held].weight : 0);
+  }
+
+  get carriedCount(): number {
+    return itemsCount(this.satchel);
+  }
+
+  get capacity(): { pockets: number; load: number } {
+    return capacityFor(this.packUpgrades);
+  }
+
+  get moveLimits(): MoveLimits {
+    return moveLimits(this.carriedWeight, this.capacity.load);
+  }
+
+  /** Craft a pack upgrade (more pockets, higher comfortable load). */
+  upgradePack(id: string): boolean {
+    const u: PackUpgrade | undefined = PACK_UPGRADES.find((x) => x.id === id);
+    if (!u || this.packUpgrades.has(id)) return false;
+    if (!Object.entries(u.inputs).every(([k, n]) => this.count(k as ItemId) >= (n ?? 0))) {
+      this.toast(`${u.name} needs ${Object.entries(u.inputs).map(([k, n]) => `${n}x ${itemName(k as ItemId).toLowerCase()}`).join(', ')}.`, 'bad');
+      return false;
+    }
+    for (const [k, n] of Object.entries(u.inputs)) this.satchel.set(k as ItemId, this.count(k as ItemId) - (n ?? 0));
+    this.packUpgrades.add(id);
+    this.toast(`Made: ${u.name}. Your pack holds more.`, 'good');
+    if (u.observation) this.observe(u.observation);
+    this.emit({ type: 'satchel' });
+    return true;
   }
 
   // ------------------------------------------------------------- queries
@@ -197,7 +234,12 @@ export class Game {
   }
 
   /** Gather one item from the world into the satchel. */
-  gather(id: ItemId, sourceId = 'world'): void {
+  gather(id: ItemId, sourceId = 'world'): boolean {
+    if (this.carriedCount >= this.capacity.pockets) {
+      this.toast('Your pockets are full - drop or use something, or make a bigger pack.', 'bad');
+      this.log.add(`gather ${id}: pockets full`, 'bad');
+      return false;
+    }
     const first = this.gatheredCount(id) === 0;
     this.gathered.set(id, this.gatheredCount(id) + 1);
     this.addItem(id);
@@ -206,6 +248,7 @@ export class Game {
     const obs = ITEMS[id].firstObservation;
     if (first && obs) this.observe(obs);
     this.checkQuests();
+    return true;
   }
 
   /** Take one item out of the satchel into your hand. Stows anything already held. */
@@ -487,6 +530,7 @@ export class Game {
       flags: [...this.flags],
       player: { ...this.player },
       held: this.held,
+      packUpgrades: [...this.packUpgrades],
       fire: this.fire.snapshot(),
     };
   }
@@ -507,6 +551,7 @@ export class Game {
     g.player.x = data.player.x;
     g.player.z = data.player.z;
     // Older saves have no `held`; a stale id would crash the item meshes.
+    for (const u of data.packUpgrades ?? []) g.packUpgrades.add(u);
     if (data.fire) g.fire.restore(data.fire);
     g.held = data.held && data.held in ITEMS ? data.held : null;
     return g;
@@ -516,6 +561,7 @@ export class Game {
 export interface SaveData {
   v: 1;
   fire?: FireSave;
+  packUpgrades?: string[];
   time: number;
   xp: number;
   level: number;

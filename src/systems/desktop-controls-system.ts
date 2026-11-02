@@ -92,7 +92,9 @@ export class DesktopControlsSystem extends createSystem({}) {
     const f = (k.has('KeyW') || k.has('ArrowUp') ? 1 : 0) - (k.has('KeyS') || k.has('ArrowDown') ? 1 : 0);
     const s = (k.has('KeyD') ? 1 : 0) - (k.has('KeyA') ? 1 : 0);
     if (f || s) {
-      const speed = (k.has('ShiftLeft') || k.has('ShiftRight') ? RUN : WALK) * delta;
+      const lim = getGame(this.world).moveLimits;
+      const running = lim.canRun && (k.has('ShiftLeft') || k.has('ShiftRight'));
+      const speed = (running ? RUN : WALK) * lim.speed * delta;
       this.move.set(s, 0, -f).normalize().applyAxisAngle(this.camera.up, this.yaw).multiplyScalar(speed);
       const p = this.target.copy(this.player.position).add(this.move);
       const r = Math.hypot(p.x, p.z);

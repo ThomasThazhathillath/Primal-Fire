@@ -2,6 +2,7 @@
 // Built once per kind and cloned (geometry/materials stay shared).
 
 import {
+  DoubleSide,
   Box3,
   BufferAttribute,
   BufferGeometry,
@@ -126,6 +127,34 @@ const builders: Record<ResourceLook, () => Object3D> = {
     }
     return g;
   },
+  dryBranch: () => {
+    const g = new Group();
+    g.add(at(new Mesh(new CylinderGeometry(0.02, 0.035, 1.1, 5), lambert(0x7a6248)), 0, 0.05, 0, 0, 0.4, Math.PI / 2 - 0.08));
+    g.add(at(new Mesh(new CylinderGeometry(0.01, 0.018, 0.45, 4), lambert(0x6e583f)), 0.2, 0.09, 0.14, 0, -0.5, Math.PI / 2 - 0.2));
+    return g;
+  },
+  leafLitter: () => {
+    const g = new Group();
+    for (let i = 0; i < 14; i++) {
+      const leaf = new Mesh(new CircleGeometry(r(0.04, 0.07), 5), lambert([0xa8793a, 0x8c6230, 0xb98b45, 0x7a5528][i % 4], { side: DoubleSide }));
+      g.add(at(leaf, r(-0.22, 0.22), 0.012 + i * 0.002, r(-0.22, 0.22), -Math.PI / 2, 0, r(0, 6)));
+    }
+    return g;
+  },
+  vine: () => {
+    const g = new Group();
+    for (let i = 0; i < 6; i++) {
+      g.add(at(new Mesh(new CylinderGeometry(0.014, 0.014, 0.28, 5), lambert(0x4f7a34)), i * 0.1 - 0.25, 0.03, Math.sin(i * 1.3) * 0.08, 0, i * 0.5, Math.PI / 2 + Math.sin(i) * 0.3));
+    }
+    for (let i = 0; i < 4; i++) g.add(at(new Mesh(new CircleGeometry(0.05, 5), lambert(0x6fa040, { side: DoubleSide })), i * 0.14 - 0.2, 0.05, r(-0.08, 0.08), -Math.PI / 2, 0, r(0, 6)));
+    return g;
+  },
+  bark: () => {
+    const m = new Mesh(new CylinderGeometry(0.1, 0.1, 0.36, 8, 1, true, 0, Math.PI * 1.1), lambert(0x6e5238, { side: DoubleSide }));
+    return at(m, 0, 0.09, 0, 0, 0.6, Math.PI / 2);
+  },
+  stoneDark: () => stone(0x5b5a58, 0.14),
+  stonePale: () => stone(0xc2bba9, 0.11),
 };
 
 /**
@@ -185,6 +214,10 @@ const ITEM_LOOK: Partial<Record<ItemId, ResourceLook>> = {
   board: 'board',
   clay: 'clayPatch',
   gravel: 'gravelBed',
+  dryBranch: 'dryBranch',
+  leafLitter: 'leafLitter',
+  vine: 'vine',
+  bark: 'bark',
   cloth: 'cloth',
   lens: 'lens',
   dryStone: 'stone',

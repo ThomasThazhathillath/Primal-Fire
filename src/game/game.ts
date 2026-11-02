@@ -7,7 +7,9 @@ import { capacityFor, itemsCount, itemsWeight, moveLimits, PACK_UPGRADES, type M
 import { FireState, type FireSave, type FireStage } from './fire.js';
 import {
   BLUEPRINTS,
+  CAMP_RADIUS,
   checkPlacement,
+  STORAGE_SLOTS,
   type PlacedStructure,
   type PlacementResult,
   type StructureKind,
@@ -213,10 +215,58 @@ export class Game {
     return t && this.count(id) > 0 ? (this.toolUses.get(id) ?? t.uses) : null;
   }
 
+  // ------------------------------------------------------------------ camp
+
+  nearbyStorage(): PlacedStructure | null {
+    return (
+      this.structures.find((s) => s.kind === 'storage' && s.complete && Math.hypot(s.x - this.player.x, s.z - this.player.z) <= CRAFT_REACH) ?? null
+    );
+  }
+
+  storedCount(s: PlacedStructure): number {
+    return Object.values(s.store ?? {}).reduce((a, n) => a + (n ?? 0), 0);
+  }
+
+  stash(id: ItemId, n = 1): number {
+    const s = this.nearbyStorage();
+    if (!s) return 0;
+    const room = STORAGE_SLOTS - this.storedCount(s);
+    const moved = Math.min(n, this.count(id), room);
+    if (moved <= 0) return 0;
+    s.store ??= {};
+    s.store[id] = (s.store[id] ?? 0) + moved;
+    this.satchel.set(id, this.count(id) - moved);
+    this.emit({ type: 'satchel' });
+    return moved;
+  }
+
+  withdraw(id: ItemId, n = 1): number {
+    const s = this.nearbyStorage();
+    if (!s?.store) return 0;
+    const moved = Math.min(n, s.store[id] ?? 0, Math.max(0, this.capacity.pockets - this.carriedCount));
+    if (moved <= 0) return 0;
+    s.store[id] = (s.store[id] ?? 0) - moved;
+    if (s.store[id] === 0) delete s.store[id];
+    this.addItem(id, moved);
+    return moved;
+  }
+
+  /** Structures that make up your camp: those near the first finished fire pit. */
+  camp(): PlacedStructure[] {
+    const pit = this.structures.find((s) => s.kind === 'firePit' && s.complete);
+    if (!pit) return [];
+    return this.structures.filter((s) => s.complete && Math.hypot(s.x - pit.x, s.z - pit.z) <= CAMP_RADIUS);
+  }
+
   /** Everything you can make right now with what you carry (no bench needed). */
-  makeList(): Array<{ id: string; label: string; kind: 'bind' | 'pack' }> {
+  makeList(): Array<{ id: string; label: string; kind: 'bind' | 'pack' | 'store' | 'take' }> {
     const has = (inputs: Partial<Record<ItemId, number>>) => Object.entries(inputs).every(([k, n]) => this.count(k as ItemId) >= (n ?? 0));
-    const out: Array<{ id: string; label: string; kind: 'bind' | 'pack' }> = [];
+    const out: Array<{ id: string; label: string; kind: 'bind' | 'pack' | 'store' | 'take' }> = [];
+    const box = this.nearbyStorage();
+    if (box) {
+      if (this.carriedCount > 0) out.push({ id: 'all', label: `Store all (${this.carriedCount})`, kind: 'store' });
+      if (this.storedCount(box) > 0) out.push({ id: 'all', label: `Take all (${this.storedCount(box)})`, kind: 'take' });
+    }
     for (const r of HAND_RECIPES) if (has(r.inputs)) out.push({ id: r.id, label: r.name, kind: 'bind' });
     for (const u of PACK_UPGRADES) if (!this.packUpgrades.has(u.id) && has(u.inputs)) out.push({ id: u.id, label: u.name, kind: 'pack' });
     return out;
@@ -631,7 +681,7 @@ export class Game {
       satchel: Object.fromEntries(this.satchel),
       gathered: Object.fromEntries(this.gathered),
       notebook: [...this.notebook],
-      structures: this.structures.map((s) => ({ ...s, spots: [...s.spots] })),
+      structures: this.structures.map((s) => ({ ...s, spots: [...s.spots], store: s.store ? { ...s.store } : undefined })),
       discovered: [...this.discovered],
       flags: [...this.flags],
       player: { ...this.player },

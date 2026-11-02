@@ -12,7 +12,7 @@ import {
   WORLD_RADIUS,
 } from './world-layout.js';
 
-export type StructureKind = 'firePit' | 'workbench' | 'filter';
+export type StructureKind = 'firePit' | 'workbench' | 'filter' | 'shelter' | 'storage';
 
 export interface SnapSpotDef {
   /** Offset from the structure origin, in the structure's local frame. */
@@ -99,7 +99,42 @@ export const BLUEPRINTS: Record<StructureKind, BlueprintDef> = {
     xp: 40,
     groundAdvice: 'Beside the stream on firm ground, so you can carry water to it.',
   },
+  // Lean-to: a ridge branch, two more branches as ribs, twigs as thatch, cloth as the roof.
+  shelter: {
+    kind: 'shelter',
+    name: 'Lean-to shelter',
+    keyAccepts: ['branch'],
+    key: { x: 0, y: 0.8, z: 0 },
+    spots: [
+      { x: -0.5, z: 0, y: 0.5, accepts: ['branch'], label: 'Rib branch' },
+      { x: 0.5, z: 0, y: 0.5, accepts: ['branch'], label: 'Rib branch' },
+      { x: 0, z: 0.3, y: 0.4, accepts: ['twigs'], label: 'Thatch twigs' },
+      { x: 0, z: 0.45, y: 0.3, accepts: ['cloth', 'dryGrass'], label: 'Roof cover' },
+    ],
+    radius: 1.2,
+    xp: 50,
+    groundAdvice: 'Flat, dry ground away from the stream bank, near your fire.',
+  },
+  // Storage basket: a stash that stays at camp; see Game.stash / Game.withdraw.
+  storage: {
+    kind: 'storage',
+    name: 'Storage basket',
+    keyAccepts: ['cane'],
+    key: { x: 0, y: 0.25, z: 0 },
+    spots: [
+      { x: 0.15, z: 0, y: 0.15, accepts: ['cane'], label: 'Weave cane' },
+      { x: -0.15, z: 0, y: 0.15, accepts: ['cane'], label: 'Weave cane' },
+      { x: 0, z: 0.15, y: 0.4, accepts: ['cord'], label: 'Bind with cord' },
+    ],
+    radius: 0.5,
+    xp: 30,
+    groundAdvice: 'Beside your fire and shelter.',
+  },
 };
+
+export const STORAGE_SLOTS = 40;
+/** Structures closer than this (m) to the fire pit count as your camp. */
+export const CAMP_RADIUS = 14;
 
 /** The kinds a held item could start, in priority order. */
 export function blueprintsForKeyItem(item: ItemId): BlueprintDef[] {
@@ -116,6 +151,8 @@ export interface PlacedStructure {
   /** What fills each snap spot, in BLUEPRINTS[kind].spots order. */
   spots: Array<ItemId | null>;
   complete: boolean;
+  /** Stored items (storage structures only). */
+  store?: Partial<Record<ItemId, number>>;
 }
 
 export type PlacementResult =

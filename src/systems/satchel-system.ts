@@ -34,7 +34,7 @@ export class SatchelSystem extends createSystem({
   private panel!: UIKitMLAsset;
   private panelEntity!: Entity;
   private open = false;
-  private makeItems: Array<{ id: string; label: string; kind: 'bind' | 'pack' } | undefined> = [];
+  private makeItems: Array<{ id: string; label: string; kind: 'bind' | 'pack' | 'store' | 'take' } | undefined> = [];
   private slotItems: Array<ItemId | null> = [];
   private heldObj: Object3D | null = null;
   private hip = new Vector3();
@@ -75,7 +75,12 @@ export class SatchelSystem extends createSystem({
         const m = this.makeItems[i];
         if (!m) return;
         if (m.kind === 'bind') game.bind(m.id);
-        else game.upgradePack(m.id);
+        else if (m.kind === 'pack') game.upgradePack(m.id);
+        else if (m.kind === 'store') for (const c of game.satchelContents()) game.stash(c.id, c.count);
+        else {
+          const box = game.nearbyStorage();
+          for (const id of Object.keys(box?.store ?? {}) as ItemId[]) game.withdraw(id, box?.store?.[id] ?? 0);
+        }
       };
       button.addEventListener('click', onClick);
       this.cleanupFuncs.push(() => button.removeEventListener('click', onClick));

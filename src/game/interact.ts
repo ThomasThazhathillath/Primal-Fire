@@ -323,9 +323,9 @@ export class TwistState {
 // ------------------------------------------------------------------ drag
 
 /** Pull force (N-ish) a hand can apply; heavier objects follow slower. */
-export const PULL = 40;
+export const PULL = 85;
 /** If the hand gets this far (m) ahead of a dragged object, it slips out of your grip. */
-export const DRAG_SLIP = 0.9;
+export const DRAG_SLIP = 1.2;
 
 /**
  * Dragging something too heavy to lift: it slides on the ground toward the
@@ -336,7 +336,7 @@ export class DragState {
     public x: number,
     public z: number,
     readonly mass: number,
-    readonly hands = 1,
+    public hands = 1,
   ) {}
 
   /** Max ground speed (m/s) for this mass and number of hands. */

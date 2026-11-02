@@ -3,7 +3,9 @@
 // result. Each mode starts from what you hold:
 //   branch / dry branch -> two-hand bend until it cracks and snaps
 //   axe / hammer        -> swing: head speed, edge alignment and contact
-//                          cut a growing notch; stone bounces, soil thuds Results go through
+//                          cut a growing notch; stone bounces, soil thuds
+//   (empty hand) on a fallen log -> drag it along the ground with lag set by
+//                          its mass; two hands pull faster; it never lifts Results go through
 // Game.completeAction / Game.work; failures through Game.interactionFailure.
 
 import {
@@ -20,6 +22,7 @@ import {
   Mesh,
   Points,
   PointsMaterial,
+  Pressed,
   Quaternion,
   Vector3,
   VisibilityState,
@@ -27,6 +30,7 @@ import {
 import { actionFor } from '../game/actions.js';
 import {
   BendState,
+  DragState,
   HANDLE_LENGTH,
   materialOf,
   Notch,
@@ -41,10 +45,10 @@ import { ITEMS, type ItemId } from '../game/items.js';
 import { Gatherable } from '../components/game-components.js';
 import { lambert } from '../scene-assets/materials.js';
 import { hands, mouse, pulse } from './hand-input-system.js';
-import { REACH, ResourceSystem } from './resource-system.js';
+import { DRAG_LOOK, REACH, ResourceSystem } from './resource-system.js';
 import { camNudge, getGame, getUi, handPose } from './shared.js';
 
-type Mode = 'none' | 'bend' | 'swing';
+type Mode = 'none' | 'bend' | 'swing' | 'drag';
 
 const crackMat = lambert(0x2a1d12);
 const halfGeo = new CylinderGeometry(0.016, 0.02, 0.32, 7);
@@ -57,6 +61,11 @@ const PX_PER_RAD = 170;
 /** Desktop: metres per second of head speed per pixel/second of downward flick. */
 const FLICK_SCALE = 0.0045;
 const CHIPS = 24;
+/** Mass (kg) of a fallen log: far over what you can lift. */
+const LOG_MASS = 35;
+/** A press that moves less than this (px / m) before release is a click, not a drag. */
+const CLICK_PX = 8;
+const CLICK_M = 0.12;
 const notchMat = lambert(0x3a2614);
 const notchGeo = new BoxGeometry(0.1, 0.1, 1);
 notchGeo.rotateZ(Math.PI / 4); // a diamond: the top half reads as a V cut into the wood
@@ -66,6 +75,7 @@ const CHIP_COLOR: Record<Material, number> = { wood: 0xd8b07a, stone: 0xfff2b0, 
 export class InteractionSystem extends createSystem({
   hoverGather: { required: [Gatherable, Hovered] },
   spots: { required: [Gatherable] },
+  pressedGather: { required: [Gatherable, Pressed] },
 }) {
   private mode: Mode = 'none';
   private viaVR = false;
@@ -98,6 +108,16 @@ export class InteractionSystem extends createSystem({
   private lastCodeAt = 0;
   private clock = 0;
   private tmp = new Vector3();
+  // drag
+  private dragTarget: Entity | null = null;
+  private drag: DragState | null = null;
+  private dragActive = false;
+  private dragStart = new Vector3();
+  /** Where on the log you took hold, relative to its origin (on the ground). */
+  private grabOffset = new Vector3();
+  private strainTimer = 0;
+  private rayDir = new Vector3();
+  private eye = new Vector3();
   // chips (pooled particles)
   private chips!: Points;
   private chipPos = new Float32Array(CHIPS * 3);
@@ -106,6 +126,7 @@ export class InteractionSystem extends createSystem({
 
   init(): void {
     this.buildStick();
+    this.cleanupFuncs.push(this.queries.pressedGather.subscribe('qualify', (e) => this.maybeStartDrag(e)));
     const geo = new BufferGeometry();
     geo.setAttribute('position', new BufferAttribute(this.chipPos, 3));
     this.chips = new Points(geo, new PointsMaterial({ color: 0xd8b07a, size: 0.03, transparent: true, depthWrite: false }));
@@ -449,6 +470,104 @@ export class InteractionSystem extends createSystem({
     }
   }
 
+  // ------------------------------------------------------------------- drag
+
+  private maybeStartDrag(e: Entity): void {
+    const game = getGame(this.world);
+    if (this.mode !== 'none' || (game.held && SWING_TOOLS.includes(game.held))) return;
+    const spot = this.world.getSystem(ResourceSystem)?.spot(e.getValue(Gatherable, 'spotId') ?? '');
+    if (!spot || spot.look !== DRAG_LOOK || !e.object3D) return;
+    this.mode = 'drag';
+    this.viaVR = this.immersive();
+    this.dragTarget = e;
+    this.dragActive = false;
+    this.drag = new DragState(e.object3D.position.x, e.object3D.position.z, LOG_MASS, 1);
+    if (this.viaVR) this.groundPoint(this.dragStart);
+  }
+
+  /** Where the pointer (mouse ray, or right-hand ray in VR) meets the ground. */
+  private groundPoint(out: Vector3): boolean {
+    if (this.viaVR) {
+      const sp = this.player.raySpaces.right;
+      if (!sp) return false;
+      sp.getWorldPosition(out);
+      sp.getWorldDirection(this.rayDir).negate();
+    } else {
+      const rect = this.renderer.domElement.getBoundingClientRect();
+      this.camera.getWorldPosition(out);
+      this.rayDir
+        .set(((mouse.x - rect.left) / rect.width) * 2 - 1, -((mouse.y - rect.top) / rect.height) * 2 + 1, 0.5)
+        .unproject(this.camera)
+        .sub(out)
+        .normalize();
+    }
+    if (this.rayDir.y > -0.02) return false;
+    out.addScaledVector(this.rayDir, -out.y / this.rayDir.y);
+    // Never further than you can reach.
+    this.camera.getWorldPosition(this.eye);
+    const dx = out.x - this.eye.x;
+    const dz = out.z - this.eye.z;
+    const d = Math.hypot(dx, dz);
+    if (d > REACH) {
+      out.x = this.eye.x + (dx / d) * REACH;
+      out.z = this.eye.z + (dz / d) * REACH;
+    }
+    return true;
+  }
+
+  private endDrag(click: boolean): void {
+    const e = this.dragTarget;
+    this.mode = 'none';
+    this.dragTarget = null;
+    this.drag = null;
+    handPose.mode = 'free';
+    // A press without a pull breaks off a short piece, as before.
+    if (click && e) this.world.getSystem(ResourceSystem)?.tryGather(e);
+  }
+
+  private updateDrag(dt: number): void {
+    const e = this.dragTarget;
+    const d = this.drag;
+    if (!e?.object3D || !d) return this.endDrag(false);
+    const holding = this.viaVR ? e.hasComponent(Pressed) || hands[1].grip : mouse.down;
+    if (!holding) return this.endDrag(!this.dragActive);
+    if (!this.groundPoint(this.tmp)) return;
+    if (!this.dragActive) {
+      const moved = this.viaVR ? this.tmp.distanceTo(this.dragStart) > CLICK_M : Math.hypot(mouse.dragX, mouse.dragY) > CLICK_PX;
+      if (!moved) return;
+      this.dragActive = true;
+      // You take hold where the pointer is: keep that point under your hand.
+      d.x = e.object3D.position.x;
+      d.z = e.object3D.position.z;
+      this.grabOffset.set(this.tmp.x - d.x, 0, this.tmp.z - d.z);
+    }
+    this.tmp.sub(this.grabOffset);
+    // Both hands (VR: both grips; desktop: Shift) pull harder.
+    d.hands = this.viaVR ? (hands[0].grip && hands[1].grip ? 2 : 1) : mouse.shift ? 2 : 1;
+    if (!d.update(this.tmp.x, this.tmp.z, dt)) {
+      this.fail('drag.tooHeavy');
+      return this.endDrag(false);
+    }
+    e.object3D.position.x = d.x;
+    e.object3D.position.z = d.z;
+    // Twist it round with the wheel (desktop) or by swinging the ray sideways (VR follows the point).
+    if (!this.viaVR && mouse.wheel) e.object3D.rotation.y += mouse.wheel * 0.002;
+    const spot = this.world.getSystem(ResourceSystem)?.spot(e.getValue(Gatherable, 'spotId') ?? '');
+    if (spot) {
+      spot.x = d.x;
+      spot.z = d.z;
+    }
+    const strain = d.strain(this.tmp.x, this.tmp.z);
+    handPose.mode = 'drag';
+    handPose.amount = strain;
+    handPose.y = -strain * 0.05;
+    if ((this.strainTimer -= dt) <= 0) {
+      this.strainTimer = 0.45;
+      getGame(this.world).fx('strain', strain);
+      if (this.viaVR) pulse(this.session, 1, 0.1 + strain * 0.4, 40);
+    }
+  }
+
   // ------------------------------------------------------------------ frame
 
   update(delta: number): void {
@@ -470,6 +589,7 @@ export class InteractionSystem extends createSystem({
       }
     }
     if (this.mode === 'bend') this.updateBend(dt);
+    if (this.mode === 'drag') this.updateDrag(dt);
 
     const swinging = !!game.held && SWING_TOOLS.includes(game.held);
     if (swinging) {

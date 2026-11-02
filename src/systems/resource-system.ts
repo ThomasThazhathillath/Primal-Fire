@@ -26,6 +26,8 @@ import { getGame, glowMaterial, glowMaterialHot, hipPosition } from './shared.js
 
 /** Max distance (m) from your head to something you can gather. */
 export const REACH = 4.5;
+/** Resource look that is dragged rather than lifted. */
+export const DRAG_LOOK = 'fallenLog';
 /** Radius (m) of the invisible hit sphere around each resource: sticks and pebbles are far too thin to click. */
 const HIT_RADIUS = 0.4;
 const hitGeo = new SphereGeometry(HIT_RADIUS, 8, 6);
@@ -85,6 +87,8 @@ export class ResourceSystem extends createSystem({
         // With an axe or hammer in hand you swing at things (InteractionSystem) instead of picking them.
         const held = getGame(this.world).held;
         if (held && SWING_TOOLS.includes(held)) return;
+        // Fallen logs are too heavy to pick up: InteractionSystem drags them (a plain click still breaks off a piece).
+        if (this.bySpot.get(e.getValue(Gatherable, 'spotId') ?? '')?.look === DRAG_LOOK) return;
         this.tryGather(e);
       }),
     );

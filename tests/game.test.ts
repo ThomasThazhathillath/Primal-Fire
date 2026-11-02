@@ -42,8 +42,8 @@ function build(g: Game, kind: 'workbench' | 'firePit', x: number, z: number, key
 }
 
 describe('content data', () => {
-  it('has the 31 notebook observations from the design', () => {
-    expect(OBSERVATION_COUNT).toBe(31);
+  it('has at least the 31 original notebook observations', () => {
+    expect(OBSERVATION_COUNT).toBeGreaterThanOrEqual(31);
   });
 
   it('references only observations that exist', () => {

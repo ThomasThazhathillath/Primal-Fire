@@ -11,7 +11,8 @@ import {
 } from './blueprint.js';
 import { ITEMS, itemName, SATCHEL_ORDER, type ItemId } from './items.js';
 import { EventLog } from './log.js';
-import { OBSERVATIONS } from './observations.js';
+import { observationsForEvent, OBSERVATIONS } from './observations.js';
+import { isScienceEvent } from './science-events.js';
 import { QUESTS, type QuestStep } from './quests.js';
 import { LANDMARKS, type Landmark } from './world-layout.js';
 
@@ -99,6 +100,8 @@ export class Game {
   readonly satchel = new Map<ItemId, number>();
   readonly gathered = new Map<ItemId, number>();
   readonly notebook: string[] = [];
+  /** Science events that have fired (src/game/science-events.ts). */
+  readonly events = new Set<string>();
   readonly structures: PlacedStructure[] = [];
   readonly discovered = new Set<string>(LANDMARKS.filter((l) => l.known).map((l) => l.id));
   readonly log: EventLog;
@@ -376,6 +379,20 @@ export class Game {
     return true;
   }
 
+  /** Records a science event: notebook entries tied to it are unlocked. */
+  science(event: string): void {
+    if (!isScienceEvent(event)) throw new Error(`Unknown science event ${event}`);
+    if (this.events.has(event)) return;
+    this.events.add(event);
+    this.log.add(`event: ${event}`, 'ok');
+    for (const id of observationsForEvent(event)) this.observe(id);
+    this.checkQuests();
+  }
+
+  hasEvent(event: string): boolean {
+    return this.events.has(event);
+  }
+
   addXp(amount: number): void {
     this.xp += amount;
     this.emit({ type: 'xp', amount, total: this.xp });
@@ -407,6 +424,7 @@ export class Game {
         q.roadmapNode ? `Quest complete: ${q.title} — a node on the Roadmap will light up.` : `Quest complete: ${q.title}. Time for science.`,
         'good',
       );
+      if (q.recap) this.toast(q.recap, 'note');
       this.emit({ type: 'questComplete', index, title: q.title, roadmapNode: q.roadmapNode });
     }
     this.emit({ type: 'quest', index: this.questIndex });
@@ -482,6 +500,7 @@ export class Game {
       satchel: Object.fromEntries(this.satchel),
       gathered: Object.fromEntries(this.gathered),
       notebook: [...this.notebook],
+      events: [...this.events],
       structures: this.structures.map((s) => ({ ...s, spots: [...s.spots] })),
       discovered: [...this.discovered],
       flags: [...this.flags],
@@ -500,6 +519,7 @@ export class Game {
     for (const [k, v] of Object.entries(data.satchel)) g.satchel.set(k as ItemId, v);
     for (const [k, v] of Object.entries(data.gathered)) g.gathered.set(k as ItemId, v);
     g.notebook.push(...data.notebook);
+    for (const e of data.events ?? []) g.events.add(e);
     g.structures.push(...data.structures);
     g.nextStructureId = Math.max(0, ...data.structures.map((s) => s.id)) + 1;
     for (const d of data.discovered) g.discovered.add(d);
@@ -523,6 +543,7 @@ export interface SaveData {
   satchel: Partial<Record<ItemId, number>>;
   gathered: Partial<Record<ItemId, number>>;
   notebook: string[];
+  events?: string[];
   structures: PlacedStructure[];
   discovered: string[];
   flags: FlagId[];

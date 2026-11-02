@@ -50,6 +50,7 @@ export type GameEvent =
   | { type: 'discovered'; landmark: Landmark }
   | { type: 'fire'; stage: FireStage }
   | { type: 'arrow'; hit: boolean }
+  | { type: 'reach' }
   | { type: 'gather'; item: ItemId; tool: ItemId | null }
   | { type: 'action'; id: string; progress: number; done: boolean };
 
@@ -181,6 +182,11 @@ export class Game {
     if (u.observation) this.observe(u.observation);
     this.emit({ type: 'satchel' });
     return true;
+  }
+
+  /** Cue for the hands to reach (opening the bag, taking something out). */
+  reach(): void {
+    this.emit({ type: 'reach' });
   }
 
   // ---------------------------------------------------------------- tools

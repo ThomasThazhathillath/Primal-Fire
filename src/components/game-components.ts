@@ -28,3 +28,8 @@ export const SatchelPouch = createComponent('SatchelPouch', {});
 
 /** The pinchable hotspot over a finished fire pit (fuel, ember transfer, fanning). */
 export const FirePitSpot = createComponent('FirePitSpot', {});
+
+/** An item sitting in the opened 3D backpack; pinch/click to take it in hand. */
+export const SatchelItem = createComponent('SatchelItem', {
+  index: { type: Types.Int8, default: 0 },
+});

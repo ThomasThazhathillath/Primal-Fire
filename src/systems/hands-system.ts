@@ -88,7 +88,8 @@ export class HandsSystem extends createSystem({}) {
   }
 
   private onEvent(e: GameEvent): void {
-    if (e.type === 'gather') this.startAnim(e.tool === 'axe' || e.tool === 'hammer' ? 'swing' : 'reach', e.tool ? 0.5 : 0.4);
+    if (e.type === 'reach') this.startAnim('reach', 0.45);
+    else if (e.type === 'gather') this.startAnim(e.tool === 'axe' || e.tool === 'hammer' ? 'swing' : 'reach', e.tool ? 0.5 : 0.4);
     else if (e.type === 'action') {
       const motion = ACTIONS.find((a) => a.id === e.id)?.motion;
       this.holdTimer = 0.35;

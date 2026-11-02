@@ -229,6 +229,9 @@ export class HudSystem extends createSystem({
     set('card-lim', o.lim || '-');
     this.card.requireElementById('card-lim-label').setProperties({ display: o.lim ? 'flex' : 'none' });
     this.card.requireElementById('card-lim').setProperties({ display: o.lim ? 'flex' : 'none' });
+    set('card-why', o.why ?? '-');
+    this.card.requireElementById('card-why-label').setProperties({ display: o.why ? 'flex' : 'none' });
+    this.card.requireElementById('card-why').setProperties({ display: o.why ? 'flex' : 'none' });
     this.card.visible = true;
     placeInFront(this.card, this.camera, 0.75, 0.3, 0.05);
   }

@@ -19,5 +19,7 @@
   <div id="card-pri" class="body">-</div>
   <div id="card-lim-label" class="label">REAL-WORLD LIMIT</div>
   <div id="card-lim" class="body">-</div>
+  <div id="card-why-label" class="label">WHY DID THAT WORK?</div>
+  <div id="card-why" class="body">-</div>
   <Button id="card-ok" size="sm"><ButtonIcon><Check></Check></ButtonIcon><ButtonLabel>Got it</ButtonLabel></Button>
 </Panel>

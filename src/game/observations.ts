@@ -1,6 +1,10 @@
 // The Lab Notebook. Every entry follows the accuracy guardrail in
 // docs/DESIGN.md: Observation → Principle → Real-world limit.
 // Failures are discoveries too: most experiments have several entries.
+// Every entry has a `trigger` (see science-events.ts) and a `why` prompt;
+// curriculum notes and confidence flags live in docs/SCIENCE.md.
+
+import type { ScienceEventId } from './science-events.js';
 
 export type ObservationGroup =
   | 'gather'
@@ -8,7 +12,12 @@ export type ObservationGroup =
   | 'fire'
   | 'pottery'
   | 'charcoal'
-  | 'water';
+  | 'water'
+  | 'tools'
+  | 'shelter'
+  | 'hunt'
+  | 'body'
+  | 'nature';
 
 export interface Observation {
   group: ObservationGroup;
@@ -18,6 +27,10 @@ export interface Observation {
   lim: string;
   /** XP for discovering it (default 15). */
   xp?: number;
+  /** Science event (src/game/science-events.ts) that records this entry. */
+  trigger?: ScienceEventId;
+  /** A 'why did that work?' prompt shown after the entry; answer it in your head. */
+  why?: string;
 }
 
 export const OBSERVATION_GROUPS: Record<ObservationGroup, string> = {
@@ -27,9 +40,14 @@ export const OBSERVATION_GROUPS: Record<ObservationGroup, string> = {
   pottery: 'Pottery',
   charcoal: 'Charcoal',
   water: 'Water',
+  tools: 'Tools',
+  shelter: 'Shelter',
+  hunt: 'Hunting',
+  body: 'Your body',
+  nature: 'Nature',
 };
 
-export const OBSERVATIONS: Record<string, Observation> = {
+const BASE_OBSERVATIONS: Record<string, Observation> = {
   // ------------------------------------------------------------ materials
   g_dead: {
     group: 'gather',
@@ -271,4 +289,378 @@ export const OBSERVATIONS: Record<string, Observation> = {
   },
 };
 
+
+
+/** Trigger events and 'why' prompts for the first-chapter entries above. */
+const BASE_META: Record<string, { trigger: ScienceEventId; why: string }> = {
+  g_dead: { trigger: 'gather.deadwood', why: 'Why does dead wood burn better than a living branch?' },
+  g_green: { trigger: 'gather.greenwood', why: 'What makes a branch bend instead of snap?' },
+  g_moss: { trigger: 'gather.moss', why: 'Would you want moss at the heart of a fire? Why not?' },
+  g_clay: { trigger: 'gather.clay', why: 'What changes between wet clay and a fired pot?' },
+  g_cord: { trigger: 'craft.cord', why: 'Where does the extra strength of a twisted cord come from?' },
+  g_bow: { trigger: 'craft.bowdrill', why: 'Why must the bow bend without breaking?' },
+  g_hollow: { trigger: 'gather.cane', why: 'Why is a tube stiffer than a solid rod of the same weight?' },
+  b_tripod: { trigger: 'build.workbench.done', why: 'Why can three points always touch a flat surface, but four may not?' },
+  b_wetstone: { trigger: 'build.firepit.wetstone', why: 'What happens to water trapped in a stone when it heats up?' },
+  b_litter: { trigger: 'build.firepit.litter', why: 'What else near the fire could burn, and how far away should it be?' },
+  f_drill: { trigger: 'fire.drill.ember', why: 'Where did the energy that made the dust glow come from?' },
+  f_damp: { trigger: 'fire.ember.damp', why: 'Where did the ember’s heat go?' },
+  f_oxygen: { trigger: 'fire.ember.unfed', why: 'Which side of the fire triangle was missing?' },
+  f_bigfuel: { trigger: 'fire.fuel.toobig', why: 'Why does a thin splinter light more easily than a log?' },
+  f_nofuel: { trigger: 'fire.fuel.none', why: 'What should come between tinder and logs?' },
+  f_success: { trigger: 'fire.lit', why: 'Name the three things a fire needs. Which can you take away to put it out?' },
+  f_charcoal: { trigger: 'fire.charcoal.burn', why: 'Why does charcoal burn with less smoke than wood?' },
+  p_temper: { trigger: 'pottery.untempered.crack', why: 'What does the gritty temper do while clay shrinks?' },
+  p_dry: { trigger: 'pottery.wet.burst', why: 'What does water do when it turns to steam inside a solid?' },
+  p_ceramic: { trigger: 'pottery.fired', why: 'Can you turn a ceramic pot back into wet clay?' },
+  c_watertable: { trigger: 'charcoal.pit.water', why: 'Why does water fill a hole dug close to a stream?' },
+  c_ash: { trigger: 'charcoal.ash', why: 'What leaves the wood when it burns with plenty of air?' },
+  c_early: { trigger: 'charcoal.early', why: 'What does the colour of the smoke tell you?' },
+  c_success: { trigger: 'charcoal.done', why: 'Same wood, less air: what was different about the result?' },
+  w_raw: { trigger: 'water.raw.inspected', why: 'Why can clear-looking water still be unsafe?' },
+  w_washout: { trigger: 'water.filter.washout', why: 'What holds the sand in place at the bottom of a filter?' },
+  w_clog: { trigger: 'water.filter.clog', why: 'Which layer should the water meet first, coarse or fine?' },
+  w_odor: { trigger: 'water.filter.odour', why: 'What does charcoal remove that sand cannot?' },
+  w_microbes: { trigger: 'water.filter.microbes', why: 'Why can microbes pass between sand grains?' },
+  w_boilmurky: { trigger: 'water.boil.murky', why: 'Does boiling take dirt out of water?' },
+  w_boil: { trigger: 'water.boil.done', why: 'Why does a rolling boil, not just hot water, matter?' },
+};
+
+/** Survival-chapter entries: tools, shelter, hunting, body, nature. */
+const SURVIVAL_OBSERVATIONS: Record<string, Observation> = {
+  // ---------------------------------------------------------------- tools
+  t_flake: {
+    group: 'tools',
+    trigger: 'tool.knap.flake',
+    title: 'Stone that chips like glass',
+    obs: 'A sharp strike sent a thin flake off the dark, fine-grained stone. Its edge was sharper than anything you can make from wood.',
+    pri: 'Fine-grained, glassy stones such as flint, chert and obsidian break with smooth, curved (conchoidal) surfaces, leaving very thin edges.',
+    lim: 'Fresh edges are razor-sharp but brittle, and flakes can fly off in unexpected directions — real knappers wear eye protection.',
+    why: 'Why does glass-like stone make a sharper edge than granite?',
+  },
+  t_crumble: {
+    group: 'tools',
+    trigger: 'tool.knap.fail',
+    title: 'Not every rock will do',
+    obs: 'The coarse, speckled stone crumbled into gritty pieces instead of flaking.',
+    pri: 'Coarse-grained rocks are made of separate mineral crystals that break apart at their boundaries, so they do not give clean sharp edges.',
+    lim: '',
+    why: 'What would you look for in a stone before you hit it?',
+  },
+  t_pressure: {
+    group: 'tools',
+    trigger: 'tool.edge.cut',
+    title: 'Thin edges cut',
+    obs: 'The sharp flake sliced the cane. The blunt stone only squashed it.',
+    pri: 'Pressure is force divided by area. The same push on a thinner edge gives much higher pressure, enough to part the material.',
+    lim: 'A thin edge also dulls and chips faster.',
+    why: 'If you push equally hard, which presses harder: a point or a flat face?',
+  },
+  t_lash: {
+    group: 'tools',
+    trigger: 'tool.lash.hold',
+    title: 'Every wrap helps',
+    obs: 'One loop of cord slipped. Several tight wraps held the head firmly.',
+    pri: 'Each wrap adds friction between cord and wood, so more wraps let the cord hold a larger pull. Wetting some plant cords as you tie shrinks them tight when they dry.',
+    lim: '',
+    why: 'What would happen if the cord were slippery?',
+  },
+  t_axe: {
+    group: 'tools',
+    trigger: 'tool.axe.made',
+    xp: 25,
+    title: 'A longer handle swings faster',
+    obs: 'The stone head on a handle bit into wood far deeper than the same stone held in your fist.',
+    pri: 'A hand moving through a swing turns the head faster the farther it sits from your shoulder. A fast head carries more kinetic energy (½mv²) into a small, sharp area.',
+    lim: 'Too long a handle is hard to control, and a stone head can crack on a poor hit.',
+    why: 'Which gives more energy: doubling the head’s mass or doubling its speed?',
+  },
+  t_lever: {
+    group: 'tools',
+    trigger: 'tool.lever.used',
+    title: 'A lever trades distance for force',
+    obs: 'The heavy rock barely shifted by hand but rolled over when you pried with a long stick.',
+    pri: 'A lever turns around a pivot. Effort × its distance from the pivot equals load × its distance. A longer effort arm means less force for the same load.',
+    lim: 'You push through a longer distance to move the load a short way. Nothing is for free.',
+    why: 'Where should you put the pivot to lift a heavy rock with the least effort?',
+  },
+  t_wedge: {
+    group: 'tools',
+    trigger: 'tool.wedge.split',
+    title: 'Split along the grain',
+    obs: 'The log split cleanly along its length, but fought you when you chopped across it.',
+    pri: 'A wedge turns a forward push into sideways force. Wood fibres run lengthwise, and they separate more easily than they break.',
+    lim: 'Knotty or twisted wood resists splitting and can send an axe glancing off.',
+    why: 'Why is it easier to split a log than to chop it in half?',
+  },
+  t_harden: {
+    group: 'tools',
+    trigger: 'tool.point.hardened',
+    title: 'Fire-hardened points',
+    obs: 'After turning over embers, the wooden point felt harder and stiffer.',
+    pri: 'Gentle heat drives water out of the wood, making it harder and stiffer. Good for digging sticks and spear points.',
+    lim: 'Too much heat chars the wood and weakens it.',
+    why: 'What did the fire take out of the wood?',
+  },
+
+  // -------------------------------------------------------------- shelter
+  s_site: {
+    group: 'shelter',
+    trigger: 'shelter.site.chosen',
+    title: 'Where you sleep matters',
+    obs: 'The hollow was damp and cold. The slightly raised ground under the trees stayed drier.',
+    pri: 'Cold air is denser and sinks into low spots, and water runs downhill. Dry, slightly raised ground is warmer and safer. Never sleep under dead branches.',
+    lim: 'Nearness to water is useful, but too near brings flooding and insects.',
+    why: 'Where would cold air and rainwater collect at night?',
+  },
+  s_roof: {
+    group: 'shelter',
+    trigger: 'shelter.roof.covered',
+    title: 'A slope sheds rain',
+    obs: 'Water ran off the steep layered cover but dripped through the flat part.',
+    pri: 'A steep roof lets water drain away before it soaks in, and layers overlapped like roof tiles keep each drop moving downhill.',
+    lim: '',
+    why: 'Which way should leaf layers overlap so that rain runs off?',
+  },
+  s_bed: {
+    group: 'shelter',
+    trigger: 'shelter.bed.insulated',
+    title: 'The ground steals warmth',
+    obs: 'Lying on bare earth was far colder than lying on a thick pile of dry leaves.',
+    pri: 'Heat flows from warm to cold by conduction. Dry debris traps pockets of still air, and still air is a poor conductor, so it slows heat loss to the ground.',
+    lim: 'Wet leaves lose most of this effect.',
+    why: 'Why does a thick, fluffy pile insulate better than a thin, packed one?',
+  },
+  s_wind: {
+    group: 'shelter',
+    trigger: 'shelter.wind.blocked',
+    title: 'Wind makes cold feel colder',
+    obs: 'Turned away from the wind, the shelter felt noticeably warmer at the same temperature.',
+    pri: 'Moving air sweeps away the thin warm layer next to your skin, so you lose heat faster. Wind-chill is how cold it feels, not the real air temperature.',
+    lim: '',
+    why: 'Which way should the opening face?',
+  },
+
+  // -------------------------------------------------------------- hunting
+  h_track: {
+    group: 'hunt',
+    trigger: 'hunt.track.found',
+    title: 'Tracks tell a story',
+    obs: 'Prints in the soft mud showed size, direction and how fresh they were.',
+    pri: 'Animals leave evidence. Sharp edges and damp soil mean fresh tracks; blurred, dry edges mean old ones. Print size and spacing hint at the animal’s size and speed.',
+    lim: '',
+    why: 'How can you tell if a track is old or fresh?',
+  },
+  h_bow: {
+    group: 'hunt',
+    trigger: 'hunt.bow.drawn',
+    title: 'A bent bow stores energy',
+    obs: 'The farther you pulled the string, the harder it was to hold.',
+    pri: 'Bending the limbs stores elastic potential energy. On release, that energy becomes the arrow’s kinetic energy.',
+    lim: 'Some of the stored energy goes into moving the bow and string themselves. A longer draw stores more energy, up to what the wood can stand.',
+    why: 'What do you give the bow that it gives back to the arrow?',
+  },
+  h_fletch: {
+    group: 'hunt',
+    trigger: 'hunt.fletch.made',
+    title: 'Feathers keep it straight',
+    obs: 'The arrow with feathers flew straight. The bare shaft tumbled.',
+    pri: 'Feathers add air drag at the back, so the arrow’s tail trails behind its tip like the fins of a dart.',
+    lim: '',
+    why: 'Why must the drag be at the back, not the front?',
+  },
+  h_arc: {
+    group: 'hunt',
+    trigger: 'hunt.arrow.fly',
+    title: 'Gravity pulls arrows down',
+    obs: 'Your arrow fell short of the target at long range. Aiming a little high worked better.',
+    pri: 'A flying arrow follows a curve (a parabola, in a vacuum) because gravity keeps pulling it down while it moves sideways. Air drag shortens the curve further.',
+    lim: 'Wind also pushes arrows off course.',
+    why: 'If you aim straight at a far target, where does the arrow land?',
+  },
+  h_hit: {
+    group: 'hunt',
+    trigger: 'hunt.arrow.hit',
+    title: 'Moving targets',
+    obs: 'You hit the animal only after leading it, aiming ahead of where it was.',
+    pri: 'Arrows take time to arrive, and the target moves in that time, so you aim where it will be.',
+    lim: '',
+    why: 'How long does the arrow take, and how far does the animal go in that time?',
+  },
+
+  // --------------------------------------------------------------- nature
+  n_chain: {
+    group: 'nature',
+    trigger: 'nature.foodchain.seen',
+    title: 'Who eats whom',
+    obs: 'The fox hunted the rabbit, and the rabbit ate the grass.',
+    pri: 'Plants make food from sunlight. Herbivores eat plants and carnivores eat herbivores. Each step passes on only a fraction of the energy, which is why there are far fewer predators than prey.',
+    lim: 'A common rule of thumb is that about a tenth of the energy passes up each step; real values vary.',
+    why: 'Why are there fewer foxes than rabbits?',
+  },
+  n_eyes: {
+    group: 'nature',
+    trigger: 'nature.predator.near',
+    title: 'Eyes tell you the job',
+    obs: 'The deer saw you coming from the side. The wolf watched you with both eyes forward.',
+    pri: 'Many prey animals have eyes on the sides of the head for a wide view that spots danger. Many predators have forward-facing eyes for depth perception to judge a pounce.',
+    lim: 'This is a general trend, not a rule for every species.',
+    why: 'What does each kind of eye placement help the animal do?',
+  },
+
+  // --------------------------------------------------------------- body
+  y_thirst: {
+    group: 'body',
+    trigger: 'body.thirst.warning',
+    title: 'Thirst comes late',
+    obs: 'By the time your mouth felt dry, you were already running low.',
+    pri: 'Your body is mostly water, which carries heat and nutrients and takes part in nearly every reaction in your cells. Thirst is a late signal that you are already losing too much.',
+    lim: 'Needs vary with heat, effort and body size. There is no single number of litres for everyone.',
+    why: 'Why drink before you feel very thirsty?',
+  },
+  y_drink: {
+    group: 'body',
+    trigger: 'body.drink',
+    title: 'Safe water first',
+    obs: 'You drank only after the water was filtered and boiled.',
+    pri: 'Drinking untreated water risks diarrhoea, which makes dehydration worse, so unsafe water can cost you more than it gives.',
+    lim: 'Boiling kills microbes but does not remove chemical pollution.',
+    why: 'How could drinking the wrong water make thirst worse?',
+  },
+  y_eat: {
+    group: 'body',
+    trigger: 'body.eat',
+    title: 'Food is stored energy',
+    obs: 'After eating, your strength came back.',
+    pri: 'Food energy is measured in calories. Your body burns it to move, stay warm and think; more work and colder weather mean more calories.',
+    lim: 'Adults need on the order of a couple of thousand kilocalories a day. Exact needs vary a lot.',
+    why: 'Why do you feel hungrier in the cold?',
+  },
+  y_cook: {
+    group: 'body',
+    trigger: 'food.cooked',
+    title: 'Cooking is safer and gives more',
+    obs: 'The meat tasted better and the sickness risk fell once it was cooked through.',
+    pri: 'Heat kills many bacteria and parasites and breaks down tough proteins and starches, so food is safer and easier to digest.',
+    lim: 'Undercooked centres can still carry microbes. Burnt food is not healthier.',
+    why: 'What does heat do to the microbes in raw meat?',
+  },
+  y_carry: {
+    group: 'body',
+    trigger: 'body.carry.heavy',
+    title: 'Lifting costs energy',
+    obs: 'Carrying a heavy load uphill tired you out much faster.',
+    pri: 'Raising a mass against gravity takes work (W = m × g × h). Heavier loads and steeper climbs cost more energy.',
+    lim: 'Walking on the flat also costs energy, so this is only part of the story.',
+    why: 'What two things made the climb more tiring?',
+  },
+  y_wet: {
+    group: 'body',
+    trigger: 'body.cold.wet',
+    title: 'Wet is cold',
+    obs: 'Wet and in the wind, you chilled fast, even though it wasn’t freezing.',
+    pri: 'Water carries heat away from your body much faster than air does, and evaporation cools you further. Hypothermia can happen in cool, wet weather above freezing.',
+    lim: '',
+    why: 'Why does dry clothing keep you warmer than wet clothing?',
+  },
+  y_wound_clean: {
+    group: 'body',
+    trigger: 'body.wound.cleaned',
+    title: 'Clean wounds heal',
+    obs: 'The washed cut stayed clean. The dirty one grew red and sore.',
+    pri: 'Dirt carries bacteria that can multiply in a wound. Washing with clean water flushes them out, which lowers the chance of infection.',
+    lim: 'This is a game. Deep, dirty or bleeding wounds need real medical care.',
+    why: 'What does washing remove from a wound?',
+  },
+  y_wound_dirty: {
+    group: 'body',
+    trigger: 'body.wound.dirty',
+    title: 'Infection spreads',
+    obs: 'The unwashed cut swelled, turned red and felt warm.',
+    pri: 'Bacteria multiply in a wound. The body responds with inflammation (redness, heat and swelling) to fight them.',
+    lim: 'Red streaks, fever or pus mean you need real medical help.',
+    why: 'Why is a red, warm cut a warning sign?',
+  },
+
+  // -------------------------------------------------------------- weather
+  x_sky: {
+    group: 'nature',
+    trigger: 'weather.sky.read',
+    title: 'Reading the sky',
+    obs: 'Towering dark clouds built up in the afternoon and rain followed.',
+    pri: 'Warm, moist air rises, cools and its water vapour condenses into clouds. Tall, dark clouds mean strong rising air and often heavy rain.',
+    lim: 'Old sayings like "red sky at night" are only rules of thumb, true only some of the time.',
+    why: 'Why do rising clouds mean water is coming?',
+  },
+  x_rain: {
+    group: 'nature',
+    trigger: 'weather.rain.start',
+    title: 'Rain puts out fires',
+    obs: 'The first rain hissed on the fire and the unsheltered wood got soaked.',
+    pri: 'Water absorbs heat as it warms and boils, cooling fuel below its ignition temperature. Keep dry fuel under cover before rain.',
+    lim: '',
+    why: 'What should you store under the shelter before the rain starts?',
+  },
+  x_night: {
+    group: 'nature',
+    trigger: 'weather.night.clear',
+    title: 'Clear nights are colder',
+    obs: 'On the clear night the temperature dropped far lower than on the cloudy one.',
+    pri: 'The ground radiates heat out into space after sunset. Clouds send some heat back down like a blanket, so clear skies cool faster.',
+    lim: '',
+    why: 'Why would a cloudy night stay warmer?',
+  },
+
+  // ---------------------------------------------------------------- camp
+  w_settle: {
+    group: 'water',
+    trigger: 'water.sediment.settle',
+    title: 'Let it settle',
+    obs: 'After standing quietly, the muddy water cleared from the top down.',
+    pri: 'Gravity pulls heavier particles down. Larger grains settle fast and fine silt slowly, which is why waiting before filtering helps.',
+    lim: 'Settling does not remove microbes or dissolved chemicals.',
+    why: 'Why settle water before you filter it?',
+  },
+  w_hotstones: {
+    group: 'water',
+    trigger: 'fire.hotstones.boil',
+    title: 'Stones carry heat',
+    obs: 'Hot stones dropped into the pot made the water boil without putting the pot on the fire.',
+    pri: 'Heat moves from hot stones into the cooler water by conduction until they match. Stones hold a lot of heat for their size.',
+    lim: 'Never use wet river stones from the stream. Trapped water can turn to steam and make them burst.',
+    why: 'Why is a dry stone safer than a wet one?',
+  },
+  f_smoke: {
+    group: 'fire',
+    trigger: 'fire.signal.smoke',
+    title: 'Green leaves make white smoke',
+    obs: 'Adding green leaves to the fire sent up a thick, pale column of smoke.',
+    pri: 'Damp fuel makes steam and unburned particles. The thick, pale smoke is easy to see against dark trees.',
+    lim: 'It also smells and stings your eyes, and a signal fire can spread. Keep it small and watched.',
+    why: 'Why is thick white smoke easier to see than clear heat?',
+  },
+  f_night: {
+    group: 'fire',
+    trigger: 'fire.night.kept',
+    title: 'A fire is a chore',
+    obs: 'Through the night the fire needed fuel and attention several times.',
+    pri: 'Fire keeps burning only while it has fuel, air and heat. Large, dense logs burn slowly and keep going far longer than twigs.',
+    lim: '',
+    why: 'Which fuel would last the night, twigs or thick logs?',
+  },
+};
+
+export const OBSERVATIONS: Record<string, Observation> = {};
+for (const [id, o] of Object.entries(BASE_OBSERVATIONS)) {
+  OBSERVATIONS[id] = { ...o, ...BASE_META[id] };
+}
+Object.assign(OBSERVATIONS, SURVIVAL_OBSERVATIONS);
+
 export const OBSERVATION_COUNT = Object.keys(OBSERVATIONS).length;
+
+/** Observations recorded when a science event fires. */
+export function observationsForEvent(event: string): string[] {
+  return Object.entries(OBSERVATIONS)
+    .filter(([, o]) => o.trigger === event)
+    .map(([id]) => id);
+}

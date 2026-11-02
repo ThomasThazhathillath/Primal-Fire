@@ -219,3 +219,32 @@ describe('game flow', () => {
     expect(copy.held).toBe('twigs');
   });
 });
+
+describe('filter blueprint', () => {
+  it('is built from sticks, cane and layers', () => {
+    const g = new Game();
+    g.addItem('forkedStick');
+    g.takeOut('forkedStick');
+    const res = g.placeBlueprint('filter', -1, -2);
+    expect(res.ok).toBe(true);
+    const s = res.structure!;
+    g.addItem('forkedStick', 2);
+    g.addItem('cane');
+    g.addItem('cloth');
+    g.addItem('charcoal');
+    g.addItem('sand');
+    g.addItem('gravel');
+    s.spots.forEach((_, i) => expect(g.fillSpot(s.id, i)).toBe(true));
+    expect(s.complete).toBe(true);
+  });
+
+  it('a workbench can be a board on forked sticks', () => {
+    const g = new Game();
+    g.addItem('board');
+    g.takeOut('board');
+    const s = g.placeBlueprint('workbench', -1, -2).structure!;
+    g.addItem('forkedStick', 3);
+    s.spots.forEach((_, i) => g.fillSpot(s.id, i));
+    expect(s.complete).toBe(true);
+  });
+});

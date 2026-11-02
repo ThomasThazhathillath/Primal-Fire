@@ -265,7 +265,7 @@ export class BuildSystem extends createSystem({
       const filled = s.spots[i];
       if (filled) {
         const m = itemMesh(filled);
-        m.position.set(spotDef.x, s.kind === 'workbench' ? 0 : 0, spotDef.z);
+        m.position.set(spotDef.x, s.kind === 'filter' ? spotDef.y : 0, spotDef.z);
         if (s.kind === 'workbench') m.scale.set(1.6, 3.2, 1.6); // stacked stone legs
         root.add(m);
         return;

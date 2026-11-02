@@ -12,7 +12,7 @@ import {
   WORLD_RADIUS,
 } from './world-layout.js';
 
-export type StructureKind = 'firePit' | 'workbench';
+export type StructureKind = 'firePit' | 'workbench' | 'filter';
 
 export interface SnapSpotDef {
   /** Offset from the structure origin, in the structure's local frame. */
@@ -66,18 +66,38 @@ export const BLUEPRINTS: Record<StructureKind, BlueprintDef> = {
   workbench: {
     kind: 'workbench',
     name: 'Workbench',
-    keyAccepts: ['slab'],
+    keyAccepts: ['slab', 'board'],
     key: { x: 0, y: 0.36, z: 0 },
     spots: [0, 1, 2].map((i) => ({
       ...ring(i, 3, 0.26),
       y: 0.1,
-      accepts: STONES,
-      label: 'Stone leg',
+      accepts: [...STONES, 'forkedStick'],
+      label: 'Stone or forked-stick leg',
     })),
     radius: 0.6,
     xp: 30,
     completeObservation: 'b_tripod',
     groundAdvice: 'Any open, dry ground near where you plan to make fire.',
+  },
+  // Filter tripod: two more forked sticks complete the tripod, a hollow cane
+  // is the spout, then layers go in bottom to top: cloth, charcoal, sand, gravel.
+  filter: {
+    kind: 'filter',
+    name: 'Water filter',
+    keyAccepts: ['forkedStick'],
+    key: { ...ring(0, 3, 0.25), y: 0.45 },
+    spots: [
+      { ...ring(1, 3, 0.25), y: 0.45, accepts: ['forkedStick'], label: 'Forked stick leg' },
+      { ...ring(2, 3, 0.25), y: 0.45, accepts: ['forkedStick'], label: 'Forked stick leg' },
+      { x: 0, z: 0, y: 0.3, accepts: ['cane'], label: 'Hollow cane spout' },
+      { x: 0, z: 0, y: 0.55, accepts: ['cloth'], label: 'Cloth screen' },
+      { x: 0, z: 0, y: 0.62, accepts: ['charcoal'], label: 'Charcoal layer' },
+      { x: 0, z: 0, y: 0.69, accepts: ['sand'], label: 'Sand layer' },
+      { x: 0, z: 0, y: 0.76, accepts: ['gravel'], label: 'Gravel layer' },
+    ],
+    radius: 0.6,
+    xp: 40,
+    groundAdvice: 'Beside the stream on firm ground, so you can carry water to it.',
   },
 };
 

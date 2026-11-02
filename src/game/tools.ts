@@ -34,6 +34,7 @@ export const HAND_RECIPES: HandRecipe[] = [
   { id: 'knife', name: 'Bind flint knife', inputs: { flake: 1, spindle: 1, cord: 1 }, output: 'knife' },
   { id: 'axe', name: 'Bind stone axe', inputs: { dryStone: 1, spindle: 1, cord: 2 }, output: 'axe' },
   { id: 'hammer', name: 'Bind stone hammer', inputs: { dryStone: 1, spindle: 1, cord: 1 }, output: 'hammer' },
+  { id: 'pot', name: 'Shape clay pot', inputs: { clay: 2, sand: 1 }, output: 'pot' },
   { id: 'diggingStick', name: 'Sharpen digging stick', inputs: { spindle: 1, flake: 1 }, output: 'diggingStick' },
 ];
 

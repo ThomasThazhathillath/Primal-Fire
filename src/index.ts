@@ -4,6 +4,7 @@ import { installDebugHooks } from './debug-hooks.js';
 import { AudioSystem } from './systems/audio-system.js';
 import { BuildSystem } from './systems/build-system.js';
 import { DesktopControlsSystem } from './systems/desktop-controls-system.js';
+import { FireSystem } from './systems/fire-system.js';
 import { HudSystem } from './systems/hud-system.js';
 import { IntroSystem } from './systems/intro-system.js';
 import { ResourceSystem } from './systems/resource-system.js';
@@ -22,6 +23,7 @@ World.create(
     .registerSystem(ResourceSystem)
     .registerSystem(BuildSystem)
     .registerSystem(SatchelSystem)
+    .registerSystem(FireSystem)
     .registerSystem(HudSystem)
     .registerSystem(IntroSystem)
     .registerSystem(AudioSystem);

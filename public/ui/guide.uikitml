@@ -1,0 +1,39 @@
+<!-- Step-by-step crafting guide: one compact card, low in view. Short verbs, big text. -->
+<style>
+  .root { flex-direction: column; width: 460px; padding-top: 16px; padding-bottom: 16px; padding-left: 22px; padding-right: 22px; gap: 8px; }
+  .head { flex-direction: row; justify-content: space-between; align-items: center; }
+  .eyebrow { color: #1f5f99; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+  .eyebrow:dark { color: #8fc7ff; }
+  .count { color: #55504a; font-size: 20px; font-weight: 700; }
+  .count:dark { color: #d9cfbd; }
+  .title { color: #1c1d20; font-size: 34px; font-weight: 700; line-height: 1.15; }
+  .title:dark { color: #fff7e6; }
+  .mats { flex-direction: row; gap: 8px; flex-wrap: wrap; }
+  .chip { flex-direction: row; align-items: center; gap: 6px; padding-top: 4px; padding-bottom: 4px; padding-left: 8px; padding-right: 10px; border-radius: 10px; background-color: #e9e2d4; }
+  .chip:dark { background-color: #3a352e; }
+  .swatch { width: 18px; height: 18px; border-radius: 9px; background-color: #888888; }
+  .chiptext { color: #2a2620; font-size: 20px; }
+  .chiptext:dark { color: #f3eadb; }
+  .hands { color: #8a5a00; font-size: 20px; font-weight: 700; }
+  .hands:dark { color: #ffb547; }
+  .fail { color: #b3261e; font-size: 24px; font-weight: 700; line-height: 1.25; }
+  .fail:dark { color: #ff8a80; }
+  .sci { color: #4b463f; font-size: 21px; line-height: 1.3; }
+  .sci:dark { color: #cfc5b3; }
+</style>
+<Panel class="root">
+  <div class="head">
+    <div id="guide-name" class="eyebrow">GUIDE</div>
+    <div id="guide-count" class="count">1 / 1</div>
+  </div>
+  <div id="guide-title" class="title">-</div>
+  <div class="mats">
+    <div id="guide-mat-0" class="chip"><div id="guide-sw-0" class="swatch"></div><div id="guide-mt-0" class="chiptext">-</div></div>
+    <div id="guide-mat-1" class="chip"><div id="guide-sw-1" class="swatch"></div><div id="guide-mt-1" class="chiptext">-</div></div>
+    <div id="guide-mat-2" class="chip"><div id="guide-sw-2" class="swatch"></div><div id="guide-mt-2" class="chiptext">-</div></div>
+    <div id="guide-mat-3" class="chip"><div id="guide-sw-3" class="swatch"></div><div id="guide-mt-3" class="chiptext">-</div></div>
+  </div>
+  <div id="guide-hands" class="hands">-</div>
+  <div id="guide-fail" class="fail">-</div>
+  <div id="guide-sci" class="sci">-</div>
+</Panel>

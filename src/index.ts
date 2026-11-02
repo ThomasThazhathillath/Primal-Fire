@@ -9,6 +9,7 @@ import { DesktopControlsSystem } from './systems/desktop-controls-system.js';
 import { DropSystem } from './systems/drop-system.js';
 import { FireSystem } from './systems/fire-system.js';
 import { HandsSystem } from './systems/hands-system.js';
+import { GuideSystem } from './systems/guide-system.js';
 import { HudSystem } from './systems/hud-system.js';
 import { IntroSystem } from './systems/intro-system.js';
 import { ResourceSystem } from './systems/resource-system.js';
@@ -33,6 +34,7 @@ World.create(
     .registerSystem(DropSystem)
     .registerSystem(HandsSystem)
     .registerSystem(HudSystem)
+    .registerSystem(GuideSystem)
     .registerSystem(IntroSystem)
     .registerSystem(AudioSystem);
   installDebugHooks(world);

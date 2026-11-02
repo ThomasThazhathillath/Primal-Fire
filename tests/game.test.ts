@@ -210,4 +210,12 @@ describe('game flow', () => {
     expect(copy.snapshot()).toEqual(g.snapshot());
     expect(copy.hasStructure('firePit')).toBe(true);
   });
+
+  it('keeps the held item across save and load', () => {
+    const g = new Game();
+    g.addItem('twigs');
+    g.takeOut('twigs');
+    const copy = Game.restore(JSON.parse(JSON.stringify(g.snapshot())));
+    expect(copy.held).toBe('twigs');
+  });
 });

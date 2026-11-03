@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { IconState, rowCentres, TouchTracker, type TipSample, type TouchIcon } from '../src/game/ui-touch.js';
+import { IconState, rowCentres, TOUCH_CONFIG, TouchTracker, type TipSample, type TouchIcon } from '../src/game/ui-touch.js';
 
 const icons: TouchIcon[] = [
   { x: -0.05, y: 0, r: 0.02, enabled: true },
@@ -23,6 +23,13 @@ function run(t: TouchTracker, path: Array<[number, number, number]>, speed: numb
     }
     [x, y, z] = [tx, ty, tz];
   }
+  return hits.filter((h) => h >= 0);
+}
+
+/** A straight poke at icon 1 with a fixed pinch distance, 0.4 m/s. */
+function run2(t: TouchTracker, pinchDist: number): number[] {
+  const hits: number[] = [];
+  for (let z = 0.1; z >= -0.03; z -= 0.4 * DT) hits.push(t.update(DT, icons, { ...tip(0.05, 0, z), pinchDist }));
   return hits.filter((h) => h >= 0);
 }
 
@@ -86,6 +93,60 @@ describe('fingertip tap', () => {
     t.update(DT, icons, tip(0.05, 0, 0.1));
     expect(t.update(DT, icons, { x: 0.05, y: 0, z: -0.03, dz: -1, tracked: false })).toBe(-1);
     expect(t.update(DT, icons, tip(0.05, 0, -0.03))).toBe(-1);
+  });
+
+  it('a pinching hand never taps, even on a perfect poke', () => {
+    const t = new TouchTracker();
+    const hits: number[] = [];
+    for (const z of [0.1, 0.08, 0.06, 0.04, 0.02, 0, -0.02, -0.03]) {
+      hits.push(t.update(DT * 3, icons, { ...tip(0.05, 0, z), pinchDist: 0.012 }));
+    }
+    expect(hits.filter((h) => h >= 0)).toEqual([]);
+  });
+
+  it('pinch hysteresis: still pinching just past pinchOn, free once clearly open', () => {
+    const t = new TouchTracker();
+    t.update(DT, icons, { ...tip(0.05, 0, 0.1), pinchDist: 0.02 });
+    // 0.04 m is between pinchOn and pinchOff: still counted as pinching.
+    const still = run2(t, 0.04);
+    expect(still).toEqual([]);
+    t.update(DT, icons, { ...tip(0.05, 0, 0.12), pinchDist: 0.09 });
+    expect(run2(t, 0.09)).toEqual([1]);
+  });
+
+  it('a diagonal slide across icons does not fire any of them', () => {
+    const t = new TouchTracker();
+    // Starts in front of the left icon, sweeps diagonally into the surface across both.
+    expect(run(t, [[-0.07, 0, 0.06], [0.07, 0, -0.03]], 0.4)).toEqual([]);
+  });
+
+  it('sliding sideways along the surface from icon to icon does not fire the second', () => {
+    const t = new TouchTracker();
+    // Touch down beside the bar, then slide through both icons just in front of the surface.
+    expect(run(t, [[-0.2, 0, 0.1], [-0.2, 0, 0.02], [0.2, 0, 0.02], [0.2, 0, -0.03]], 0.4)).toEqual([]);
+  });
+
+  it('a fast poke that skips the press depth in one frame still fires', () => {
+    const t = new TouchTracker();
+    t.update(DT, icons, tip(0.05, 0, 0.12));
+    t.update(DT, icons, tip(0.05, 0, 0.1));
+    // 0.1 -> -0.09 in a single frame (≈ 13.7 m/s): past the through depth.
+    expect(t.update(DT, icons, tip(0.05, 0, -0.09))).toBe(1);
+  });
+
+  it('a fast poke still needs to cross over the icon, judged at the surface', () => {
+    const t = new TouchTracker();
+    t.update(DT, icons, tip(0.2, 0, 0.1));
+    // Ends over icon 1 but crossed the surface plane well outside every icon.
+    expect(t.update(DT, icons, tip(0.05, 0, -0.09))).toBe(-1);
+  });
+
+  it('thresholds are configurable', () => {
+    const t = new TouchTracker();
+    const saved = TOUCH_CONFIG.minSpeed;
+    TOUCH_CONFIG.minSpeed = 2;
+    expect(run(t, [[0.05, 0, 0.1], [0.05, 0, -0.03]], 0.4)).toEqual([]);
+    TOUCH_CONFIG.minSpeed = saved;
   });
 
   it('lays icons out centred', () => {

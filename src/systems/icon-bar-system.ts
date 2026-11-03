@@ -57,10 +57,14 @@ const COLORS = {
   [IconState.Disabled]: '#2a2722',
 } as const;
 
+/** Where the bar hangs (m): within a seated arm's reach, below eye level, either hand. */
+export const BAR_DISTANCE = 0.4;
+export const BAR_DOWN = 0.5;
+
 export class IconBarSystem extends createSystem({}) {
   private bar!: UIKitMLAsset;
   private entity!: Entity;
-  private anchor = new StaticAnchor(0.55, 0, 0.4, 0.9, 1);
+  private anchor = new StaticAnchor(BAR_DISTANCE, 0, BAR_DOWN, 0.9, 1);
   private ready = false;
   private shown = false;
   vr = false;
@@ -255,7 +259,7 @@ export class IconBarSystem extends createSystem({}) {
     for (let h = 0; h < 2; h++) {
       const hand = hands[h];
       const tr = this.trackers[h];
-      const s = this.sample(hand.tipPos, hand.tipDir, hand.tipTracked);
+      const s = this.sample(hand.tipPos, hand.tipDir, hand.tipTracked, hand.pinchDist);
       const hit = tr.update(dt, this.icons, s);
       for (let i = 0; i < n; i++) if (tr.states[i] > this.merged[i]) this.merged[i] = tr.states[i];
       if (hit >= 0) {
@@ -280,9 +284,10 @@ export class IconBarSystem extends createSystem({}) {
   private dirTmp = new Vector3();
 
   /** World fingertip → panel frame in metres (x right, y up, z towards the viewer). */
-  private sample(pos: Vector3, dir: Vector3, tracked: boolean): TipSample {
+  private sample(pos: Vector3, dir: Vector3, tracked: boolean, pinchDist: number): TipSample {
     const o = this.sampleOut;
     o.tracked = tracked;
+    o.pinchDist = pinchDist;
     if (!tracked) return o;
     this.tipLocal.copy(pos);
     this.bar.worldToLocal(this.tipLocal);

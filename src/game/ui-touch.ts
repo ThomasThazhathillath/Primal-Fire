@@ -9,6 +9,7 @@
 // cooldown and the fingertip must leave the icon before it can tap again.
 // A pinch is never consulted here.
 
+/** Tunable at runtime (e.g. from the console); all distances in metres. */
 export const TOUCH_CONFIG = {
   /** Fingertip this far (m) in front of the surface and over an icon = "approaching". */
   approachDepth: 0.07,
@@ -30,7 +31,19 @@ export const TOUCH_CONFIG = {
   leaveMargin: 0.03,
   /** Seconds the "activated" visual lasts. */
   flash: 0.22,
-} as const;
+  /** Thumb-index tip distance (m) below which the hand counts as pinching: no UI taps. */
+  pinchOn: 0.03,
+  /** ...and it stays "pinching" until the tips are this far apart (hysteresis). */
+  pinchOff: 0.045,
+  /**
+   * Max sideways travel per unit of forward travel. Applies to the crossing
+   * frame and to the whole approach from the last time the tip was in front,
+   * so diagonal or sideways slides across icons never fire. 0.8 ≈ 39° off normal.
+   */
+  maxSlideRatio: 0.8,
+  /** The approach (tip last seen >= armDepth in front) must be this recent (s). */
+  approachWindow: 0.35,
+} satisfies Record<string, number>;
 
 export const enum IconState {
   Normal = 0,
@@ -57,6 +70,8 @@ export interface TipSample {
   dz: number;
   /** False while tracking is lost: the tracker resets and activates nothing. */
   tracked: boolean;
+  /** Thumb-tip to index-tip distance (m); omit when unknown (e.g. a mouse). */
+  pinchDist?: number;
 }
 
 /** One tracker per hand. */
@@ -65,7 +80,14 @@ export class TouchTracker {
   states: number[] = [];
   private prevZ = 0;
   private hadPrev = false;
-  private armed = false;
+  private prevX = 0;
+  private prevY = 0;
+  /** Last sample seen well in front of the surface: where the current approach began. */
+  private frontX = 0;
+  private frontY = 0;
+  private frontZ = 0;
+  private frontAge = Infinity;
+  private pinching = false;
   private cooldown = 0;
   /** Icon that was just activated; the tip must leave it before another tap. */
   private locked = -1;
@@ -76,7 +98,7 @@ export class TouchTracker {
 
   reset(): void {
     this.hadPrev = false;
-    this.armed = false;
+    this.frontAge = Infinity;
     this.locked = -1;
     this.hoverIcon = -1;
   }
@@ -113,27 +135,65 @@ export class TouchTracker {
       return -1;
     }
 
+    // A pinching hand never taps: pinch is for grabbing, not for UI.
+    if (s.pinchDist !== undefined) {
+      if (s.pinchDist < c.pinchOn) this.pinching = true;
+      else if (s.pinchDist > c.pinchOff) this.pinching = false;
+    } else this.pinching = false;
+    if (this.pinching) {
+      this.hadPrev = false;
+      this.frontAge = Infinity;
+      this.hoverIcon = -1;
+      this.showFlash(icons);
+      return -1;
+    }
+
     const over = this.hit(icons, s);
-    const speed = this.hadPrev && dt > 0 ? (this.prevZ - s.z) / dt : 0; // + = moving towards/into the surface
+    const fwd = this.prevZ - s.z; // + = moved towards/into the surface this frame
+    const speed = this.hadPrev && dt > 0 ? fwd / dt : 0;
     let activated = -1;
 
     // Re-arm once the tip has left the locked icon (sideways, or backed away in front).
     if (this.locked >= 0 && (over !== this.locked || s.z > c.armDepth + c.leaveMargin)) this.locked = -1;
 
-    // "Armed" = seen in front of the surface over an icon region: only then can a crossing be a tap.
-    if (over >= 0 && s.z > c.armDepth && s.z < c.approachDepth + 0.1) this.armed = true;
-    if (over < 0 || s.z > c.approachDepth + 0.1 || s.z < c.throughDepth) this.armed = false;
+    // Remember where the tip last was clearly in front: the approach must come from there.
+    this.frontAge += dt;
+    if (s.z > c.armDepth && s.z < c.approachDepth + 0.1) {
+      this.frontX = s.x;
+      this.frontY = s.y;
+      this.frontZ = s.z;
+      this.frontAge = 0;
+    }
 
-    const crossing = this.hadPrev && this.prevZ > c.touchDepth && s.z <= c.touchDepth;
-    if (crossing && this.armed && over >= 0 && icons[over].enabled && this.locked < 0 && this.cooldown <= 0) {
-      const aim = -s.dz;
-      if (speed >= c.minSpeed && aim >= c.minAim) {
-        activated = over;
-        this.locked = over;
+    // Sweep the segment prev -> now against the surface plane, so a fast poke
+    // that jumps from in front to behind in one frame still lands on the icon
+    // it crossed (the frame-end position may be past the icon or the press depth).
+    if (this.hadPrev && this.prevZ > c.touchDepth && s.z <= c.touchDepth && fwd > 0) {
+      const t = (this.prevZ - c.touchDepth) / fwd;
+      const cx = this.prevX + (s.x - this.prevX) * t;
+      const cy = this.prevY + (s.y - this.prevY) * t;
+      const hit = this.hit(icons, { ...s, x: cx, y: cy });
+      const lateralFrame = Math.hypot(s.x - this.prevX, s.y - this.prevY);
+      const lateralApproach = Math.hypot(cx - this.frontX, cy - this.frontY);
+      const forwardApproach = this.frontZ - c.touchDepth;
+      const fromFront = this.frontAge <= c.approachWindow && forwardApproach >= c.armDepth - c.touchDepth;
+      if (
+        fromFront &&
+        hit >= 0 &&
+        icons[hit].enabled &&
+        this.locked < 0 &&
+        this.cooldown <= 0 &&
+        speed >= c.minSpeed &&
+        -s.dz >= c.minAim &&
+        lateralFrame <= fwd * c.maxSlideRatio &&
+        lateralApproach <= forwardApproach * c.maxSlideRatio
+      ) {
+        activated = hit;
+        this.locked = hit;
         this.cooldown = c.cooldown;
         this.flashT = c.flash;
-        this.flashIcon = over;
-        this.armed = false;
+        this.flashIcon = hit;
+        this.frontAge = Infinity;
       }
     }
 
@@ -145,6 +205,8 @@ export class TouchTracker {
     this.hoverIcon = over >= 0 && s.z < c.approachDepth && s.z > c.throughDepth ? over : -1;
     this.showFlash(icons);
     this.prevZ = s.z;
+    this.prevX = s.x;
+    this.prevY = s.y;
     this.hadPrev = true;
     return activated;
   }

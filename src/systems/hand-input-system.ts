@@ -32,6 +32,8 @@ export interface HandFrame {
   readonly tipPos: Vector3;
   readonly tipDir: Vector3;
   tipTracked: boolean;
+  /** Thumb-tip to index-tip distance (m); Infinity when unknown. */
+  pinchDist: number;
 }
 
 function frame(): HandFrame {
@@ -50,6 +52,7 @@ function frame(): HandFrame {
     tipPos: new Vector3(),
     tipDir: new Vector3(),
     tipTracked: false,
+    pinchDist: Infinity,
   };
 }
 
@@ -191,6 +194,7 @@ export class HandInputSystem extends createSystem({}) {
   /** Index tip + pointing direction of each tracked hand, in world space. */
   private readFingertips(): void {
     hands[0].tipTracked = hands[1].tipTracked = false;
+    hands[0].pinchDist = hands[1].pinchDist = Infinity;
     const session = this.renderer.xr.getSession();
     const xrFrame = this.renderer.xr.getFrame?.() as XRFrame | undefined;
     const ref = this.renderer.xr.getReferenceSpace();
@@ -211,6 +215,13 @@ export class HandInputSystem extends createSystem({}) {
       this.player.localToWorld(h.tipPos);
       this.player.localToWorld(this.jointTmp);
       h.tipDir.subVectors(h.tipPos, this.jointTmp).normalize();
+      const thumb = hand.get('thumb-tip');
+      const thp = thumb && xrFrame.getJointPose?.(thumb, ref);
+      if (thp) {
+        this.jointTmp.set(thp.transform.position.x, thp.transform.position.y, thp.transform.position.z);
+        this.player.localToWorld(this.jointTmp);
+        h.pinchDist = this.jointTmp.distanceTo(h.tipPos);
+      }
       h.tipTracked = true;
     }
   }

@@ -6,10 +6,35 @@
  */
 
 import { iwsdkDev } from '@iwsdk/vite-plugin-dev';
-import { defineConfig } from 'vite';
+import { appendFileSync } from 'node:fs';
+import { defineConfig, type Plugin } from 'vite';
+
+/** Dev only: the game (desktop or headset) posts its play-test log here; it lands in playtest.log (git-ignored). */
+function playtestLog(): Plugin {
+  return {
+    name: 'primal-playtest-log',
+    apply: 'serve',
+    configureServer(server) {
+      server.middlewares.use('/__primal-log', (req, res) => {
+        if (req.method !== 'POST') return void res.end();
+        let body = '';
+        req.on('data', (c) => (body += c));
+        req.on('end', () => {
+          const ua = req.headers['user-agent'] ?? '';
+          const who = /OculusBrowser|Quest/i.test(ua) ? 'QUEST' : 'desktop';
+          const stamp = new Date().toISOString().slice(11, 19);
+          const lines = body.split('\n').filter(Boolean).map((l) => `${stamp} [${who}] ${l}`);
+          if (lines.length) appendFileSync('playtest.log', lines.join('\n') + '\n');
+          res.statusCode = 204;
+          res.end();
+        });
+      });
+    },
+  };
+}
 
 export default defineConfig({
-  plugins: [iwsdkDev()],
+  plugins: [iwsdkDev(), playtestLog()],
   server: { host: '0.0.0.0', port: Number(process.env.PORT ?? 8081), open: false },
   build: {
     outDir: 'dist',

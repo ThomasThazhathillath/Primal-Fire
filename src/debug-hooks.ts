@@ -2,7 +2,7 @@
 // (`npx @iwsdk/cli browser run`/devtools) without real input. Keep these: the
 // event log and hooks are how play-test bugs get reported.
 
-import type { World } from '@iwsdk/core';
+import { createSystem, type World } from '@iwsdk/core';
 import type { StructureKind } from './game/blueprint.js';
 import type { Recipe } from './game/game.js';
 import type { ItemId } from './game/items.js';
@@ -63,4 +63,51 @@ export function installDebugHooks(world: World): void {
       location.reload();
     },
   };
+}
+
+/**
+ * Dev only: stream the play-test log, errors and a heartbeat (fps, where you
+ * are, what you hold, input mode) to the dev server's playtest.log, so a
+ * headset session can be followed from the Mac.
+ */
+export function streamPlaytestLog(world: World): void {
+  if (!import.meta.env.DEV) return;
+  const game = getGame(world);
+  const queue: string[] = [];
+  const push = (s: string) => {
+    queue.push(s);
+    if (queue.length > 200) queue.shift();
+  };
+  game.log.onLine((l) => push(`${l.level === 'bad' ? 'BAD ' : l.level === 'ok' ? 'OK  ' : '    '}${l.text}`));
+  window.addEventListener('error', (e) => push(`ERROR ${e.message} @ ${e.filename}:${e.lineno}`));
+  window.addEventListener('unhandledrejection', (e) => push(`ERROR (promise) ${String(e.reason)}`));
+  // Count real frames with a tiny system (renderer.info counts every render pass, several per frame).
+  let frames = 0;
+  let worst = 0;
+  world.registerSystem(
+    class FrameCounter extends createSystem({}) {
+      update(delta: number): void {
+        frames++;
+        if (delta > worst) worst = delta;
+      }
+    },
+  );
+  let lastT = performance.now();
+  setInterval(() => {
+    const now = performance.now();
+    const fps = (frames * 1000) / (now - lastT);
+    const slowest = worst * 1000;
+    frames = 0;
+    worst = 0;
+    lastT = now;
+    const vr = world.visibilityState.peek();
+    const input = world.input.xr.isPrimary('hand', 'right') ? 'hands' : world.input.xr.isPrimary('controller', 'right') ? 'controllers' : 'none';
+    const p = world.player.position;
+    push(`beat fps=${fps.toFixed(0)} slowestFrame=${slowest.toFixed(0)}ms mode=${vr} input=${input} at=${p.x.toFixed(1)},${p.z.toFixed(1)} held=${game.held ?? '-'} drawCalls=${world.renderer.info.render.calls}`);
+  }, 5000);
+  setInterval(() => {
+    if (!queue.length) return;
+    const body = queue.splice(0).join('\n');
+    fetch('/__primal-log', { method: 'POST', body, keepalive: true }).catch(() => {});
+  }, 1000);
 }

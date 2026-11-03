@@ -1,6 +1,6 @@
 import { World } from '@iwsdk/core';
 import projectOptions from 'virtual:iwsdk-project';
-import { installDebugHooks } from './debug-hooks.js';
+import { installDebugHooks, streamPlaytestLog } from './debug-hooks.js';
 import { AudioSystem } from './systems/audio-system.js';
 import { CraftGestureSystem } from './systems/craft-gesture-system.js';
 import { BenchSystem } from './systems/bench-system.js';
@@ -66,4 +66,5 @@ World.create(
     .registerSystem(AudioSystem)
     .registerSystem(AmbienceSystem);
   installDebugHooks(world);
+  streamPlaytestLog(world);
 });

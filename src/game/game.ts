@@ -1224,6 +1224,8 @@ export class Game {
     for (const u of data.packUpgrades ?? []) g.packUpgrades.add(u);
     if (data.fire) g.fire.restore(data.fire);
     g.env.restore(data.env);
+    // Saves from before the day/night clock: wake up in the morning, not at whatever hour the play time implies.
+    if (!data.env) g.env.hourOffset = -(((g.time / g.env.dayLength) * 24) % 24);
     g.held = data.held && data.held in ITEMS ? data.held : null;
     return g;
   }

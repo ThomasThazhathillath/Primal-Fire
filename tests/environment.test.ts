@@ -143,3 +143,16 @@ describe('rain and fire', () => {
     expect(g.fire.stage).toBe('burning');
   });
 });
+
+describe('old saves and the clock', () => {
+  it('a save from before the day/night clock wakes you in the morning', async () => {
+    const { Game } = await import('../src/game/game.js');
+    const g = new Game();
+    g.time = 4446; // 74 minutes of play: would be midnight without the migration
+    const data = JSON.parse(JSON.stringify(g.snapshot()));
+    delete data.env;
+    const g2 = Game.restore(data);
+    const h = ((g2.env.totalHours(g2.time) % 24) + 24) % 24;
+    expect(h).toBeCloseTo(7, 5);
+  });
+});

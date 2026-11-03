@@ -260,7 +260,10 @@ export class WorldEnvironmentSystem extends createSystem({
       this.scene.traverse((o) => {
         if (/^Ridge\d/.test(o.name) && (o as Mesh).material) {
           const mat = (o as Mesh).material as MeshBasicMaterial;
-          this.ridges.push({ mat, base: mat.color.clone() });
+          // Keep the true daytime colour once: rescanning must not record an already-dimmed one.
+          if (this.ridges.some((r) => r.mat === mat)) return;
+          mat.userData.dayColor ??= mat.color.clone();
+          this.ridges.push({ mat, base: mat.userData.dayColor as Color });
         }
       });
     }

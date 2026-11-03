@@ -73,14 +73,15 @@ interface SkyKey {
   iblI: number;
 }
 // Display colours, matching the hand-tuned noon in main.iwsdk.scene.json.
+// Moonlit, not pitch black: dark enough that the fire matters, light enough to play.
 const NIGHT: Omit<SkyKey, 'h'> = {
-  sky: [0.02, 0.035, 0.08],
-  equator: [0.05, 0.07, 0.11],
-  ground: [0.02, 0.025, 0.02],
-  sun: [0.55, 0.65, 0.9],
-  sunI: 0.35,
-  hemiI: 0.28,
-  iblI: 0.12,
+  sky: [0.05, 0.08, 0.16],
+  equator: [0.12, 0.15, 0.22],
+  ground: [0.05, 0.06, 0.05],
+  sun: [0.6, 0.7, 0.95],
+  sunI: 0.6,
+  hemiI: 0.55,
+  iblI: 0.22,
 };
 const KEYS: SkyKey[] = [
   { h: 0, ...NIGHT },

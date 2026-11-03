@@ -2,7 +2,9 @@
 // game events, plus a quiet looping wind bed. The AudioContext is created
 // lazily and resumed on the first user gesture / XR session start.
 
-import { createSystem } from '@iwsdk/core';
+import { createSystem, Vector3 } from '@iwsdk/core';
+import { contactGain, contactProfile } from '../game/contact.js';
+import type { Material } from '../game/items.js';
 import type { GameEvent } from '../game/game.js';
 import { getGame } from './shared.js';
 
@@ -16,6 +18,8 @@ export class AudioSystem extends createSystem({}) {
   private crackleTimer = 0;
   private lastHeat = 0;
   private lastStage = '';
+  private ear = new Vector3();
+  private fwd = new Vector3();
 
   init(): void {
     const game = getGame(this.world);
@@ -77,7 +81,7 @@ export class AudioSystem extends createSystem({}) {
     lfo.start();
   }
 
-  private tone(freq: number, dur: number, type: Wave = 'sine', vol = 0.25, delay = 0, slideTo?: number): void {
+  private tone(freq: number, dur: number, type: Wave = 'sine', vol = 0.25, delay = 0, slideTo?: number, out?: AudioNode): void {
     const ctx = this.ensure();
     if (!ctx || !this.master || ctx.state !== 'running') return;
     const t0 = ctx.currentTime + delay;
@@ -89,13 +93,13 @@ export class AudioSystem extends createSystem({}) {
     g.gain.setValueAtTime(0.0001, t0);
     g.gain.exponentialRampToValueAtTime(vol, t0 + 0.012);
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-    osc.connect(g).connect(this.master);
+    osc.connect(g).connect(out ?? this.master);
     osc.start(t0);
     osc.stop(t0 + dur + 0.02);
   }
 
   /** A short filtered noise burst: crackle (high, quiet) or saw scrape (mid). */
-  private burst(freq: number, dur: number, vol: number): void {
+  private burst(freq: number, dur: number, vol: number, out?: AudioNode, delay = 0): void {
     const ctx = this.ctx;
     if (!ctx || !this.master || ctx.state !== 'running') return;
     if (!this.noise) {
@@ -109,14 +113,102 @@ export class AudioSystem extends createSystem({}) {
     f.type = 'bandpass';
     f.frequency.value = freq;
     const g = ctx.createGain();
-    const t0 = ctx.currentTime;
+    const t0 = ctx.currentTime + delay;
     g.gain.setValueAtTime(vol, t0);
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-    src.connect(f).connect(g).connect(this.master);
+    src.connect(f).connect(g).connect(out ?? this.master);
     src.start(t0, Math.random() * 0.5, dur + 0.02);
   }
 
+  /**
+   * Two materials meeting at (x, y, z): the sound comes from that point
+   * (PannerNode), with randomised pitch so repeated hits never sound identical.
+   */
+  private contact(a: Material, b: Material, x: number, y: number, z: number, strength: number): void {
+    const ctx = this.ctx;
+    if (!ctx || !this.master || ctx.state !== 'running') return;
+    const prof = contactProfile(a, b);
+    const vol = contactGain(prof, strength);
+    if (vol < 0.02) return;
+    const pan = ctx.createPanner();
+    pan.panningModel = 'equalpower';
+    pan.distanceModel = 'inverse';
+    pan.refDistance = 1;
+    pan.rolloffFactor = 1.2;
+    pan.positionX.value = x;
+    pan.positionY.value = y;
+    pan.positionZ.value = z;
+    pan.connect(this.master);
+    const p = prof.pitch * (0.85 + Math.random() * 0.3);
+    switch (prof.sound) {
+      case 'click':
+        this.burst(p, 0.035, vol, pan);
+        this.tone(p * 0.6, 0.04, 'triangle', vol * 0.3, 0, undefined, pan);
+        break;
+      case 'crack':
+        this.burst(p, 0.07, vol, pan);
+        this.burst(p * 0.4, 0.12, vol * 0.6, pan);
+        break;
+      case 'knap':
+        this.burst(p, 0.03, vol, pan);
+        this.tone(p * 0.55, 0.06, 'triangle', vol * 0.35, 0, p * 0.4, pan);
+        break;
+      case 'thud':
+        this.tone(p, 0.14, 'sine', vol, 0, p * 0.6, pan);
+        this.burst(p * 3, 0.08, vol * 0.4, pan);
+        break;
+      case 'chop':
+        this.burst(p * 1.7, 0.09, vol, pan);
+        this.tone(p * 0.5, 0.08, 'square', vol * 0.3, 0, p * 0.3, pan);
+        break;
+      case 'knock':
+        this.tone(p, 0.07, 'triangle', vol * 0.6, 0, p * 0.8, pan);
+        this.tone(p * 1.5, 0.05, 'triangle', vol * 0.3, 0.012, undefined, pan);
+        break;
+      case 'rustle':
+        for (let i = 0; i < 4; i++) this.burst(p * (0.8 + Math.random() * 0.5), 0.05, vol * (0.5 + Math.random() * 0.5), pan, i * 0.045);
+        break;
+      case 'squish':
+        this.burst(p, 0.16, vol, pan);
+        this.tone(p * 0.5, 0.12, 'sine', vol * 0.3, 0, p * 0.3, pan);
+        break;
+      case 'splash':
+        this.burst(p, 0.3, vol, pan);
+        this.burst(p * 2.5, 0.18, vol * 0.5, pan, 0.03);
+        break;
+      case 'scrape':
+        this.burst(p, 0.18, vol * 0.7, pan);
+        break;
+      case 'clink':
+        this.tone(p, 0.12, 'sine', vol * 0.5, 0, p * 0.97, pan);
+        break;
+      default:
+        break;
+    }
+  }
+
+  /** Keep the audio listener at your head so contact sounds come from where they happen. */
+  private updateListener(): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    this.camera.getWorldPosition(this.ear);
+    this.camera.getWorldDirection(this.fwd);
+    const l = ctx.listener;
+    if (l.positionX) {
+      l.positionX.value = this.ear.x;
+      l.positionY.value = this.ear.y;
+      l.positionZ.value = this.ear.z;
+      l.forwardX.value = this.fwd.x;
+      l.forwardY.value = this.fwd.y;
+      l.forwardZ.value = this.fwd.z;
+      l.upX.value = 0;
+      l.upY.value = 1;
+      l.upZ.value = 0;
+    }
+  }
+
   update(delta: number): void {
+    this.updateListener();
     const fire = getGame(this.world).fire;
     if (fire.heat > this.lastHeat + 0.004) this.burst(900 + fire.heat * 900, 0.07, 0.12);
     this.lastHeat = fire.heat;
@@ -214,6 +306,9 @@ export class AudioSystem extends createSystem({}) {
       case 'discovered':
         this.tone(440, 0.3, 'sine', 0.18);
         this.tone(660, 0.4, 'sine', 0.15, 0.12);
+        break;
+      case 'contact':
+        this.contact(e.a, e.b, e.x, e.y, e.z, e.strength);
         break;
       case 'fx':
         this.fx(e.name, e.strength);

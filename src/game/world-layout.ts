@@ -7,7 +7,7 @@
 // v4 has no pre-built camp: camp is wherever the player builds.
 
 import type { ItemId } from './items.js';
-import { mulberry32, range } from './rng.js';
+import { clamp, mulberry32, range, valueNoise } from './rng.js';
 import { SpatialGrid } from './spatial-grid.js';
 
 export interface Landmark {
@@ -75,6 +75,18 @@ export function streamDistance(x: number, z: number): number {
   return best;
 }
 
+/**
+ * Gentle ground undulation (a few cm), flattened in clearings and along the
+ * stream so building and water stay level. Shared by the ground mesh and
+ * anything that sits on it.
+ */
+export function groundHeight(x: number, z: number): number {
+  const h = (valueNoise(x * 0.18, z * 0.18) - 0.5) * 0.16 + (valueNoise(x * 0.6 + 21, z * 0.6) - 0.5) * 0.04;
+  let flat = clamp((streamDistance(x, z) - 1.5) / 3, 0, 1);
+  for (const l of LANDMARKS) flat = Math.min(flat, clamp((Math.hypot(x - l.x, z - l.z) - l.clear) / 3, 0, 1));
+  return h * flat;
+}
+
 export const inClearing = (x: number, z: number, pad = 0): boolean =>
   LANDMARKS.some((l) => Math.hypot(x - l.x, z - l.z) < l.clear + pad);
 
@@ -117,6 +129,8 @@ function generateTrees(): Tree[] {
       continue;
     }
     if (grid.nearest(x, z, TREE_SPACING) !== null) continue;
+    // Clustered stands and gaps instead of uniform spacing.
+    if (rng() > 0.2 + valueNoise(x * 0.07 + 13, z * 0.07 - 4) * 1.1) continue;
     const tree: Tree = {
       x,
       z,
@@ -164,6 +178,59 @@ export function nearestTreeDistance(x: number, z: number, maxRange = 6): number 
   const t = TREE_GRID.nearest(x, z, maxRange);
   return t ? Math.hypot(t.x - x, t.z - z) : maxRange;
 }
+
+// ------------------------------------------- boulders and fallen trunks
+// Shared by the scene (rendering) and collision, so both agree on placement.
+
+export interface Boulder {
+  x: number;
+  z: number;
+  /** Instance scale; the rendered dodecahedron has radius ≈ size. */
+  size: number;
+  rotY: number;
+}
+
+export interface FallenTrunk {
+  x: number;
+  z: number;
+  /** Direction of the trunk's long axis (rad about Y). */
+  rotY: number;
+  length: number;
+  /** Thickness multiplier (base radius 0.2 m). */
+  thick: number;
+}
+
+function generateBoulders(): Boulder[] {
+  const rng = mulberry32(32);
+  const out: Boulder[] = [];
+  for (let tries = 0; out.length < 45 && tries < 2000; tries++) {
+    const a = rng() * Math.PI * 2;
+    const r = 8 + rng() * WORLD_RADIUS;
+    const x = Math.cos(a) * r;
+    const z = Math.sin(a) * r;
+    if (inClearing(x, z, 0.5) || streamDistance(x, z) < 1.8) continue;
+    // Large only: anything hand-sized must be a gatherable stone instead.
+    out.push({ x, z, size: range(rng, 0.45, 0.95), rotY: rng() * 6 });
+  }
+  return out;
+}
+
+function generateTrunks(): FallenTrunk[] {
+  const rng = mulberry32(33);
+  const out: FallenTrunk[] = [];
+  for (let tries = 0; out.length < 40 && tries < 3000; tries++) {
+    const a = rng() * Math.PI * 2;
+    const r = 7 + rng() * (WORLD_RADIUS - 4);
+    const x = Math.cos(a) * r;
+    const z = Math.sin(a) * r;
+    if (inClearing(x, z, 1) || streamDistance(x, z) < 2.4 || nearestTreeDistance(x, z, 2) < 1.2) continue;
+    out.push({ x, z, length: range(rng, 2, 4.5), thick: range(rng, 0.8, 1.5), rotY: rng() * 6 });
+  }
+  return out;
+}
+
+export const BOULDERS: Boulder[] = generateBoulders();
+export const FALLEN_TRUNKS: FallenTrunk[] = generateTrunks();
 
 // ------------------------------------------------- gatherable resources
 
@@ -314,21 +381,21 @@ export interface ScatterRule {
 
 /** Ground clutter to scatter through the playable area. Data only: add rows freely. */
 export const SCATTER_RULES: ScatterRule[] = [
-  { look: 'twigPile', count: 40, zone: 'forest', minR: 6, maxR: 44 },
-  { look: 'dryBranch', count: 34, zone: 'forest', minR: 6, maxR: 44 },
-  { look: 'leafLitter', count: 40, zone: 'forest', minR: 5, maxR: 44, spacing: 1 },
-  { look: 'bark', count: 18, zone: 'forest', minR: 8, maxR: 44, treeClear: 0.9 },
+  { look: 'twigPile', count: 60, zone: 'forest', minR: 6, maxR: 44 },
+  { look: 'dryBranch', count: 50, zone: 'forest', minR: 6, maxR: 44 },
+  { look: 'leafLitter', count: 70, zone: 'forest', minR: 5, maxR: 44, spacing: 1 },
+  { look: 'bark', count: 28, zone: 'forest', minR: 8, maxR: 44, treeClear: 0.9 },
   { look: 'vine', count: 18, zone: 'forest', minR: 9, maxR: 44, treeClear: 0.9 },
   { look: 'fibrePlant', count: 14, zone: 'forest', minR: 8, maxR: 42 },
-  { look: 'stone', count: 14, zone: 'forest', minR: 6, maxR: 44 },
+  { look: 'stone', count: 30, zone: 'forest', minR: 6, maxR: 44 },
   { look: 'stoneDark', count: 14, zone: 'forest', minR: 8, maxR: 44 },
   { look: 'stonePale', count: 10, zone: 'forest', minR: 8, maxR: 44 },
   { look: 'slab', count: 6, zone: 'forest', minR: 12, maxR: 44 },
   { look: 'grass', count: 10, zone: 'forest', minR: 8, maxR: 40 },
   { look: 'mossRock', count: 8, zone: 'forest', minR: 8, maxR: 42 },
   { look: 'clayPatch', count: 5, zone: 'stream', minR: 0.9, maxR: 1.6 },
-  { look: 'wetStone', count: 10, zone: 'stream', minR: 0.8, maxR: 1.5 },
-  { look: 'gravelBed', count: 4, zone: 'stream', minR: 0.9, maxR: 1.7 },
+  { look: 'wetStone', count: 30, zone: 'stream', minR: 0.8, maxR: 1.5 },
+  { look: 'gravelBed', count: 10, zone: 'stream', minR: 0.9, maxR: 1.7 },
   { look: 'sandBar', count: 3, zone: 'stream', minR: 0.9, maxR: 1.5 },
   { look: 'cane', count: 5, zone: 'stream', minR: 1.1, maxR: 2.2 },
 ];

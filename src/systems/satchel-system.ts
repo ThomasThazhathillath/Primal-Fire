@@ -42,7 +42,6 @@ export class SatchelSystem extends createSystem({
   private open = false;
   private makeItems: Array<{ id: string; label: string; kind: 'bind' | 'pack' | 'store' | 'take' } | undefined> = [];
   private slotItems: Array<ItemId | null> = [];
-  private heldObj: Object3D | null = null;
   private hip = new Vector3();
   private craftTimer = 0;
   private bag!: Group;
@@ -72,7 +71,10 @@ export class SatchelSystem extends createSystem({
       if (this.world.visibilityState.peek() !== VisibilityState.NonImmersive) return;
       const item = this.targetItem();
       if (!item) return;
-      if (ev.code === 'KeyG') getUi(this.world).dropHeld?.(item);
+      if (ev.code === 'KeyG') {
+        if (ev.shiftKey && item === game.held) getUi(this.world).throwHeld?.();
+        else getUi(this.world).dropHeld?.(item);
+      }
       else if (ev.code === 'KeyF' && !actionFor(game.held)) game.stashItem(item);
     };
     window.addEventListener('keydown', onKey);
@@ -149,15 +151,11 @@ export class SatchelSystem extends createSystem({
     wire('satchel-close', () => this.setOpen(false));
 
     getUi(this.world).toggleSatchel = () => this.toggle();
-    getUi(this.world).setHeldVisible = (v: boolean) => {
-      if (this.heldObj) this.heldObj.visible = v;
-    };
+    // What you hold is drawn by CarrySystem.
     this.cleanupFuncs.push(
       game.on((e: GameEvent) => {
         if (e.type === 'satchel' || e.type === 'held') this.refresh();
-        if (e.type === 'held') this.showHeld(e.item);
       }),
-      this.world.visibilityState.subscribe(() => this.showHeld(game.held)),
     );
     this.refresh();
   }
@@ -287,25 +285,6 @@ export class SatchelSystem extends createSystem({
     if (game.held) {
       this.panel.requireElementById<UIKit.Text>('stow-label').setProperties({ text: `Put back ${itemName(game.held).toLowerCase()}` });
     }
-  }
-
-  /** Shows the held item in your right hand (VR) or lower-right of view (browser). */
-  private showHeld(item: ItemId | null): void {
-    this.heldObj?.removeFromParent();
-    this.heldObj = null;
-    if (!item) return;
-    const obj = heldItemMesh(item);
-    const immersive = this.world.visibilityState.peek() !== VisibilityState.NonImmersive;
-    const hand = immersive ? this.player.gripSpaces.right : null;
-    if (hand) {
-      obj.position.set(0, -0.02, -0.06);
-      hand.add(obj);
-    } else {
-      obj.position.set(0.22, -0.26, -0.55);
-      obj.rotation.set(0.3, 0.4, 0);
-      this.camera.add(obj);
-    }
-    this.heldObj = obj;
   }
 
   update(delta: number): void {

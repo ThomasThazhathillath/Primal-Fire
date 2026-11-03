@@ -216,7 +216,8 @@ export class CraftGestureSystem extends createSystem({}) {
     }
     if (this.inContact || d > CORE_R + 0.035) return;
     this.inContact = true;
-    this.rel.subVectors(r.vel, l.vel);
+    // Filtered hand velocities (handmotion.ts), so one jittery frame is not a hard blow.
+    this.rel.set(r.motion.vel.x - l.motion.vel.x, r.motion.vel.y - l.motion.vel.y, r.motion.vel.z - l.motion.vel.z);
     const speed = this.rel.length();
     // Where on the core, and at what angle to its striking platform (local XZ plane).
     this.inv.copy(l.quat).invert();

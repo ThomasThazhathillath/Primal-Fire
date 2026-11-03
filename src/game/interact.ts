@@ -209,6 +209,31 @@ export function strike(speed: number, align: number, material: Material, tool: I
   return { outcome: 'chop', damage, code: null, jolt };
 }
 
+/** How far (m) from the middle of a target a blow still counts at all, and where it starts to lose force. */
+export const HIT_RADIUS = 0.3;
+export const HIT_SWEET = 0.1;
+
+/**
+ * Force kept by where the head landed: all of it near the middle of the
+ * target, falling to 40% at the edge of reach (a glancing graze).
+ */
+export function impactQuality(lateral: number): number {
+  if (lateral >= HIT_RADIUS) return 0;
+  if (lateral <= HIT_SWEET) return 1;
+  return 1 - 0.6 * ((lateral - HIT_SWEET) / (HIT_RADIUS - HIT_SWEET));
+}
+
+/**
+ * Edge alignment of a hand-swung blow from the tool head's velocity. `down` is
+ * the component of travel along the blade's cutting direction (negative =
+ * an upward flick, which never cuts); `side` is the component along the blade
+ * flat (a slap with the flat of the head loses up to 60%).
+ */
+export function bladeAlign(down: number, side: number): number {
+  if (down <= 0) return 0;
+  return down * (1 - 0.6 * Math.min(1, Math.abs(side)));
+}
+
 /** A notch cut into wood by repeated blows; the piece splits or falls at depth 1. */
 export class Notch {
   depth = 0;

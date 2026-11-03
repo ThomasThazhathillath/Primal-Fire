@@ -36,7 +36,10 @@ import { actionFor } from '../game/actions.js';
 import {
   BendState,
   DragState,
+  bladeAlign,
   HANDLE_LENGTH,
+  HIT_RADIUS,
+  impactQuality,
   materialOf,
   Notch,
   strike,
@@ -54,6 +57,7 @@ import { lambert } from '../scene-assets/materials.js';
 import { hands, mouse, pulse } from './hand-input-system.js';
 import { DRAG_LOOK, REACH, ResourceSystem } from './resource-system.js';
 import { camNudge, getGame, getUi, handClaims, handPose } from './shared.js';
+import { HandMotion } from '../game/handmotion.js';
 
 /** The pinch that just grabbed this object must not also count as the pinch that places or bends it. */
 const grabbedJustNow = () => performance.now() / 1000 - handClaims.grabAt < 0.4;
@@ -110,6 +114,8 @@ export class InteractionSystem extends createSystem({
   private headVel = new Vector3();
   private down = new Vector3();
   private hadHead = false;
+  private side = new Vector3();
+  private headMotion = new HandMotion();
   private contact: Entity | null = null;
   private groundContact = false;
   private peakVy = 0;
@@ -332,13 +338,14 @@ export class InteractionSystem extends createSystem({
   }
 
   /** One blow of the tool head on `target` (null = bare ground). */
-  private blow(target: Entity | null, speed: number, align: number, at: Vector3, vr: boolean): void {
+  private blow(target: Entity | null, speed: number, align: number, at: Vector3, vr: boolean, quality = 1): void {
     const game = getGame(this.world);
     const tool = game.held as ItemId;
     const resources = this.world.getSystem(ResourceSystem);
     const spot = target ? resources?.spot(target.getValue(Gatherable, 'spotId') ?? '') : undefined;
     const { material, hardness } = spot ? materialOf(spot.look) : { material: 'soil' as Material, hardness: 1 };
     const r = strike(speed, align, material, tool);
+    r.damage *= quality; // where on the target the head landed
     // Material contact at the head: a clean edge chops wood; a glancing or weak blow knocks the bark;
     // stone rings; soil thuds (src/game/contact.ts).
     game.contact(r.outcome === 'chop' && tool === 'axe' ? 'flint' : 'stone', material, at.x, at.y, at.z, speed * (r.outcome === 'chop' ? 1 : 0.5));
@@ -400,19 +407,23 @@ export class InteractionSystem extends createSystem({
   }
 
   private updateSwingVR(dt: number): void {
-    const r = hands[1];
-    if (!r.tracked) {
+    // The hand that pinched the tool up swings it (either hand).
+    const hand = hands[handClaims.holdHand];
+    if (!hand.tracked) {
       this.hadHead = false;
+      this.headMotion.reset();
       return;
     }
-    // Head = grip + handle along the hand's pointing axis (-Z); cutting direction = hand's down (-Y).
-    this.tmp.set(0, 0, -HANDLE_LENGTH).applyQuaternion(r.quat);
-    this.head.copy(r.pos).add(this.tmp);
-    this.down.set(0, -1, 0).applyQuaternion(r.quat);
-    if (this.hadHead) this.headVel.subVectors(this.head, this.prevHead).divideScalar(dt);
-    this.prevHead.copy(this.head);
+    // Head = grip + handle along the hand's pointing axis (-Z); cutting direction = hand's down (-Y); blade flat = hand's X.
+    this.tmp.set(0, 0, -HANDLE_LENGTH).applyQuaternion(hand.quat);
+    this.head.copy(hand.pos).add(this.tmp);
+    this.down.set(0, -1, 0).applyQuaternion(hand.quat);
+    this.side.set(1, 0, 0).applyQuaternion(hand.quat);
+    // Filtered head velocity (src/game/handmotion.ts): smooth, and dropped on a tracking jump.
+    this.headMotion.push(this.head.x, this.head.y, this.head.z, this.clock);
+    this.headVel.set(this.headMotion.vel.x, this.headMotion.vel.y, this.headMotion.vel.z);
     this.hadHead = true;
-    const speed = this.headVel.length();
+    const speed = this.headMotion.speed;
     // Leave the current target before the next blow can land.
     if (this.contact?.object3D) {
       this.contact.object3D.getWorldPosition(this.tmp);
@@ -420,14 +431,17 @@ export class InteractionSystem extends createSystem({
     }
     if (this.groundContact && this.head.y > 0.08) this.groundContact = false;
     if (this.contact || speed < 0.5) return;
+    const along = this.headVel.dot(this.down) / speed;
+    const slip = this.headVel.dot(this.side) / speed;
+    const align = bladeAlign(along, slip);
     for (const e of this.queries.spots.entities) {
       const o = e.object3D;
       if (!o || !o.visible) continue;
       o.getWorldPosition(this.tmp);
-      if (Math.hypot(this.head.x - this.tmp.x, this.head.z - this.tmp.z) < 0.3 && this.head.y < 0.6) {
+      const lateral = Math.hypot(this.head.x - this.tmp.x, this.head.z - this.tmp.z);
+      if (lateral < HIT_RADIUS && this.head.y < 0.6) {
         this.contact = e;
-        const align = speed > 0 ? Math.abs(this.headVel.dot(this.down)) / speed : 0;
-        this.blow(e, speed, align, this.head, true);
+        this.blow(e, speed, align, this.head, true, impactQuality(lateral));
         return;
       }
     }

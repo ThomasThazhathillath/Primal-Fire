@@ -8,7 +8,8 @@ import { createSystem, type Entity, RayInteractable, type UIKit, type UIKitMLAss
 import type { BookEntry } from '../game/buildbook.js';
 import { getGame, getUi, hidePanel, placeInFront, StaticAnchor, uiText } from './shared.js';
 
-const ROWS = 14;
+/** Entries per page: keeps every row a full-size fingertip target and the card on screen. */
+const ROWS = 8;
 
 export class BuildBookSystem extends createSystem({}) {
   private panel!: UIKitMLAsset;
@@ -18,6 +19,7 @@ export class BuildBookSystem extends createSystem({}) {
   private anchor = new StaticAnchor(0.9, 0, 0.1);
   private dir = new Vector3();
   private timer = 0;
+  private page = 0;
 
   async init(): Promise<void> {
     const game = getGame(this.world);
@@ -37,6 +39,15 @@ export class BuildBookSystem extends createSystem({}) {
     const onClose = () => this.setOpen(false);
     close.addEventListener('click', onClose);
     this.cleanupFuncs.push(() => close.removeEventListener('click', onClose));
+    for (const [id, step] of [['book-prev', -1], ['book-next', 1]] as const) {
+      const el = this.panel.requireElementById(id);
+      const onPage = () => {
+        this.page += step;
+        this.refresh();
+      };
+      el.addEventListener('click', onPage);
+      this.cleanupFuncs.push(() => el.removeEventListener('click', onPage));
+    }
     getUi(this.world).toggleBook = () => this.setOpen(!this.open);
     game.updateBook(); // what is already open is not news
   }
@@ -46,7 +57,7 @@ export class BuildBookSystem extends createSystem({}) {
   }
 
   private choose(i: number): void {
-    const entry = this.rows[i];
+    const entry = this.rows[this.page * ROWS + i];
     if (!entry) return;
     const game = getGame(this.world);
     if (entry.kind === 'recipe') {
@@ -63,6 +74,7 @@ export class BuildBookSystem extends createSystem({}) {
     if (!this.panel) return;
     this.open = open;
     if (open) {
+      this.page = 0;
       this.refresh();
       this.panel.visible = true;
       this.anchor.reset();
@@ -80,8 +92,13 @@ export class BuildBookSystem extends createSystem({}) {
       lockedRecipe = true;
       return first;
     });
+    const pages = Math.max(1, Math.ceil(this.rows.length / ROWS));
+    this.page = Math.max(0, Math.min(pages - 1, this.page));
+    this.panel.requireElementById('book-prev').setProperties({ display: pages > 1 && this.page > 0 ? 'flex' : 'none' });
+    this.panel.requireElementById('book-next').setProperties({ display: pages > 1 && this.page < pages - 1 ? 'flex' : 'none' });
+    this.panel.requireElementById<UIKit.Text>('book-page').setProperties({ text: pages > 1 ? `${this.page + 1} / ${pages}` : '' });
     for (let i = 0; i < ROWS; i++) {
-      const e = this.rows[i];
+      const e = this.rows[this.page * ROWS + i];
       this.panel.requireElementById(`entry-${i}`).setProperties({ display: e ? 'flex' : 'none' });
       if (!e) continue;
       this.panel.requireElementById<UIKit.Text>(`entry-${i}-label`).setProperties({ text: uiText(label(e)) });

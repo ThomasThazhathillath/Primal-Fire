@@ -234,6 +234,55 @@ export function bladeAlign(down: number, side: number): number {
   return down * (1 - 0.6 * Math.min(1, Math.abs(side)));
 }
 
+export type DriveOutcome = 'drive' | 'glance' | 'weak' | 'noTool';
+
+export interface DriveResult {
+  outcome: DriveOutcome;
+  /** 0..1 added to the part's seating progress. */
+  progress: number;
+  /** A short reason shown when the blow is weak or badly oriented. */
+  reason: string | null;
+  /** 0..1, for haptics and camera kick. */
+  jolt: number;
+}
+
+/** Why a blow on a construction part did little (shown once, briefly). */
+export const DRIVE_REASONS = {
+  weak: 'Too gentle to drive it - swing faster.',
+  glance: 'Flat hit - bring the head down square onto the part.',
+  noTool: 'You need a hammer to drive it in.',
+} as const;
+
+/**
+ * One hammer blow on a construction part (a wedge-fit post, peg or slab on its
+ * mark). Speed and direction come from the filtered head velocity: `align` is
+ * how squarely the head came down (see bladeAlign), `quality` where it landed.
+ * A flat or edge-wrong hit barely moves it and says why; a square, fast hit
+ * seats it in a few blows.
+ */
+export function driveBlow(speed: number, align: number, quality: number, tool: ItemId | null): DriveResult {
+  const jolt = Math.min(1, speed / 5);
+  if (tool !== 'hammer') return { outcome: 'noTool', progress: 0, reason: DRIVE_REASONS.noTool, jolt: 0 };
+  if (speed < SWING_WEAK) return { outcome: 'weak', progress: 0, reason: DRIVE_REASONS.weak, jolt: jolt * 0.5 };
+  if (align < SWING_ALIGN) return { outcome: 'glance', progress: 0.03 * quality, reason: DRIVE_REASONS.glance, jolt };
+  const power = Math.min(1, (speed - SWING_WEAK) / (SWING_STRONG * 1.5 - SWING_WEAK));
+  return { outcome: 'drive', progress: (0.2 + 0.3 * power) * (0.6 + 0.4 * align) * quality, reason: null, jolt };
+}
+
+/** Progress of driving one part home; seats at 1. */
+export class Drive {
+  depth = 0;
+  blows = 0;
+
+  /** Returns true when this blow seated it. */
+  hit(progress: number): boolean {
+    if (this.depth >= 1 || progress <= 0) return false;
+    this.blows++;
+    this.depth = Math.min(1, this.depth + progress);
+    return this.depth >= 1;
+  }
+}
+
 /** A notch cut into wood by repeated blows; the piece splits or falls at depth 1. */
 export class Notch {
   depth = 0;

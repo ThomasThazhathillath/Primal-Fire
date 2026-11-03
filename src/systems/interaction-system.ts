@@ -37,6 +37,8 @@ import {
   BendState,
   DragState,
   bladeAlign,
+  Drive,
+  driveBlow,
   HANDLE_LENGTH,
   HIT_RADIUS,
   impactQuality,
@@ -52,7 +54,7 @@ import {
 import { ITEMS, type ItemId } from '../game/items.js';
 import { BLUEPRINTS, spotWorldPosition } from '../game/blueprint.js';
 import { itemMesh } from '../scene-assets/item-meshes.js';
-import { Gatherable } from '../components/game-components.js';
+import { Gatherable, SnapSpot } from '../components/game-components.js';
 import { lambert } from '../scene-assets/materials.js';
 import { hands, mouse, pulse } from './hand-input-system.js';
 import { DRAG_LOOK, REACH, ResourceSystem } from './resource-system.js';
@@ -91,6 +93,8 @@ const CHIP_COLOR: Record<Material, number> = { wood: 0xd8b07a, stone: 0xfff2b0, 
 export class InteractionSystem extends createSystem({
   hoverGather: { required: [Gatherable, Hovered] },
   spots: { required: [Gatherable] },
+  snaps: { required: [SnapSpot] },
+  hoverSnap: { required: [SnapSpot, Hovered] },
   pressedGather: { required: [Gatherable, Pressed] },
 }) {
   private mode: Mode = 'none';
@@ -109,6 +113,10 @@ export class InteractionSystem extends createSystem({
   private worldRoot: Group | null = null;
   // swing
   private notches = new Map<string, Notch>();
+  private drives = new Map<string, Drive>();
+  private swingSnap: Entity | null = null;
+  private lastSay = '';
+  private lastSayAt = -9;
   private head = new Vector3();
   private prevHead = new Vector3();
   private headVel = new Vector3();
@@ -369,6 +377,42 @@ export class InteractionSystem extends createSystem({
     }
   }
 
+  /**
+   * One hammer blow on a construction part: chips and a knock at the head,
+   * haptics, a short reason when it was flat or too gentle, and progress that
+   * seats the part (from your satchel) when it is driven home.
+   */
+  private driveOn(e: Entity, speed: number, align: number, at: Vector3, vr: boolean, quality: number): void {
+    const game = getGame(this.world);
+    const sid = e.getValue(SnapSpot, 'structureId') ?? 0;
+    const idx = e.getValue(SnapSpot, 'index') ?? 0;
+    const r = driveBlow(speed, align, quality, game.held as ItemId | null);
+    game.contact('stone', 'wood', at.x, at.y, at.z, speed * (r.outcome === 'drive' ? 1 : 0.5));
+    if (vr) pulse(this.session, 1, 0.2 + r.jolt * 0.8, 40 + r.jolt * 80);
+    else camNudge.pitch = -0.012 - r.jolt * 0.03;
+    this.burstChips(at, 'wood', r.outcome === 'drive' ? 0.6 + r.progress * 3 : 0.2);
+    if (r.reason) this.say(r.reason);
+    if (r.progress <= 0) return;
+    const key = `${sid}:${idx}`;
+    let d = this.drives.get(key);
+    if (!d) this.drives.set(key, (d = new Drive()));
+    if (d.hit(r.progress)) {
+      this.drives.delete(key);
+      game.fx('crack', 0.6);
+      game.fillSpot(sid, idx);
+    } else if (r.outcome === 'drive') {
+      this.say(`Driving it in... ${Math.round(d.depth * 100)}%`);
+    }
+  }
+
+  /** A short hint, rate-limited like failures so repeated blows do not spam. */
+  private say(text: string): void {
+    if (text === this.lastSay && this.clock - this.lastSayAt < 1.2) return;
+    this.lastSay = text;
+    this.lastSayAt = this.clock;
+    getGame(this.world).toast(text, 'note');
+  }
+
   /** A dark wedge cut into the wood that deepens with every good blow. */
   private showNotch(target: Entity, depth: number): void {
     const obj = target.object3D;
@@ -434,6 +478,20 @@ export class InteractionSystem extends createSystem({
     const along = this.headVel.dot(this.down) / speed;
     const slip = this.headVel.dot(this.side) / speed;
     const align = bladeAlign(along, slip);
+    // A hammer blow on a construction part drives it home.
+    if (getGame(this.world).held === 'hammer') {
+      for (const e of this.queries.snaps.entities) {
+        const o = e.object3D;
+        if (!o || !o.visible) continue;
+        o.getWorldPosition(this.tmp);
+        const lateral = Math.hypot(this.head.x - this.tmp.x, this.head.z - this.tmp.z);
+        if (lateral < HIT_RADIUS && this.head.y < this.tmp.y + 0.4) {
+          this.contact = e;
+          this.driveOn(e, speed, align, this.head, true, impactQuality(lateral));
+          return;
+        }
+      }
+    }
     for (const e of this.queries.spots.entities) {
       const o = e.object3D;
       if (!o || !o.visible) continue;
@@ -457,8 +515,13 @@ export class InteractionSystem extends createSystem({
       this.peakVy = this.peakVx = 0;
       // You aim first, then swing: the target is locked when you press.
       this.swingTarget = null;
+      this.swingSnap = null;
       for (const e of this.queries.hoverGather.entities) {
         this.swingTarget = e;
+        break;
+      }
+      for (const e of this.queries.hoverSnap.entities) {
+        this.swingSnap = e;
         break;
       }
     }
@@ -491,6 +554,17 @@ export class InteractionSystem extends createSystem({
     const spot = e ? resources?.spot(e.getValue(Gatherable, 'spotId') ?? '') : undefined;
     if (e && spot && resources!.distanceTo(spot) <= REACH) target = e;
     this.swingTarget = null;
+    const snap = this.swingSnap;
+    this.swingSnap = null;
+    if (!target && snap?.object3D && getGame(this.world).held === 'hammer') {
+      snap.object3D.getWorldPosition(this.tmp);
+      this.camera.getWorldPosition(this.mid);
+      if (Math.hypot(this.tmp.x - this.mid.x, this.tmp.z - this.mid.z) <= REACH) {
+        this.tmp.y += 0.1;
+        this.driveOn(snap, speed, align, this.tmp, false, 1);
+        return;
+      }
+    }
     if (target?.object3D) {
       target.object3D.getWorldPosition(this.tmp);
       this.tmp.y += 0.15;

@@ -292,7 +292,18 @@ export const POUCH_MAX_SIZE = 1.2;
 export const POUCH_MAX_MASS = 2;
 
 /** Does it go in (or on) the satchel, or must it be carried in your hands? */
+/**
+ * Play-test switch: while on, everything fits the bag and nothing weighs you
+ * down (no pocket limit, no slow walking). The real rules stay in place and
+ * tested; src/index.ts turns this on until carrying is tuned.
+ */
+export const carryRules = { easy: false };
+export function setEasyCarry(on: boolean): void {
+  carryRules.easy = on;
+}
+
 export function fitsPouch(id: ItemId): boolean {
+  if (carryRules.easy) return true;
   const p = ITEM_PHYSICS[id];
   if (p.interaction === 'twoHand' || p.interaction === 'drag') return false;
   return Math.max(...p.size) <= POUCH_MAX_SIZE && ITEMS[id].weight <= POUCH_MAX_MASS;

@@ -21,14 +21,14 @@ import {
 } from '@iwsdk/core';
 import { actionFor } from '../game/actions.js';
 import { RECIPES, type GameEvent } from '../game/game.js';
-import { itemName, type ItemId } from '../game/items.js';
+import { carryRules, itemName, type ItemId } from '../game/items.js';
 import { SatchelItem, SatchelPouch } from '../components/game-components.js';
 import { BAG_HEIGHT, buildOpenBag } from '../scene-assets/bag.js';
 import { heldItemMesh } from '../scene-assets/item-meshes.js';
 import { lambert } from '../scene-assets/materials.js';
 import { getGame, getUi, hidePanel, hipPosition, placeInFront } from './shared.js';
 
-const SLOTS = 12;
+const SLOTS = 18;
 const MAKE_SLOTS = 8;
 
 export class SatchelSystem extends createSystem({
@@ -145,8 +145,6 @@ export class SatchelSystem extends createSystem({
       el.addEventListener('click', fn);
       this.cleanupFuncs.push(() => el.removeEventListener('click', fn));
     };
-    wire('craft-cord', () => game.craft('cord'));
-    wire('craft-drill', () => game.craft('bowDrill'));
     wire('stow-button', () => game.stow());
     wire('satchel-close', () => this.setOpen(false));
 
@@ -200,8 +198,8 @@ export class SatchelSystem extends createSystem({
     if (open) {
       this.refresh();
       this.panel.visible = true;
-      placeInFront(this.panel, this.camera, 0.95, -0.5, 0.05);
-      this.openBag();
+      // A plain list card straight ahead, a little below eye level (the 3D bag is retired for now).
+      placeInFront(this.panel, this.camera, 0.9, 0, 0.12);
     } else {
       hidePanel(this.panel);
       this.bag.visible = false;
@@ -255,7 +253,8 @@ export class SatchelSystem extends createSystem({
     for (let i = 0; i < SLOTS; i++) {
       const entry = contents[i];
       this.slotItems[i] = entry?.id ?? null;
-      this.panel.requireElementById(`item-${i}`).setProperties({ display: 'none' });
+      // The list card is the bag now: one row per kind of item you carry.
+      this.panel.requireElementById(`item-${i}`).setProperties({ display: entry ? 'flex' : 'none' });
       if (entry) {
         this.panel
           .requireElementById<UIKit.Text>(`item-${i}-label`)
@@ -264,7 +263,9 @@ export class SatchelSystem extends createSystem({
     }
     this.fillBag(contents);
     const cap = game.capacity;
-    const load = `${game.carriedWeight.toFixed(1)}/${cap.load} kg, ${game.carriedCount}/${cap.pockets} pockets`;
+    const load = carryRules.easy
+      ? `${game.carriedCount} item${game.carriedCount === 1 ? '' : 's'}`
+      : `${game.carriedWeight.toFixed(1)}/${cap.load} kg, ${game.carriedCount}/${cap.pockets} pockets`;
     const lim = game.moveLimits.encumbrance;
     // Tools are made at the workbench now (by hand, step by step): no instant buttons for them here.
     this.makeItems = game.makeList().filter((m) => m.kind !== 'bind');
@@ -279,8 +280,6 @@ export class SatchelSystem extends createSystem({
       : 'Empty. Point at things in the forest and pinch to gather them.';
     this.panel.requireElementById<UIKit.Text>('satchel-sub').setProperties({ text: sub });
     // Cord and the bow drill are made at the workbench (click it): the old instant buttons stay hidden.
-    this.panel.requireElementById('craft-cord').setProperties({ display: 'none' });
-    this.panel.requireElementById('craft-drill').setProperties({ display: 'none' });
     this.panel.requireElementById('stow-button').setProperties({ display: game.held ? 'flex' : 'none' });
     if (game.held) {
       this.panel.requireElementById<UIKit.Text>('stow-label').setProperties({ text: `Put back ${itemName(game.held).toLowerCase()}` });

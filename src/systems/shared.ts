@@ -151,3 +151,44 @@ export const pendingRelease = {
 
 /** Where the last gathered thing was, so a pickup can animate from there to the hand. */
 export const pickupFrom = { valid: false, pos: new Vector3(), time: 0 };
+
+/**
+ * A VR panel that stays put. It is placed once in front of you and only
+ * re-placed (instantly, no gliding) after you teleport or turn well away, so
+ * nothing drifts around in view. Call update() every frame with the panel.
+ */
+export class StaticAnchor {
+  private placedYaw = 0;
+  private placedX = 0;
+  private placedZ = 0;
+  private placed = false;
+  private head = new Vector3();
+
+  constructor(
+    private distance: number,
+    private side: number,
+    private down: number,
+    /** Re-place when the head has turned this far from where the panel was put (rad). */
+    private maxTurn = 1.05,
+    /** ...or moved this far (m), e.g. a teleport. */
+    private maxMove = 1.2,
+  ) {}
+
+  reset(): void {
+    this.placed = false;
+  }
+
+  update(panel: Object3D, camera: Object3D): void {
+    camera.getWorldPosition(this.head);
+    const yaw = headYaw(camera);
+    let turn = Math.abs(yaw - this.placedYaw) % (Math.PI * 2);
+    if (turn > Math.PI) turn = Math.PI * 2 - turn;
+    const moved = Math.hypot(this.head.x - this.placedX, this.head.z - this.placedZ);
+    if (this.placed && turn < this.maxTurn && moved < this.maxMove) return;
+    placeInFront(panel, camera, this.distance, this.side, this.down);
+    this.placed = true;
+    this.placedYaw = yaw;
+    this.placedX = this.head.x;
+    this.placedZ = this.head.z;
+  }
+}

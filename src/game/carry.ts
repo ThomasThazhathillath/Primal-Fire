@@ -5,7 +5,7 @@
 //   - a loose object falls, bounces by material, rolls a little and settles.
 // Vectors are {x, y, z} records so callers can pass preallocated objects.
 
-import { ITEM_PHYSICS, ITEMS, type ItemId, type Material } from './items.js';
+import { carryRules, ITEM_PHYSICS, ITEMS, type ItemId, type Material } from './items.js';
 
 export interface V3 {
   x: number;
@@ -146,7 +146,7 @@ export function stepBody(b: Body, item: ItemId, dt: number, groundY = 0): BodyEv
 
 /** Walking speed factor while carrying `item` in your hands. */
 export function carrySpeed(item: ItemId | null): number {
-  if (!item) return 1;
+  if (!item || carryRules.easy) return 1;
   if (ITEM_PHYSICS[item].interaction === 'twoHand') return 0.6;
   return ITEMS[item].weight > 1.5 ? 0.85 : 1;
 }

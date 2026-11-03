@@ -20,7 +20,7 @@ import {
 import type { GuideView, HandDiagram } from '../game/guides.js';
 import { ITEMS, type ItemId } from '../game/items.js';
 import { RESOURCES } from '../game/world-layout.js';
-import { getGame, getUi, uiText } from './shared.js';
+import { getGame, getUi, StaticAnchor, uiText } from './shared.js';
 import { WorldSystem } from './world-system.js';
 
 const REFRESH_SECONDS = 0.25;
@@ -47,6 +47,7 @@ export class GuideSystem extends createSystem({}) {
   private timer = 0;
   private lastKey = '';
   private visible = false;
+  private anchor = new StaticAnchor(0.75, 0.2, 0.35);
   private nearby: ItemId[] = [];
   private selectCtx = { nearby: this.nearby as readonly ItemId[] };
 
@@ -88,6 +89,7 @@ export class GuideSystem extends createSystem({}) {
 
   update(delta: number): void {
     if (!this.panel) return;
+    if (this.visible && this.world.visibilityState.peek() !== VisibilityState.NonImmersive) this.anchor.update(this.panel, this.camera);
     this.timer += delta;
     if (this.timer < REFRESH_SECONDS) return;
     this.timer = 0;
@@ -132,19 +134,9 @@ export class GuideSystem extends createSystem({}) {
 
   private place(v: VisibilityState): void {
     if (!this.visible) return;
-    if (v === VisibilityState.NonImmersive) {
-      if (this.entity.hasComponent(Follower)) this.entity.removeComponent(Follower);
-    } else if (!this.entity.hasComponent(Follower)) {
-      this.entity.addComponent(Follower, {
-        target: this.player.head,
-        // Low and slightly right: glance down to read, hands stay clear.
-        offsetPosition: [0.15, -0.38, -0.7],
-        behavior: FollowBehavior.PivotY,
-        maxAngle: 30,
-        tolerance: 0.3,
-        speed: 2,
-      });
-    }
+    // VR: still, low and slightly right (StaticAnchor in update); it never glides after you.
+    if (this.entity.hasComponent(Follower)) this.entity.removeComponent(Follower);
+    if (v !== VisibilityState.NonImmersive) this.anchor.reset();
   }
 
   private render(v: GuideView): void {

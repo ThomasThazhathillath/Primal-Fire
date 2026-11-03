@@ -29,7 +29,7 @@ import { OBSERVATION_COUNT, OBSERVATIONS } from '../game/observations.js';
 import { QUESTS } from '../game/quests.js';
 import { Gatherable, SatchelItem, SnapSpot, StructurePart, WorldDropItem } from '../components/game-components.js';
 import { REACH, ResourceSystem } from './resource-system.js';
-import { getGame, getUi, hidePanel, placeInFront, uiText } from './shared.js';
+import { getGame, getUi, hidePanel, placeInFront, StaticAnchor, uiText } from './shared.js';
 
 const STEP_LINES = 6;
 const TOAST_SECONDS = 4.5;
@@ -44,6 +44,8 @@ export class HudSystem extends createSystem({
 }) {
   private hud!: UIKitMLAsset;
   private hudEntity!: Entity;
+  /** VR: low and to the left, out of the way of rays aimed at the ground; it never drifts. */
+  private hudAnchor = new StaticAnchor(0.85, -0.42, 0.12);
   private card!: UIKitMLAsset;
   private tip!: UIKitMLAsset;
   private cardQueue: string[] = [];
@@ -144,6 +146,13 @@ export class HudSystem extends createSystem({
       if (game.held) getUi(this.world).dropHeld?.(game.held);
       else game.toast('Take something out of the bag first, then drop it.', 'note');
     });
+    wire(hud, 'enter-vr-button', () => this.world.launchXR());
+    const enterVr = hud.requireElementById('enter-vr-button');
+    this.cleanupFuncs.push(
+      this.world.visibilityState.subscribe((v) => {
+        enterVr.setProperties({ display: this.world.xrEnabled && v === VisibilityState.NonImmersive ? 'flex' : 'none' });
+      }),
+    );
     wire(hud, 'turn-left-button', () => getUi(this.world).snapTurn?.(45));
     wire(hud, 'turn-right-button', () => getUi(this.world).snapTurn?.(-45));
     const stowLabel = hud.requireElementById<UIKit.Text>('stow-label');
@@ -190,19 +199,9 @@ export class HudSystem extends createSystem({
     if (!this.shown) return;
     // ScreenSpace pins the HUD in the browser; in VR it hands the panel back to
     // world space, and a lazy Follower keeps it low-left in view.
-    if (v === VisibilityState.NonImmersive) {
-      if (this.hudEntity.hasComponent(Follower)) this.hudEntity.removeComponent(Follower);
-    } else if (!this.hudEntity.hasComponent(Follower)) {
-      this.hudEntity.addComponent(Follower, {
-        target: this.player.head,
-        // Eye level, to the left: out of the way of rays aimed down at the ground.
-        offsetPosition: [-0.4, 0.02, -0.8],
-        behavior: FollowBehavior.PivotY,
-        maxAngle: 35,
-        tolerance: 0.35,
-        speed: 2,
-      });
-    }
+    // In VR the HUD stays still (StaticAnchor in update): a panel that glides after your head is tiring.
+    if (this.hudEntity.hasComponent(Follower)) this.hudEntity.removeComponent(Follower);
+    this.hudAnchor.reset();
   }
 
   private onGameEvent(e: GameEvent): void {
@@ -334,6 +333,11 @@ export class HudSystem extends createSystem({
     const e = this.tipTarget;
     if (!e || !e.object3D) {
       if (this.tip.visible) hidePanel(this.tip);
+      if (this.hoverShown) {
+        this.hoverShown = false;
+        this.hoverText = '';
+        this.hud.requireElementById<UIKit.Text>('hover').setProperties({ text: ' ' });
+      }
       return;
     }
     const game = getGame(this.world);
@@ -389,19 +393,20 @@ export class HudSystem extends createSystem({
       const p = spotWorldPosition(s, e.getValue(SnapSpot, 'index') ?? 0);
       this.tmp.set(p.x, p.y + 0.35, p.z);
     }
-    this.tip.requireElementById<UIKit.Text>('tip-text').setProperties({ text: uiText(title) });
-    this.tip.requireElementById<UIKit.Text>('tip-sub').setProperties({ text: uiText(sub) });
-    this.tip.visible = true;
-    this.tip.position.copy(this.tmp);
-    this.camera.getWorldPosition(this.tmp);
-    // Keep the text a constant, readable apparent size from arm's length out to a few metres.
-    const dist = this.tmp.distanceTo(this.tip.position);
-    this.tip.scale.setScalar(Math.min(0.36, Math.max(0.085, dist * 0.09)));
-    this.tip.rotation.set(0, Math.atan2(this.tmp.x - this.tip.position.x, this.tmp.z - this.tip.position.z), 0);
+    // Shown on the HUD's hover line, not as a card floating over the object.
+    const line = `${title}: ${sub}`;
+    if (line !== this.hoverText) {
+      this.hoverText = line;
+      this.hud.requireElementById<UIKit.Text>('hover').setProperties({ text: uiText(line) });
+    }
+    this.hoverShown = true;
   }
+  private hoverShown = false;
+  private hoverText = '';
 
   update(delta: number): void {
     if (!this.ready) return;
+    if (this.shown && this.world.visibilityState.peek() !== VisibilityState.NonImmersive) this.hudAnchor.update(this.hud, this.camera);
     if (this.toastTimer > 0 && (this.toastTimer -= delta) <= 0) {
       this.hud.requireElementById<UIKit.Text>('toast').setProperties({ text: ' ' });
     }

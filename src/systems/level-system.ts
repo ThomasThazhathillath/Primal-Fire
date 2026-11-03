@@ -43,7 +43,10 @@ export class LevelSystem extends createSystem({}) {
       // Resumed saves have played time; a fresh start has at most a frame or two.
       this.titleCard(getGame(this.world).gameLevel, getGame(this.world).time > 1);
     }
-    if (this.panel.visible && (this.timer -= delta) <= 0) this.next();
+    if (this.pending && (this.timer -= delta) <= 0) {
+      this.pending = false;
+      this.next();
+    }
   }
 
   private titleCard(lv: GameLevel, resumed: boolean): void {
@@ -71,10 +74,12 @@ export class LevelSystem extends createSystem({}) {
     text('level-ok-label', button);
     p.requireElementById('level-learned-label').setProperties({ display: learned ? 'flex' : 'none' });
     p.requireElementById('level-learned').setProperties({ display: learned ? 'flex' : 'none' });
-    p.visible = true;
-    placeInFront(p, this.camera, 0.8, 0, 0.05);
+    // No floating card: the level news goes to the HUD's message line; the next one follows after a pause.
+    getGame(this.world).toast(`${eyebrow}: ${title}. ${body}${learned ? ` You learned: ${learned}` : ''}`, 'good');
     this.timer = AUTO_HIDE;
+    this.pending = true;
   }
+  private pending = false;
 
   private next(): void {
     if (!this.panel) return;

@@ -1,5 +1,9 @@
 import { World } from '@iwsdk/core';
 import projectOptions from 'virtual:iwsdk-project';
+import { setEasyCarry } from './game/items.js';
+
+// Play-testing: no pocket limit, no weight, everything goes in the bag. Set to false to test the real carry rules.
+setEasyCarry(true);
 import { installDebugHooks, streamPlaytestLog } from './debug-hooks.js';
 import { AudioSystem } from './systems/audio-system.js';
 import { CraftGestureSystem } from './systems/craft-gesture-system.js';

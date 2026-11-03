@@ -1,5 +1,5 @@
 <!--
-  The satchel: pinch an item to take it in hand. Item buttons item-0..item-11
+  The satchel: pinch an item to take it in hand. Item buttons item-0..item-17
   are filled in by SatchelSystem; craft buttons appear at a workbench.
 -->
 <style>
@@ -14,7 +14,7 @@
 </style>
 <Panel class="root">
   <div class="title">Satchel</div>
-  <div id="satchel-sub" class="sub">Pinch an item to take it in hand.</div>
+  <div id="satchel-sub" class="sub">Pinch an item to take it in hand. Pinch the bag icon again to close.</div>
   <div class="grid">
     <Button id="item-0" class="item" variant="secondary" size="sm"><ButtonLabel id="item-0-label">-</ButtonLabel></Button>
     <Button id="item-1" class="item" variant="secondary" size="sm"><ButtonLabel id="item-1-label">-</ButtonLabel></Button>
@@ -28,6 +28,12 @@
     <Button id="item-9" class="item" variant="secondary" size="sm"><ButtonLabel id="item-9-label">-</ButtonLabel></Button>
     <Button id="item-10" class="item" variant="secondary" size="sm"><ButtonLabel id="item-10-label">-</ButtonLabel></Button>
     <Button id="item-11" class="item" variant="secondary" size="sm"><ButtonLabel id="item-11-label">-</ButtonLabel></Button>
+    <Button id="item-12" class="item" variant="secondary" size="sm"><ButtonLabel id="item-12-label">-</ButtonLabel></Button>
+    <Button id="item-13" class="item" variant="secondary" size="sm"><ButtonLabel id="item-13-label">-</ButtonLabel></Button>
+    <Button id="item-14" class="item" variant="secondary" size="sm"><ButtonLabel id="item-14-label">-</ButtonLabel></Button>
+    <Button id="item-15" class="item" variant="secondary" size="sm"><ButtonLabel id="item-15-label">-</ButtonLabel></Button>
+    <Button id="item-16" class="item" variant="secondary" size="sm"><ButtonLabel id="item-16-label">-</ButtonLabel></Button>
+    <Button id="item-17" class="item" variant="secondary" size="sm"><ButtonLabel id="item-17-label">-</ButtonLabel></Button>
   </div>
   <div id="make-title" class="sub">Make by hand (you have the parts):</div>
   <div class="grid">
@@ -39,10 +45,6 @@
     <Button id="make-5" class="item" size="sm"><ButtonLabel id="make-5-label">-</ButtonLabel></Button>
     <Button id="make-6" class="item" size="sm"><ButtonLabel id="make-6-label">-</ButtonLabel></Button>
     <Button id="make-7" class="item" size="sm"><ButtonLabel id="make-7-label">-</ButtonLabel></Button>
-  </div>
-  <div class="row">
-    <Button id="craft-cord" size="sm"><ButtonIcon><Hammer></Hammer></ButtonIcon><ButtonLabel>Twist cord</ButtonLabel></Button>
-    <Button id="craft-drill" size="sm"><ButtonIcon><Hammer></Hammer></ButtonIcon><ButtonLabel>Build bow drill</ButtonLabel></Button>
   </div>
   <div class="row">
     <Button id="stow-button" variant="secondary" size="sm"><ButtonIcon><Undo2></Undo2></ButtonIcon><ButtonLabel id="stow-label">Put back</ButtonLabel></Button>

@@ -20,7 +20,9 @@
   .fill { height: 6px; width: 0px; background-color: #ffb547; border-radius: 3px; }
   .toast { color: #1c1d20; font-size: 20px; font-weight: 700; padding-top: 6px; }
   .toast:dark { color: #ffd27a; }
-  .buttons { flex-direction: row; gap: 8px; padding-top: 6px; }
+  .hover { color: #2a2620; font-size: 18px; line-height: 1.3; }
+  .hover:dark { color: #cfe8cf; }
+  .buttons { flex-direction: row; gap: 18px; padding-top: 10px; }
   .body { flex-direction: column; gap: 6px; display: none; }
 </style>
 <Panel class="root">
@@ -44,7 +46,11 @@
     <div id="step-5" class="step">-</div>
   </div>
   <div id="toast" class="toast"> </div>
+  <!-- What you point at and what you can do with it (no floating tooltip in the world). -->
+  <div id="hover" class="hover"> </div>
   <!-- Small icon buttons: each opens or closes one thing. -->
+  <!-- Shown only in the flat view, when the headset can enter VR. -->
+  <Button id="enter-vr-button" size="sm"><ButtonIcon><Glasses></Glasses></ButtonIcon><ButtonLabel>Enter VR</ButtonLabel></Button>
   <div class="buttons">
     <Button id="quest-button" size="sm"><ButtonIcon><ListChecks></ListChecks></ButtonIcon></Button>
     <Button id="satchel-button" size="sm"><ButtonIcon><Backpack></Backpack></ButtonIcon></Button>
@@ -58,6 +64,8 @@
   <div class="buttons">
     <Button id="stow-button" size="sm"><ButtonIcon><Hand></Hand></ButtonIcon><ButtonLabel id="stow-label">Put away</ButtonLabel></Button>
     <Button id="drop-button" size="sm"><ButtonIcon><ArrowDownToLine></ArrowDownToLine></ButtonIcon><ButtonLabel>Drop</ButtonLabel></Button>
+  </div>
+  <div class="buttons">
     <Button id="turn-left-button" size="sm"><ButtonIcon><RotateCcw></RotateCcw></ButtonIcon></Button>
     <Button id="turn-right-button" size="sm"><ButtonIcon><RotateCw></RotateCw></ButtonIcon></Button>
     <Button id="remove-build-button" size="sm"><ButtonIcon><Trash2></Trash2></ButtonIcon></Button>

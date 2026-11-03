@@ -3,7 +3,7 @@
 // and, past the comfort line, stop you running. Pack upgrades are data, so
 // other systems can add more.
 
-import { ITEMS, type ItemId } from './items.js';
+import { carryRules, ITEMS, type ItemId } from './items.js';
 
 export interface PackUpgrade {
   id: string;
@@ -47,6 +47,7 @@ export function itemsCount(contents: Iterable<[ItemId, number]>): number {
 }
 
 export function capacityFor(upgrades: Iterable<string>): { pockets: number; load: number } {
+  if (carryRules.easy) return { pockets: Number.MAX_SAFE_INTEGER, load: Number.MAX_SAFE_INTEGER };
   let pockets = BASE_POCKETS;
   let load = BASE_LOAD;
   for (const id of upgrades) {

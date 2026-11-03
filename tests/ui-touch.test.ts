@@ -141,6 +141,29 @@ describe('fingertip tap', () => {
     expect(t.update(DT, icons, tip(0.05, 0, -0.09))).toBe(-1);
   });
 
+  it('an instant tracking jump across the bar never fires, and needs a fresh approach', () => {
+    const t = new TouchTracker();
+    t.update(DT, icons, tip(-0.3, 0.2, 0.1));
+    t.update(DT, icons, tip(-0.3, 0.2, 0.09));
+    // Jumps 0.5 m in one frame, landing behind the surface over icon 1.
+    expect(t.update(DT, icons, tip(0.05, 0, -0.03))).toBe(-1);
+    // Staying there, or poking on from behind, still does nothing.
+    expect(t.update(DT, icons, tip(0.05, 0, -0.04))).toBe(-1);
+    // A fresh, proper approach afterwards works.
+    for (let i = 0; i < 40; i++) t.update(DT, icons, tip(0.05, 0, 0.12));
+    expect(run(t, [[0.05, 0, 0.12], [0.05, 0, -0.03]], 0.4)).toEqual([1]);
+  });
+
+  it('the jump threshold is configurable', () => {
+    const t = new TouchTracker();
+    const saved = TOUCH_CONFIG.maxJump;
+    TOUCH_CONFIG.maxJump = 0.05;
+    t.update(DT, icons, tip(0.05, 0, 0.12));
+    t.update(DT, icons, tip(0.05, 0, 0.1));
+    expect(t.update(DT, icons, tip(0.05, 0, -0.09))).toBe(-1); // 0.19 m step now counts as a jump
+    TOUCH_CONFIG.maxJump = saved;
+  });
+
   it('thresholds are configurable', () => {
     const t = new TouchTracker();
     const saved = TOUCH_CONFIG.minSpeed;

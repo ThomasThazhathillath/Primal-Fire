@@ -9,6 +9,8 @@ import {
   type Entity,
   Follower,
   FollowBehavior,
+  findUIKitDocument,
+  type Object3D,
   ScreenSpace,
   type UIKit,
   type UIKitMLAsset,
@@ -40,6 +42,7 @@ const HAND_CUES: Record<HandDiagram, string> = {
 
 export class GuideSystem extends createSystem({}) {
   private panel: UIKitMLAsset | null = null;
+  private doc: Object3D | null = null;
   private entity!: Entity;
   private timer = 0;
   private lastKey = '';
@@ -54,6 +57,8 @@ export class GuideSystem extends createSystem({}) {
     this.entity = this.world.createTransformEntity(panel);
     this.entity.setValue(Visibility, 'isVisible', false);
     this.panel = panel;
+    this.doc = findUIKitDocument(panel);
+    if (this.doc) this.doc.visible = false;
 
     const onKey = (e: KeyboardEvent) => {
       if (e.code === 'KeyJ') this.toggle();
@@ -112,6 +117,9 @@ export class GuideSystem extends createSystem({}) {
     this.visible = on;
     // The entity's Visibility component drives object.visible every frame.
     this.entity.setValue(Visibility, 'isVisible', on);
+    // In the browser ScreenSpace reparents the UIKit document onto the camera,
+    // so hiding the entity alone leaves the card on screen: hide the document too.
+    if (this.doc) this.doc.visible = on;
     if (!on) {
       if (this.entity.hasComponent(Follower)) this.entity.removeComponent(Follower);
       return;

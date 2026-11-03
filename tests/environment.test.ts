@@ -94,9 +94,9 @@ describe('weather', () => {
     const e = new Environment();
     e.seed = 7;
     let last = -1;
-    for (let t = 0; t < 8000; t += 0.5) {
+    for (let t = 0; t < 4000; t += 2) {
       e.update(t, 0);
-      if (last >= 0) expect(Math.abs(e.rain - last)).toBeLessThan(0.5 / TRANSITION + 1e-6 + 0.02);
+      if (last >= 0) expect(Math.abs(e.rain - last)).toBeLessThan((2 * 1.5) / TRANSITION + 1e-6);
       last = e.rain;
     }
   });

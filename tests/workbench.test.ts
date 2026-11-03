@@ -74,7 +74,7 @@ describe('physical workbench', () => {
     const { s } = outline(g);
     g.fillSpot(s.id, 0, undefined, at(g, s.id, 0, 0.03, 0));
     const g2 = Game.restore(JSON.parse(JSON.stringify(g.snapshot())));
-    expect(g2.structures[0].spotPos?.[0]?.x).toBeCloseTo(at(g, s.id, 0).x + 0.03);
+    expect(g2.structures[0].spotPos?.[0]?.x).toBeCloseTo(at(g, s.id, 0).x); // seated on its mark
     expect(g2.structures[0].keyPlaced).toBe(false);
   });
 });

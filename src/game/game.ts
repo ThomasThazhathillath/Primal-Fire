@@ -660,7 +660,7 @@ export class Game {
     }
     s.spots[index] = item;
     s.spotPos ??= def.spots.map(() => null);
-    s.spotPos[index] = at ? { x: at.x, z: at.z } : { x: target.x, z: target.z };
+    s.spotPos[index] = { x: target.x, z: target.z }; // seated exactly on its mark
     this.log.add(`filled ${s.kind}#${s.id}[${index}] with ${item}`);
     if (at) this.fx('seat', 0.6);
     if (s.spots.every((v) => v !== null)) {
@@ -743,7 +743,10 @@ export class Game {
   pushTest(structureId: number): boolean {
     const s = this.structures.find((t) => t.id === structureId);
     if (!s || !s.keyPlaced || s.complete || !s.keyPos) return false;
-    const r = slabStability(s.spotPos ?? [], s.keyPos);
+    // Seated supports count as sitting on their marks (placement snaps), so a
+    // stone set slightly off in an older save still holds the slab.
+    const marks = s.spots.map((v, i) => (v ? spotWorldPosition(s, i) : null));
+    const r = slabStability(marks, s.keyPos);
     if (r.stable) {
       if (s.kind === 'workbench') this.guide.mark('workbench.push.stable');
       this.completeStructure(s);

@@ -29,6 +29,8 @@ import {
 import { clamp, mulberry32, range, valueNoise } from '../game/rng.js';
 import {
   inClearing,
+  BOULDERS,
+  FALLEN_TRUNKS,
   LANDMARK_BY_ID,
   nearestTreeDistance,
   STREAM,
@@ -323,17 +325,11 @@ export function createUndergrowth(): Object3D {
   bushes.count = n;
   root.add(bushes);
 
-  const boulders = new InstancedMesh(new DodecahedronGeometry(1, 0), lambert(0xffffff), 45);
+  const boulders = new InstancedMesh(new DodecahedronGeometry(1, 0), lambert(0xffffff), BOULDERS.length);
   boulders.name = 'Boulders';
   n = 0;
-  for (let tries = 0; n < 45 && tries < 2000; tries++) {
-    const a = rng() * Math.PI * 2;
-    const r = 8 + rng() * WORLD_RADIUS;
-    const x = Math.cos(a) * r;
-    const z = Math.sin(a) * r;
-    if (inClearing(x, z, 0.5) || streamDistance(x, z) < 1.8) continue;
-    const sc = range(rng, 0.2, 0.85);
-    m.compose(p.set(x, sc * 0.35, z), q.setFromAxisAngle(up, rng() * 6), s.set(sc, sc * 0.8, sc));
+  for (const b of BOULDERS) {
+    m.compose(p.set(b.x, b.size * 0.35, b.z), q.setFromAxisAngle(up, b.rotY), s.set(b.size, b.size * 0.8, b.size));
     boulders.setMatrixAt(n, m);
     boulders.setColorAt(n, col.setHex([0x8a857b, 0x77736b, 0x6e6a62][n % 3]));
     n++;
@@ -363,19 +359,12 @@ export function createUndergrowth(): Object3D {
   root.add(ferns);
 
   // Fallen logs: decorative trunks lying in the leaf litter.
-  const LOGS = 40;
+  const LOGS = FALLEN_TRUNKS.length;
   const logs = new InstancedMesh(new CylinderGeometry(0.16, 0.2, 1, 7).rotateZ(Math.PI / 2), lambert(0xffffff), LOGS);
   logs.name = 'FallenTrunks';
   n = 0;
-  for (let tries = 0; n < LOGS && tries < 3000; tries++) {
-    const a = rng() * Math.PI * 2;
-    const r = 7 + rng() * (WORLD_RADIUS - 4);
-    const x = Math.cos(a) * r;
-    const z = Math.sin(a) * r;
-    if (inClearing(x, z, 1) || streamDistance(x, z) < 2.4 || nearestTreeDistance(x, z, 2) < 1.2) continue;
-    const len = range(rng, 2, 4.5);
-    const th = range(rng, 0.8, 1.5);
-    m.compose(p.set(x, 0.16 * th, z), q.setFromAxisAngle(up, rng() * 6), s.set(len, th, th));
+  for (const t of FALLEN_TRUNKS) {
+    m.compose(p.set(t.x, 0.16 * t.thick, t.z), q.setFromAxisAngle(up, t.rotY), s.set(t.length, t.thick, t.thick));
     logs.setMatrixAt(n, m);
     logs.setColorAt(n, col.setHex([0x5a4636, 0x4d3d2f, 0x66503c][n % 3]));
     n++;

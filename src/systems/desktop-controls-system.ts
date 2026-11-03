@@ -4,7 +4,7 @@
 // In VR none of this runs: you teleport and use your hands.
 
 import { createSystem, LocomotionSystem, Vector3, VisibilityState } from '@iwsdk/core';
-import { WORLD_RADIUS } from '../game/world-layout.js';
+import { collisionWorld, PLAYER_RADIUS } from '../game/collision.js';
 import { camNudge, getGame, getUi } from './shared.js';
 
 const EYE_HEIGHT = 1.6;
@@ -22,6 +22,8 @@ export class DesktopControlsSystem extends createSystem({}) {
   private leftDown: { x: number; y: number } | null = null;
   private move = new Vector3();
   private target = new Vector3();
+  private from = { x: 0, z: 0 };
+  private to = { x: 0, z: 0 };
 
   init(): void {
     const canvas = this.renderer.domElement;
@@ -109,9 +111,15 @@ export class DesktopControlsSystem extends createSystem({}) {
       const speed = (running ? RUN : WALK) * lim.speed * delta;
       this.move.set(s, 0, -f).normalize().applyAxisAngle(this.camera.up, this.yaw).multiplyScalar(speed);
       const p = this.target.copy(this.player.position).add(this.move);
-      const r = Math.hypot(p.x, p.z);
-      if (r > WORLD_RADIUS) p.multiplyScalar(WORLD_RADIUS / r);
-      this.goTo(p.x, p.z);
+      // Slide along trees, rocks, logs and structures (also clamps to the world edge).
+      const world = collisionWorld();
+      world.setStructures(getGame(this.world).structures);
+      this.from.x = this.player.position.x;
+      this.from.z = this.player.position.z;
+      this.to.x = p.x;
+      this.to.z = p.z;
+      world.resolveMove(this.from, this.to, PLAYER_RADIUS, this.to);
+      this.goTo(this.to.x, this.to.z);
     }
     this.player.rotation.set(0, this.yaw, 0);
     this.camera.position.set(0, EYE_HEIGHT, 0);

@@ -165,6 +165,58 @@ export function nearestTreeDistance(x: number, z: number, maxRange = 6): number 
   return t ? Math.hypot(t.x - x, t.z - z) : maxRange;
 }
 
+// ------------------------------------------- boulders and fallen trunks
+// Shared by the scene (rendering) and collision, so both agree on placement.
+
+export interface Boulder {
+  x: number;
+  z: number;
+  /** Instance scale; the rendered dodecahedron has radius ≈ size. */
+  size: number;
+  rotY: number;
+}
+
+export interface FallenTrunk {
+  x: number;
+  z: number;
+  /** Direction of the trunk's long axis (rad about Y). */
+  rotY: number;
+  length: number;
+  /** Thickness multiplier (base radius 0.2 m). */
+  thick: number;
+}
+
+function generateBoulders(): Boulder[] {
+  const rng = mulberry32(32);
+  const out: Boulder[] = [];
+  for (let tries = 0; out.length < 45 && tries < 2000; tries++) {
+    const a = rng() * Math.PI * 2;
+    const r = 8 + rng() * WORLD_RADIUS;
+    const x = Math.cos(a) * r;
+    const z = Math.sin(a) * r;
+    if (inClearing(x, z, 0.5) || streamDistance(x, z) < 1.8) continue;
+    out.push({ x, z, size: range(rng, 0.2, 0.85), rotY: rng() * 6 });
+  }
+  return out;
+}
+
+function generateTrunks(): FallenTrunk[] {
+  const rng = mulberry32(33);
+  const out: FallenTrunk[] = [];
+  for (let tries = 0; out.length < 40 && tries < 3000; tries++) {
+    const a = rng() * Math.PI * 2;
+    const r = 7 + rng() * (WORLD_RADIUS - 4);
+    const x = Math.cos(a) * r;
+    const z = Math.sin(a) * r;
+    if (inClearing(x, z, 1) || streamDistance(x, z) < 2.4 || nearestTreeDistance(x, z, 2) < 1.2) continue;
+    out.push({ x, z, length: range(rng, 2, 4.5), thick: range(rng, 0.8, 1.5), rotY: rng() * 6 });
+  }
+  return out;
+}
+
+export const BOULDERS: Boulder[] = generateBoulders();
+export const FALLEN_TRUNKS: FallenTrunk[] = generateTrunks();
+
 // ------------------------------------------------- gatherable resources
 
 export interface ResourceSpot {

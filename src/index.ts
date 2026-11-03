@@ -6,6 +6,7 @@ import { CraftGestureSystem } from './systems/craft-gesture-system.js';
 import { BenchSystem } from './systems/bench-system.js';
 import { BowSystem } from './systems/bow-system.js';
 import { BuildSystem } from './systems/build-system.js';
+import { PlayerCollisionSystem } from './systems/player-collision-system.js';
 import { DesktopControlsSystem } from './systems/desktop-controls-system.js';
 import { DropSystem } from './systems/drop-system.js';
 import { FireSystem } from './systems/fire-system.js';
@@ -29,6 +30,7 @@ World.create(
     .registerSystem(WorldSystem)
     .registerSystem(HandInputSystem)
     .registerSystem(DesktopControlsSystem)
+    .registerSystem(PlayerCollisionSystem)
     .registerSystem(ResourceSystem)
     .registerSystem(BuildSystem)
     .registerSystem(SatchelSystem)

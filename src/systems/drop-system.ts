@@ -18,6 +18,7 @@ import {
 } from '@iwsdk/core';
 import type { GameEvent } from '../game/game.js';
 import type { ItemId } from '../game/items.js';
+import { nudgeOut } from '../game/collision.js';
 import { WorldDropItem } from '../components/game-components.js';
 import { heldItemMesh } from '../scene-assets/item-meshes.js';
 import { getGame, getUi, glowMaterial } from './shared.js';
@@ -61,7 +62,8 @@ export class DropSystem extends createSystem({
     this.camera.getWorldPosition(this.head);
     const dir = this.camera.getWorldDirection(new Vector3());
     const len = Math.hypot(dir.x, dir.z) || 1;
-    getGame(this.world).dropItem(item, this.head.x + (dir.x / len) * 0.7, this.head.z + (dir.z / len) * 0.7);
+    const at = nudgeOut(this.head.x + (dir.x / len) * 0.7, this.head.z + (dir.z / len) * 0.7, 0.15);
+    getGame(this.world).dropItem(item, at.x, at.z);
   }
 
   private sync(animate: boolean): void {

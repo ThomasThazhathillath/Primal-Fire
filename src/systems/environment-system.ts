@@ -195,8 +195,8 @@ export class WorldEnvironmentSystem extends createSystem({
       const eq = e.getVectorView(IBLGradient, 'equator');
       const gr = e.getVectorView(IBLGradient, 'ground');
       for (let i = 0; i < 3; i++) {
-        sky[i] = Math.min(1, env.sky[i] * 1.6 + 0.1 * (1 - env.night));
-        eq[i] = env.equator[i];
+        sky[i] = Math.min(1, env.sky[i] * 1.6 + 0.1 * (1 - env.night) + 0.45 * env.night);
+        eq[i] = Math.min(1, env.equator[i] + 0.55 * env.night);
         gr[i] = env.ground[i] * 1.2;
       }
       e.setValue(IBLGradient, 'intensity', env.iblIntensity);
@@ -205,7 +205,8 @@ export class WorldEnvironmentSystem extends createSystem({
     // --- lights: hemisphere = ambient, directional = sun by day / moon by night
     for (const e of this.queries.hemi.entities) {
       const sky = e.getVectorView(HemisphereLightComponent, 'skyColor');
-      for (let i = 0; i < 3; i++) sky[i] = Math.min(1, env.sky[i] * 0.8 + 0.45 * (1 - env.night) + 0.08);
+      // The dark night sky must not tint the ambient light: lights stay day-bright.
+      for (let i = 0; i < 3; i++) sky[i] = Math.min(1, env.sky[i] * 0.8 + 0.45 * (1 - env.night) + 0.6 * env.night + 0.08);
       e.setValue(HemisphereLightComponent, 'intensity', env.hemiIntensity);
     }
     for (const e of this.queries.sun.entities) {

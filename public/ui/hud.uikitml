@@ -26,7 +26,10 @@
 <Panel class="root">
   <div class="row">
     <div id="quest-num" class="eyebrow">QUEST 1 / 6</div>
-    <div id="level" class="level">Level 1  0 XP</div>
+    <div class="row">
+      <div id="level" class="level">Level 1  0 XP</div>
+      <Button id="close-x-button" size="sm" variant="secondary"><ButtonIcon><X></X></ButtonIcon></Button>
+    </div>
   </div>
   <div class="bar"><div id="xp-fill" class="fill"></div></div>
   <div id="quest-title" class="title">Scavenger</div>

@@ -127,6 +127,13 @@ export class HudSystem extends createSystem({
       getUi(this.world).saveNow?.();
       location.reload();
     });
+    // The top-right X: leave VR (in the browser there is nothing to leave, so it just saves).
+    wire(hud, 'close-x-button', () => {
+      getUi(this.world).saveNow?.();
+      const session = this.renderer.xr.getSession();
+      if (session) void session.end();
+      else getGame(this.world).toast('Saved. Close the browser tab to quit.', 'note');
+    });
     wire(hud, 'exit-vr-button', () => {
       getUi(this.world).saveNow?.();
       void this.renderer.xr.getSession()?.end();

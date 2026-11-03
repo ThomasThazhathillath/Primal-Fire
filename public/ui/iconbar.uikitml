@@ -1,0 +1,27 @@
+<!--
+  Bottom icon bar: one fixed-size slot per action so IconBarSystem knows where
+  each icon is without asking the layout (fingertip taps are tested against
+  those slots). Slots are shown/hidden by state; labels are tooltips on the
+  status strip, not text here. The small dot is the active indicator; the
+  notebook slot's badge counts new entries.
+-->
+<style>
+  .bar { flex-direction: row; align-items: center; justify-content: flex-start; height: 68px; padding-left: 8px; padding-right: 8px; gap: 6px; background-color: rgba(20, 18, 14, 0.55); border-radius: 32px; }
+  .slot { width: 52px; height: 56px; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
+  .dot { width: 6px; height: 6px; border-radius: 3px; background-color: #ffb547; display: none; }
+  .badge { padding-left: 5px; padding-right: 5px; height: 14px; border-radius: 7px; background-color: #ff7a45; color: #ffffff; font-size: 11px; font-weight: 700; align-items: center; justify-content: center; display: none; }
+</style>
+<Panel id="bar" class="bar">
+  <div id="slot-0" class="slot"><Button id="ic-satchel" size="sm" variant="secondary"><ButtonIcon><Backpack></Backpack></ButtonIcon></Button><div id="dot-0" class="dot"></div></div>
+  <div id="slot-1" class="slot"><Button id="ic-quest" size="sm" variant="secondary"><ButtonIcon><ListChecks></ListChecks></ButtonIcon></Button><div id="dot-1" class="dot"></div></div>
+  <div id="slot-2" class="slot"><Button id="ic-hint" size="sm" variant="secondary"><ButtonIcon><Lightbulb></Lightbulb></ButtonIcon></Button><div id="dot-2" class="dot"></div></div>
+  <div id="slot-3" class="slot"><Button id="ic-guide" size="sm" variant="secondary"><ButtonIcon><Compass></Compass></ButtonIcon></Button><div id="dot-3" class="dot"></div></div>
+  <div id="slot-4" class="slot"><Button id="ic-notebook" size="sm" variant="secondary"><ButtonIcon><BookOpen></BookOpen></ButtonIcon></Button><div id="badge-4" class="badge">0</div></div>
+  <div id="slot-5" class="slot"><Button id="ic-stow" size="sm" variant="secondary"><ButtonIcon><Hand></Hand></ButtonIcon></Button></div>
+  <div id="slot-6" class="slot"><Button id="ic-drop" size="sm" variant="secondary"><ButtonIcon><ArrowDownToLine></ArrowDownToLine></ButtonIcon></Button></div>
+  <div id="slot-7" class="slot"><Button id="ic-turn-left" size="sm" variant="secondary"><ButtonIcon><RotateCcw></RotateCcw></ButtonIcon></Button></div>
+  <div id="slot-8" class="slot"><Button id="ic-turn-right" size="sm" variant="secondary"><ButtonIcon><RotateCw></RotateCw></ButtonIcon></Button></div>
+  <div id="slot-9" class="slot"><Button id="ic-remove" size="sm" variant="secondary"><ButtonIcon><Trash2></Trash2></ButtonIcon></Button></div>
+  <div id="slot-10" class="slot"><Button id="ic-reload" size="sm" variant="secondary"><ButtonIcon><RefreshCw></RefreshCw></ButtonIcon></Button></div>
+  <div id="slot-11" class="slot"><Button id="ic-exit" size="sm" variant="secondary"><ButtonIcon><LogOut></LogOut></ButtonIcon></Button></div>
+</Panel>

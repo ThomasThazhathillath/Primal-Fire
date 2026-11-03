@@ -29,6 +29,7 @@ import { GuideSystem } from './systems/guide-system.js';
 import { LevelSystem } from './systems/level-system.js';
 import { WaterSystem } from './systems/water-system.js';
 import { HudSystem } from './systems/hud-system.js';
+import { IconBarSystem } from './systems/icon-bar-system.js';
 import { IntroSystem } from './systems/intro-system.js';
 import { ResourceSystem } from './systems/resource-system.js';
 import { SatchelSystem } from './systems/satchel-system.js';
@@ -61,6 +62,7 @@ World.create(
     .registerSystem(ContactFxSystem)
     .registerSystem(HandsSystem)
     .registerSystem(HudSystem)
+    .registerSystem(IconBarSystem)
     .registerSystem(GuideSystem)
     .registerSystem(LevelSystem)
     .registerSystem(WaterSystem)

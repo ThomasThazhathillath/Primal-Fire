@@ -1,5 +1,5 @@
 <!--
-  Quest + XP HUD. In the browser it is pinned top-left (ScreenSpace); in VR it
+  Quest + XP status strip (the action icons live in the bottom icon bar, iconbar.uikitml). In the browser it is pinned top-left (ScreenSpace); in VR it
   follows lazily, low and to the left, inside a comfortable field of view.
   Step lines step-0..step-5 and the toast line are filled in by HudSystem.
 -->
@@ -30,7 +30,6 @@
     <div id="quest-num" class="eyebrow">QUEST 1 / 6</div>
     <div class="row">
       <div id="level" class="level">Level 1  0 XP</div>
-      <Button id="close-x-button" size="sm" variant="secondary"><ButtonIcon><X></X></ButtonIcon></Button>
     </div>
   </div>
   <div class="bar"><div id="xp-fill" class="fill"></div></div>
@@ -48,28 +47,6 @@
   <div id="toast" class="toast"> </div>
   <!-- What you point at and what you can do with it (no floating tooltip in the world). -->
   <div id="hover" class="hover"> </div>
-  <!-- Small icon buttons: each opens or closes one thing. -->
   <!-- Shown only in the flat view, when the headset can enter VR. -->
   <Button id="enter-vr-button" size="sm"><ButtonIcon><Glasses></Glasses></ButtonIcon><ButtonLabel>Enter VR</ButtonLabel></Button>
-  <div class="buttons">
-    <Button id="quest-button" size="sm"><ButtonIcon><ListChecks></ListChecks></ButtonIcon></Button>
-    <Button id="satchel-button" size="sm"><ButtonIcon><Backpack></Backpack></ButtonIcon></Button>
-    <Button id="hint-button" size="sm"><ButtonIcon><Lightbulb></Lightbulb></ButtonIcon></Button>
-    <Button id="guide-button" size="sm"><ButtonIcon><Compass></Compass></ButtonIcon></Button>
-    <Button id="notebook-button" size="sm">
-      <ButtonIcon><BookOpen></BookOpen></ButtonIcon>
-      <ButtonLabel id="notebook-label"> </ButtonLabel>
-    </Button>
-  </div>
-  <div class="buttons">
-    <Button id="stow-button" size="sm"><ButtonIcon><Hand></Hand></ButtonIcon><ButtonLabel id="stow-label">Put away</ButtonLabel></Button>
-    <Button id="drop-button" size="sm"><ButtonIcon><ArrowDownToLine></ArrowDownToLine></ButtonIcon><ButtonLabel>Drop</ButtonLabel></Button>
-  </div>
-  <div class="buttons">
-    <Button id="turn-left-button" size="sm"><ButtonIcon><RotateCcw></RotateCcw></ButtonIcon></Button>
-    <Button id="turn-right-button" size="sm"><ButtonIcon><RotateCw></RotateCw></ButtonIcon></Button>
-    <Button id="remove-build-button" size="sm"><ButtonIcon><Trash2></Trash2></ButtonIcon></Button>
-    <Button id="reload-button" size="sm"><ButtonIcon><RefreshCw></RefreshCw></ButtonIcon></Button>
-    <Button id="exit-vr-button" size="sm"><ButtonIcon><LogOut></LogOut></ButtonIcon></Button>
-  </div>
 </Panel>

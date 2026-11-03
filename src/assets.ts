@@ -34,6 +34,7 @@ export default defineAssets({
   'split-rock': createSplitRock(),
   'welcome-panel': uikitml('welcome.uikitml', 'Welcome Panel'),
   'hud-panel': uikitml('hud.uikitml', 'Quest HUD'),
+  'iconbar-panel': uikitml('iconbar.uikitml', 'Icon Bar'),
   'satchel-panel': uikitml('satchel.uikitml', 'Satchel'),
   'card-panel': uikitml('card.uikitml', 'Notebook Card'),
   'tip-panel': uikitml('tip.uikitml', 'Tooltip'),

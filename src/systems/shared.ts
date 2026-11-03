@@ -18,6 +18,11 @@ export interface UiHooks {
   openNotebook(): void;
   showHint(): void;
   toggleGuide(): void;
+  /** Fold the quest details open or closed on the status strip. */
+  toggleQuest(): void;
+  questOpen(): boolean;
+  /** Notebook entries recorded since it was last opened. */
+  newNotes(): number;
   /** Snap-turn the view by `deg` degrees (positive = left), pivoting on your head. */
   snapTurn(deg: number): void;
   /** Write the save now (before a reload). */

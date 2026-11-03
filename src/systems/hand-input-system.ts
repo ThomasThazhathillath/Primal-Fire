@@ -24,6 +24,16 @@ export interface HandFrame {
   squeeze: boolean;
   squeezeUp: boolean;
   tracked: boolean;
+  /**
+   * Index fingertip (world) and the direction the finger points, from the
+   * WebXR hand joints. `tipTracked` is false for controllers and while the
+   * joints are lost. Read once per frame here; UI tapping etc. consume it.
+   */
+  readonly tipPos: Vector3;
+  readonly tipDir: Vector3;
+  tipTracked: boolean;
+  /** Thumb-tip to index-tip distance (m); Infinity when unknown. */
+  pinchDist: number;
 }
 
 function frame(): HandFrame {
@@ -39,6 +49,10 @@ function frame(): HandFrame {
     squeeze: false,
     squeezeUp: false,
     tracked: false,
+    tipPos: new Vector3(),
+    tipDir: new Vector3(),
+    tipTracked: false,
+    pinchDist: Infinity,
   };
 }
 
@@ -98,6 +112,7 @@ export class HandInputSystem extends createSystem({}) {
   private pendingRelease = false;
   private attached: XRSession | null = null;
   private attach: () => void = () => undefined;
+  private jointTmp = new Vector3();
 
   init(): void {
     const set = (ev: XRInputSourceEvent, which: boolean[], v: boolean) => {
@@ -176,6 +191,41 @@ export class HandInputSystem extends createSystem({}) {
     });
   }
 
+  /** Index tip + pointing direction of each tracked hand, in world space. */
+  private readFingertips(): void {
+    hands[0].tipTracked = hands[1].tipTracked = false;
+    hands[0].pinchDist = hands[1].pinchDist = Infinity;
+    const session = this.renderer.xr.getSession();
+    const xrFrame = this.renderer.xr.getFrame?.() as XRFrame | undefined;
+    const ref = this.renderer.xr.getReferenceSpace();
+    if (!session || !xrFrame || !ref) return;
+    for (const src of session.inputSources) {
+      const hand = src.hand;
+      if (!hand || (src.handedness !== 'left' && src.handedness !== 'right')) continue;
+      const h = hands[src.handedness === 'left' ? 0 : 1];
+      const tip = hand.get('index-finger-tip');
+      const mid = hand.get('index-finger-phalanx-intermediate');
+      if (!tip || !mid) continue;
+      const tp = xrFrame.getJointPose?.(tip, ref);
+      const mp = xrFrame.getJointPose?.(mid, ref);
+      if (!tp || !mp) continue;
+      h.tipPos.set(tp.transform.position.x, tp.transform.position.y, tp.transform.position.z);
+      this.jointTmp.set(mp.transform.position.x, mp.transform.position.y, mp.transform.position.z);
+      // Joint poses are in the reference space, which moves with the player rig.
+      this.player.localToWorld(h.tipPos);
+      this.player.localToWorld(this.jointTmp);
+      h.tipDir.subVectors(h.tipPos, this.jointTmp).normalize();
+      const thumb = hand.get('thumb-tip');
+      const thp = thumb && xrFrame.getJointPose?.(thumb, ref);
+      if (thp) {
+        this.jointTmp.set(thp.transform.position.x, thp.transform.position.y, thp.transform.position.z);
+        this.player.localToWorld(this.jointTmp);
+        h.pinchDist = this.jointTmp.distanceTo(h.tipPos);
+      }
+      h.tipTracked = true;
+    }
+  }
+
   update(delta: number): void {
     const dt = Math.max(delta, 1e-4);
     this.attach();
@@ -199,6 +249,8 @@ export class HandInputSystem extends createSystem({}) {
     mouse.vx += (dx / dt - mouse.vx) * k;
     mouse.vy += (dy / dt - mouse.vy) * k;
     this.moved = false;
+
+    this.readFingertips();
 
     // XR hands / controllers.
     const vr = this.world.visibilityState.peek() !== VisibilityState.NonImmersive;

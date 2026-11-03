@@ -22,10 +22,10 @@ import {
 } from '@iwsdk/core';
 import { spotWorldPosition, BLUEPRINTS } from '../game/blueprint.js';
 import type { GameEvent } from '../game/game.js';
-import { fitsPouch, itemName } from '../game/items.js';
+import { itemName } from '../game/items.js';
 import { bagPrompt, gatherPrompt } from '../game/prompts.js';
 import { SatchelSystem } from './satchel-system.js';
-import { OBSERVATION_COUNT, OBSERVATIONS } from '../game/observations.js';
+import { OBSERVATIONS } from '../game/observations.js';
 import { QUESTS } from '../game/quests.js';
 import { Gatherable, SatchelItem, SnapSpot, StructurePart, WorldDropItem } from '../components/game-components.js';
 import { REACH, ResourceSystem } from './resource-system.js';
@@ -102,50 +102,6 @@ export class HudSystem extends createSystem({
       el.addEventListener('click', fn);
       this.cleanupFuncs.push(() => el.removeEventListener('click', fn));
     };
-    wire(hud, 'hint-button', () => this.showHint());
-    wire(hud, 'satchel-button', () => getUi(this.world).toggleSatchel?.());
-    wire(hud, 'notebook-button', () => this.openNotebook());
-    wire(hud, 'quest-button', () => {
-      this.questOpen = !this.questOpen;
-      hud.requireElementById('quest-body').setProperties({ display: this.questOpen ? 'flex' : 'none' });
-    });
-    wire(hud, 'guide-button', () => getUi(this.world).toggleGuide?.());
-    // Hands-friendly: put the held thing in the bag, or set it down when it is too big for it.
-    wire(hud, 'stow-button', () => {
-      const game = getGame(this.world);
-      const held = game.held;
-      if (!held) return game.toast('Your hands are empty.', 'note');
-      if (fitsPouch(held)) game.stow();
-      else getUi(this.world).dropHeld?.(held);
-    });
-    wire(hud, 'remove-build-button', () => {
-      const game = getGame(this.world);
-      const s = game.nearestUnfinished(6);
-      if (s) game.removeStructure(s.id);
-      else game.toast('No unfinished build near you to remove.', 'note');
-    });
-    // Reload saves first, so nothing is lost; Exit VR ends the headset session (back to the flat page).
-    wire(hud, 'reload-button', () => {
-      getUi(this.world).saveNow?.();
-      location.reload();
-    });
-    // The top-right X: leave VR (in the browser there is nothing to leave, so it just saves).
-    wire(hud, 'close-x-button', () => {
-      getUi(this.world).saveNow?.();
-      const session = this.renderer.xr.getSession();
-      if (session) void session.end();
-      else getGame(this.world).toast('Saved. Close the browser tab to quit.', 'note');
-    });
-    wire(hud, 'exit-vr-button', () => {
-      getUi(this.world).saveNow?.();
-      void this.renderer.xr.getSession()?.end();
-    });
-    // Drop what you hold on the ground in front of you (frees a pocket; you can pick it up again).
-    wire(hud, 'drop-button', () => {
-      const game = getGame(this.world);
-      if (game.held) getUi(this.world).dropHeld?.(game.held);
-      else game.toast('Take something out of the bag first, then drop it.', 'note');
-    });
     wire(hud, 'enter-vr-button', () => this.world.launchXR());
     const enterVr = hud.requireElementById('enter-vr-button');
     this.cleanupFuncs.push(
@@ -153,19 +109,16 @@ export class HudSystem extends createSystem({
         enterVr.setProperties({ display: this.world.xrEnabled && v === VisibilityState.NonImmersive ? 'flex' : 'none' });
       }),
     );
-    wire(hud, 'turn-left-button', () => getUi(this.world).snapTurn?.(45));
-    wire(hud, 'turn-right-button', () => getUi(this.world).snapTurn?.(-45));
-    const stowLabel = hud.requireElementById<UIKit.Text>('stow-label');
-    this.cleanupFuncs.push(
-      getGame(this.world).on((e) => {
-        if (e.type !== 'held') return;
-        stowLabel.setProperties({ text: e.item && !fitsPouch(e.item) ? 'Put down' : 'Put away' });
-      }),
-    );
     wire(card, 'card-ok', () => this.nextCard());
     const ui = getUi(this.world);
     ui.showHint = () => this.showHint();
     ui.openNotebook = () => this.openNotebook();
+    ui.toggleQuest = () => {
+      this.questOpen = !this.questOpen;
+      hud.requireElementById('quest-body').setProperties({ display: this.questOpen ? 'flex' : 'none' });
+    };
+    ui.questOpen = () => this.questOpen;
+    ui.newNotes = () => this.newNotes;
 
     this.cleanupFuncs.push(
       game.on((e: GameEvent) => this.onGameEvent(e)),
@@ -251,7 +204,6 @@ export class HudSystem extends createSystem({
       }
     }
     this.hud.requireElementById('xp-fill').setProperties({ width: Math.round(350 * game.levelProgress) });
-    text('notebook-label', this.newNotes ? `${this.newNotes} new` : `${game.notebook.length}/${OBSERVATION_COUNT}`);
   }
 
   showHint(): void {

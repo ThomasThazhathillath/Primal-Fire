@@ -64,6 +64,12 @@ const RECIPE_UNLOCK: Unlock = { built: 'workbench', hint: 'Build a workbench fir
 /** Do two ordered id lists match, for grouping slots that take the same parts? */
 const sameParts = (a: ItemId[], b: ItemId[]) => a.length === b.length && a.every((x, i) => x === b[i]);
 
+/** A short name for what a slot takes: "Stone" for any stone, else the names joined with "/". */
+function partLabel(accepts: ItemId[]): string {
+  if (accepts.every((id) => /stone$/i.test(id))) return 'Stone';
+  return accepts.map((id) => itemName(id)).join('/');
+}
+
 function groupParts(game: Game, slots: ItemId[][]): BookPart[] {
   const groups: Array<{ accepts: ItemId[]; need: number }> = [];
   for (const accepts of slots) {
@@ -72,7 +78,7 @@ function groupParts(game: Game, slots: ItemId[][]): BookPart[] {
     else groups.push({ accepts, need: 1 });
   }
   return groups.map((g) => ({
-    label: g.accepts.map((id) => itemName(id)).join(' or '),
+    label: partLabel(g.accepts),
     need: g.need,
     have: g.accepts.reduce((n, id) => n + game.count(id) + (game.held === id ? 1 : 0), 0),
   }));

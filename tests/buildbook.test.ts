@@ -48,7 +48,7 @@ describe('build book entries', () => {
     g.addItem('dryStone', 2);
     g.addItem('wetStone', 1);
     const pit = entry(g, 'firePit');
-    expect(pit.parts).toEqual([{ label: 'Dry stone or Wet stone', need: 4, have: 3 }]);
+    expect(pit.parts).toEqual([{ label: 'Stone', need: 4, have: 3 }]);
     expect(pit.haveAll).toBe(false);
     g.addItem('dryStone');
     expect(entry(g, 'firePit').haveAll).toBe(true);

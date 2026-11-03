@@ -72,7 +72,14 @@ export class BuildBookSystem extends createSystem({}) {
 
   private refresh(): void {
     const game = getGame(this.world);
-    this.rows = game.bookEntries();
+    // Locked bench recipes collapse into a single "?" row.
+    let lockedRecipe = false;
+    this.rows = game.bookEntries().filter((e) => {
+      if (e.kind !== 'recipe' || e.unlocked) return true;
+      const first = !lockedRecipe;
+      lockedRecipe = true;
+      return first;
+    });
     for (let i = 0; i < ROWS; i++) {
       const e = this.rows[i];
       this.panel.requireElementById(`entry-${i}`).setProperties({ display: e ? 'flex' : 'none' });
@@ -95,7 +102,7 @@ export class BuildBookSystem extends createSystem({}) {
 
 /** One line: name and parts you have / need, or "?" and how to unlock. */
 function label(e: BookEntry): string {
-  if (!e.unlocked) return `? - ${e.hint}`;
+  if (!e.unlocked) return e.kind === 'recipe' ? `? Tools and more - ${e.hint}` : `? - ${e.hint}`;
   if (e.kind === 'recipe') return `${e.name} (at the bench): ${e.parts.map((p) => `${p.label} ${Math.min(p.have, p.need)}/${p.need}`).join(', ')}`;
   return `${e.name}: ${e.parts.map((p) => `${p.label} ${Math.min(p.have, p.need)}/${p.need}`).join(', ')}`;
 }

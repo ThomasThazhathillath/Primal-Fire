@@ -13,6 +13,7 @@ export interface UiHooks {
   toggleSatchel(): void;
   openNotebook(): void;
   showHint(): void;
+  toggleGuide(): void;
 }
 
 export function getGame(world: World): Game {

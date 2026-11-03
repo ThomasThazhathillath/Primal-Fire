@@ -100,6 +100,7 @@ export class HudSystem extends createSystem({
     wire(hud, 'hint-button', () => this.showHint());
     wire(hud, 'satchel-button', () => getUi(this.world).toggleSatchel?.());
     wire(hud, 'notebook-button', () => this.openNotebook());
+    wire(hud, 'guide-button', () => getUi(this.world).toggleGuide?.());
     wire(card, 'card-ok', () => this.nextCard());
     const ui = getUi(this.world);
     ui.showHint = () => this.showHint();

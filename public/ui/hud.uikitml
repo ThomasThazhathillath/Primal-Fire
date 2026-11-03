@@ -50,5 +50,8 @@
       <ButtonIcon><BookOpen></BookOpen></ButtonIcon>
       <ButtonLabel id="notebook-label">Notebook 0/31</ButtonLabel>
     </Button>
+    <Button id="guide-button" size="sm">
+      <ButtonLabel id="guide-label">Guide</ButtonLabel>
+    </Button>
   </div>
 </Panel>

@@ -1,7 +1,8 @@
 // The crafting guide card (src/game/guides.ts): one compact panel showing the
 // active step, its materials, a hand cue, the last mistake and a science line.
 // Browser: pinned bottom-centre. VR: follows lazily, low in view, so it never
-// blocks what your hands are doing. J toggles it; the guide is optional.
+// blocks what your hands are doing. J, its Hide button or the HUD's Guide
+// button toggle it; the guide is optional and the choice is saved.
 
 import {
   createSystem,
@@ -17,7 +18,7 @@ import {
 import type { GuideView, HandDiagram } from '../game/guides.js';
 import { ITEMS, type ItemId } from '../game/items.js';
 import { RESOURCES } from '../game/world-layout.js';
-import { getGame, uiText } from './shared.js';
+import { getGame, getUi, uiText } from './shared.js';
 import { WorldSystem } from './world-system.js';
 
 const REFRESH_SECONDS = 0.25;
@@ -55,19 +56,29 @@ export class GuideSystem extends createSystem({}) {
     this.panel = panel;
 
     const onKey = (e: KeyboardEvent) => {
-      if (e.code !== 'KeyJ') return;
-      const game = getGame(this.world);
-      game.guide.hidden = !game.guide.hidden;
-      game.log.add(`guide ${game.guide.hidden ? 'hidden' : 'shown'}`);
-      game.toast(game.guide.hidden ? 'Guide hidden (J to show).' : 'Guide shown (J to hide).');
-      this.lastKey = '';
+      if (e.code === 'KeyJ') this.toggle();
     };
     window.addEventListener('keydown', onKey);
+    const close = panel.requireElementById('guide-close');
+    const onClose = () => this.toggle();
+    close.addEventListener('click', onClose);
+    getUi(this.world).toggleGuide = () => this.toggle();
     this.cleanupFuncs.push(
       () => window.removeEventListener('keydown', onKey),
+      () => close.removeEventListener('click', onClose),
       this.world.visibilityState.subscribe((v) => this.place(v)),
       getGame(this.world).on(() => (this.timer = REFRESH_SECONDS)),
     );
+  }
+
+  /** Show or hide the card (J key, its Hide button, or the HUD's Guide button). */
+  toggle(): void {
+    const game = getGame(this.world);
+    game.guide.hidden = !game.guide.hidden;
+    game.log.add(`guide ${game.guide.hidden ? 'hidden' : 'shown'}`);
+    game.toast(game.guide.hidden ? 'Guide hidden. Press J or the Guide button to show it.' : 'Guide shown (J to hide).');
+    this.lastKey = '';
+    this.timer = REFRESH_SECONDS;
   }
 
   update(delta: number): void {

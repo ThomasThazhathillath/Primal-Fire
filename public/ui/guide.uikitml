@@ -4,6 +4,7 @@
   .head { flex-direction: row; justify-content: space-between; align-items: center; }
   .eyebrow { color: #1f5f99; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
   .eyebrow:dark { color: #8fc7ff; }
+  .headright { flex-direction: row; align-items: center; gap: 10px; }
   .count { color: #55504a; font-size: 20px; font-weight: 700; }
   .count:dark { color: #d9cfbd; }
   .title { color: #1c1d20; font-size: 34px; font-weight: 700; line-height: 1.15; }
@@ -24,7 +25,10 @@
 <Panel class="root">
   <div class="head">
     <div id="guide-name" class="eyebrow">GUIDE</div>
-    <div id="guide-count" class="count">1 / 1</div>
+    <div class="headright">
+      <div id="guide-count" class="count">1 / 1</div>
+      <Button id="guide-close" variant="secondary" size="sm"><ButtonLabel>Hide (J)</ButtonLabel></Button>
+    </div>
   </div>
   <div id="guide-title" class="title">-</div>
   <div class="mats">

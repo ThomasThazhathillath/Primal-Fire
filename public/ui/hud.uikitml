@@ -64,5 +64,8 @@
     <Button id="turn-right-button" size="sm">
       <ButtonLabel>Turn right</ButtonLabel>
     </Button>
+    <Button id="remove-build-button" size="sm">
+      <ButtonLabel>Remove build</ButtonLabel>
+    </Button>
   </div>
 </Panel>

@@ -736,6 +736,48 @@ export class Game {
   /** Release the held key part over open ground to start a structure. */
   private lastUnfinishedToast = -99;
 
+  /** The closest unfinished structure within `maxD` m of the player, if any. */
+  nearestUnfinished(maxD = 6): PlacedStructure | null {
+    let best: PlacedStructure | null = null;
+    let bd = maxD;
+    for (const s of this.structures) {
+      if (s.complete) continue;
+      const d = Math.hypot(s.x - this.player.x, s.z - this.player.z);
+      if (d < bd) {
+        bd = d;
+        best = s;
+      }
+    }
+    return best;
+  }
+
+  /**
+   * Abandon an unfinished plan: the outline goes and every part already on it
+   * comes back (small parts to the bag, big ones set down beside it).
+   */
+  removeStructure(id: number): boolean {
+    const s = this.structures.find((t) => t.id === id);
+    if (!s || s.complete) return false;
+    const def = BLUEPRINTS[s.kind];
+    const parts = s.spots.filter((v): v is ItemId => v !== null);
+    // A keyLast key part (the slab) stays in your hand until it is set down on the supports.
+    if (!def.keyLast || s.keyPlaced) parts.push(s.key);
+    this.structures.splice(this.structures.indexOf(s), 1);
+    let dropped = false;
+    parts.forEach((item, i) => {
+      if (fitsPouch(item)) this.addItem(item);
+      else {
+        this.drops.push({ id: this.nextDropId++, item, x: s.x + 0.4 * Math.cos(i), z: s.z + 0.4 * Math.sin(i) });
+        dropped = true;
+      }
+    });
+    if (dropped) this.emit({ type: 'drops' });
+    this.log.add(`removed ${s.kind}#${s.id} plan, returned ${parts.join(',') || 'nothing'}`);
+    this.toast(parts.length ? `Removed the ${def.name.toLowerCase()} plan. Its parts are back with you.` : `Removed the ${def.name.toLowerCase()} plan.`, 'note');
+    this.emit({ type: 'structure', structure: s });
+    return true;
+  }
+
   placeBlueprint(kind: StructureKind, x: number, z: number, rotY = 0): PlacementResult & { structure?: PlacedStructure } {
     const def = BLUEPRINTS[kind];
     if (!this.held || !def.keyAccepts.includes(this.held)) {

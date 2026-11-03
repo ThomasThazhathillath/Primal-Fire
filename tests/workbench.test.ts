@@ -114,3 +114,18 @@ describe('taking a finished workbench apart', () => {
     expect(g.structures).not.toContain(s);
   });
 });
+
+describe('removing an unfinished build', () => {
+  it('clears the outline, returns placed parts, and allows a new plan', () => {
+    const g = new Game();
+    const { s } = outline(g);
+    g.fillSpot(s.id, 0, undefined, at(g, s.id, 0));
+    const stones = g.count('dryStone');
+    expect(g.placeBlueprint('workbench', 5, 5).ok).toBe(false); // one plan at a time
+    expect(g.removeStructure(s.id)).toBe(true);
+    expect(g.structures).not.toContain(s);
+    expect(g.count('dryStone')).toBe(stones + 1);
+    expect(g.held).toBe('slab'); // the slab never left your hand
+    expect(g.placeBlueprint('workbench', -1, -2).ok).toBe(true); // the same ground is free again
+  });
+});

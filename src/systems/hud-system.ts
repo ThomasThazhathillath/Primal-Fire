@@ -109,6 +109,12 @@ export class HudSystem extends createSystem({
       if (fitsPouch(held)) game.stow();
       else getUi(this.world).dropHeld?.(held);
     });
+    wire(hud, 'remove-build-button', () => {
+      const game = getGame(this.world);
+      const s = game.nearestUnfinished(6);
+      if (s) game.removeStructure(s.id);
+      else game.toast('No unfinished build near you to remove.', 'note');
+    });
     wire(hud, 'turn-left-button', () => getUi(this.world).snapTurn?.(45));
     wire(hud, 'turn-right-button', () => getUi(this.world).snapTurn?.(-45));
     const stowLabel = hud.requireElementById<UIKit.Text>('stow-label');

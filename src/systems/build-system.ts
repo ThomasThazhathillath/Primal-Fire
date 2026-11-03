@@ -106,7 +106,10 @@ export class BuildSystem extends createSystem({
     this.cleanupFuncs.push(
       game.on((e: GameEvent) => {
         if (e.type === 'held') this.setGhost(this.ghostFor(e.item));
-        if (e.type === 'structure') this.renderStructure(e.structure);
+        if (e.type === 'structure') {
+          this.renderStructure(e.structure);
+          this.setGhost(this.ghostFor(getGame(this.world).held));
+        }
       }),
       // Pointer presses drive the browser; VR uses selectstart (below).
       this.queries.ghostPressed.subscribe('qualify', () => !this.immersive() && this.placeGhost()),
@@ -129,7 +132,10 @@ export class BuildSystem extends createSystem({
     if (!item) return null;
     const game = getGame(this.world);
     if (game.wantsItem(item, game.player.x, game.player.z)) return null;
-    return blueprintsForKeyItem(item)[0] ?? null;
+    const def = blueprintsForKeyItem(item)[0] ?? null;
+    // Already building one: no floating outline (finish or remove that plan first).
+    if (def && game.structures.some((s) => s.kind === def.kind && !s.complete)) return null;
+    return def;
   }
 
   /** Slab: push down to test it (Shift / both hands: lift it back off). Support: take it back. */

@@ -37,7 +37,9 @@ export type GuideFailureCode =
   | 'support.tooFar'
   | 'slab.beforeSupports'
   | 'slab.notOnSupports'
-  | 'slab.offCentre';
+  | 'slab.offCentre'
+  | 'bench.wrongMotion'
+  | 'bench.missingParts';
 
 // ------------------------------------------------------------------ grab
 
@@ -473,6 +475,8 @@ export const FAILURE_TEXT: Record<GuideFailureCode, string> = {
   'slab.beforeSupports': 'Set all three support stones first, then lift the slab onto them.',
   'slab.notOnSupports': 'The slab is not resting on all three supports.',
   'slab.offCentre': 'The slab hangs off-centre - it tips toward the gap.',
+  'bench.wrongMotion': 'That is not the motion this step needs.',
+  'bench.missingParts': 'You are missing parts for that.',
 };
 
 // -------------------------------------------------------- what things are made of

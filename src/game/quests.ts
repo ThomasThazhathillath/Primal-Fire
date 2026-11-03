@@ -353,8 +353,9 @@ export const QUESTS: Quest[] = [
       {
         text: () => 'Build the friction tool at your workbench',
         done: (g) => g.flag('hasDrill'),
+        guide: 'bowDrill',
         hints: [
-          'Stand at your workbench with every part in your satchel, and craft.',
+          'Click (or pinch) your workbench, choose the bow drill, then make it with your hands step by step.',
           'A spindle, a board, a bow and a cord make a bow drill.',
         ],
         target: { structure: 'workbench', items: ['slab'] },

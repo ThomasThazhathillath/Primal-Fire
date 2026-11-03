@@ -2,6 +2,7 @@
 // call these actions and react to the events; tests drive them directly.
 
 import { actionFor } from './actions.js';
+import { BENCH_BY_ID, BenchSession, canStart, missingText, type BenchMotion } from './bench.js';
 import { checkPlace, FAILURE_TEXT, GrabTracker, slabStability, SUPPORT_NAMES, type GuideFailureCode } from './interact.js';
 import { HAND_RECIPES, TOOLS, toolFor } from './tools.js';
 import { capacityFor, itemsCount, itemsWeight, moveLimits, PACK_UPGRADES, type MoveLimits, type PackUpgrade } from './backpack.js';
@@ -63,6 +64,7 @@ export type GameEvent =
   | { type: 'fire'; stage: FireStage }
   | { type: 'arrow'; hit: boolean }
   | { type: 'reach' }
+  | { type: 'bench'; state: 'start' | 'progress' | 'step' | 'done' | 'cancel' }
   | { type: 'fx'; name: FxName; strength: number }
   | { type: 'interaction'; code: GuideFailureCode; detail?: string }
   | { type: 'drops' }
@@ -287,6 +289,85 @@ export class Game {
     const a = actionFor(this.held);
     if (!a) return false;
     return this.work(a.work * (1 - this.actionProgress) + 1e-6);
+  }
+
+  // ----------------------------------------------------------- workbench
+
+  /** The craft in progress at a workbench, if any. */
+  bench: BenchSession | null = null;
+
+  /**
+   * Choose a recipe at a finished workbench. Nothing is made yet: the parts
+   * are taken from your satchel (and hand) and laid on the bench, and the
+   * first physical step begins.
+   */
+  startBench(recipeId: string, structureId: number): boolean {
+    const r = BENCH_BY_ID[recipeId];
+    const s = this.structures.find((t) => t.id === structureId);
+    if (!r || !s || s.kind !== 'workbench' || !s.complete) return false;
+    if (this.bench) this.cancelBench();
+    if (!canStart(this, r)) {
+      this.interactionFailure('bench.missingParts', `need ${missingText(this, r)}`);
+      return false;
+    }
+    for (const [id, n] of Object.entries(r.inputs)) {
+      for (let i = 0; i < (n ?? 0); i++) this.takeFromHolding(id as ItemId);
+    }
+    this.bench = new BenchSession(r, structureId);
+    this.log.add(`bench: start ${r.id}`, 'ok');
+    this.emit({ type: 'bench', state: 'start' });
+    return true;
+  }
+
+  /** Effort from a hand motion at the bench. Finishing the last step makes the item. */
+  benchWork(motion: BenchMotion, effort: number): void {
+    const b = this.bench;
+    if (!b) return;
+    const ev = b.work(motion, effort);
+    if (!ev) return;
+    if (ev === 'wrong') {
+      this.interactionFailure('bench.wrongMotion', `this step needs: ${b.step?.motion}`);
+      return;
+    }
+    if (ev === 'progress') {
+      this.emit({ type: 'bench', state: 'progress' });
+      return;
+    }
+    const finished = b.recipe.steps[b.stepIndex - 1];
+    if (finished?.mark) this.guide.mark(finished.mark);
+    this.log.add(`bench: ${b.recipe.id} step ${finished?.id} done`, 'ok');
+    if (ev === 'step') {
+      this.emit({ type: 'bench', state: 'step' });
+      return;
+    }
+    // Done: the parts became the item.
+    const r = b.recipe;
+    this.bench = null;
+    this.addItem(r.output, r.count ?? 1);
+    this.toolUses.delete(r.output);
+    if (r.flag) this.setFlag(r.flag);
+    this.log.add(`bench: made ${r.output}`, 'ok');
+    this.toast(`Made: ${itemName(r.output)}`, 'good');
+    if (r.observation) this.observe(r.observation);
+    for (const ev2 of r.science ?? []) this.science(ev2);
+    this.checkQuests();
+    this.emit({ type: 'bench', state: 'done' });
+  }
+
+  private satchelWithBench(): Partial<Record<ItemId, number>> {
+    const out: Partial<Record<ItemId, number>> = Object.fromEntries(this.satchel);
+    for (const [id, n] of Object.entries(this.bench?.recipe.inputs ?? {})) out[id as ItemId] = (out[id as ItemId] ?? 0) + (n ?? 0);
+    return out;
+  }
+
+  /** Stop the craft at the bench: every part goes back to the satchel. */
+  cancelBench(): void {
+    const b = this.bench;
+    if (!b) return;
+    this.bench = null;
+    for (const [id, n] of Object.entries(b.recipe.inputs)) this.addItem(id as ItemId, n ?? 0);
+    this.log.add(`bench: cancelled ${b.recipe.id}`);
+    this.emit({ type: 'bench', state: 'cancel' });
   }
 
   /** Cue for the hands to reach (opening the bag, taking something out). */
@@ -1006,7 +1087,8 @@ export class Game {
       xp: this.xp,
       level: this.level,
       questIndex: this.questIndex,
-      satchel: Object.fromEntries(this.satchel),
+      // Parts lying on the bench mid-craft are saved as if the craft was cancelled.
+      satchel: this.satchelWithBench(),
       gathered: Object.fromEntries(this.gathered),
       notebook: [...this.notebook],
       events: [...this.events],

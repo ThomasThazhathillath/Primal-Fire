@@ -18,7 +18,8 @@ import {
   type PlacementResult,
   type StructureKind,
 } from './blueprint.js';
-import { ITEMS, itemName, SATCHEL_ORDER, type ItemId } from './items.js';
+import { fitsPouch, ITEMS, itemName, SATCHEL_ORDER, type ItemId, type Material } from './items.js';
+import { carrySpeed } from './carry.js';
 import { EventLog } from './log.js';
 import { observationsForEvent, OBSERVATIONS } from './observations.js';
 import { isScienceEvent } from './science-events.js';
@@ -64,6 +65,7 @@ export type GameEvent =
   | { type: 'fire'; stage: FireStage }
   | { type: 'arrow'; hit: boolean }
   | { type: 'reach' }
+  | { type: 'contact'; a: Material; b: Material; x: number; y: number; z: number; strength: number }
   | { type: 'bench'; state: 'start' | 'progress' | 'step' | 'done' | 'cancel' }
   | { type: 'fx'; name: FxName; strength: number }
   | { type: 'interaction'; code: GuideFailureCode; detail?: string }
@@ -197,7 +199,23 @@ export class Game {
   }
 
   get moveLimits(): MoveLimits {
-    return moveLimits(this.carriedWeight, this.capacity.load);
+    const lim = moveLimits(this.carriedWeight, this.capacity.load);
+    // Something big in your arms slows you and stops you running, whatever the bag weighs.
+    const carry = carrySpeed(this.held);
+    if (carry >= 1) return lim;
+    return { ...lim, speed: lim.speed * carry, canRun: false };
+  }
+
+  /** Two things touched: material sound, particles and positional audio (AudioSystem / ContactFxSystem). */
+  contact(a: Material, b: Material, x: number, y: number, z: number, strength = 1): void {
+    this.emit({ type: 'contact', a, b, x, y, z, strength });
+  }
+
+  /** Hands free to take something big? */
+  private handsFreeFor(id: ItemId): boolean {
+    if (!this.held) return true;
+    this.toast(`Your hands are full - set down the ${itemName(this.held).toLowerCase()} first (G), then take the ${itemName(id).toLowerCase()}.`, 'bad');
+    return false;
   }
 
   /** Craft a pack upgrade (more pockets, higher comfortable load). */
@@ -242,12 +260,17 @@ export class Game {
   pickUpDrop(id: number): boolean {
     const i = this.drops.findIndex((d) => d.id === id);
     if (i < 0) return false;
-    if (this.carriedCount >= this.capacity.pockets) {
+    if (fitsPouch(this.drops[i].item) && this.carriedCount >= this.capacity.pockets) {
       this.toast('Your pockets are full.', 'bad');
       return false;
     }
+    const big = !fitsPouch(this.drops[i].item);
+    if (big && !this.handsFreeFor(this.drops[i].item)) return false;
     const [d] = this.drops.splice(i, 1);
-    this.addItem(d.item);
+    if (big) {
+      this.held = d.item;
+      this.emit({ type: 'held', item: d.item });
+    } else this.addItem(d.item);
     this.toast(`+1 ${itemName(d.item)}`);
     this.emit({ type: 'drops' });
     return true;
@@ -264,8 +287,15 @@ export class Game {
       this.toast('The basket is full.', 'bad');
       return false;
     }
-    if (this.held === item) this.stow();
-    if (this.stash(item, 1) === 0) return false;
+    if (this.held === item && !fitsPouch(item)) {
+      // Too big for the bag: it goes straight from your hands into the basket.
+      this.consumeHeld();
+      box.store ??= {};
+      box.store[item] = (box.store[item] ?? 0) + 1;
+    } else {
+      if (this.held === item) this.stow();
+      if (this.stash(item, 1) === 0) return false;
+    }
     this.toast(`Stored ${itemName(item).toLowerCase()}.`);
     return true;
   }
@@ -592,19 +622,33 @@ export class Game {
 
   /** Gather one item from the world into the satchel. */
   gather(id: ItemId, sourceId = 'world'): boolean {
-    if (this.carriedCount >= this.capacity.pockets) {
+    // Big or heavy things never go in the bag: you carry them in your hands.
+    const big = !fitsPouch(id);
+    if (big && !this.handsFreeFor(id)) {
+      this.log.add(`gather ${id}: hands full`, 'bad');
+      return false;
+    }
+    if (!big && this.carriedCount >= this.capacity.pockets) {
       this.toast('Your pockets are full - drop or use something, or make a bigger pack.', 'bad');
       this.log.add(`gather ${id}: pockets full`, 'bad');
       return false;
     }
     const first = this.gatheredCount(id) === 0;
     this.gathered.set(id, this.gatheredCount(id) + 1);
-    this.addItem(id);
+    if (big) {
+      this.held = id;
+      this.actionProgress = 0;
+      this.emit({ type: 'held', item: id });
+    } else this.addItem(id);
     this.lastToolUsed = null;
-    const bonus = this.carriedCount < this.capacity.pockets ? this.toolBonus(id) : 0;
+    const bonus = big || this.carriedCount < this.capacity.pockets ? this.toolBonus(id) : 0;
     this.emit({ type: 'gather', item: id, tool: this.lastToolUsed });
     if (bonus) {
-      this.addItem(id, bonus);
+      // A tool's extra piece of something big is left lying beside you.
+      if (big) {
+        this.drops.push({ id: this.nextDropId++, item: id, x: this.player.x + 0.5, z: this.player.z });
+        this.emit({ type: 'drops' });
+      } else this.addItem(id, bonus);
       this.gathered.set(id, this.gatheredCount(id) + bonus);
     }
     this.log.add(`gathered ${id} from ${sourceId}${bonus ? ' (+tool)' : ''}`);
@@ -622,6 +666,7 @@ export class Game {
       return false;
     }
     if (this.held) this.stow();
+    if (this.held) return false; // too big to stow: hands stay full
     this.satchel.set(id, this.count(id) - 1);
     this.held = id;
     this.actionProgress = 0;
@@ -634,6 +679,10 @@ export class Game {
   /** Put the held item back in the satchel. */
   stow(): void {
     if (!this.held) return;
+    if (!fitsPouch(this.held)) {
+      this.toast(`Too big for the pouch - carry the ${itemName(this.held).toLowerCase()} in your hands, or set it down (G).`, 'bad');
+      return;
+    }
     const id = this.held;
     this.held = null;
     this.addItem(id);

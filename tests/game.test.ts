@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BLUEPRINTS, checkPlacement, spotWorldPosition } from '../src/game/blueprint.js';
 import { Game, RECIPES, type Locator } from '../src/game/game.js';
-import { ITEMS, type ItemId } from '../src/game/items.js';
+import { fitsPouch, ITEMS, type ItemId } from '../src/game/items.js';
 import { OBSERVATION_COUNT, OBSERVATIONS } from '../src/game/observations.js';
 import { QUESTS } from '../src/game/quests.js';
 import {
@@ -25,7 +25,11 @@ const locateFromLayout: Locator = (items, from) => {
 };
 
 function gatherN(g: Game, id: ItemId, n: number): void {
-  for (let i = 0; i < n; i++) g.gather(id, 'test');
+  for (let i = 0; i < n; i++) {
+    g.gather(id, 'test');
+    // Big things are carried, one at a time: set each down before the next.
+    if (g.held === id && !fitsPouch(id)) g.dropItem(id, 0, 0);
+  }
 }
 
 /** Builds a structure of `kind` at (x, z) using items given for the purpose. */

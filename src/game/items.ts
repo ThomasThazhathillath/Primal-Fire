@@ -185,3 +185,93 @@ export const SATCHEL_ORDER: ItemId[] = [
 ];
 
 export const itemName = (id: ItemId): string => ITEMS[id].name;
+
+// ------------------------------------------------------------ physical properties
+
+export type Material = 'wood' | 'stone' | 'flint' | 'clay' | 'leaf' | 'fibre' | 'bone' | 'cloth' | 'sand' | 'soil' | 'water' | 'ember';
+export type Surface = 'rough' | 'smooth' | 'sharp' | 'soft' | 'sticky' | 'grainy';
+/**
+ * How you handle it: `pouch` fits the bag (small and light), `oneHand` is
+ * held in one hand (too long or awkward for the bag), `twoHand` must be
+ * carried with both hands, `drag` can only be dragged along the ground.
+ */
+export type HandleType = 'pouch' | 'oneHand' | 'twoHand' | 'drag';
+
+export interface GripPoint {
+  /** Offset (m) from the object's origin, in its own frame (long axis = +X). */
+  x: number;
+  y: number;
+  z: number;
+}
+
+export interface ItemPhysics {
+  /** Bounding size (m): length (X), height (Y), width (Z). */
+  size: [number, number, number];
+  material: Material;
+  surface: Surface;
+  interaction: HandleType;
+  /** Where hands hold it: one for one-handed items (a tool's handle end), two for two-handed. */
+  grips: GripPoint[];
+  /** Centre of mass offset (m) from the origin: an axe is head-heavy. */
+  com: GripPoint;
+  /** Uses before a tool wears out (tools only). */
+  durability?: number;
+  /** Can snap or shatter when dropped hard or misused. */
+  breakable: boolean;
+}
+
+/** Physical properties of every item (mass is ITEMS[id].weight). */
+export const ITEM_PHYSICS: Record<ItemId, ItemPhysics> = {
+  dryGrass: { size: [0.2, 0.08, 0.2], material: 'leaf', surface: 'soft', interaction: 'pouch', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false },
+  dampMoss: { size: [0.12, 0.05, 0.12], material: 'leaf', surface: 'soft', interaction: 'pouch', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false },
+  twigs: { size: [0.3, 0.06, 0.1], material: 'wood', surface: 'rough', interaction: 'pouch', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: true },
+  logs: { size: [0.9, 0.18, 0.18], material: 'wood', surface: 'rough', interaction: 'twoHand', grips: [{ x: -0.35, y: 0, z: 0 }, { x: 0.35, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false },
+  fibers: { size: [0.3, 0.03, 0.05], material: 'fibre', surface: 'soft', interaction: 'pouch', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false },
+  cord: { size: [0.1, 0.03, 0.1], material: 'fibre', surface: 'soft', interaction: 'pouch', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false },
+  spindle: { size: [0.35, 0.025, 0.025], material: 'wood', surface: 'smooth', interaction: 'pouch', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: true },
+  board: { size: [0.3, 0.03, 0.12], material: 'wood', surface: 'smooth', interaction: 'oneHand', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false },
+  greenBranch: { size: [0.8, 0.03, 0.03], material: 'wood', surface: 'smooth', interaction: 'oneHand', grips: [{ x: -0.3, y: 0, z: 0 }, { x: 0.3, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false },
+  clay: { size: [0.1, 0.08, 0.1], material: 'clay', surface: 'sticky', interaction: 'pouch', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false },
+  gravel: { size: [0.1, 0.05, 0.1], material: 'stone', surface: 'grainy', interaction: 'pouch', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false },
+  sand: { size: [0.1, 0.05, 0.1], material: 'sand', surface: 'grainy', interaction: 'pouch', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false },
+  cloth: { size: [0.25, 0.02, 0.25], material: 'cloth', surface: 'soft', interaction: 'pouch', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false },
+  charcoal: { size: [0.06, 0.04, 0.06], material: 'wood', surface: 'rough', interaction: 'pouch', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: true },
+  pot: { size: [0.18, 0.16, 0.18], material: 'clay', surface: 'smooth', interaction: 'oneHand', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: true, durability: 10 },
+  lens: { size: [0.05, 0.01, 0.05], material: 'stone', surface: 'smooth', interaction: 'pouch', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false },
+  ember: { size: [0.03, 0.02, 0.03], material: 'ember', surface: 'rough', interaction: 'oneHand', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false },
+  torch: { size: [0.5, 0.04, 0.04], material: 'wood', surface: 'rough', interaction: 'oneHand', grips: [{ x: -0.18, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: true },
+  dryStone: { size: [0.1, 0.07, 0.08], material: 'stone', surface: 'rough', interaction: 'pouch', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false },
+  wetStone: { size: [0.1, 0.07, 0.08], material: 'stone', surface: 'smooth', interaction: 'pouch', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false },
+  slab: { size: [0.55, 0.06, 0.4], material: 'stone', surface: 'rough', interaction: 'twoHand', grips: [{ x: -0.25, y: 0, z: 0 }, { x: 0.25, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false },
+  diggingStick: { size: [0.9, 0.03, 0.03], material: 'wood', surface: 'rough', interaction: 'oneHand', grips: [{ x: -0.3, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false, durability: 20 },
+  forkedStick: { size: [0.7, 0.04, 0.12], material: 'wood', surface: 'rough', interaction: 'oneHand', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false },
+  cane: { size: [0.6, 0.03, 0.03], material: 'wood', surface: 'smooth', interaction: 'pouch', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false },
+  branch: { size: [0.9, 0.04, 0.04], material: 'wood', surface: 'rough', interaction: 'oneHand', grips: [{ x: -0.3, y: 0, z: 0 }, { x: 0.3, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: true },
+  flint: { size: [0.1, 0.07, 0.08], material: 'flint', surface: 'smooth', interaction: 'pouch', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false },
+  flake: { size: [0.06, 0.01, 0.04], material: 'flint', surface: 'sharp', interaction: 'pouch', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: true },
+  knife: { size: [0.22, 0.03, 0.03], material: 'flint', surface: 'sharp', interaction: 'oneHand', grips: [{ x: -0.07, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: true, durability: 25 },
+  axe: { size: [0.5, 0.03, 0.12], material: 'wood', surface: 'rough', interaction: 'oneHand', grips: [{ x: -0.2, y: 0, z: 0 }], com: { x: 0.18, y: 0, z: 0 }, breakable: false, durability: 20 },
+  hammer: { size: [0.4, 0.03, 0.09], material: 'stone', surface: 'rough', interaction: 'oneHand', grips: [{ x: -0.15, y: 0, z: 0 }], com: { x: 0.14, y: 0, z: 0 }, breakable: false, durability: 30 },
+  feather: { size: [0.15, 0.01, 0.03], material: 'bone', surface: 'soft', interaction: 'pouch', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false },
+  bow: { size: [1.1, 0.04, 0.04], material: 'wood', surface: 'smooth', interaction: 'oneHand', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false, durability: 60 },
+  arrow: { size: [0.7, 0.01, 0.01], material: 'wood', surface: 'smooth', interaction: 'pouch', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: true },
+  bowDrill: { size: [0.6, 0.05, 0.2], material: 'wood', surface: 'smooth', interaction: 'oneHand', grips: [{ x: -0.2, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: true, durability: 40 },
+  dryBranch: { size: [0.8, 0.04, 0.04], material: 'wood', surface: 'rough', interaction: 'oneHand', grips: [{ x: -0.28, y: 0, z: 0 }, { x: 0.28, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: true },
+  leafLitter: { size: [0.2, 0.04, 0.2], material: 'leaf', surface: 'soft', interaction: 'pouch', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false },
+  vine: { size: [0.5, 0.02, 0.02], material: 'fibre', surface: 'soft', interaction: 'pouch', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false },
+  bark: { size: [0.2, 0.02, 0.1], material: 'wood', surface: 'rough', interaction: 'pouch', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false },
+};
+
+/** The pack takes small things inside and light sticks and tools strapped on; nothing bigger or heavier. */
+export const POUCH_MAX_SIZE = 1.2;
+export const POUCH_MAX_MASS = 2;
+
+/** Does it go in (or on) the satchel, or must it be carried in your hands? */
+export function fitsPouch(id: ItemId): boolean {
+  const p = ITEM_PHYSICS[id];
+  if (p.interaction === 'twoHand' || p.interaction === 'drag') return false;
+  return Math.max(...p.size) <= POUCH_MAX_SIZE && ITEMS[id].weight <= POUCH_MAX_MASS;
+}
+
+/** Needs both hands to carry. */
+export const twoHanded = (id: ItemId): boolean => ITEM_PHYSICS[id].interaction === 'twoHand';

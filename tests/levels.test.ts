@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { apparentDepth, COOK_SECONDS, GROW_SECONDS, spearHit, WATER_INDEX, WATER_Y } from '../src/game/food.js';
+import { apparentDepth, COOK_SECONDS, GROW_SECONDS, spearHit, WATER_INDEX, WATER_Y, WILD_TUBERS } from '../src/game/food.js';
 import { Game } from '../src/game/game.js';
 import { GAME_LEVELS, levelForQuest, levelStart, migrateQuestIndex, QUESTS_VERSION } from '../src/game/levels.js';
 import { ITEMS } from '../src/game/items.js';
@@ -222,6 +222,18 @@ describe('level 3: cooking and farming', () => {
     expect(g.hasEvent('food.fish.opaque')).toBe(true);
     g.food.perform(g.food.available()!);
     expect(g.hasEvent('body.eat')).toBe(true);
+  });
+  it('wild tubers grow on open ground and can be dug up once, then regrow', () => {
+    for (const w of WILD_TUBERS) {
+      expect(streamDistance(w.x, w.z), `${w.x},${w.z}`).toBeGreaterThan(2.5);
+      expect(nearestTreeDistance(w.x, w.z), `${w.x},${w.z}`).toBeGreaterThan(0.8);
+    }
+    const g = new Game();
+    const a = g.food.available(WILD_TUBERS[0])!;
+    expect(a.id).toBe('gatherWild');
+    g.food.perform(a);
+    expect(g.count('tuber')).toBe(1);
+    expect(g.food.available(WILD_TUBERS[0])).toBe(null);
   });
   it('raw fish is refused with a reason', () => {
     const g = new Game();

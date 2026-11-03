@@ -1,0 +1,22 @@
+<!-- Level title card (start of a level) and level-complete recap. -->
+<style>
+  .root { flex-direction: column; width: 480px; padding-top: 24px; padding-bottom: 20px; padding-left: 28px; padding-right: 28px; gap: 10px; }
+  .eyebrow { color: #8a5a00; font-size: 16px; font-weight: 700; letter-spacing: 1.6px; }
+  .eyebrow:dark { color: #ffb547; }
+  .title { color: #1c1d20; font-size: 38px; font-weight: 700; line-height: 1.1; }
+  .title:dark { color: #fff7e6; }
+  .body { color: #2a2620; font-size: 19px; line-height: 1.35; }
+  .body:dark { color: #e9dfcd; }
+  .label { color: #1f5f99; font-size: 14px; font-weight: 700; letter-spacing: 1px; }
+  .label:dark { color: #8fc7ff; }
+  .learned { color: #3a352e; font-size: 16px; line-height: 1.35; }
+  .learned:dark { color: #cfc5b3; }
+</style>
+<Panel class="root">
+  <div id="level-eyebrow" class="eyebrow">LEVEL 1</div>
+  <div id="level-title" class="title">-</div>
+  <div id="level-body" class="body">-</div>
+  <div id="level-learned-label" class="label">WHAT YOU LEARNED</div>
+  <div id="level-learned" class="learned">-</div>
+  <Button id="level-ok" size="sm"><ButtonIcon><Check></Check></ButtonIcon><ButtonLabel id="level-ok-label">Begin</ButtonLabel></Button>
+</Panel>

@@ -183,8 +183,10 @@ export class HudSystem extends createSystem({
     const game = getGame(this.world);
     const q = game.quest;
     const text = (id: string, t: string) => this.hud.requireElementById<UIKit.Text>(id).setProperties({ text: uiText(t) });
-    text('quest-num', q ? `QUEST ${game.questIndex + 1} / ${QUESTS.length}` : 'CHAPTER 1');
-    text('level', `Level ${game.level}   ${game.xp} XP`);
+    const lv = game.gameLevel;
+    const inLevel = lv.quests.indexOf(q?.title ?? '');
+    text('quest-num', q ? `LEVEL ${lv.n}: ${lv.name.toUpperCase()}${inLevel >= 0 ? `  ${inLevel + 1}/${lv.quests.length}` : ''}` : 'CHAPTER 1');
+    text('level', `Rank ${game.level}   ${game.xp} XP`);
     text('quest-title', q ? q.title : 'Complete');
     text('quest-desc', q ? q.desc : 'Keep exploring - can you find every observation?');
     for (let i = 0; i < STEP_LINES; i++) {

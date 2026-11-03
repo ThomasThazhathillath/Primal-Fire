@@ -12,7 +12,11 @@ import { FireSystem } from './systems/fire-system.js';
 import { HandInputSystem } from './systems/hand-input-system.js';
 import { InteractionSystem } from './systems/interaction-system.js';
 import { HandsSystem } from './systems/hands-system.js';
+import { FarmSystem } from './systems/farm-system.js';
+import { FishingSystem } from './systems/fishing-system.js';
 import { GuideSystem } from './systems/guide-system.js';
+import { LevelSystem } from './systems/level-system.js';
+import { WaterSystem } from './systems/water-system.js';
 import { HudSystem } from './systems/hud-system.js';
 import { IntroSystem } from './systems/intro-system.js';
 import { ResourceSystem } from './systems/resource-system.js';
@@ -41,6 +45,10 @@ World.create(
     .registerSystem(HandsSystem)
     .registerSystem(HudSystem)
     .registerSystem(GuideSystem)
+    .registerSystem(LevelSystem)
+    .registerSystem(WaterSystem)
+    .registerSystem(FishingSystem)
+    .registerSystem(FarmSystem)
     .registerSystem(IntroSystem)
     .registerSystem(AudioSystem);
   installDebugHooks(world);

@@ -205,6 +205,9 @@ export class AudioSystem extends createSystem({}) {
       case 'levelUp':
         [523, 659, 784, 1047].forEach((f, i) => this.tone(f, 0.25, 'triangle', 0.2, i * 0.1));
         break;
+      case 'levelComplete':
+        [392, 523, 659, 784, 1047, 1319].forEach((f, i) => this.tone(f, 0.5, 'triangle', 0.24, i * 0.14));
+        break;
       case 'questComplete':
         [392, 523, 659, 784].forEach((f, i) => this.tone(f, 0.35, 'sine', 0.22, i * 0.12));
         break;

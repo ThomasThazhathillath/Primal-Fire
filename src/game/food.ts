@@ -113,6 +113,17 @@ export interface Plot {
   shaded: boolean;
 }
 
+/** Wild tuber plants at the sunny edges of clearings: gather once, regrow. */
+export const WILD_REGROW = 150;
+export const WILD_TUBERS: ReadonlyArray<{ x: number; z: number }> = [
+  { x: 11.5, z: 12 },
+  { x: 13, z: 18.5 },
+  { x: 24, z: 12.5 },
+  { x: -11.5, z: 9 },
+  { x: -12, z: 14.5 },
+  { x: -2.5, z: 5.5 },
+];
+
 // ----------------------------------------------------------------- cook
 
 /** Seconds over a burning fire to cook a fish through. */
@@ -120,12 +131,14 @@ export const COOK_SECONDS = 8;
 
 export interface FoodSave {
   plots: Plot[];
+  wild?: number[];
   cook: number;
   nextId: number;
 }
 
 export interface FoodAction {
-  id: 'digPlot' | 'plant' | 'water' | 'harvest' | 'cook' | 'eat' | 'eatRaw';
+  id: 'digPlot' | 'plant' | 'water' | 'harvest' | 'cook' | 'eat' | 'eatRaw' | 'gatherWild';
+  wildIndex?: number;
   label: string;
   at: { x: number; z: number };
   plotId?: number;
@@ -139,6 +152,8 @@ export class FoodState {
   readonly plots: Plot[] = [];
   /** Seconds the held fish has spent over the fire. */
   cook = 0;
+  /** Seconds until each wild tuber plant has regrown (0 = ready). */
+  readonly wild: number[] = WILD_TUBERS.map(() => 0);
   private nextId = 1;
   private rng: Rng = mulberry32(77);
 
@@ -248,6 +263,7 @@ export class FoodState {
         }
       }
     }
+    for (let i = 0; i < this.wild.length; i++) this.wild[i] = Math.max(0, this.wild[i] - dt);
     // Cooking only counts while the fish is held over the fire.
     if (this.g.held !== 'fish') this.cook = 0;
   }
@@ -283,6 +299,8 @@ export class FoodState {
       return null;
     }
     if (held === 'diggingStick' && this.canDig(at)) return { id: 'digPlot', label: 'Dig a planting plot', at };
+    const wi = WILD_TUBERS.findIndex((w, i) => this.wild[i] === 0 && near(w, at, USE_RADIUS));
+    if (wi >= 0) return { id: 'gatherWild', label: 'Dig up the wild tuber plant', at: WILD_TUBERS[wi], wildIndex: wi };
     return null;
   }
 
@@ -337,6 +355,17 @@ export class FoodState {
         g.toast('Hot, flaky fish. Your strength comes back.', 'good');
         g.checkQuests();
         return true;
+      case 'gatherWild': {
+        const i = a.wildIndex ?? -1;
+        if (i < 0 || this.wild[i] > 0) return false;
+        this.wild[i] = WILD_REGROW;
+        g.addItem('tuber');
+        g.addItem('seeds');
+        g.gathered.set('tuber', (g.gathered.get('tuber') ?? 0) + 1);
+        g.toast('A knobbly tuber, and a pinch of seeds from the flower head.', 'good');
+        g.checkQuests();
+        return true;
+      }
       case 'eatRaw':
         g.science('food.raw.refused');
         g.toast('Raw fish can carry parasites and bacteria. Cook it first.', 'bad');
@@ -345,11 +374,12 @@ export class FoodState {
   }
 
   snapshot(): FoodSave {
-    return { plots: this.plots.map((p) => ({ ...p })), cook: 0, nextId: this.nextId };
+    return { plots: this.plots.map((p) => ({ ...p })), wild: [...this.wild], cook: 0, nextId: this.nextId };
   }
 
   restore(s: FoodSave): void {
     this.plots.push(...s.plots.map((p) => ({ ...p })));
     this.nextId = Math.max(this.nextId, s.nextId);
+    s.wild?.forEach((v, i) => i < this.wild.length && (this.wild[i] = v));
   }
 }

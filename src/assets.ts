@@ -38,5 +38,6 @@ export default defineAssets({
   'card-panel': uikitml('card.uikitml', 'Notebook Card'),
   'tip-panel': uikitml('tip.uikitml', 'Tooltip'),
   'guide-panel': uikitml('guide.uikitml', 'Guide Card'),
+  'level-panel': uikitml('level.uikitml', 'Level Card'),
   'bench-panel': uikitml('bench.uikitml', 'Workbench Recipes'),
 });

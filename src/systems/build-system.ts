@@ -132,10 +132,8 @@ export class BuildSystem extends createSystem({
     if (!item) return null;
     const game = getGame(this.world);
     if (game.wantsItem(item, game.player.x, game.player.z)) return null;
-    const def = blueprintsForKeyItem(item)[0] ?? null;
-    // Already building one: no floating outline (finish or remove that plan first).
-    if (def && game.structures.some((s) => s.kind === def.kind && !s.complete)) return null;
-    return def;
+    // A new outline replaces an unfinished one of the same kind (Game.placeBlueprint), so it may show anywhere.
+    return blueprintsForKeyItem(item)[0] ?? null;
   }
 
   /** Slab: push down to test it (Shift / both hands: lift it back off). Support: take it back. */

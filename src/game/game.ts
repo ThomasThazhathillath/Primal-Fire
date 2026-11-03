@@ -785,18 +785,11 @@ export class Game {
     if (!this.held || !def.keyAccepts.includes(this.held)) {
       return { ok: false, reason: 'structure', message: `You need ${def.keyAccepts.map(itemName).join(' or ')} in hand.` };
     }
-    // One plan at a time: a second outline while one is unfinished is almost always a stray pinch.
-    const started = this.structures.find((s) => s.kind === kind && !s.complete);
-    if (started) {
-      const d = Math.hypot(started.x - x, started.z - z);
-      const message = `You already started a ${def.name.toLowerCase()} ${Math.round(d)} m away. Finish that one first.`;
-      if (this.time - this.lastUnfinishedToast > 4) {
-        this.lastUnfinishedToast = this.time;
-        this.toast(message, 'note');
-      }
-      return { ok: false, reason: 'unfinished', message };
-    }
-    const check = checkPlacement(kind, x, z, this.structures);
+    // One plan at a time: starting a new outline clears any unfinished one of the same kind
+    // (its parts come back), so you can simply re-place it somewhere better.
+    const stale = this.structures.filter((s) => s.kind === kind && !s.complete);
+    const check = checkPlacement(kind, x, z, this.structures.filter((s) => !stale.includes(s)));
+    if (check.ok) for (const s of stale) this.removeStructure(s.id);
     if (!check.ok) {
       this.log.add(`place ${kind} rejected: ${check.reason}`, 'bad');
       this.toast(check.message, 'bad');

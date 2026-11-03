@@ -35,7 +35,9 @@ describe('day/night', () => {
     e.update(hourTime(19), 0);
     expect(e.equator[0]).toBeGreaterThan(e.equator[2]);
     e.update(hourTime(23), 0);
-    expect(e.hemiIntensity + e.lightIntensity).toBeLessThan(noon * 0.3);
+    // Clearly darker, but moonlit enough to play (well above pitch black).
+    expect(e.hemiIntensity + e.lightIntensity).toBeLessThan(noon * 0.6);
+    expect(e.hemiIntensity + e.lightIntensity).toBeGreaterThan(noon * 0.3);
   });
 
   it('skipTo jumps forward to the given hour', () => {

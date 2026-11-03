@@ -108,7 +108,7 @@ export class FireSystem extends createSystem({
       this.smokeMats.push(mat);
       this.root.add(m);
     }
-    this.light = new PointLight(0xff8a3a, 0, 9, 2);
+    this.light = new PointLight(0xff8a3a, 0, 14, 1.6);
     this.light.position.y = 0.6;
     this.root.add(this.light);
 

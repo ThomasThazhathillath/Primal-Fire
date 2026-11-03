@@ -267,7 +267,7 @@ export class WorldEnvironmentSystem extends createSystem({
         }
       });
     }
-    const lum = Math.min(1, 0.12 + env.hemiIntensity / 1.6);
+    const lum = Math.min(1, 0.35 + env.hemiIntensity / 1.6);
     for (const r of this.ridges) {
       r.mat.color.copy(r.base).multiplyScalar(lum);
       r.mat.color.lerp(this.fog.color, Math.min(0.85, env.fog * 0.8 + env.rain * 0.4));

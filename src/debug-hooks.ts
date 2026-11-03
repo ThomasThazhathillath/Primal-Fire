@@ -111,8 +111,20 @@ export function streamPlaytestLog(world: World): void {
     fetch('/__primal-cmd')
       .then((r) => r.json())
       .then((c: { reloadAt: number; resetAt?: number }) => {
-        if ((c.resetAt ?? 0) > loadedAt) {
+        // A reset reaches pages that were asleep when it was sent too: each page applies a reset stamp once.
+        let seen = 0;
+        try {
+          seen = Number(localStorage.getItem('primal.resetSeen') ?? 0);
+        } catch {
+          // ignore
+        }
+        if ((c.resetAt ?? 0) > seen) {
           clearSave();
+          try {
+            localStorage.setItem('primal.resetSeen', String(c.resetAt));
+          } catch {
+            // ignore
+          }
           location.reload();
         } else if (c.reloadAt > loadedAt) {
           (world.globals as { ui?: { saveNow?: () => void } }).ui?.saveNow?.();

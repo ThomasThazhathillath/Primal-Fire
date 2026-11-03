@@ -47,6 +47,9 @@ export class HudSystem extends createSystem({
   private card!: UIKitMLAsset;
   private tip!: UIKitMLAsset;
   private cardQueue: string[] = [];
+  /** Notebook entries recorded since you last opened it (shown on the notebook icon). */
+  private newNotes = 0;
+  private questOpen = false;
   private notebookIndex = 0;
   private browsing = false;
   private toastTimer = 0;
@@ -100,6 +103,10 @@ export class HudSystem extends createSystem({
     wire(hud, 'hint-button', () => this.showHint());
     wire(hud, 'satchel-button', () => getUi(this.world).toggleSatchel?.());
     wire(hud, 'notebook-button', () => this.openNotebook());
+    wire(hud, 'quest-button', () => {
+      this.questOpen = !this.questOpen;
+      hud.requireElementById('quest-body').setProperties({ display: this.questOpen ? 'flex' : 'none' });
+    });
     wire(hud, 'guide-button', () => getUi(this.world).toggleGuide?.());
     // Hands-friendly: put the held thing in the bag, or set it down when it is too big for it.
     wire(hud, 'stow-button', () => {
@@ -182,8 +189,9 @@ export class HudSystem extends createSystem({
         this.setToast(e.text);
         break;
       case 'observation':
-        this.cardQueue.push(e.id);
-        if (!this.card.visible) this.nextCard();
+        // No pop-up card: the notebook icon counts it, and it opens when you choose.
+        this.newNotes++;
+        this.setToast(`New notebook entry: ${OBSERVATIONS[e.id]?.title ?? ''}. Open the book to read it.`);
         this.renderQuest();
         break;
       case 'xp':
@@ -222,7 +230,7 @@ export class HudSystem extends createSystem({
       }
     }
     this.hud.requireElementById('xp-fill').setProperties({ width: Math.round(350 * game.levelProgress) });
-    text('notebook-label', `Notebook ${game.notebook.length}/${OBSERVATION_COUNT}`);
+    text('notebook-label', this.newNotes ? `${this.newNotes} new` : `${game.notebook.length}/${OBSERVATION_COUNT}`);
   }
 
   showHint(): void {
@@ -276,14 +284,24 @@ export class HudSystem extends createSystem({
   /** Pages through every observation you have recorded, oldest first. */
   openNotebook(): void {
     const game = getGame(this.world);
+    // A second press closes it.
+    if (this.card.visible) {
+      this.browsing = false;
+      hidePanel(this.card);
+      return;
+    }
     if (!game.notebook.length) {
       game.toast('Your notebook is empty. Every outcome you witness is recorded here.');
       return;
     }
     this.cardQueue.length = 0;
     this.browsing = true;
-    this.notebookIndex = 0;
-    this.showCard(game.notebook[0]);
+    // Start at the first entry you haven't read yet.
+    this.notebookIndex = Math.max(0, game.notebook.length - this.newNotes);
+    if (this.notebookIndex >= game.notebook.length) this.notebookIndex = 0;
+    this.newNotes = 0;
+    this.renderQuest();
+    this.showCard(game.notebook[this.notebookIndex]);
   }
 
   private clearTip(e: Entity): void {

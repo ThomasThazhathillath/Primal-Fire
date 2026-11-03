@@ -20,7 +20,8 @@
   .fill { height: 6px; width: 0px; background-color: #ffb547; border-radius: 3px; }
   .toast { color: #1c1d20; font-size: 20px; font-weight: 700; padding-top: 6px; }
   .toast:dark { color: #ffd27a; }
-  .buttons { flex-direction: row; gap: 10px; padding-top: 6px; }
+  .buttons { flex-direction: row; gap: 8px; padding-top: 6px; }
+  .body { flex-direction: column; gap: 6px; display: none; }
 </style>
 <Panel class="root">
   <div class="row">
@@ -29,43 +30,32 @@
   </div>
   <div class="bar"><div id="xp-fill" class="fill"></div></div>
   <div id="quest-title" class="title">Scavenger</div>
-  <div id="quest-desc" class="desc">...</div>
-  <div id="step-0" class="step">-</div>
-  <div id="step-1" class="step">-</div>
-  <div id="step-2" class="step">-</div>
-  <div id="step-3" class="step">-</div>
-  <div id="step-4" class="step">-</div>
-  <div id="step-5" class="step">-</div>
+  <!-- The quest's details stay folded away until you open them (the list icon). -->
+  <div id="quest-body" class="body">
+    <div id="quest-desc" class="desc">...</div>
+    <div id="step-0" class="step">-</div>
+    <div id="step-1" class="step">-</div>
+    <div id="step-2" class="step">-</div>
+    <div id="step-3" class="step">-</div>
+    <div id="step-4" class="step">-</div>
+    <div id="step-5" class="step">-</div>
+  </div>
   <div id="toast" class="toast"> </div>
+  <!-- Small icon buttons: each opens or closes one thing. -->
   <div class="buttons">
-    <Button id="hint-button" size="sm">
-      <ButtonIcon><Lightbulb></Lightbulb></ButtonIcon>
-      <ButtonLabel>Hint</ButtonLabel>
-    </Button>
-    <Button id="satchel-button" size="sm">
-      <ButtonIcon><Backpack></Backpack></ButtonIcon>
-      <ButtonLabel>Satchel</ButtonLabel>
-    </Button>
+    <Button id="quest-button" size="sm"><ButtonIcon><ListChecks></ListChecks></ButtonIcon></Button>
+    <Button id="satchel-button" size="sm"><ButtonIcon><Backpack></Backpack></ButtonIcon></Button>
+    <Button id="hint-button" size="sm"><ButtonIcon><Lightbulb></Lightbulb></ButtonIcon></Button>
+    <Button id="guide-button" size="sm"><ButtonIcon><Compass></Compass></ButtonIcon></Button>
     <Button id="notebook-button" size="sm">
       <ButtonIcon><BookOpen></BookOpen></ButtonIcon>
-      <ButtonLabel id="notebook-label">Notebook 0/31</ButtonLabel>
-    </Button>
-    <Button id="guide-button" size="sm">
-      <ButtonLabel id="guide-label">Guide</ButtonLabel>
+      <ButtonLabel id="notebook-label"> </ButtonLabel>
     </Button>
   </div>
   <div class="buttons">
-    <Button id="stow-button" size="sm">
-      <ButtonLabel id="stow-label">Put away</ButtonLabel>
-    </Button>
-    <Button id="turn-left-button" size="sm">
-      <ButtonLabel>Turn left</ButtonLabel>
-    </Button>
-    <Button id="turn-right-button" size="sm">
-      <ButtonLabel>Turn right</ButtonLabel>
-    </Button>
-    <Button id="remove-build-button" size="sm">
-      <ButtonLabel>Remove build</ButtonLabel>
-    </Button>
+    <Button id="stow-button" size="sm"><ButtonIcon><Hand></Hand></ButtonIcon><ButtonLabel id="stow-label">Put away</ButtonLabel></Button>
+    <Button id="turn-left-button" size="sm"><ButtonIcon><RotateCcw></RotateCcw></ButtonIcon></Button>
+    <Button id="turn-right-button" size="sm"><ButtonIcon><RotateCw></RotateCw></ButtonIcon></Button>
+    <Button id="remove-build-button" size="sm"><ButtonIcon><Trash2></Trash2></ButtonIcon></Button>
   </div>
 </Panel>

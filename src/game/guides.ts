@@ -1149,7 +1149,8 @@ export class GuideTracker {
   readonly failures = new Map<string, number>();
   pinned: string | null = null;
   /** Toggled by the player; the card is optional. */
-  hidden = false;
+  /** Closed until you open it (the compass icon or J); the choice is saved. */
+  hidden = true;
   private lastFailure = new Map<string, GuideFailureCode>();
   private physicalGuides = new Set<string>();
 

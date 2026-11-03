@@ -17,12 +17,12 @@ import {
   RayInteractable,
   Vector3,
 } from '@iwsdk/core';
-import type { ItemId } from '../game/items.js';
+import { fitsPouch, ITEM_PHYSICS, type ItemId } from '../game/items.js';
 import { SWING_TOOLS } from '../game/interact.js';
 import { RESOURCES, type ResourceSpot } from '../game/world-layout.js';
 import { Gatherable } from '../components/game-components.js';
 import { itemMesh, resourceMesh } from '../scene-assets/item-meshes.js';
-import { getGame, glowMaterial, glowMaterialHot, hipPosition } from './shared.js';
+import { getGame, glowMaterial, glowMaterialHot, hipPosition, pickupFrom } from './shared.js';
 
 /** Max distance (m) from your head to something you can gather. */
 export const REACH = 4.5;
@@ -145,8 +145,23 @@ export class ResourceSystem extends createSystem({
       game.log.add(`gather ${spot.id}: out of reach`, 'bad');
       return false;
     }
-    if (!game.gather(spot.itemId, spot.id)) return false;
-    this.launchFlight(spot.itemId, e.object3D!);
+    // Where it was: a carried pickup animates from here to your hand (CarrySystem).
+    e.object3D!.getWorldPosition(pickupFrom.pos);
+    pickupFrom.pos.y += 0.1;
+    pickupFrom.time = performance.now() / 1000;
+    pickupFrom.valid = true;
+    if (!game.gather(spot.itemId, spot.id)) {
+      pickupFrom.valid = false;
+      return false;
+    }
+    // Small things fly to the hip pouch; big things go to your hands (no flight).
+    if (fitsPouch(spot.itemId)) {
+      pickupFrom.valid = false;
+      this.launchFlight(spot.itemId, e.object3D!);
+    }
+    // Your hand touching it: a soft material sound where it lay.
+    const touched = ITEM_PHYSICS[spot.itemId].material;
+    game.contact(touched, touched === 'leaf' || touched === 'fibre' ? 'leaf' : 'soil', pickupFrom.pos.x, pickupFrom.pos.y, pickupFrom.pos.z, 0.4);
     const left = charges - 1;
     e.setValue(Gatherable, 'charges', left);
     if (left <= 0) {

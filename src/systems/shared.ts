@@ -1,11 +1,13 @@
 // Helpers shared by the game systems: access to the Game instance, the
 // player's head/hip, and placing panels in front of the player.
 
-import { AdditiveBlending, MeshBasicMaterial, type Object3D, Vector3, type World } from '@iwsdk/core';
+import { AdditiveBlending, MeshBasicMaterial, type Object3D, Quaternion, Vector3, type World } from '@iwsdk/core';
 import type { Game } from '../game/game.js';
 
 export interface UiHooks {
   dropHeld(item: import('../game/items.js').ItemId): void;
+  /** Throw what you hold (desktop Shift+G). */
+  throwHeld(): void;
   /** Hide the item shown in your hand while an interaction draws its own model. */
   setHeldVisible(visible: boolean): void;
   /** Would a left press right now start a hand interaction (so it must not turn the view)? */
@@ -123,3 +125,25 @@ glowMaterialHot.opacity = 0.7;
  * `x`/`y` small hand offsets in metres.
  */
 export const handPose = { mode: 'free' as 'free' | 'bend' | 'swing' | 'knap' | 'twist' | 'drag' | 'place', amount: 0, x: 0, y: 0 };
+
+/**
+ * The pose and velocity of something just let go, handed from CarrySystem to
+ * DropSystem so the dropped object starts where your hand released it.
+ */
+export const pendingRelease = {
+  valid: false,
+  item: '' as string,
+  pos: new Vector3(),
+  vel: new Vector3(),
+  quat: new Quaternion(),
+  set(item: string, x: number, y: number, z: number, vx: number, vy: number, vz: number): void {
+    this.valid = true;
+    this.item = item;
+    this.pos.set(x, y, z);
+    this.vel.set(vx, vy, vz);
+    this.quat.identity();
+  },
+};
+
+/** Where the last gathered thing was, so a pickup can animate from there to the hand. */
+export const pickupFrom = { valid: false, pos: new Vector3(), time: 0 };

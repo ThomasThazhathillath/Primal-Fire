@@ -336,8 +336,9 @@ export class InteractionSystem extends createSystem({
     const spot = target ? resources?.spot(target.getValue(Gatherable, 'spotId') ?? '') : undefined;
     const { material, hardness } = spot ? materialOf(spot.look) : { material: 'soil' as Material, hardness: 1 };
     const r = strike(speed, align, material, tool);
-    const fx = r.outcome === 'chop' ? 'chop' : r.outcome === 'weak' ? 'thud' : r.outcome;
-    game.fx(fx, r.jolt);
+    // Material contact at the head: a clean edge chops wood; a glancing or weak blow knocks the bark;
+    // stone rings; soil thuds (src/game/contact.ts).
+    game.contact(r.outcome === 'chop' && tool === 'axe' ? 'flint' : 'stone', material, at.x, at.y, at.z, speed * (r.outcome === 'chop' ? 1 : 0.5));
     if (vr) pulse(this.session, 1, 0.2 + r.jolt * 0.8, 40 + r.jolt * 80);
     else camNudge.pitch = -0.012 - r.jolt * 0.03;
     this.burstChips(at, material, r.outcome === 'chop' ? r.damage * 3 : r.outcome === 'bounce' ? 0.6 : 0.2);

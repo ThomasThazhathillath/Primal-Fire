@@ -164,6 +164,11 @@ export interface PlacedStructure {
   complete: boolean;
   /** keyLast structures: has the key part been set down yet? */
   keyPlaced?: boolean;
+  /**
+   * Placed from the build book: the key part (of a structure that is not keyLast)
+   * is a slot like any other and still has to be filled. Absent in older saves.
+   */
+  keyOpen?: boolean;
   /** Where the key part actually landed (world), when placed by hand. */
   keyPos?: { x: number; z: number };
   /** Where each part actually landed (world), when placed by hand. */

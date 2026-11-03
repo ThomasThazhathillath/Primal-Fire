@@ -104,6 +104,7 @@ export class HudSystem extends createSystem({
     };
     wire(hud, 'hint-button', () => this.showHint());
     wire(hud, 'satchel-button', () => getUi(this.world).toggleSatchel?.());
+    wire(hud, 'book-button', () => getUi(this.world).toggleBook?.());
     wire(hud, 'notebook-button', () => this.openNotebook());
     wire(hud, 'quest-button', () => {
       this.questOpen = !this.questOpen;

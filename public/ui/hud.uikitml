@@ -54,6 +54,7 @@
   <div class="buttons">
     <Button id="quest-button" size="sm"><ButtonIcon><ListChecks></ListChecks></ButtonIcon></Button>
     <Button id="satchel-button" size="sm"><ButtonIcon><Backpack></Backpack></ButtonIcon></Button>
+    <Button id="book-button" size="sm"><ButtonIcon><Hammer></Hammer></ButtonIcon></Button>
     <Button id="hint-button" size="sm"><ButtonIcon><Lightbulb></Lightbulb></ButtonIcon></Button>
     <Button id="guide-button" size="sm"><ButtonIcon><Compass></Compass></ButtonIcon></Button>
     <Button id="notebook-button" size="sm">

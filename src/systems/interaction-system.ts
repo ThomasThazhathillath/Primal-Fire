@@ -622,7 +622,7 @@ export class InteractionSystem extends createSystem({
     let seats = false;
     if (target) {
       const def = BLUEPRINTS[target.structure.kind];
-      const mark = target.index >= 0 ? spotWorldPosition(target.structure, target.index) : { x: target.structure.x, z: target.structure.z };
+      const mark = spotWorldPosition(target.structure, target.index);
       seats = true;
       this.tmp.x = mark.x;
       this.tmp.z = mark.z;

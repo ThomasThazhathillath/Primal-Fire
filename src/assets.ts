@@ -35,6 +35,7 @@ export default defineAssets({
   'welcome-panel': uikitml('welcome.uikitml', 'Welcome Panel'),
   'hud-panel': uikitml('hud.uikitml', 'Quest HUD'),
   'satchel-panel': uikitml('satchel.uikitml', 'Satchel'),
+  'book-panel': uikitml('buildbook.uikitml', 'Build Book'),
   'card-panel': uikitml('card.uikitml', 'Notebook Card'),
   'tip-panel': uikitml('tip.uikitml', 'Tooltip'),
   'guide-panel': uikitml('guide.uikitml', 'Guide Card'),

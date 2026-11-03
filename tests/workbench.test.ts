@@ -93,3 +93,24 @@ describe('placement targets', () => {
     expect(g.wantsItem('slab', s.x + 30, s.z)).toBe(false);
   });
 });
+
+describe('taking a finished workbench apart', () => {
+  it('slab first, then the stones; the plan clears and rebuilding gives no second reward', () => {
+    const g = new Game();
+    const { s } = outline(g);
+    for (let i = 0; i < 3; i++) g.fillSpot(s.id, i, undefined, at(g, s.id, i));
+    g.placeKey(s.id, s.x, s.z, 2);
+    expect(s.complete).toBe(true);
+    const xp = g.xp;
+    expect(g.takeBack(s.id, 0)).toBe(false); // slab still on
+    expect(g.takeBack(s.id, -1)).toBe(true);
+    expect(g.held).toBe('slab');
+    expect(s.complete).toBe(false);
+    g.placeKey(s.id, s.x, s.z, 2);
+    expect(s.complete).toBe(true);
+    expect(g.xp).toBe(xp); // rebuilt, not rewarded twice
+    g.takeBack(s.id, -1);
+    for (let i = 0; i < 3; i++) expect(g.takeBack(s.id, i)).toBe(true);
+    expect(g.structures).not.toContain(s);
+  });
+});

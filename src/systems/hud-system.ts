@@ -298,8 +298,12 @@ export class HudSystem extends createSystem({
       title = index < 0 ? itemName(s.key) : itemName(s.spots[index] ?? s.key);
       sub =
         index < 0
-          ? `Press down to test if it is stable - ${vr ? 'grip with both hands' : 'Shift+drag'} to lift and move it`
-          : 'Pick it back up to set it again';
+          ? s.complete
+            ? `${vr ? 'Grip with both hands' : 'Click'} to lift it off and take it back`
+            : `Press down to test if it is stable - ${vr ? 'grip with both hands' : 'Shift+click'} to lift it off`
+          : s.keyPlaced
+            ? `Lift the ${itemName(s.key).toLowerCase()} off first`
+            : 'Click to pick it back up';
       e.object3D.getWorldPosition(this.tmp);
       this.tmp.y += 0.35;
     } else if (e.hasComponent(SatchelItem)) {

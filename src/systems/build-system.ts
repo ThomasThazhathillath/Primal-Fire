@@ -143,7 +143,8 @@ export class BuildSystem extends createSystem({
       game.takeBack(id, index);
       return;
     }
-    const lift = this.immersive() ? hands[0].grip && hands[1].grip : mouse.bothHands || mouse.shift;
+    const s = game.structures.find((t) => t.id === id);
+    const lift = s?.complete || (this.immersive() ? hands[0].grip && hands[1].grip : mouse.bothHands || mouse.shift);
     if (lift) game.takeBack(id, -1);
     else game.pushTest(id);
   }
@@ -249,8 +250,13 @@ export class BuildSystem extends createSystem({
     if (old) {
       for (const e of old.spots) e.dispose();
       old.root.dispose();
+      this.views.delete(s.id);
     }
+    // Taken apart completely: nothing left to draw.
+    if (!getGame(this.world).structures.includes(s)) return;
     const def = BLUEPRINTS[s.kind];
+    // Finished parts can be picked back up too (not a fire pit: it holds the fire).
+    const pickable = !(s.complete && s.kind === 'firePit');
     const root = new Group();
     root.name = `Structure_${s.kind}_${s.id}`;
     root.position.set(s.x, 0, s.z);
@@ -268,9 +274,9 @@ export class BuildSystem extends createSystem({
       });
       key.position.set(def.key.x, def.key.y, def.key.z);
       root.add(key);
-    } else if (s.keyPos && !s.complete) {
-      // Set down but not yet stable: its own entity so you can push on it (or lift it off).
-      const l = local(s.keyPos);
+    } else if (s.keyPlaced) {
+      // Set down: its own entity so you can push on it or lift it back off.
+      const l = s.keyPos ? local(s.keyPos) : def.key;
       key.position.set(l.x, def.key.y, l.z);
       root.add(key);
       root.updateMatrixWorld(true);
@@ -298,7 +304,7 @@ export class BuildSystem extends createSystem({
         m.position.set(at.x, s.kind === 'workbench' || s.kind === 'firePit' ? 0 : spotDef.y, at.z);
         if (s.kind === 'workbench') m.scale.set(1.6, 3.2, 1.6); // stacked stone legs
         root.add(m);
-        if (!s.complete && !s.keyPlaced) {
+        if (pickable && !s.keyPlaced) {
           root.updateMatrixWorld(true);
           const part = this.world.createTransformEntity(this.partProxy(m, s.rotY));
           part.addComponent(StructurePart, { structureId: s.id, index: i });

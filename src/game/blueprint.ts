@@ -170,6 +170,8 @@ export interface PlacedStructure {
   spotPos?: Array<{ x: number; z: number } | null>;
   /** Stored items (storage structures only). */
   store?: Partial<Record<ItemId, number>>;
+  /** Finished at least once: rebuilding after taking it apart gives no second reward. */
+  built?: boolean;
 }
 
 export type PlacementResult =

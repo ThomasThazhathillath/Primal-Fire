@@ -764,30 +764,61 @@ export class Game {
    */
   takeBack(structureId: number, index: number): boolean {
     const s = this.structures.find((t) => t.id === structureId);
-    if (!s || s.complete) return false;
+    if (!s) return false;
+    const def = BLUEPRINTS[s.kind];
+    if (s.complete && s.kind === 'firePit') {
+      this.toast('The fire pit stays where it is.', 'note');
+      return false;
+    }
+    if (this.storedCount(s) > 0) {
+      this.toast('Empty the storage first.', 'bad');
+      return false;
+    }
+    let item: ItemId;
     if (index < 0) {
       if (!s.keyPlaced) return false;
-      if (this.held) this.stow();
+      item = s.key;
       s.keyPlaced = false;
       s.keyPos = undefined;
-      this.held = s.key;
-      this.emit({ type: 'held', item: s.key });
     } else {
-      const item = s.spots[index];
-      if (!item || s.keyPlaced) return false;
-      if (this.held) this.stow();
+      const part = s.spots[index];
+      if (!part) return false;
+      if (s.keyPlaced) {
+        this.toast(`Lift the ${itemName(s.key).toLowerCase()} off first.`, 'note');
+        return false;
+      }
+      item = part;
       s.spots[index] = null;
       if (s.spotPos) s.spotPos[index] = null;
-      this.held = item;
-      this.emit({ type: 'held', item });
+    }
+    if (s.complete) {
+      s.complete = false;
+      this.toast(`${def.name} taken apart.`, 'note');
+    }
+    if (this.held) this.stow();
+    this.held = item;
+    this.log.add(`took ${item} back from ${s.kind}#${s.id}`);
+    this.emit({ type: 'held', item });
+    // Nothing left but the plan: clear it (a non-keyLast key part goes back in the bag).
+    if (s.spots.every((v) => v === null) && !s.keyPlaced) {
+      this.structures.splice(this.structures.indexOf(s), 1);
+      if (!def.keyLast) this.addItem(s.key);
+      this.emit({ type: 'structure', structure: s });
+      return true;
     }
     this.emit({ type: 'structure', structure: s });
     return true;
   }
 
+
   private completeStructure(s: PlacedStructure): void {
     const def = BLUEPRINTS[s.kind];
     s.complete = true;
+    if (s.built) {
+      this.toast(`${def.name} rebuilt.`, 'good');
+      return;
+    }
+    s.built = true;
     this.log.add(`built ${s.kind} #${s.id}`, 'ok');
     this.toast(`${def.name} built!`, 'good');
     this.addXp(def.xp);

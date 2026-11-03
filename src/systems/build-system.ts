@@ -143,6 +143,8 @@ export class BuildSystem extends createSystem({
     const game = getGame(this.world);
     // Setting a part down (InteractionSystem) also presses whatever is under the pointer: ignore that.
     if (game.held && game.wantsItem(game.held, game.player.x, game.player.z)) return;
+    // ...and the press that just seated a part lands on that part: give it a moment before it can be taken back.
+    if (game.time - game.lastSeatAt < 0.8) return;
     const id = e.getValue(StructurePart, 'structureId') ?? 0;
     const index = e.getValue(StructurePart, 'index') ?? 0;
     // A finished workbench is a crafting station: pressing it opens its recipes

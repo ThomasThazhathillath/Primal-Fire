@@ -735,6 +735,8 @@ export class Game {
 
   /** Release the held key part over open ground to start a structure. */
   private lastUnfinishedToast = -99;
+  /** Game time a part was last seated on a structure (the same pinch must not pick it back up). */
+  lastSeatAt = -99;
 
   /** The closest unfinished structure within `maxD` m of the player, if any. */
   nearestUnfinished(maxD = 6): PlacedStructure | null {
@@ -869,6 +871,7 @@ export class Game {
     this.log.add(`filled ${s.kind}#${s.id}[${index}] with ${item}`);
     if (at) {
       this.fx('seat', 0.6);
+      this.lastSeatAt = this.time;
       this.contact(ITEM_PHYSICS[item].material, def.keyLast ? 'stone' : 'soil', at.x, 0.05, at.z, 1.5);
     }
     if (s.spots.every((v) => v !== null)) {
@@ -940,6 +943,7 @@ export class Game {
     s.keyPlaced = true;
     s.keyPos = { x, z };
     this.fx('seat', 1);
+    this.lastSeatAt = this.time;
     this.contact(ITEM_PHYSICS[s.key].material, 'stone', x, 0.36, z, 2);
     this.log.add(`set ${s.key} on ${s.kind}#${s.id} at ${x.toFixed(2)},${z.toFixed(2)}`);
     this.emit({ type: 'structure', structure: s });

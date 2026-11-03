@@ -3,7 +3,7 @@
 
 import { Color, createSystem, Fog, LocomotionSystem, Vector3, VisibilityState } from '@iwsdk/core';
 import { Game, type SaveData } from '../game/game.js';
-import { getGame } from './shared.js';
+import { getGame, getUi } from './shared.js';
 
 const SAVE_KEY = 'primal-first-fire.save.v1';
 const SAVE_EVERY = 10;
@@ -42,6 +42,7 @@ export class WorldSystem extends createSystem({}) {
   private slideSpeed = -1;
 
   init(): void {
+    getUi(this.world).saveNow = () => this.save();
     // Linear-space match for the dome's horizon colour, so trees fade into it.
     this.scene.fog = new Fog(new Color(0.62, 0.72, 0.76), 16, 52);
     this.cleanupFuncs.push(
@@ -63,6 +64,7 @@ export class WorldSystem extends createSystem({}) {
     this.cleanupFuncs.push(() => window.removeEventListener('pagehide', onHide));
   }
 
+  /** Registered as the saveNow UI hook in init(). */
   save(): void {
     if (!this.started) return;
     try {

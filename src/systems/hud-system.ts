@@ -122,6 +122,15 @@ export class HudSystem extends createSystem({
       if (s) game.removeStructure(s.id);
       else game.toast('No unfinished build near you to remove.', 'note');
     });
+    // Reload saves first, so nothing is lost; Exit VR ends the headset session (back to the flat page).
+    wire(hud, 'reload-button', () => {
+      getUi(this.world).saveNow?.();
+      location.reload();
+    });
+    wire(hud, 'exit-vr-button', () => {
+      getUi(this.world).saveNow?.();
+      void this.renderer.xr.getSession()?.end();
+    });
     wire(hud, 'turn-left-button', () => getUi(this.world).snapTurn?.(45));
     wire(hud, 'turn-right-button', () => getUi(this.world).snapTurn?.(-45));
     const stowLabel = hud.requireElementById<UIKit.Text>('stow-label');

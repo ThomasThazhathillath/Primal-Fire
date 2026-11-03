@@ -20,6 +20,8 @@ export interface UiHooks {
   toggleGuide(): void;
   /** Snap-turn the view by `deg` degrees (positive = left), pivoting on your head. */
   snapTurn(deg: number): void;
+  /** Write the save now (before a reload). */
+  saveNow(): void;
 }
 
 export function getGame(world: World): Game {

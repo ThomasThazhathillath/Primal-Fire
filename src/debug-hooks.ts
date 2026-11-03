@@ -105,6 +105,19 @@ export function streamPlaytestLog(world: World): void {
     const p = world.player.position;
     push(`beat fps=${fps.toFixed(0)} slowestFrame=${slowest.toFixed(0)}ms mode=${vr} input=${input} at=${p.x.toFixed(1)},${p.z.toFixed(1)} held=${game.held ?? '-'} drawCalls=${world.renderer.info.render.calls}`);
   }, 5000);
+  // Remote reload (dev only): reload once whenever the dev server's reload stamp moves past our load time.
+  const loadedAt = Date.now();
+  setInterval(() => {
+    fetch('/__primal-cmd')
+      .then((r) => r.json())
+      .then((c: { reloadAt: number }) => {
+        if (c.reloadAt > loadedAt) {
+          (world.globals as { ui?: { saveNow?: () => void } }).ui?.saveNow?.();
+          location.reload();
+        }
+      })
+      .catch(() => {});
+  }, 3000);
   setInterval(() => {
     if (!queue.length) return;
     const body = queue.splice(0).join('\n');

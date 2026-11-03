@@ -57,5 +57,7 @@
     <Button id="turn-left-button" size="sm"><ButtonIcon><RotateCcw></RotateCcw></ButtonIcon></Button>
     <Button id="turn-right-button" size="sm"><ButtonIcon><RotateCw></RotateCw></ButtonIcon></Button>
     <Button id="remove-build-button" size="sm"><ButtonIcon><Trash2></Trash2></ButtonIcon></Button>
+    <Button id="reload-button" size="sm"><ButtonIcon><RefreshCw></RefreshCw></ButtonIcon></Button>
+    <Button id="exit-vr-button" size="sm"><ButtonIcon><LogOut></LogOut></ButtonIcon></Button>
   </div>
 </Panel>

@@ -5,6 +5,7 @@
 // events, so the same code works for controllers and hand tracking.
 // Everything is preallocated: nothing is created per frame.
 
+import { PinchDetector } from '../game/pinch.js';
 import { createSystem, type Object3D, Quaternion, Vector3, VisibilityState } from '@iwsdk/core';
 
 export interface HandFrame {
@@ -34,6 +35,8 @@ export interface HandFrame {
   tipTracked: boolean;
   /** Thumb-tip to index-tip distance (m); Infinity when unknown. */
   pinchDist: number;
+  /** The point between the thumb and index tips (world): where a pinch grabs. */
+  readonly pinchPos: Vector3;
 }
 
 function frame(): HandFrame {
@@ -53,6 +56,7 @@ function frame(): HandFrame {
     tipDir: new Vector3(),
     tipTracked: false,
     pinchDist: Infinity,
+    pinchPos: new Vector3(),
   };
 }
 
@@ -113,6 +117,7 @@ export class HandInputSystem extends createSystem({}) {
   private attached: XRSession | null = null;
   private attach: () => void = () => undefined;
   private jointTmp = new Vector3();
+  private pinchers = [new PinchDetector(), new PinchDetector()];
 
   init(): void {
     const set = (ev: XRInputSourceEvent, which: boolean[], v: boolean) => {
@@ -221,6 +226,7 @@ export class HandInputSystem extends createSystem({}) {
         this.jointTmp.set(thp.transform.position.x, thp.transform.position.y, thp.transform.position.z);
         this.player.localToWorld(this.jointTmp);
         h.pinchDist = this.jointTmp.distanceTo(h.tipPos);
+        h.pinchPos.addVectors(h.tipPos, this.jointTmp).multiplyScalar(0.5);
       }
       h.tipTracked = true;
     }
@@ -259,10 +265,15 @@ export class HandInputSystem extends createSystem({}) {
       const h = hands[i];
       const sp = vr ? spaces[i] : undefined;
       h.tracked = !!sp;
-      const grip = this.select[i] || this.squeeze[i];
-      h.squeeze = this.squeeze[i];
-      h.squeezeUp = !this.squeeze[i] && this.squeezeWas[i];
-      this.squeezeWas[i] = this.squeeze[i];
+      // Tracked hands: the joint pinch (with hysteresis) is the grip and the squeeze. Controllers keep select / squeeze.
+      const jointPinch = h.tipTracked;
+      if (jointPinch) this.pinchers[i].update(h.pinchDist, true);
+      else this.pinchers[i].reset();
+      const sq = jointPinch ? this.pinchers[i].pinch : this.squeeze[i];
+      const grip = jointPinch ? this.pinchers[i].pinch : this.select[i] || this.squeeze[i];
+      h.squeeze = sq;
+      h.squeezeUp = !sq && this.squeezeWas[i];
+      this.squeezeWas[i] = sq;
       h.gripDown = grip && !this.gripWas[i];
       h.gripUp = !grip && this.gripWas[i];
       h.grip = grip;

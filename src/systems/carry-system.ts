@@ -16,7 +16,9 @@ import type { GameEvent } from '../game/game.js';
 import { ITEM_PHYSICS, ITEMS, twoHanded, type ItemId } from '../game/items.js';
 import { itemMesh } from '../scene-assets/item-meshes.js';
 import { hands } from './hand-input-system.js';
-import { getGame, getUi, hipPosition, pendingRelease, pickupFrom } from './shared.js';
+import { releaseKind, restHeight } from '../game/pinch.js';
+import { groundHeight } from '../game/world-layout.js';
+import { getGame, getUi, handClaims, hipPosition, pendingRelease, pickupFrom } from './shared.js';
 
 /** Desktop hold poses in camera space. */
 const DESK_ONE = new Vector3(0.235, -0.205, -0.54);
@@ -45,6 +47,9 @@ export class CarrySystem extends createSystem({}) {
   private clock = 0;
   private reachT = 1;
   private hidden = false;
+  /** Which hand holds it (the one that pinched it up); the other joins for two-handed things. */
+  private hold: 0 | 1 = 1;
+  private lastDown: 0 | 1 = 1;
   private box = new Box3();
 
   init(): void {
@@ -90,7 +95,14 @@ export class CarrySystem extends createSystem({}) {
     if (this.obj) this.root.remove(this.obj);
     this.obj = null;
     this.item = item;
-    if (!item) return;
+    if (!item) {
+      handClaims.grabbing[0] = handClaims.grabbing[1] = false;
+      return;
+    }
+    this.hold = performance.now() / 1000 - handClaims.grabAt < 1.5 ? handClaims.holdHand : this.lastDown;
+    if (!hands[this.hold].tracked) this.hold = 1;
+    handClaims.holdHand = this.hold;
+    handClaims.grabbing[this.hold] = true;
     this.obj = this.build(item);
     this.obj.visible = !this.hidden;
     this.root.add(this.obj);
@@ -112,11 +124,11 @@ export class CarrySystem extends createSystem({}) {
     const phys = ITEM_PHYSICS[item];
     const two = twoHanded(item);
     if (this.immersive()) {
-      const l = hands[0];
-      const r = hands[1];
+      const r = hands[this.hold];
+      const l = hands[1 - this.hold];
       if (two && l.tracked && r.tracked) {
         this.target.addVectors(l.pos, r.pos).multiplyScalar(0.5);
-        this.tmp.subVectors(r.pos, l.pos).setY(0);
+        this.tmp.subVectors(hands[1].pos, hands[0].pos).setY(0);
         if (this.tmp.lengthSq() < 1e-4) this.tmp.set(1, 0, 0);
         this.targetQ.setFromUnitVectors(this.xAxis, this.tmp.normalize());
         return 2;
@@ -166,7 +178,29 @@ export class CarrySystem extends createSystem({}) {
       this.tmp2.addScaledVector(this.tmp, 4 * k);
       this.tmp2.y += 1.5 * k;
     }
-    pendingRelease.set(item, this.obj.position.x, this.obj.position.y, this.obj.position.z, this.tmp2.x, this.tmp2.y, this.tmp2.z);
+    const p = this.obj.position;
+    // Lowered onto a construction mark: it seats there (snap marks still apply), else it is just set down below.
+    if (this.immersive() && !throwIt) {
+      const t = game.placementTarget(item, p.x, p.z, 0.5);
+      if (t && game.held === item) {
+        const seated =
+          t.index >= 0
+            ? game.fillSpot(t.structure.id, t.index, undefined, { x: p.x, z: p.z })
+            : game.placeKey(t.structure.id, p.x, p.z, hands[0].grip && hands[1].grip ? 2 : 1);
+        if (seated) return;
+      }
+    }
+    const sz = ITEM_PHYSICS[item].size;
+    const half = Math.min(sz[0], sz[1], sz[2]) / 2;
+    const ground = groundHeight(p.x, p.z);
+    // VR: opening the pinch slowly near the ground sets it down right there; fast is a throw.
+    const kind = throwIt ? 'throw' : this.immersive() ? releaseKind(this.tmp2.length(), p.y - half - ground) : 'drop';
+    if (kind === 'place') {
+      pendingRelease.set(item, p.x, restHeight(ground, half), p.z, 0, 0, 0);
+      pendingRelease.place = true;
+    } else {
+      pendingRelease.set(item, p.x, p.y, p.z, this.tmp2.x, this.tmp2.y, this.tmp2.z);
+    }
     pendingRelease.quat.copy(this.obj.quaternion);
     game.dropItem(item, this.obj.position.x, this.obj.position.z);
   }
@@ -193,7 +227,7 @@ export class CarrySystem extends createSystem({}) {
     // VR: opening the squeeze lets go (throws with the hand's speed).
     if (this.immersive()) {
       const two = twoHanded(this.item);
-      if (hands[1].squeezeUp || (two && hands[0].squeezeUp)) this.release(this.item, false);
+      if (hands[this.hold].squeezeUp || (two && hands[1 - this.hold].squeezeUp)) this.release(this.item, false);
     }
   }
 }

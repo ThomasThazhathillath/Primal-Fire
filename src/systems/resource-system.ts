@@ -23,7 +23,7 @@ import { groundHeight, RESOURCES, type ResourceSpot } from '../game/world-layout
 import { Gatherable } from '../components/game-components.js';
 import { itemMesh, resourceMesh } from '../scene-assets/item-meshes.js';
 import { hands } from './hand-input-system.js';
-import { getGame, glowMaterial, glowMaterialHot, hipPosition, pickupFrom } from './shared.js';
+import { getGame, glowMaterial, glowMaterialHot, handClaims, hipPosition, pickupFrom } from './shared.js';
 
 /** Max distance (m) from your head to something you can gather. */
 export const REACH = 6;
@@ -104,6 +104,8 @@ export class ResourceSystem extends createSystem({
     this.cleanupFuncs.push(
       this.queries.pressed.subscribe('qualify', (e) => {
         // With an axe or hammer in hand you swing at things (InteractionSystem) instead of picking them.
+        // A direct pinch grab just took something: this press is the same pinch.
+        if (performance.now() / 1000 - handClaims.grabAt < 0.3) return;
         const held = getGame(this.world).held;
         if (held && SWING_TOOLS.includes(held)) return;
         // Fallen logs are too heavy to pick up: InteractionSystem drags them (a plain click still breaks off a piece).

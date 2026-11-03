@@ -145,8 +145,11 @@ export const pendingRelease = {
   pos: new Vector3(),
   vel: new Vector3(),
   quat: new Quaternion(),
+  /** Set down gently on a surface: DropSystem rests it there with no fall (hands-only placement). */
+  place: false,
   set(item: string, x: number, y: number, z: number, vx: number, vy: number, vz: number): void {
     this.valid = true;
+    this.place = false;
     this.item = item;
     this.pos.set(x, y, z);
     this.vel.set(vx, vy, vz);
@@ -197,3 +200,18 @@ export class StaticAnchor {
     this.placedZ = this.head.z;
   }
 }
+
+/**
+ * Who is using a pinch right now, so the hand actions do not trip over each
+ * other (priority: held object > UI tap > grab > movement).
+ */
+export const handClaims = {
+  /** Fingertip is on / just tapped a UI icon: that pinch or poke is not a grab. */
+  uiNear: [false, false],
+  uiTapAt: [-10, -10],
+  /** This hand's current pinch grabbed (or is holding) something: it must not start a teleport. */
+  grabbing: [false, false],
+  /** Hand that holds the carried object, and when the last direct grab / pickup happened. */
+  holdHand: 1 as 0 | 1,
+  grabAt: -10,
+};

@@ -53,7 +53,10 @@ import { Gatherable } from '../components/game-components.js';
 import { lambert } from '../scene-assets/materials.js';
 import { hands, mouse, pulse } from './hand-input-system.js';
 import { DRAG_LOOK, REACH, ResourceSystem } from './resource-system.js';
-import { camNudge, getGame, getUi, handPose } from './shared.js';
+import { camNudge, getGame, getUi, handClaims, handPose } from './shared.js';
+
+/** The pinch that just grabbed this object must not also count as the pinch that places or bends it. */
+const grabbedJustNow = () => performance.now() / 1000 - handClaims.grabAt < 0.4;
 
 type Mode = 'none' | 'bend' | 'swing' | 'drag' | 'place';
 
@@ -686,7 +689,7 @@ export class InteractionSystem extends createSystem({
     // Holding a part an unfinished build nearby needs: set it down by hand.
     const wanted = !!game.held && game.wantsItem(game.held, game.player.x, game.player.z);
     if (this.mode === 'none' && wanted) {
-      if (vr ? hands[1].gripDown : mouse.pressed && this.queries.hoverGather.entities.size === 0) this.startPlace(vr);
+      if (vr ? hands[1].gripDown && !grabbedJustNow() : mouse.pressed && this.queries.hoverGather.entities.size === 0) this.startPlace(vr);
     }
     if (this.mode === 'place') this.updatePlace();
 

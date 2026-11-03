@@ -30,6 +30,7 @@ import { LevelSystem } from './systems/level-system.js';
 import { WaterSystem } from './systems/water-system.js';
 import { HudSystem } from './systems/hud-system.js';
 import { IconBarSystem } from './systems/icon-bar-system.js';
+import { PinchGrabSystem } from './systems/pinch-grab-system.js';
 import { IntroSystem } from './systems/intro-system.js';
 import { ResourceSystem } from './systems/resource-system.js';
 import { SatchelSystem } from './systems/satchel-system.js';
@@ -45,7 +46,9 @@ World.create(
     .registerSystem(WorldSystem)
     .registerSystem(WorldEnvironmentSystem)
     .registerSystem(NatureSystem)
-    .registerSystem(HandInputSystem)
+    // Hand state and the direct pinch grab run before IWSDK's input system (-5), so a grab claims its pinch before any ray press does.
+    .registerSystem(HandInputSystem, { priority: -6 })
+    .registerSystem(PinchGrabSystem, { priority: -5.5 })
     .registerSystem(HandLocomotionSystem)
     .registerSystem(DesktopControlsSystem)
     .registerSystem(PlayerCollisionSystem)

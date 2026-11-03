@@ -23,10 +23,10 @@ import type { GameEvent } from '../game/game.js';
 import { stepBody, type Body } from '../game/carry.js';
 import { nudgeOut } from '../game/collision.js';
 import { ITEM_PHYSICS, type ItemId, type Material } from '../game/items.js';
-import { STREAM_BANK, streamDistance } from '../game/world-layout.js';
+import { groundHeight, STREAM_BANK, streamDistance } from '../game/world-layout.js';
 import { WorldDropItem } from '../components/game-components.js';
 import { itemMesh } from '../scene-assets/item-meshes.js';
-import { getGame, getUi, glowMaterial, pendingRelease } from './shared.js';
+import { getGame, getUi, glowMaterial, handClaims, pendingRelease } from './shared.js';
 
 const hitGeo = new SphereGeometry(0.3, 8, 6);
 const hitMat = new MeshBasicMaterial({ visible: false });
@@ -58,6 +58,7 @@ export class DropSystem extends createSystem({
         if (e.type === 'drops') this.sync(true);
       }),
       this.queries.pressed.subscribe('qualify', (e) => {
+        if (performance.now() / 1000 - handClaims.grabAt < 0.3) return;
         const id = e.getValue(WorldDropItem, 'dropId') ?? 0;
         const d = game.drops.find((x) => x.id === id);
         if (d && Math.hypot(d.x - game.player.x, d.z - game.player.z) > 4.5) game.toast('Too far away to reach - get closer.', 'bad');
@@ -103,7 +104,21 @@ export class DropSystem extends createSystem({
         settled: false,
       };
       if (fromHand) g.quaternion.copy(pendingRelease.quat);
+      const placed = fromHand && pendingRelease.place;
       pendingRelease.valid = false;
+      pendingRelease.place = false;
+      if (placed) {
+        // Set down by hand: it stays exactly where it was lowered, flat, with a soft contact sound.
+        body.vel.x = body.vel.y = body.vel.z = 0;
+        body.pos.y = 0;
+        body.spin = 0;
+        g.position.set(body.pos.x, 0, body.pos.z);
+        g.rotation.x = g.rotation.z = 0;
+        const gy = groundHeight(body.pos.x, body.pos.z);
+        g.position.y = gy;
+        getGame(this.world).contact(ITEM_PHYSICS[d.item].material, groundMaterial(body.pos.x, body.pos.z), body.pos.x, gy + 0.02, body.pos.z, 0.5);
+        continue;
+      }
       g.position.set(body.pos.x, body.pos.y, body.pos.z);
       this.falling.push({ obj: g, dropId: d.id, item: d.item, body });
     }

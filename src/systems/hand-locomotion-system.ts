@@ -25,7 +25,7 @@ import { SWING_TOOLS } from '../game/interact.js';
 import { groundHeight, WORLD_RADIUS } from '../game/world-layout.js';
 import { DesktopControlsSystem } from './desktop-controls-system.js';
 import { hands } from './hand-input-system.js';
-import { getGame, getUi } from './shared.js';
+import { getGame, getUi, handClaims } from './shared.js';
 
 interface MicroGestureConfig {
   config: { microGestureControlsEnabled: { value: boolean } };
@@ -99,6 +99,8 @@ export class HandLocomotionSystem extends createSystem({
 
   private updatePinchTeleport(delta: number): void {
     const game = getGame(this.world);
+    // A pinch that grabbed something is a grab, never a move.
+    if (this.holdHand >= 0 && handClaims.grabbing[this.holdHand]) this.cancel();
     if (this.holdHand < 0) {
       // Start only on a fresh pinch, not pointing at anything interactive. Carrying a part is
       // fine (a pinch that places an outline cancels the move); a tool that uses the pinch is not.
@@ -107,7 +109,7 @@ export class HandLocomotionSystem extends createSystem({
       // Near a build that wants what you hold, the pinch sets the part down instead.
       if (held && game.wantsItem(held, game.player.x, game.player.z, 3)) return;
       for (let h = 0; h < 2; h++) {
-        if (hands[h].tracked && hands[h].gripDown) {
+        if (hands[h].tracked && hands[h].gripDown && !handClaims.uiNear[h] && !handClaims.grabbing[h]) {
           this.holdHand = h;
           this.holdTime = 0;
           break;

@@ -17,7 +17,7 @@ import {
 import { fitsPouch } from '../game/items.js';
 import { IconState, TouchTracker, type TipSample, type TouchIcon } from '../game/ui-touch.js';
 import { hands } from './hand-input-system.js';
-import { getGame, getUi, hidePanel, StaticAnchor } from './shared.js';
+import { getGame, getUi, handClaims, hidePanel, StaticAnchor } from './shared.js';
 import { WorldSystem } from './world-system.js';
 
 const SLOT = 52;
@@ -262,7 +262,9 @@ export class IconBarSystem extends createSystem({}) {
       const s = this.sample(hand.tipPos, hand.tipDir, hand.tipTracked, hand.pinchDist);
       const hit = tr.update(dt, this.icons, s);
       for (let i = 0; i < n; i++) if (tr.states[i] > this.merged[i]) this.merged[i] = tr.states[i];
+      handClaims.uiNear[h] = tr.hoverIcon >= 0;
       if (hit >= 0) {
+        handClaims.uiTapAt[h] = performance.now() / 1000;
         this.click();
         if (this.taps.length > 50) this.taps.shift();
         this.taps.push(DEFS[this.visible[hit]].id);

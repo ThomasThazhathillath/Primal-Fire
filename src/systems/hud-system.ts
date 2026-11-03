@@ -138,6 +138,12 @@ export class HudSystem extends createSystem({
       getUi(this.world).saveNow?.();
       void this.renderer.xr.getSession()?.end();
     });
+    // Drop what you hold on the ground in front of you (frees a pocket; you can pick it up again).
+    wire(hud, 'drop-button', () => {
+      const game = getGame(this.world);
+      if (game.held) getUi(this.world).dropHeld?.(game.held);
+      else game.toast('Take something out of the bag first, then drop it.', 'note');
+    });
     wire(hud, 'turn-left-button', () => getUi(this.world).snapTurn?.(45));
     wire(hud, 'turn-right-button', () => getUi(this.world).snapTurn?.(-45));
     const stowLabel = hud.requireElementById<UIKit.Text>('stow-label');

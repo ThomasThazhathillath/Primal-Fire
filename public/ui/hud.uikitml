@@ -57,6 +57,7 @@
   </div>
   <div class="buttons">
     <Button id="stow-button" size="sm"><ButtonIcon><Hand></Hand></ButtonIcon><ButtonLabel id="stow-label">Put away</ButtonLabel></Button>
+    <Button id="drop-button" size="sm"><ButtonIcon><ArrowDownToLine></ArrowDownToLine></ButtonIcon><ButtonLabel>Drop</ButtonLabel></Button>
     <Button id="turn-left-button" size="sm"><ButtonIcon><RotateCcw></RotateCcw></ButtonIcon></Button>
     <Button id="turn-right-button" size="sm"><ButtonIcon><RotateCw></RotateCw></ButtonIcon></Button>
     <Button id="remove-build-button" size="sm"><ButtonIcon><Trash2></Trash2></ButtonIcon></Button>

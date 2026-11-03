@@ -29,7 +29,11 @@ import {
 import { clamp, mulberry32, range, valueNoise } from '../game/rng.js';
 import {
   inClearing,
+  BOULDERS,
+  FALLEN_TRUNKS,
+  groundHeight,
   LANDMARK_BY_ID,
+  LANDMARKS,
   nearestTreeDistance,
   STREAM,
   STREAM_HALF_WIDTH,
@@ -41,9 +45,25 @@ import { lambert, writeColor } from './materials.js';
 
 const GROUND_SIZE = 140;
 
-/** Flat ground with painted variation: forest floor, meadow, clearing, banks. */
+/** Distance to the nearest worn path (straight lines from the clearing to each landmark). */
+function pathDistance(x: number, z: number): number {
+  let best = Infinity;
+  for (const l of LANDMARKS) {
+    if (l.id === 'wake') continue;
+    const len2 = l.x * l.x + l.z * l.z;
+    const t = clamp((x * l.x + z * l.z) / len2, 0, 1);
+    // Wobble the path sideways so it is not ruler-straight.
+    const w = (valueNoise(t * 9 + l.x, l.z) - 0.5) * 2.2;
+    const px = l.x * t - (l.z / Math.sqrt(len2)) * w;
+    const pz = l.z * t + (l.x / Math.sqrt(len2)) * w;
+    best = Math.min(best, Math.hypot(x - px, z - pz));
+  }
+  return best;
+}
+
+/** Ground with gentle undulation and painted variation: forest floor, meadow, clearing, banks. */
 export function createForestGround(): Object3D {
-  const geo = new PlaneGeometry(GROUND_SIZE, GROUND_SIZE, 180, 180);
+  const geo = new PlaneGeometry(GROUND_SIZE, GROUND_SIZE, 200, 200);
   geo.rotateX(-Math.PI / 2);
   const pos = geo.attributes.position;
   const colors = new Float32Array(pos.count * 3);
@@ -58,6 +78,10 @@ export function createForestGround(): Object3D {
   const moss = new Color(0x3b5a2a);
   const mud = new Color(0x2f261c);
   const damp = new Color(0x453823);
+  const grassy = new Color(0x5a7a32);
+  const bare = new Color(0x6b5638);
+  const path = new Color(0x7a6448);
+  const crack = new Color(0x261d14);
   const M = LANDMARK_BY_ID;
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i);
@@ -66,6 +90,18 @@ export function createForestGround(): Object3D {
     // Leaf-litter drifts and mossy patches at two scales, plus fine speckle.
     c.lerp(litter, clamp(valueNoise(x * 0.35 + 40, z * 0.35) * 1.8 - 0.7, 0, 0.75));
     c.lerp(moss, clamp(valueNoise(x * 0.21, z * 0.21 + 90) * 2.2 - 1.15, 0, 0.7));
+    // Patchy living grass and bare dirt.
+    c.lerp(grassy, clamp(valueNoise(x * 0.5 + 7, z * 0.5 - 3) * 2.4 - 1.3, 0, 0.6));
+    const bareN = valueNoise(x * 0.27 - 50, z * 0.27 + 11);
+    c.lerp(bare, clamp(bareN * 2.4 - 1.4, 0, 0.7));
+    // Hairline cracks in the bare soil: thin bands of a fine noise field.
+    if (bareN > 0.55) {
+      const k = Math.abs(valueNoise(x * 1.6 + 3, z * 1.6 - 9) - 0.5);
+      if (k < 0.025) c.lerp(crack, (1 - k / 0.025) * 0.6);
+    }
+    // Worn paths from the waking clearing towards each landmark.
+    const pd = pathDistance(x, z);
+    if (pd < 1.1) c.lerp(path, clamp(1 - pd / 1.1, 0, 0.55));
     c.multiplyScalar(0.88 + valueNoise(x * 2.1, z * 2.1) * 0.24);
     const dm = Math.hypot(x - M.meadow.x, z - M.meadow.z);
     if (dm < 9) c.lerp(meadow, clamp(1.3 - dm / 7.5, 0, 1));
@@ -77,11 +113,13 @@ export function createForestGround(): Object3D {
     if (sd < 5) c.lerp(damp, clamp(1 - (sd - 1.5) / 3.5, 0, 0.6));
     if (sd < 2.2) c.lerp(bank, clamp(1 - (sd - 0.6) / 1.6, 0, 1));
     if (sd < 1.6) c.lerp(mud, clamp(1.15 - (sd - 0.5) / 1.1, 0, 0.9));
+    pos.setY(i, groundHeight(x, z));
     colors[i * 3] = c.r;
     colors[i * 3 + 1] = c.g;
     colors[i * 3 + 2] = c.b;
   }
   geo.setAttribute('color', new BufferAttribute(colors, 3));
+  geo.computeVertexNormals();
   const ground = new Mesh(geo, new MeshLambertMaterial({ vertexColors: true }));
   ground.name = 'ForestGround';
   return ground;
@@ -129,35 +167,6 @@ export function createStream(): Object3D {
   water.name = 'Water';
   root.add(water);
 
-  // Pebbles lining both banks: one instanced draw call.
-  const rng = mulberry32(5);
-  const pebbles = new InstancedMesh(new DodecahedronGeometry(1, 0), lambert(0xffffff), 420);
-  pebbles.name = 'BankPebbles';
-  const m = new Matrix4();
-  const q = new Quaternion();
-  const s = new Vector3();
-  const p = new Vector3();
-  const col = new Color();
-  let count = 0;
-  for (let i = 0; i < pts.length - 1 && count < 420; i++) {
-    for (const side of [-1, 1]) {
-      if (rng() < 0.35 || count >= 420) continue;
-      const [x, z] = pts[i];
-      const [nx, nz] = pts[i + 1];
-      const len = Math.hypot(nx - x, nz - z) || 1;
-      const off = side * range(rng, 0.7, 1.05);
-      const r = range(rng, 0.06, 0.16);
-      m.compose(
-        p.set(x - ((nz - z) / len) * off, r * 0.3, z + ((nx - x) / len) * off),
-        q.setFromAxisAngle(s.set(0, 1, 0), rng() * 6),
-        s.set(r, r * 0.7, r),
-      );
-      pebbles.setMatrixAt(count, m);
-      pebbles.setColorAt(count++, col.setHex([0x7d7a72, 0x8f8a80, 0x6b6862][count % 3]));
-    }
-  }
-  pebbles.count = count;
-  root.add(pebbles);
   return root;
 }
 
@@ -174,6 +183,8 @@ function treeGeometry(): BufferGeometry {
     return g2;
   };
   parts.push(tint(new CylinderGeometry(0.11, 0.17, 1.6, 5).translate(0, 0.8, 0), 0x5a4027));
+  // Root flare where the trunk meets the ground.
+  parts.push(tint(new CylinderGeometry(0.17, 0.34, 0.3, 6).translate(0, 0.15, 0), 0x4e3822));
   for (let k = 0; k < 3; k++) {
     const r = 1.2 - k * 0.3;
     const cone = new ConeGeometry(r, 1.5, 7).translate(0, 1.5 + k * 0.75, 0);
@@ -211,6 +222,9 @@ function broadleafGeometry(): BufferGeometry {
     return g2;
   };
   parts.push(tint(new CylinderGeometry(0.13, 0.2, 2.0, 5).translate(0, 1.0, 0), 0x6a5a48));
+  // Moss creeping up the shaded side, and a root flare.
+  parts.push(tint(new CylinderGeometry(0.205, 0.225, 0.7, 5, 1, true, 0, Math.PI).translate(0, 0.45, 0), 0x4f7a32));
+  parts.push(tint(new CylinderGeometry(0.2, 0.4, 0.32, 6).translate(0, 0.16, 0), 0x5a4a38));
   parts.push(tint(new IcosahedronGeometry(1.15, 0).scale(1, 0.85, 1).translate(0, 2.7, 0), 0x4d7a35));
   parts.push(tint(new IcosahedronGeometry(0.85, 0).translate(0.5, 3.4, 0.25), 0x5b8a3a));
   return mergeNonIndexed(parts);
@@ -260,7 +274,7 @@ export function createForestTrees(): Object3D {
       lean.setFromAxisAngle(axis.set(Math.cos(t.leanDir), 0, Math.sin(t.leanDir)), t.lean);
       q.premultiply(lean);
       const w = t.scale * t.girth;
-      m.compose(p.set(t.x, 0, t.z), q, s.set(w, t.scale * t.height, w));
+      m.compose(p.set(t.x, groundHeight(t.x, t.z) - 0.05, t.z), q, s.set(w, t.scale * t.height, w));
       mesh.setMatrixAt(i, m);
       // Snags are grey-brown; living trees vary in shade.
       mesh.setColorAt(i, col.setHex(kind === 2 ? 0xffffff : shades[t.tint]).offsetHSL((t.tint - 1.5) * 0.012, 0, (t.rotY % 0.1) - 0.05));
@@ -269,7 +283,49 @@ export function createForestTrees(): Object3D {
     mesh.computeBoundingSphere();
     root.add(mesh);
   });
+  // Understory: knee-to-head-high young trees clustered under the canopy.
+  const UNDER = 420;
+  const under = new InstancedMesh(broadleafGeometry(), new MeshLambertMaterial({ vertexColors: true, flatShading: true }), UNDER);
+  under.name = 'Understory';
+  const rng = mulberry32(73);
+  let n = 0;
+  for (let tries = 0; n < UNDER && tries < 8000; tries++) {
+    const a = rng() * Math.PI * 2;
+    const r = 6 + Math.sqrt(rng()) * (WORLD_RADIUS + 4);
+    const x = Math.cos(a) * r;
+    const z = Math.sin(a) * r;
+    if (inClearing(x, z, 0.5) || streamDistance(x, z) < 1.5 || rng() > valueNoise(x * 0.08 + 5, z * 0.08) * 1.5) continue;
+    const sc = range(rng, 0.22, 0.45);
+    m.compose(p.set(x, groundHeight(x, z) - 0.03, z), q.setFromAxisAngle(up, rng() * 6), s.set(sc, sc * range(rng, 0.8, 1.2), sc));
+    under.setMatrixAt(n, m);
+    under.setColorAt(n, col.setHex(shades[n % 4]).offsetHSL(range(rng, -0.03, 0.03), 0, range(rng, -0.06, 0.04)));
+    n++;
+  }
+  under.count = n;
+  under.computeBoundingSphere();
+  root.add(under);
   return root;
+}
+
+/** Seven thin blades leaning out from a point. */
+function grassClumpGeometry(): BufferGeometry {
+  const parts: BufferGeometry[] = [];
+  for (let k = 0; k < 7; k++) {
+    const h = 0.18 + (k % 3) * 0.06;
+    parts.push(new ConeGeometry(0.012, h, 3).translate(0, h / 2, 0).rotateZ(0.25 + (k % 2) * 0.2).rotateY((k / 7) * Math.PI * 2).toNonIndexed());
+  }
+  const out = new BufferGeometry();
+  for (const name of ['position', 'normal']) {
+    const total = parts.reduce((n, g) => n + g.attributes[name].array.length, 0);
+    const arr = new Float32Array(total);
+    let off = 0;
+    for (const g of parts) {
+      arr.set(g.attributes[name].array as Float32Array, off);
+      off += g.attributes[name].array.length;
+    }
+    out.setAttribute(name, new BufferAttribute(arr, 3));
+  }
+  return out;
 }
 
 /** Six drooping fronds around a point, merged into one geometry. */
@@ -323,17 +379,11 @@ export function createUndergrowth(): Object3D {
   bushes.count = n;
   root.add(bushes);
 
-  const boulders = new InstancedMesh(new DodecahedronGeometry(1, 0), lambert(0xffffff), 45);
+  const boulders = new InstancedMesh(new DodecahedronGeometry(1, 0), lambert(0xffffff), BOULDERS.length);
   boulders.name = 'Boulders';
   n = 0;
-  for (let tries = 0; n < 45 && tries < 2000; tries++) {
-    const a = rng() * Math.PI * 2;
-    const r = 8 + rng() * WORLD_RADIUS;
-    const x = Math.cos(a) * r;
-    const z = Math.sin(a) * r;
-    if (inClearing(x, z, 0.5) || streamDistance(x, z) < 1.8) continue;
-    const sc = range(rng, 0.2, 0.85);
-    m.compose(p.set(x, sc * 0.35, z), q.setFromAxisAngle(up, rng() * 6), s.set(sc, sc * 0.8, sc));
+  for (const b of BOULDERS) {
+    m.compose(p.set(b.x, b.size * 0.35, b.z), q.setFromAxisAngle(up, b.rotY), s.set(b.size, b.size * 0.8, b.size));
     boulders.setMatrixAt(n, m);
     boulders.setColorAt(n, col.setHex([0x8a857b, 0x77736b, 0x6e6a62][n % 3]));
     n++;
@@ -363,19 +413,12 @@ export function createUndergrowth(): Object3D {
   root.add(ferns);
 
   // Fallen logs: decorative trunks lying in the leaf litter.
-  const LOGS = 40;
+  const LOGS = FALLEN_TRUNKS.length;
   const logs = new InstancedMesh(new CylinderGeometry(0.16, 0.2, 1, 7).rotateZ(Math.PI / 2), lambert(0xffffff), LOGS);
   logs.name = 'FallenTrunks';
   n = 0;
-  for (let tries = 0; n < LOGS && tries < 3000; tries++) {
-    const a = rng() * Math.PI * 2;
-    const r = 7 + rng() * (WORLD_RADIUS - 4);
-    const x = Math.cos(a) * r;
-    const z = Math.sin(a) * r;
-    if (inClearing(x, z, 1) || streamDistance(x, z) < 2.4 || nearestTreeDistance(x, z, 2) < 1.2) continue;
-    const len = range(rng, 2, 4.5);
-    const th = range(rng, 0.8, 1.5);
-    m.compose(p.set(x, 0.16 * th, z), q.setFromAxisAngle(up, rng() * 6), s.set(len, th, th));
+  for (const t of FALLEN_TRUNKS) {
+    m.compose(p.set(t.x, 0.16 * t.thick, t.z), q.setFromAxisAngle(up, t.rotY), s.set(t.length, t.thick, t.thick));
     logs.setMatrixAt(n, m);
     logs.setColorAt(n, col.setHex([0x5a4636, 0x4d3d2f, 0x66503c][n % 3]));
     n++;
@@ -454,40 +497,26 @@ export function createGroundDetail(): Object3D {
     return [Math.cos(a) * r, Math.sin(a) * r];
   };
 
-  const flakes = new InstancedMesh(new CircleGeometry(1, 5).rotateX(-Math.PI / 2), lambert(0xffffff, { side: DoubleSide }), 900);
-  flakes.name = 'LeafFlakes';
+  // Living grass clumps (walk-through), clustered by a noise field.
+  const CLUMPS = 1200;
+  const grass = new InstancedMesh(grassClumpGeometry(), lambert(0xffffff, { side: DoubleSide }), CLUMPS);
+  grass.name = 'GrassClumps';
   let n = 0;
-  for (let tries = 0; n < 900 && tries < 3000; tries++) {
+  for (let tries = 0; n < CLUMPS && tries < 20000; tries++) {
     const [x, z] = spot(1);
-    if (inClearing(x, z, -2) || streamDistance(x, z) < 0.8) continue;
-    const sc = range(rng, 0.07, 0.16);
-    m.compose(p.set(x, 0.02 + rng() * 0.01, z), q.setFromAxisAngle(up, rng() * 6), s.set(sc, 1, sc * 0.7));
-    flakes.setMatrixAt(n, m);
-    flakes.setColorAt(n, col.setHex([0xa8793a, 0x8c6230, 0xb98b45, 0x7a5528, 0x5e4a22][n % 5]));
+    if (streamDistance(x, z) < 0.8 || rng() > valueNoise(x * 0.5 + 7, z * 0.5 - 3) * 1.6 - 0.2) continue;
+    const sc = range(rng, 0.6, 1.4);
+    m.compose(p.set(x, groundHeight(x, z), z), q.setFromAxisAngle(up, rng() * 6), s.set(sc, sc * range(rng, 0.7, 1.3), sc));
+    grass.setMatrixAt(n, m);
+    grass.setColorAt(n, col.setHex([0x5a7a32, 0x6b8a3a, 0x4e6e2c, 0x7a8a40][n % 4]));
     n++;
   }
-  flakes.count = n;
-  flakes.frustumCulled = false;
-  root.add(flakes);
+  grass.count = n;
+  grass.frustumCulled = false;
+  root.add(grass);
 
-  const pebbles = new InstancedMesh(new DodecahedronGeometry(1, 0), lambert(0xffffff), 700);
-  pebbles.name = 'Pebbles';
-  n = 0;
-  for (let tries = 0; n < 700 && tries < 5000; tries++) {
-    const [x, z] = spot(1);
-    const sd = streamDistance(x, z);
-    // Pebbles gather near the water: thin out quickly with distance.
-    if (inClearing(x, z, -2) || sd < 0.75 || rng() > (sd < 4 ? 1 : 0.18)) continue;
-    const sc = range(rng, 0.03, 0.11);
-    m.compose(p.set(x, sc * 0.3, z), q.setFromAxisAngle(up, rng() * 6), s.set(sc, sc * 0.65, sc * 0.85));
-    pebbles.setMatrixAt(n, m);
-    pebbles.setColorAt(n, col.setHex(sd < 3 ? [0x4f4d4a, 0x5f5c57, 0x6e6a62][n % 3] : [0x8a857b, 0x77736b, 0x9a948a][n % 3]));
-    n++;
-  }
-  pebbles.count = n;
-  pebbles.frustumCulled = false;
-  root.add(pebbles);
-
+  // (Loose pebbles and leaf flakes were removed: anything that small must be a
+  // real gatherable, see SCATTER_RULES. Leaf litter now lives in the ground colour.)
   const mossCush = new InstancedMesh(new SphereGeometry(1, 6, 3, 0, Math.PI * 2, 0, Math.PI / 2), lambert(0xffffff), 260);
   mossCush.name = 'MossCushions';
   n = 0;
@@ -495,7 +524,7 @@ export function createGroundDetail(): Object3D {
     const [x, z] = spot(2);
     if (inClearing(x, z, -2) || streamDistance(x, z) < 1.0) continue;
     const sc = range(rng, 0.12, 0.4);
-    m.compose(p.set(x, 0, z), q.setFromAxisAngle(up, rng() * 6), s.set(sc, sc * 0.35, sc));
+    m.compose(p.set(x, 0, z), q.setFromAxisAngle(up, rng() * 6), s.set(sc, sc * 0.12, sc));
     mossCush.setMatrixAt(n, m);
     mossCush.setColorAt(n, col.setHex([0x3b5a2a, 0x4a6b34, 0x33522a][n % 3]));
     n++;

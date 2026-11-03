@@ -279,6 +279,12 @@ export const ITEM_PHYSICS: Record<ItemId, ItemPhysics> = {
   leafLitter: { size: [0.2, 0.04, 0.2], material: 'leaf', surface: 'soft', interaction: 'pouch', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false },
   vine: { size: [0.5, 0.02, 0.02], material: 'fibre', surface: 'soft', interaction: 'pouch', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false },
   bark: { size: [0.2, 0.02, 0.1], material: 'wood', surface: 'rough', interaction: 'pouch', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false },
+  // FOOD (Level 3, Science session): see src/game/food.ts.
+  fishingSpear: { size: [1.6, 0.03, 0.03], material: 'wood', surface: 'smooth', interaction: 'oneHand', grips: [{ x: -0.3, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false, durability: 40 },
+  fish: { size: [0.3, 0.06, 0.08], material: 'bone', surface: 'smooth', interaction: 'pouch', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false },
+  cookedFish: { size: [0.28, 0.05, 0.08], material: 'bone', surface: 'soft', interaction: 'pouch', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false },
+  tuber: { size: [0.1, 0.06, 0.06], material: 'leaf', surface: 'rough', interaction: 'pouch', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false },
+  seeds: { size: [0.04, 0.02, 0.04], material: 'leaf', surface: 'rough', interaction: 'pouch', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false },
 };
 
 /** The pack takes small things inside and light sticks and tools strapped on; nothing bigger or heavier. */

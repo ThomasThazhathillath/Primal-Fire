@@ -5,6 +5,7 @@
 // events, so the same code works for controllers and hand tracking.
 // Everything is preallocated: nothing is created per frame.
 
+import { HandMotion } from '../game/handmotion.js';
 import { PinchDetector } from '../game/pinch.js';
 import { createSystem, type Object3D, Quaternion, Vector3, VisibilityState } from '@iwsdk/core';
 
@@ -12,6 +13,12 @@ export interface HandFrame {
   readonly pos: Vector3;
   readonly vel: Vector3;
   readonly quat: Quaternion;
+  /**
+   * Filtered hand motion (src/game/handmotion.ts), updated once a frame: a
+   * velocity fitted over ~0.12 s and clamped, acceleration and swing strength.
+   * Reset on tracking loss and on tracking jumps.
+   */
+  readonly motion: HandMotion;
   /** Rotation speed (rad/s). */
   angSpeed: number;
   /** Wrist roll about the hand's pointing axis this frame (rad, signed). */
@@ -43,6 +50,7 @@ function frame(): HandFrame {
   return {
     pos: new Vector3(),
     vel: new Vector3(),
+    motion: new HandMotion(),
     quat: new Quaternion(),
     angSpeed: 0,
     roll: 0,
@@ -232,8 +240,11 @@ export class HandInputSystem extends createSystem({}) {
     }
   }
 
+  private clock = 0;
+
   update(delta: number): void {
     const dt = Math.max(delta, 1e-4);
+    this.clock += dt;
     this.attach();
     // Desktop pointer.
     mouse.pressed = this.pendingPress;
@@ -280,12 +291,14 @@ export class HandInputSystem extends createSystem({}) {
       this.gripWas[i] = grip;
       if (!sp) {
         this.had[i] = false;
+        h.motion.reset();
         h.vel.set(0, 0, 0);
         h.angSpeed = 0;
         h.roll = 0;
         continue;
       }
       sp.getWorldPosition(h.pos);
+      h.motion.push(h.pos.x, h.pos.y, h.pos.z, this.clock);
       sp.getWorldQuaternion(h.quat);
       if (this.had[i]) {
         h.vel.subVectors(h.pos, this.prevPos[i]).divideScalar(dt);

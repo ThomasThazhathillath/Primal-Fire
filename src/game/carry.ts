@@ -150,3 +150,22 @@ export function carrySpeed(item: ItemId | null): number {
   if (ITEM_PHYSICS[item].interaction === 'twoHand') return 0.6;
   return ITEMS[item].weight > 1.5 ? 0.85 : 1;
 }
+
+/**
+ * A loose object that has run into something solid at horizontal normal
+ * (nx, nz) (pointing out of the solid): it stops going in, bounces back a
+ * little and loses speed. Returns the speed it hit with (0 if it was moving away).
+ */
+export function bounceOff(b: Body, nx: number, nz: number, restitution = 0.35): number {
+  const len = Math.hypot(nx, nz);
+  if (len < 1e-6) return 0;
+  const ux = nx / len;
+  const uz = nz / len;
+  const vn = b.vel.x * ux + b.vel.z * uz;
+  if (vn >= 0) return 0;
+  b.vel.x -= (1 + restitution) * vn * ux;
+  b.vel.z -= (1 + restitution) * vn * uz;
+  b.vel.x *= 0.8;
+  b.vel.z *= 0.8;
+  return -vn;
+}

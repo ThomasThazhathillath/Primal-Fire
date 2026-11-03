@@ -11,6 +11,7 @@
 //       view); G drops it, Shift+G throws it.
 
 import { Box3, createSystem, Group, type Object3D, Quaternion, Vector3, VisibilityState } from '@iwsdk/core';
+import { throwImpulse } from '../game/handmotion.js';
 import { followStiffness, springStep, VelocityTracker } from '../game/carry.js';
 import type { GameEvent } from '../game/game.js';
 import { ITEM_PHYSICS, ITEMS, twoHanded, type ItemId } from '../game/items.js';
@@ -170,7 +171,10 @@ export class CarrySystem extends createSystem({}) {
       game.dropItem(item, pendingRelease.pos.x, pendingRelease.pos.z);
       return;
     }
-    this.tracker.velocity(this.tmp2);
+    // VR: a controlled share of the hand's filtered velocity (scaled by mass, clamped); desktop: the held object's own.
+    const handSpeed = this.immersive() ? hands[this.hold].motion.speed : 0;
+    if (this.immersive()) throwImpulse(hands[this.hold].motion.vel, ITEMS[item].weight, this.tmp2);
+    else this.tracker.velocity(this.tmp2);
     if (throwIt) {
       this.camera.getWorldDirection(this.tmp);
       // A seated throw: ~4 m/s along the view, a little upwards; lighter things go further.
@@ -194,7 +198,7 @@ export class CarrySystem extends createSystem({}) {
     const half = Math.min(sz[0], sz[1], sz[2]) / 2;
     const ground = groundHeight(p.x, p.z);
     // VR: opening the pinch slowly near the ground sets it down right there; fast is a throw.
-    const kind = throwIt ? 'throw' : this.immersive() ? releaseKind(this.tmp2.length(), p.y - half - ground) : 'drop';
+    const kind = throwIt ? 'throw' : this.immersive() ? releaseKind(handSpeed, p.y - half - ground) : 'drop';
     if (kind === 'place') {
       pendingRelease.set(item, p.x, restHeight(ground, half), p.z, 0, 0, 0);
       pendingRelease.place = true;
@@ -202,6 +206,7 @@ export class CarrySystem extends createSystem({}) {
       pendingRelease.set(item, p.x, p.y, p.z, this.tmp2.x, this.tmp2.y, this.tmp2.z);
     }
     pendingRelease.quat.copy(this.obj.quaternion);
+    game.log.add(`release ${item} ${kind} hand=${handSpeed.toFixed(1)}m/s v=${this.tmp2.x.toFixed(1)},${this.tmp2.y.toFixed(1)},${this.tmp2.z.toFixed(1)}`);
     game.dropItem(item, this.obj.position.x, this.obj.position.z);
   }
 

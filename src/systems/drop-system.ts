@@ -20,7 +20,7 @@ import {
   Vector3,
 } from '@iwsdk/core';
 import type { GameEvent } from '../game/game.js';
-import { stepBody, type Body } from '../game/carry.js';
+import { bounceOff, stepBody, type Body } from '../game/carry.js';
 import { nudgeOut } from '../game/collision.js';
 import { ITEM_PHYSICS, type ItemId, type Material } from '../game/items.js';
 import { groundHeight, STREAM_BANK, streamDistance } from '../game/world-layout.js';
@@ -131,6 +131,17 @@ export class DropSystem extends createSystem({
       const f = this.falling[i];
       const b = f.body;
       const ev = stepBody(b, f.item, dt);
+      // Flying into a trunk, rock or structure: stop going in and bounce off it.
+      if (!b.settled && b.pos.y < 2.5) {
+        const sz = ITEM_PHYSICS[f.item].size;
+        const p = nudgeOut(b.pos.x, b.pos.z, Math.max(sz[0], sz[1], sz[2]) / 2);
+        if (p.x !== b.pos.x || p.z !== b.pos.z) {
+          const hit = bounceOff(b, p.x - b.pos.x, p.z - b.pos.z);
+          b.pos.x = p.x;
+          b.pos.z = p.z;
+          if (hit > 0.8) game.contact(ITEM_PHYSICS[f.item].material, 'wood', b.pos.x, b.pos.y, b.pos.z, hit);
+        }
+      }
       f.obj.position.set(b.pos.x, b.pos.y, b.pos.z);
       f.obj.rotation.y += b.spin * dt;
       // Lying down: tip flat as it lands.

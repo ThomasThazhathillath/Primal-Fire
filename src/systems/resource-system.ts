@@ -22,6 +22,7 @@ import { SWING_TOOLS } from '../game/interact.js';
 import { groundHeight, RESOURCES, type ResourceSpot } from '../game/world-layout.js';
 import { Gatherable } from '../components/game-components.js';
 import { itemMesh, resourceMesh } from '../scene-assets/item-meshes.js';
+import { hands } from './hand-input-system.js';
 import { getGame, glowMaterial, glowMaterialHot, hipPosition, pickupFrom } from './shared.js';
 
 /** Max distance (m) from your head to something you can gather. */
@@ -34,6 +35,11 @@ const hitGeo = new SphereGeometry(HIT_RADIUS, 8, 6);
 const hitMat = new MeshBasicMaterial({ visible: false });
 const glowGeo = new CircleGeometry(0.22, 20);
 const FLIGHT_TIME = 0.4;
+/** Hand aim assist: a pinch picks the resource nearest the ray within this cone (radians, about 12 degrees). */
+const AIM_CONE = 0.21;
+/** Frames of ray history kept per hand: a pinch is judged by where you pointed ~150 ms before it (the ray swings as fingers close). */
+const AIM_HISTORY = 12;
+const AIM_LOOKBACK = 9;
 /** Spots farther than this (m) are hidden: they sit in full fog and cost draw calls. */
 const CULL_DISTANCE = 30;
 
@@ -58,6 +64,19 @@ export class ResourceSystem extends createSystem({
   private crosshair: HTMLDivElement | null = null;
   private litObj: Object3D | null = null;
   private pulse = 0;
+  /** Per hand: ring buffer of recent ray origins and directions (preallocated). */
+  private aim = [0, 1].map(() => ({
+    o: Array.from({ length: AIM_HISTORY }, () => new Vector3()),
+    d: Array.from({ length: AIM_HISTORY }, () => new Vector3()),
+    i: 0,
+    n: 0,
+  }));
+  /** A pinch waiting one frame to see whether the ray press already gathered something. */
+  private pendingPinch = -1;
+  private lastGather = 0;
+  private tmpO = new Vector3();
+  private tmpD = new Vector3();
+  private tmpP = new Vector3();
 
   init(): void {
     const fxRoot = this.world.createTransformEntity(new Group());
@@ -136,6 +155,7 @@ export class ResourceSystem extends createSystem({
   }
 
   tryGather(e: Entity): boolean {
+    this.lastGather = performance.now();
     const game = getGame(this.world);
     const spot = this.bySpot.get(e.getValue(Gatherable, 'spotId') ?? '');
     const charges = e.getValue(Gatherable, 'charges') ?? 0;
@@ -211,7 +231,58 @@ export class ResourceSystem extends createSystem({
     }
   }
 
+  /** VR hands: record ray history, and turn a pinch that missed into a pick of the nearest resource on the earlier aim. */
+  private updateAimAssist(): void {
+    if (this.world.visibilityState.peek() === VisibilityState.NonImmersive) return;
+    if (this.pendingPinch >= 0) {
+      const hand = this.pendingPinch;
+      this.pendingPinch = -1;
+      // The ray's own press already gathered (or something else took the pinch): nothing to assist.
+      if (performance.now() - this.lastGather > 150 && !getGame(this.world).held) {
+        const a = this.aim[hand];
+        if (a.n > 0) {
+          const k = (a.i - Math.min(AIM_LOOKBACK, a.n) + AIM_HISTORY) % AIM_HISTORY;
+          const best = this.nearestOnRay(a.o[k], a.d[k]);
+          if (best) this.tryGather(best);
+        }
+      }
+    }
+    for (let h = 0; h < 2; h++) {
+      const space = this.player.raySpaces[h === 0 ? 'left' : 'right'];
+      const hf = hands[h];
+      if (!space || !hf.tracked) continue;
+      const a = this.aim[h];
+      space.getWorldPosition(a.o[a.i]);
+      space.getWorldDirection(a.d[a.i]).negate(); // XR ray spaces point down -Z
+      a.i = (a.i + 1) % AIM_HISTORY;
+      a.n = Math.min(AIM_HISTORY, a.n + 1);
+      if (hf.gripDown) this.pendingPinch = h;
+    }
+  }
+
+  /** The gatherable spot closest in angle to the ray, within AIM_CONE and REACH. */
+  private nearestOnRay(o: Vector3, d: Vector3): Entity | null {
+    let best: Entity | null = null;
+    let bestA = AIM_CONE;
+    for (const [id, e] of this.entityBySpot) {
+      if ((e.getValue(Gatherable, 'charges') ?? 0) <= 0 || !e.object3D?.visible) continue;
+      const spot = this.bySpot.get(id);
+      if (!spot || spot.look === DRAG_LOOK || this.distanceTo(spot) > REACH) continue;
+      e.object3D.getWorldPosition(this.tmpP);
+      this.tmpD.subVectors(this.tmpP, o);
+      const len = this.tmpD.length();
+      if (len < 0.05) continue;
+      const ang = Math.acos(Math.max(-1, Math.min(1, this.tmpD.dot(d) / len)));
+      if (ang < bestA) {
+        bestA = ang;
+        best = e;
+      }
+    }
+    return best;
+  }
+
   update(delta: number): void {
+    this.updateAimAssist();
     this.pulse += delta;
     glowMaterial.opacity = 0.14 + 0.1 * Math.sin(this.pulse * 3);
     glowMaterialHot.opacity = 0.45 + 0.15 * Math.sin(this.pulse * 6);

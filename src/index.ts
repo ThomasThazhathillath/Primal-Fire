@@ -15,6 +15,7 @@ import { NatureSystem } from './systems/nature-system.js';
 import { AmbienceSystem } from './systems/ambience-system.js';
 import { DropSystem } from './systems/drop-system.js';
 import { FireSystem } from './systems/fire-system.js';
+import { HandLocomotionSystem } from './systems/hand-locomotion-system.js';
 import { HandInputSystem } from './systems/hand-input-system.js';
 import { InteractionSystem } from './systems/interaction-system.js';
 import { HandsSystem } from './systems/hands-system.js';
@@ -40,6 +41,7 @@ World.create(
     .registerSystem(WorldEnvironmentSystem)
     .registerSystem(NatureSystem)
     .registerSystem(HandInputSystem)
+    .registerSystem(HandLocomotionSystem)
     .registerSystem(DesktopControlsSystem)
     .registerSystem(PlayerCollisionSystem)
     .registerSystem(ResourceSystem)

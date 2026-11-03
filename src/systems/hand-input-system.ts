@@ -6,7 +6,7 @@
 // Everything is preallocated: nothing is created per frame.
 
 import { HandMotion } from '../game/handmotion.js';
-import { PinchDetector } from '../game/pinch.js';
+import { handSqueeze, PinchDetector } from '../game/pinch.js';
 import { createSystem, type Object3D, Quaternion, Vector3, VisibilityState } from '@iwsdk/core';
 
 export interface HandFrame {
@@ -277,11 +277,13 @@ export class HandInputSystem extends createSystem({}) {
       const sp = vr ? spaces[i] : undefined;
       h.tracked = !!sp;
       // Tracked hands: the joint pinch (with hysteresis) is the grip and the squeeze. Controllers keep select / squeeze.
-      const jointPinch = h.tipTracked;
-      if (jointPinch) this.pinchers[i].update(h.pinchDist, true);
-      else this.pinchers[i].reset();
-      const sq = jointPinch ? this.pinchers[i].pinch : this.squeeze[i];
-      const grip = jointPinch ? this.pinchers[i].pinch : this.select[i] || this.squeeze[i];
+      const { squeeze: sq, grip } = handSqueeze(this.pinchers[i], {
+        tipTracked: h.tipTracked,
+        distance: h.pinchDist,
+        vr,
+        select: this.select[i],
+        squeeze: this.squeeze[i],
+      });
       h.squeeze = sq;
       h.squeezeUp = !sq && this.squeezeWas[i];
       this.squeezeWas[i] = sq;

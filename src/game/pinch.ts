@@ -48,6 +48,32 @@ export class PinchDetector implements PinchState {
   }
 }
 
+export interface HandSignals {
+  /** Joint pinch distance is valid this frame (a tracked hand, not a controller). */
+  tipTracked: boolean;
+  distance: number;
+  /** In an immersive session (desktop never freezes). */
+  vr: boolean;
+  /** Controller buttons, used when there are no hand joints. */
+  select: boolean;
+  squeeze: boolean;
+}
+
+/**
+ * The hand's squeeze (what holds things) and grip this frame. A pinching hand
+ * that loses tracking keeps pinching: nothing is released or launched until
+ * tracking returns and the pinch actually opens.
+ */
+export function handSqueeze(p: PinchDetector, h: HandSignals): { squeeze: boolean; grip: boolean } {
+  if (h.tipTracked) {
+    p.update(h.distance, true);
+    return { squeeze: p.pinch, grip: p.pinch };
+  }
+  if (h.vr && p.pinch && !h.select && !h.squeeze) return { squeeze: true, grip: true };
+  p.reset();
+  return { squeeze: h.squeeze, grip: h.select || h.squeeze };
+}
+
 export type ReleaseKind = 'place' | 'drop' | 'throw';
 
 /**

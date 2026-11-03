@@ -52,6 +52,9 @@ export class CarrySystem extends createSystem({}) {
   private hold: 0 | 1 = 1;
   private lastDown: 0 | 1 = 1;
   private box = new Box3();
+  /** A hand pose has been read since pickup, so tracking loss can freeze at it. */
+  private hasPose = false;
+  private lastN = 1;
 
   init(): void {
     const game = getGame(this.world);
@@ -113,6 +116,7 @@ export class CarrySystem extends createSystem({}) {
     pickupFrom.valid = false;
     this.vel.set(0, 0, 0);
     this.reachT = 0;
+    this.hasPose = false;
     this.tracker.reset();
     this.computeTarget();
     this.obj.position.copy(this.pos);
@@ -127,12 +131,15 @@ export class CarrySystem extends createSystem({}) {
     if (this.immersive()) {
       const r = hands[this.hold];
       const l = hands[1 - this.hold];
+      // Tracking lost: stay frozen at the last pose (no gestures, no release) until it returns.
+      if (!r.tracked && this.hasPose) return this.lastN;
       if (two && l.tracked && r.tracked) {
         this.target.addVectors(l.pos, r.pos).multiplyScalar(0.5);
         this.tmp.subVectors(hands[1].pos, hands[0].pos).setY(0);
         if (this.tmp.lengthSq() < 1e-4) this.tmp.set(1, 0, 0);
         this.targetQ.setFromUnitVectors(this.xAxis, this.tmp.normalize());
-        return 2;
+        this.hasPose = true;
+        return (this.lastN = 2);
       }
       if (r.tracked) {
         // Object frame = hand frame turned so the long axis points forward; the grip point sits in the palm.
@@ -142,7 +149,8 @@ export class CarrySystem extends createSystem({}) {
         this.target.copy(r.pos).add(this.tmp);
         // A two-handed thing held in one hand hangs low and drags.
         if (two) this.target.y -= 0.15;
-        return 1;
+        this.hasPose = true;
+        return (this.lastN = 1);
       }
     }
     // Desktop: a camera-space pose; one-handed things put their grip point (not their middle) at the hand.

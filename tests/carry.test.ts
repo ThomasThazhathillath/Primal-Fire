@@ -104,3 +104,20 @@ describe('contact table', () => {
     expect(contactGain(p, 4)).toBeGreaterThan(contactGain(p, 0.5));
   });
 });
+
+describe('objects rest on the local ground', () => {
+  it('a thrown stone settles on a ground that is below y = 0', () => {
+    const ground = -0.037;
+    const b: Body = { pos: v(0, 1, 0), vel: v(1, 2, 0), spin: 0, settled: false };
+    for (let i = 0; i < 72 * 8 && !b.settled; i++) stepBody(b, 'dryStone', 1 / 72, ground);
+    expect(b.settled).toBe(true);
+    expect(b.pos.y).toBeCloseTo(ground, 6);
+  });
+
+  it('and on a ground above y = 0', () => {
+    const ground = 0.06;
+    const b: Body = { pos: v(0, 0.5, 0), vel: v(0, 0, 0), spin: 0, settled: false };
+    for (let i = 0; i < 72 * 8 && !b.settled; i++) stepBody(b, 'clay', 1 / 72, ground);
+    expect(b.pos.y).toBeCloseTo(ground, 6);
+  });
+});

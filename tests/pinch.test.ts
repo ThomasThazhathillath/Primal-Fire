@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { nearestCandidate, PINCH_CONFIG, PinchDetector, releaseKind, restHeight } from '../src/game/pinch.js';
+import { handSqueeze, nearestCandidate, PINCH_CONFIG, PinchDetector, releaseKind, restHeight } from '../src/game/pinch.js';
 
 describe('pinch hysteresis', () => {
   it('starts below the start threshold and ends only above the release threshold', () => {
@@ -85,5 +85,46 @@ describe('nearest grab', () => {
   });
   it('takes nothing out of reach', () => {
     expect(nearestCandidate(list, 0.5, 0.5, 0.5)).toBeNull();
+  });
+});
+
+describe('tracking loss while holding', () => {
+  const lost = { tipTracked: false, distance: Infinity, vr: true, select: false, squeeze: false };
+  const seen = (distance: number) => ({ tipTracked: true, distance, vr: true, select: false, squeeze: false });
+
+  it('keeps holding through tracking loss, with no release edge', () => {
+    const p = new PinchDetector();
+    expect(handSqueeze(p, seen(0.01)).squeeze).toBe(true);
+    let was = true;
+    for (let i = 0; i < 90; i++) {
+      const r = handSqueeze(p, lost);
+      expect(r.squeeze).toBe(true);
+      expect(r.grip).toBe(true);
+      was = r.squeeze;
+    }
+    expect(was).toBe(true);
+  });
+
+  it('resumes held if the pinch is still closed when tracking returns', () => {
+    const p = new PinchDetector();
+    handSqueeze(p, seen(0.01));
+    handSqueeze(p, lost);
+    expect(handSqueeze(p, seen(0.015)).squeeze).toBe(true);
+  });
+
+  it('only an actual pinch-open after recovery releases', () => {
+    const p = new PinchDetector();
+    handSqueeze(p, seen(0.01));
+    handSqueeze(p, lost);
+    expect(handSqueeze(p, seen(0.08)).squeeze).toBe(false);
+    expect(p.up).toBe(true);
+  });
+
+  it('a hand that was not pinching stays free, and desktop never freezes', () => {
+    const p = new PinchDetector();
+    expect(handSqueeze(p, lost).squeeze).toBe(false);
+    const q = new PinchDetector();
+    handSqueeze(q, seen(0.01));
+    expect(handSqueeze(q, { ...lost, vr: false }).squeeze).toBe(false);
   });
 });

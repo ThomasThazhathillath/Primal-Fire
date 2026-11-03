@@ -89,7 +89,7 @@ export class DropSystem extends createSystem({
       const hit = new Mesh(hitGeo, hitMat);
       hit.position.y = 0.2;
       g.add(m, glow, hit);
-      g.position.set(d.x, 0, d.z);
+      g.position.set(d.x, groundHeight(d.x, d.z), d.z);
       const e = this.world.createTransformEntity(g);
       e.addComponent(WorldDropItem, { dropId: d.id });
       e.addComponent(RayInteractable);
@@ -98,7 +98,7 @@ export class DropSystem extends createSystem({
       // Just let go: start at the hand with the hand's velocity (else fall from waist height).
       const fromHand = pendingRelease.valid && pendingRelease.item === d.item;
       const body: Body = {
-        pos: fromHand ? { x: pendingRelease.pos.x, y: pendingRelease.pos.y, z: pendingRelease.pos.z } : { x: d.x, y: 0.9, z: d.z },
+        pos: fromHand ? { x: pendingRelease.pos.x, y: pendingRelease.pos.y, z: pendingRelease.pos.z } : { x: d.x, y: groundHeight(d.x, d.z) + 0.9, z: d.z },
         vel: fromHand ? { x: pendingRelease.vel.x, y: pendingRelease.vel.y, z: pendingRelease.vel.z } : { x: 0, y: 0, z: 0 },
         spin: (Math.random() - 0.5) * 6,
         settled: false,
@@ -130,7 +130,8 @@ export class DropSystem extends createSystem({
     for (let i = this.falling.length - 1; i >= 0; i--) {
       const f = this.falling[i];
       const b = f.body;
-      const ev = stepBody(b, f.item, dt);
+      const gy = groundHeight(b.pos.x, b.pos.z);
+      const ev = stepBody(b, f.item, dt, gy);
       // Flying into a trunk, rock or structure: stop going in and bounce off it.
       if (!b.settled && b.pos.y < 2.5) {
         const sz = ITEM_PHYSICS[f.item].size;
@@ -145,12 +146,12 @@ export class DropSystem extends createSystem({
       f.obj.position.set(b.pos.x, b.pos.y, b.pos.z);
       f.obj.rotation.y += b.spin * dt;
       // Lying down: tip flat as it lands.
-      if (b.pos.y <= 0.001) {
+      if (b.pos.y <= gy + 0.001) {
         f.obj.rotation.x *= 0.85;
         f.obj.rotation.z *= 0.85;
       }
       if (ev?.kind === 'impact') {
-        game.contact(ITEM_PHYSICS[f.item].material, groundMaterial(b.pos.x, b.pos.z), b.pos.x, 0.02, b.pos.z, ev.speed);
+        game.contact(ITEM_PHYSICS[f.item].material, groundMaterial(b.pos.x, b.pos.z), b.pos.x, gy + 0.02, b.pos.z, ev.speed);
       }
       if (ev?.kind === 'settled' || b.settled) {
         // Never come to rest inside a tree, rock or structure.
@@ -165,6 +166,8 @@ export class DropSystem extends createSystem({
           d.x = b.pos.x;
           d.z = b.pos.z;
         }
+        // Rest exactly on the local ground wherever it ended up.
+        b.pos.y = f.obj.position.y = groundHeight(b.pos.x, b.pos.z);
         f.obj.rotation.x = f.obj.rotation.z = 0;
         this.falling.splice(i, 1);
       }

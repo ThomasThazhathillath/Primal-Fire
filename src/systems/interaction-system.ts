@@ -47,7 +47,7 @@ import {
   type Material,
 } from '../game/interact.js';
 import { ITEMS, type ItemId } from '../game/items.js';
-import { BLUEPRINTS, DEFAULT_SPOT_TOLERANCE, spotWorldPosition } from '../game/blueprint.js';
+import { BLUEPRINTS, spotWorldPosition } from '../game/blueprint.js';
 import { itemMesh } from '../scene-assets/item-meshes.js';
 import { Gatherable } from '../components/game-components.js';
 import { lambert } from '../scene-assets/materials.js';
@@ -617,13 +617,15 @@ export class InteractionSystem extends createSystem({
     }
     const target = game.placementTarget(held, this.tmp.x, this.tmp.z);
     // Preview: where it will land, green when it would seat on its mark.
+    // Anywhere near a mark snaps exactly onto it: no fine positioning.
     let seats = false;
     if (target) {
       const def = BLUEPRINTS[target.structure.kind];
       const mark = target.index >= 0 ? spotWorldPosition(target.structure, target.index) : { x: target.structure.x, z: target.structure.z };
-      const tol = target.index >= 0 ? (def.spotTolerance ?? DEFAULT_SPOT_TOLERANCE) : 0.15;
-      seats = Math.hypot(mark.x - this.tmp.x, mark.z - this.tmp.z) <= tol;
-      this.preview.position.set(this.tmp.x, target.index < 0 ? def.key.y : 0.02, this.tmp.z);
+      seats = true;
+      this.tmp.x = mark.x;
+      this.tmp.z = mark.z;
+      this.preview.position.set(mark.x, target.index < 0 ? def.key.y : 0.02, mark.z);
       this.preview.rotation.y = target.structure.rotY;
     } else {
       this.preview.position.set(this.tmp.x, 0.02, this.tmp.z);

@@ -20,16 +20,20 @@ import {
   PointsMaterial,
   Pressed,
   RayInteractable,
+  PlaneGeometry,
+  type ShaderMaterial,
   SphereGeometry,
   Vector3,
   VisibilityState,
 } from '@iwsdk/core';
 import type { GameEvent } from '../game/game.js';
 import { FirePitSpot } from '../components/game-components.js';
+import { flameGeometry, flameMaterial, glowMaterial, smokeMaterial } from './fire-fx.js';
 import { getGame } from './shared.js';
 
 const SPARKS = 24;
-const FLAMES = 3;
+const FLAMES = 4;
+const SMOKE = 8;
 /** Hand must be this close (m, horizontal) to the pit to saw, fan or drop the ember. */
 const WORK_RADIUS = 1.2;
 const TRANSFER_RADIUS = 0.45;
@@ -37,8 +41,6 @@ const TRANSFER_RADIUS = 0.45;
 const FAN_MIN_SPEED = 0.6;
 
 const emberMat = new MeshBasicMaterial({ color: 0xff6a1a });
-const flameMat = new MeshBasicMaterial({ color: 0xffa233, transparent: true, opacity: 0.8, blending: AdditiveBlending, depthWrite: false });
-const coreMat = new MeshBasicMaterial({ color: 0xffe08a, transparent: true, opacity: 0.9, blending: AdditiveBlending, depthWrite: false });
 
 export class FireSystem extends createSystem({
   pitPressed: { required: [FirePitSpot, Pressed] },
@@ -47,6 +49,13 @@ export class FireSystem extends createSystem({
   private pitEntity: Entity | null = null;
   private pitPos = new Vector3();
   private flames: Mesh[] = [];
+  private flameMats: ShaderMaterial[] = [];
+  private smoke: Mesh[] = [];
+  private smokeMats: ShaderMaterial[] = [];
+  private smokeLife = new Float32Array(SMOKE);
+  private smokeVel = new Float32Array(SMOKE * 2);
+  private glowMat = glowMaterial();
+  private eye = new Vector3();
   private lay!: Group;
   private glow!: Mesh;
   private light!: PointLight;
@@ -70,15 +79,33 @@ export class FireSystem extends createSystem({
 
     this.lay = new Group();
     this.root.add(this.lay);
-    const glowDisc = new Mesh(new CircleGeometry(0.28, 16), new MeshBasicMaterial({ color: 0xff5a10, transparent: true, opacity: 0.5, blending: AdditiveBlending, depthWrite: false }));
+    const glowDisc = new Mesh(new PlaneGeometry(1.4, 1.4), this.glowMat);
     glowDisc.rotation.x = -Math.PI / 2;
-    glowDisc.position.y = 0.03;
+    glowDisc.position.y = 0.025;
     this.glow = glowDisc;
     this.root.add(glowDisc);
+    // Flame tongues: two wide outer layers and two hot narrow cores, each with its own noise seed.
+    const outer = flameGeometry(0.46, 0.75);
+    const inner = flameGeometry(0.3, 0.5);
     for (let i = 0; i < FLAMES; i++) {
-      const m = new Mesh(new ConeGeometry(0.11 - i * 0.02, 0.45, 7, 1, true), i === 0 ? coreMat : flameMat);
-      m.position.set((i - 1) * 0.07, 0.25, i === 1 ? 0.05 : -0.04);
+      const core = i >= 2;
+      const mat = flameMaterial(i * 3.7 + 1.3, core);
+      const m = new Mesh(core ? inner : outer, mat);
+      m.position.set((i % 2 ? 1 : -1) * 0.04, 0.04, (i % 2 ? -1 : 1) * 0.03);
+      m.renderOrder = core ? 3 : 2;
+      m.frustumCulled = false;
       this.flames.push(m);
+      this.flameMats.push(mat);
+      this.root.add(m);
+    }
+    const puff = new PlaneGeometry(0.4, 0.4);
+    for (let i = 0; i < SMOKE; i++) {
+      const mat = smokeMaterial(i * 5.1);
+      const m = new Mesh(puff, mat);
+      m.visible = false;
+      m.renderOrder = 1;
+      this.smoke.push(m);
+      this.smokeMats.push(mat);
       this.root.add(m);
     }
     this.light = new PointLight(0xff8a3a, 0, 9, 2);
@@ -88,7 +115,7 @@ export class FireSystem extends createSystem({
     const geo = new BufferGeometry();
     this.sparkPos = new Float32Array(SPARKS * 3);
     geo.setAttribute('position', new BufferAttribute(this.sparkPos, 3));
-    this.sparks = new Points(geo, new PointsMaterial({ color: 0xffb04a, size: 0.025, blending: AdditiveBlending, depthWrite: false, transparent: true }));
+    this.sparks = new Points(geo, new PointsMaterial({ color: 0xffa040, size: 0.012, blending: AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.9 }));
     this.sparks.frustumCulled = false;
     this.root.add(this.sparks);
 
@@ -213,35 +240,75 @@ export class FireSystem extends createSystem({
 
   private animate(delta: number, intensity: number, embedded: boolean, heat: number): void {
     const burning = intensity > 0.5;
+    // Flames turn to face you around the vertical axis (cheap billboarding).
+    this.camera.getWorldPosition(this.eye);
+    const yaw = Math.atan2(this.eye.x - this.pitPos.x, this.eye.z - this.pitPos.z);
+    const flameLevel = burning ? intensity : embedded ? 0.25 : 0;
     for (let i = 0; i < FLAMES; i++) {
       const f = this.flames[i];
-      f.visible = burning || embedded;
-      const flick = 0.85 + Math.sin(this.t * (9 + i * 3) + i) * 0.15;
-      f.scale.set(1, Math.max(0.05, intensity * 1.6 * flick), 1);
-      f.position.y = 0.05 + 0.22 * f.scale.y;
+      f.visible = flameLevel > 0;
+      f.rotation.y = yaw + (i - 1.5) * 0.35;
+      const u = this.flameMats[i].uniforms;
+      u.uTime.value = this.t * (1 + i * 0.07);
+      u.uIntensity.value = Math.min(1, flameLevel * (0.85 + 0.15 * Math.sin(this.t * (5.3 + i) + i)));
+      const size = 0.45 + flameLevel * 0.75;
+      f.scale.set(size, size * (0.9 + 0.12 * Math.sin(this.t * 3.1 + i * 2)), size);
     }
-    this.glow.visible = embedded || burning || heat > 0.15;
-    (this.glow.material as MeshBasicMaterial).opacity = 0.25 + Math.max(intensity, heat * 0.5) * 0.5 + Math.sin(this.t * 7) * 0.05;
-    this.light.intensity = burning ? 2.2 * intensity * (0.9 + Math.sin(this.t * 17) * 0.1) : 0;
+    const glowLevel = Math.max(flameLevel, heat * 0.4, embedded ? 0.35 : 0);
+    this.glow.visible = glowLevel > 0.02;
+    this.glowMat.uniforms.uIntensity.value = glowLevel * (0.55 + 0.08 * Math.sin(this.t * 7.1) + 0.05 * Math.sin(this.t * 13.7));
+    // Firelight: layered flicker so it never pulses like a metronome.
+    this.light.intensity = burning ? 2.4 * intensity * (0.82 + 0.1 * Math.sin(this.t * 11.3) + 0.06 * Math.sin(this.t * 23.7 + 1.3) + 0.04 * Math.sin(this.t * 37.1)) : embedded ? 0.4 : 0;
+
+    // Smoke: thick while it smoulders, thinner once it burns cleanly.
+    const smokeRate = embedded && !burning ? 3 : burning ? 1.4 : heat > 0.3 ? heat * 2 : 0;
+    let spawnSmoke = smokeRate * delta;
+    for (let i = 0; i < SMOKE; i++) {
+      const m = this.smoke[i];
+      const u = this.smokeMats[i].uniforms;
+      if (this.smokeLife[i] > 0) {
+        this.smokeLife[i] -= delta;
+        const age = 1 - this.smokeLife[i] / 3.5;
+        m.position.x += this.smokeVel[i * 2] * delta;
+        m.position.z += this.smokeVel[i * 2 + 1] * delta;
+        m.position.y += (0.35 + age * 0.2) * delta;
+        m.scale.setScalar(0.5 + age * 2.2);
+        m.rotation.y = yaw;
+        u.uTime.value = this.t;
+        u.uAlpha.value = Math.sin(Math.min(1, age) * Math.PI) * 0.8;
+        m.visible = this.smokeLife[i] > 0;
+      } else if (spawnSmoke > 0 && Math.random() < spawnSmoke) {
+        spawnSmoke = 0;
+        this.smokeLife[i] = 3.5;
+        m.position.set((Math.random() - 0.5) * 0.1, burning ? 0.55 : 0.15, (Math.random() - 0.5) * 0.1);
+        this.smokeVel[i * 2] = (Math.random() - 0.5) * 0.08 + 0.05; // a light drift downwind
+        this.smokeVel[i * 2 + 1] = (Math.random() - 0.5) * 0.08;
+        m.visible = true;
+      } else {
+        m.visible = false;
+      }
+    }
 
     // Sparks: cap at SPARKS; emit while burning.
-    let spawn = burning ? 6 * delta : 0;
+    let spawn = burning ? 4 * delta : 0;
     for (let i = 0; i < SPARKS; i++) {
       const o = i * 3;
       if (this.sparkLife[i] > 0) {
         this.sparkLife[i] -= delta;
+        // Embers ride the hot air and wander as they cool.
+        this.sparkVel[o] += Math.sin(this.t * 3 + i) * 0.1 * delta;
         this.sparkPos[o] += this.sparkVel[o] * delta;
         this.sparkPos[o + 1] += this.sparkVel[o + 1] * delta;
         this.sparkPos[o + 2] += this.sparkVel[o + 2] * delta;
       } else if (spawn > 0 && Math.random() < spawn) {
         spawn = 0;
-        this.sparkLife[i] = 0.8 + Math.random() * 0.8;
-        this.sparkPos[o] = (Math.random() - 0.5) * 0.15;
-        this.sparkPos[o + 1] = 0.3;
-        this.sparkPos[o + 2] = (Math.random() - 0.5) * 0.15;
-        this.sparkVel[o] = (Math.random() - 0.5) * 0.3;
-        this.sparkVel[o + 1] = 0.5 + Math.random() * 0.6;
-        this.sparkVel[o + 2] = (Math.random() - 0.5) * 0.3;
+        this.sparkLife[i] = 1.2 + Math.random() * 1.6;
+        this.sparkPos[o] = (Math.random() - 0.5) * 0.12;
+        this.sparkPos[o + 1] = 0.25 + Math.random() * 0.2;
+        this.sparkPos[o + 2] = (Math.random() - 0.5) * 0.12;
+        this.sparkVel[o] = (Math.random() - 0.5) * 0.15;
+        this.sparkVel[o + 1] = 0.35 + Math.random() * 0.45;
+        this.sparkVel[o + 2] = (Math.random() - 0.5) * 0.15;
       } else {
         this.sparkPos[o + 1] = -10; // park dead sparks out of sight
       }

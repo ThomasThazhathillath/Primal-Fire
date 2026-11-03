@@ -290,6 +290,143 @@ const survivalQuests: Quest[] = [
   },
 ];
 
+const inCamp = (g: Game, kind: StructureKind): boolean => g.camp().some((s) => s.kind === kind);
+const everHad = (g: Game, id: ItemId): boolean => g.gatheredCount(id) > 0 || g.count(id) > 0 || g.held === id;
+
+/** Level 3 "Camp": a base by your fire, and food from the stream and the soil. */
+const campQuests: Quest[] = [
+  {
+    title: 'Make Camp',
+    roadmapNode: null,
+    recap: 'A camp clusters what you need around the fire: warmth, shelter and dry storage, close enough to tend all of them.',
+    desc: 'Wandering wastes energy. Build a base around your fire pit: somewhere to sleep and somewhere to keep things dry.',
+    steps: [
+      {
+        text: (g) => `A fire pit at the heart of camp ${mark(g.hasStructure('firePit'))}`,
+        done: (g) => g.hasStructure('firePit'),
+        hints: ['Everything in camp should be close to warmth and light.', 'Your fire pit is the centre. Build one if it is gone.'],
+        target: { structure: 'firePit', items: ['dryStone'] },
+        guide: 'firePit',
+      },
+      {
+        text: (g) => `A shelter near the fire ${mark(inCamp(g, 'shelter'))}`,
+        done: (g) => inCamp(g, 'shelter'),
+        hints: [
+          'Cold air sinks and rain runs downhill. Where would you sleep dry and warm?',
+          'Raised, open ground within a short walk of your fire. Lean branches on a ridge pole.',
+        ],
+        target: { structure: 'shelter', items: ['branch'] },
+        guide: 'shelter',
+      },
+      {
+        text: (g) => `Dry storage in camp ${mark(inCamp(g, 'storage'))}`,
+        done: (g) => inCamp(g, 'storage'),
+        hints: [
+          'Food and tinder spoil when damp. What could you weave to keep them off the ground?',
+          'Hollow canes grow by the stream. Weave them into a basket near the fire.',
+        ],
+        target: { structure: 'storage', items: ['cane'] },
+      },
+    ],
+  },
+  {
+    title: 'Catch a Fish',
+    roadmapNode: null,
+    recap: 'Light bends at the water’s surface, so fish are deeper and nearer than they look. Aim below what you see.',
+    desc: 'There are fish in the stream. You need something long and sharp, and a good eye.',
+    steps: [
+      {
+        text: (g) => `Something long and sharp to strike with ${mark(everHad(g, 'fishingSpear'))}`,
+        done: (g) => everHad(g, 'fishingSpear'),
+        hints: [
+          'Hands are too slow underwater. What reaches and pierces?',
+          'A straight stick with a split, sharpened tip, made at your workbench.',
+        ],
+        target: { structure: 'workbench', items: ['spindle', 'flake'] },
+      },
+      {
+        text: (g) => `Spear a fish ${mark(g.hasEvent('food.fish.caught'))}`,
+        done: onEvent('food.fish.caught'),
+        hints: [
+          'Water bends light. Is the fish really where you see it?',
+          'Stand on the bank where shadows move in the stream. Thrust below where the fish appears.',
+        ],
+        target: { items: [] },
+      },
+    ],
+  },
+  {
+    title: 'Cook Your Catch',
+    roadmapNode: null,
+    recap: 'Heat denatures proteins, turning flesh opaque, and kills bacteria and parasites. Food is energy for work and warmth.',
+    desc: 'Raw fish is risky. Make it safe, then eat.',
+    steps: [
+      {
+        text: (g) => `Cook the fish through ${mark(g.hasEvent('food.fish.opaque'))}`,
+        done: onEvent('food.fish.opaque'),
+        hints: [
+          'What kills the microbes and parasites in raw flesh?',
+          'Hold it over your burning fire until it turns opaque.',
+        ],
+        target: { structure: 'firePit', items: [] },
+      },
+      {
+        text: (g) => `Eat ${mark(g.hasEvent('body.eat'))}`,
+        done: onEvent('body.eat'),
+        hints: ['Your body runs on food energy.', 'Hold the cooked fish and eat it.'],
+        target: { items: [] },
+      },
+    ],
+  },
+  {
+    title: 'Grow Food',
+    roadmapNode: null,
+    recap: 'Plants turn water, air and sunlight into stored food. Loose soil, water and light make them grow; a tuber can grow a whole new plant.',
+    desc: 'Hunting and fishing are uncertain. Grow food you can count on.',
+    steps: [
+      {
+        text: (g) => `Something that grows: a tuber or seeds ${mark(everHad(g, 'tuber') || everHad(g, 'seeds'))}`,
+        done: (g) => everHad(g, 'tuber') || everHad(g, 'seeds'),
+        hints: [
+          'Some plants store food underground; others make seeds. Both can grow again.',
+          'Look for leafy wild tuber plants at the edges of sunny clearings.',
+        ],
+        target: { items: [] },
+      },
+      {
+        text: (g) => `Dig a plot ${mark(g.hasEvent('farm.plot.dug'))}`,
+        done: onEvent('farm.plot.dug'),
+        hints: ['Roots need loose soil with air in it.', 'Hold your digging stick over open, sunny ground away from the stream.'],
+        target: { items: ['diggingStick'] },
+      },
+      {
+        text: (g) => `Plant it ${mark(g.hasEvent('farm.planted'))}`,
+        done: onEvent('farm.planted'),
+        hints: ['A plant needs light. Is your plot under trees?', 'Hold the tuber or seeds over your plot.'],
+        target: { items: [] },
+      },
+      {
+        text: (g) => `Water it ${mark(g.hasEvent('farm.watered'))}`,
+        done: onEvent('farm.watered'),
+        hints: ['Roots drink. How can you carry water to them?', 'Fill your pot at the stream and pour it on the plot.'],
+        target: { items: ['pot'] },
+      },
+      {
+        text: (g) => `Harvest what you grew ${mark(g.hasEvent('farm.harvested'))}`,
+        done: onEvent('farm.harvested'),
+        hints: ['Growth takes time, water and light.', 'Keep the soil moist; come back when the plant is full-grown.'],
+        target: { items: [] },
+      },
+    ],
+  },
+];
+
+/**
+ * Extra survival quests (shelter, tools, hunting, wellbeing, night camp).
+ * Not in the main chain until their interactions emit the events they wait on.
+ */
+export const EXTRA_QUESTS: Quest[] = survivalQuests;
+
 export const QUESTS: Quest[] = [
   {
     title: 'Scavenger',
@@ -517,7 +654,7 @@ export const QUESTS: Quest[] = [
         target: { items: ['forkedStick', 'cane'] },
       },
       {
-        text: () => 'Filter the water, boil it, and check it with the lens',
+        text: () => 'Build the filter, pour stream water through it, then boil it on your fire',
         done: (g) => g.flag('waterSafe'),
         hints: [
           'Water flows top to bottom. What should it meet first — and what holds everything in at the bottom?',
@@ -527,7 +664,7 @@ export const QUESTS: Quest[] = [
       },
     ],
   },
-  ...survivalQuests,
+  ...campQuests,
   {
     title: 'First Lab',
     recap: 'Every step you took was an experiment: observe, test, and explain why it worked.',

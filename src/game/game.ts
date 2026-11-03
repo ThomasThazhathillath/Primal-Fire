@@ -23,6 +23,9 @@ import { EventLog } from './log.js';
 import { observationsForEvent, OBSERVATIONS } from './observations.js';
 import { isScienceEvent } from './science-events.js';
 import { GuideTracker, isGuideFailure, type GuideSave } from './guides.js';
+import { FoodState, type FoodSave } from './food.js';
+import { GAME_LEVELS, levelForQuest, migrateQuestIndex, QUESTS_VERSION, type GameLevel } from './levels.js';
+import { WaterState, type WaterSave } from './water.js';
 
 /** Interaction failures whose guide wording lives under a different code. */
 const GUIDE_CODE_FOR: Partial<Record<GuideFailureCode, string>> = {
@@ -60,6 +63,7 @@ export type GameEvent =
   | { type: 'structure'; structure: PlacedStructure }
   | { type: 'quest'; index: number }
   | { type: 'questComplete'; index: number; title: string; roadmapNode: string | null }
+  | { type: 'levelComplete'; level: number; name: string; next: GameLevel | null }
   | { type: 'discovered'; landmark: Landmark }
   | { type: 'fire'; stage: FireStage }
   | { type: 'arrow'; hit: boolean }
@@ -147,6 +151,12 @@ export class Game {
   readonly discovered = new Set<string>(LANDMARKS.filter((l) => l.known).map((l) => l.id));
   readonly log: EventLog;
   readonly fire = new FireState(this);
+  /** Level 2: pot, charcoal and water purification (water.ts). */
+  readonly water = new WaterState(this);
+  /** Level 3: fishing, cooking and farming (food.ts). */
+  readonly food = new FoodState(this);
+  /** Highest game level reached (1-3). */
+  levelReached = 1;
   readonly packUpgrades = new Set<string>();
   /** Effort put into the held item's hand action (0..1 of what it needs). */
   actionProgress = 0;
@@ -554,6 +564,11 @@ export class Game {
     return QUESTS[this.questIndex] ?? null;
   }
 
+  /** The game level (1-3) you are playing, from your quest progress. */
+  get gameLevel(): GameLevel {
+    return levelForQuest(this.questIndex);
+  }
+
   /** XP progress through the current level, 0..1. */
   get levelProgress(): number {
     const lo = LEVELS[this.level - 1];
@@ -566,6 +581,8 @@ export class Game {
   tick(dt: number): void {
     this.time += dt;
     this.fire.tick(dt);
+    this.water.tick(dt);
+    this.food.tick(dt);
     if (this.moveLimits.encumbrance !== 'light') {
       if ((this.heavyTime += dt) > 30) this.science('body.carry.heavy');
     } else this.heavyTime = 0;
@@ -1010,6 +1027,14 @@ export class Game {
       );
       if (q.recap) this.toast(q.recap, 'note');
       this.emit({ type: 'questComplete', index, title: q.title, roadmapNode: q.roadmapNode });
+      const before = levelForQuest(index);
+      // The level's last quest just finished.
+      if (q.title === before.quests[before.quests.length - 1]) {
+        this.levelReached = Math.max(this.levelReached, Math.min(GAME_LEVELS.length, before.n + 1));
+        this.addXp(before.xp);
+        this.log.add(`level complete: ${before.name}`, 'ok');
+        this.emit({ type: 'levelComplete', level: before.n, name: before.name, next: before.n < GAME_LEVELS.length ? GAME_LEVELS[before.n] : null });
+      }
     }
     this.emit({ type: 'quest', index: this.questIndex });
   }
@@ -1087,6 +1112,10 @@ export class Game {
       xp: this.xp,
       level: this.level,
       questIndex: this.questIndex,
+      questsVersion: QUESTS_VERSION,
+      levelReached: this.levelReached,
+      water: this.water.snapshot(),
+      food: this.food.snapshot(),
       // Parts lying on the bench mid-craft are saved as if the craft was cancelled.
       satchel: this.satchelWithBench(),
       gathered: Object.fromEntries(this.gathered),
@@ -1116,7 +1145,10 @@ export class Game {
     g.time = data.time;
     g.xp = data.xp;
     g.level = data.level;
-    g.questIndex = data.questIndex;
+    g.questIndex = migrateQuestIndex(data.questIndex, data.questsVersion);
+    g.levelReached = Math.max(data.levelReached ?? 1, g.gameLevel.n);
+    if (data.water) g.water.restore(data.water);
+    if (data.food) g.food.restore(data.food);
     for (const [k, v] of Object.entries(data.satchel)) g.satchel.set(k as ItemId, v);
     for (const [k, v] of Object.entries(data.gathered)) g.gathered.set(k as ItemId, v);
     g.notebook.push(...data.notebook);
@@ -1149,6 +1181,11 @@ export interface SaveData {
   xp: number;
   level: number;
   questIndex: number;
+  /** Quest-order version; missing = the order before levels (see levels.ts). */
+  questsVersion?: number;
+  levelReached?: number;
+  water?: WaterSave;
+  food?: FoodSave;
   satchel: Partial<Record<ItemId, number>>;
   gathered: Partial<Record<ItemId, number>>;
   notebook: string[];

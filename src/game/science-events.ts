@@ -88,6 +88,19 @@ export const SCIENCE_EVENTS = {
   'fire.hotstones.boil': 'Water was heated with hot stones.',
   'fire.signal.smoke': 'A smoke signal was made with green fuel.',
   'fire.night.kept': 'A fire was kept alive through the night.',
+  // --- Level 2 water and Level 3 food (water.ts, food.ts)
+  'water.pot.filled': 'The fired pot was filled at the stream.',
+  'water.filter.poured': 'Stream water was poured through a finished filter.',
+  'food.fish.caught': 'A fish was speared.',
+  'food.fish.miss.refraction': 'A spear thrust passed just beyond a fish (aimed at its raised image).',
+  'food.fish.opaque': 'A fish was cooked until its flesh turned opaque.',
+  'food.raw.refused': 'Player tried to eat raw fish.',
+  'farm.plot.dug': 'A planting plot was dug.',
+  'farm.planted': 'A tuber or seeds were planted.',
+  'farm.watered': 'A plot was watered from the pot.',
+  'farm.dry': 'A planted plot dried out.',
+  'farm.shade': 'Something was planted in the shade of trees.',
+  'farm.harvested': 'A ripe plant was harvested.',
   'water.sediment.settle': 'Muddy water was left to stand and cleared.',
 } as const;
 

@@ -152,6 +152,18 @@ export const BENCH_RECIPES: BenchRecipe[] = [
       { id: 'smooth', title: 'Smooth the walls', motion: 'scrape', work: 1, hint: 'Thin, even walls dry without cracking.', mark: 'pot.shaped' },
     ],
   },
+  // FOOD (Level 3, Science session): see src/game/food.ts.
+  {
+    id: 'fishingSpear',
+    name: 'Fishing spear',
+    output: 'fishingSpear',
+    inputs: { spindle: 1, flake: 1, cord: 1 },
+    steps: [
+      { id: 'split', title: 'Split the tip into prongs', motion: 'strike', work: 2, hint: 'Several prongs give more chances to pin a slippery fish.' },
+      { id: 'sharpen', title: 'Sharpen each prong', motion: 'scrape', work: 1, hint: 'A thin point concentrates force: high pressure pierces scales.' },
+      { id: 'bind', title: 'Bind below the split', motion: 'wrap', work: Math.PI * 4, hint: 'The lashing stops the split running down the shaft.' },
+    ],
+  },
 ];
 
 export const BENCH_BY_ID: Record<string, BenchRecipe> = Object.fromEntries(BENCH_RECIPES.map((r) => [r.id, r]));

@@ -6,7 +6,7 @@ import {
   OBSERVATIONS,
   observationsForEvent,
 } from '../src/game/observations.js';
-import { QUESTS } from '../src/game/quests.js';
+import { EXTRA_QUESTS, QUESTS } from '../src/game/quests.js';
 import { isScienceEvent, SCIENCE_EVENTS } from '../src/game/science-events.js';
 
 const nonEmpty = (s: unknown) => typeof s === 'string' && s.trim().length > 0;
@@ -43,7 +43,7 @@ describe('lab notebook', () => {
 
 describe('quests (survival progression)', () => {
   it('have title, desc, recap and non-empty hints for every quest', () => {
-    for (const q of QUESTS) {
+    for (const q of [...QUESTS, ...EXTRA_QUESTS]) {
       expect(nonEmpty(q.title)).toBe(true);
       expect(nonEmpty(q.desc), q.title).toBe(true);
       expect(nonEmpty(q.recap), `${q.title} recap`).toBe(true);
@@ -58,10 +58,9 @@ describe('quests (survival progression)', () => {
     expect(QUESTS[QUESTS.length - 1].title).toBe('First Lab');
   });
   it('event-driven steps complete only when their event fires', () => {
-    const idx = QUESTS.findIndex((q) => q.title === 'A Roof for the Night');
-    expect(idx).toBeGreaterThan(0);
+    const roof = EXTRA_QUESTS.find((q) => q.title === 'A Roof for the Night')!;
     const g = new Game();
-    const step = QUESTS[idx].steps[0];
+    const step = roof.steps[0];
     expect(step.done(g)).toBe(false);
     g.science('shelter.site.chosen');
     expect(step.done(g)).toBe(true);

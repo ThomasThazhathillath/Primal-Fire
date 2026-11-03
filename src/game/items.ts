@@ -40,7 +40,13 @@ export type ItemId =
   | 'dryBranch'
   | 'leafLitter'
   | 'vine'
-  | 'bark';
+  | 'bark'
+  // FOOD (Level 3, Science session): see src/game/food.ts.
+  | 'fishingSpear'
+  | 'fish'
+  | 'cookedFish'
+  | 'tuber'
+  | 'seeds';
 
 export type ItemCategory =
   | 'tinder'
@@ -53,7 +59,8 @@ export type ItemCategory =
   | 'ember'
   | 'torch'
   | 'stone'
-  | 'tool';
+  | 'tool'
+  | 'food';
 
 export interface ItemDef {
   name: string;
@@ -142,6 +149,12 @@ export const ITEMS: Record<ItemId, ItemDef> = {
   leafLitter: { name: 'Dry leaves', cats: ['tinder'], color: 0xa8793a, weight: 0.05 },
   vine: { name: 'Vine', cats: ['craft'], color: 0x4f7a34, weight: 0.15 },
   bark: { name: 'Bark', cats: ['craft', 'tinder'], color: 0x6e5238, weight: 0.1 },
+  // FOOD (Level 3, Science session): see src/game/food.ts.
+  fishingSpear: { name: 'Fishing spear', cats: ['tool'], color: 0xb08a5a, weight: 0.6 },
+  fish: { name: 'Raw fish', cats: ['food'], color: 0x8fa7b3, weight: 0.4 },
+  cookedFish: { name: 'Cooked fish', cats: ['food'], color: 0xe2c79a, weight: 0.3 },
+  tuber: { name: 'Wild tuber', cats: ['food'], color: 0x9a6b3f, weight: 0.25 },
+  seeds: { name: 'Seeds', cats: ['food'], color: 0xc8b46a, weight: 0.02 },
 };
 
 /** Display order in the satchel. */
@@ -182,6 +195,12 @@ export const SATCHEL_ORDER: ItemId[] = [
   'leafLitter',
   'vine',
   'bark',
+  // FOOD (Level 3)
+  'fishingSpear',
+  'fish',
+  'cookedFish',
+  'tuber',
+  'seeds',
 ];
 
 export const itemName = (id: ItemId): string => ITEMS[id].name;

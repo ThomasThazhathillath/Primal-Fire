@@ -19,7 +19,7 @@ import {
 } from '@iwsdk/core';
 import type { ItemId } from '../game/items.js';
 import { SWING_TOOLS } from '../game/interact.js';
-import { RESOURCES, type ResourceSpot } from '../game/world-layout.js';
+import { groundHeight, RESOURCES, type ResourceSpot } from '../game/world-layout.js';
 import { Gatherable } from '../components/game-components.js';
 import { itemMesh, resourceMesh } from '../scene-assets/item-meshes.js';
 import { getGame, glowMaterial, glowMaterialHot, hipPosition } from './shared.js';
@@ -35,7 +35,7 @@ const hitMat = new MeshBasicMaterial({ visible: false });
 const glowGeo = new CircleGeometry(0.22, 20);
 const FLIGHT_TIME = 0.4;
 /** Spots farther than this (m) are hidden: they sit in full fog and cost draw calls. */
-const CULL_DISTANCE = 40;
+const CULL_DISTANCE = 30;
 
 interface Flight {
   obj: Object3D;
@@ -64,7 +64,7 @@ export class ResourceSystem extends createSystem({
     this.fx = fxRoot.object3D as Group;
     for (const spot of RESOURCES) {
       const obj = resourceMesh(spot.look);
-      obj.position.set(spot.x, 0, spot.z);
+      obj.position.set(spot.x, groundHeight(spot.x, spot.z), spot.z);
       obj.rotation.y = spot.rotY;
       obj.name = `Resource_${spot.id}`;
       const hit = new Mesh(hitGeo, hitMat);

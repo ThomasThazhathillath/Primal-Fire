@@ -176,7 +176,7 @@ export interface PlacedStructure {
 
 export type PlacementResult =
   | { ok: true }
-  | { ok: false; reason: 'bounds' | 'bank' | 'trees' | 'structure'; message: string };
+  | { ok: false; reason: 'bounds' | 'bank' | 'trees' | 'structure' | 'unfinished'; message: string };
 
 export function checkPlacement(
   kind: StructureKind,

@@ -734,10 +734,23 @@ export class Game {
   }
 
   /** Release the held key part over open ground to start a structure. */
+  private lastUnfinishedToast = -99;
+
   placeBlueprint(kind: StructureKind, x: number, z: number, rotY = 0): PlacementResult & { structure?: PlacedStructure } {
     const def = BLUEPRINTS[kind];
     if (!this.held || !def.keyAccepts.includes(this.held)) {
       return { ok: false, reason: 'structure', message: `You need ${def.keyAccepts.map(itemName).join(' or ')} in hand.` };
+    }
+    // One plan at a time: a second outline while one is unfinished is almost always a stray pinch.
+    const started = this.structures.find((s) => s.kind === kind && !s.complete);
+    if (started) {
+      const d = Math.hypot(started.x - x, started.z - z);
+      const message = `You already started a ${def.name.toLowerCase()} ${Math.round(d)} m away. Finish that one first.`;
+      if (this.time - this.lastUnfinishedToast > 4) {
+        this.lastUnfinishedToast = this.time;
+        this.toast(message, 'note');
+      }
+      return { ok: false, reason: 'unfinished', message };
     }
     const check = checkPlacement(kind, x, z, this.structures);
     if (!check.ok) {

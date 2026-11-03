@@ -5,7 +5,7 @@
 //     are turned on as soon as the right hand is the active input (once per
 //     XR session; a swipe down still turns them off).
 //  2. Point-and-pinch teleport, for headsets or browsers where micro-gestures
-//     don't register: point at open ground with nothing in hand, pinch and
+//     don't register: point at open ground, pinch and
 //     hold until a ring appears, then let go to move there. Blocked spots
 //     (trees, rocks, structures) show the ring red and don't move you.
 
@@ -19,7 +19,9 @@ import {
   Vector3,
   VisibilityState,
 } from '@iwsdk/core';
+import { actionFor } from '../game/actions.js';
 import { collisionWorld } from '../game/collision.js';
+import { SWING_TOOLS } from '../game/interact.js';
 import { groundHeight, WORLD_RADIUS } from '../game/world-layout.js';
 import { hands } from './hand-input-system.js';
 import { getGame } from './shared.js';
@@ -61,9 +63,9 @@ export class HandLocomotionSystem extends createSystem({
           this.cancel();
         }
       }),
-      // Anything picked up during the pinch means it was a gather, not a move.
+      // Anything picked up or built during the pinch means it wasn't a move.
       getGame(this.world).on((e) => {
-        if (e.type === 'gather' || e.type === 'held') this.cancel();
+        if (e.type === 'gather' || e.type === 'held' || e.type === 'structure') this.cancel();
       }),
     );
   }
@@ -96,8 +98,12 @@ export class HandLocomotionSystem extends createSystem({
   private updatePinchTeleport(delta: number): void {
     const game = getGame(this.world);
     if (this.holdHand < 0) {
-      // Start only on a fresh pinch with an empty hand, not pointing at anything interactive.
-      if (game.held || this.queries.hovered.entities.size > 0) return;
+      // Start only on a fresh pinch, not pointing at anything interactive. Carrying a part is
+      // fine (a pinch that places an outline cancels the move); a tool that uses the pinch is not.
+      const held = game.held;
+      if ((held && (SWING_TOOLS.includes(held) || actionFor(held))) || this.queries.hovered.entities.size > 0) return;
+      // Near a build that wants what you hold, the pinch sets the part down instead.
+      if (held && game.wantsItem(held, game.player.x, game.player.z, 3)) return;
       for (let h = 0; h < 2; h++) {
         if (hands[h].tracked && hands[h].gripDown) {
           this.holdHand = h;

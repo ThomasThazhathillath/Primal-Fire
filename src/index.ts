@@ -4,6 +4,8 @@ import { installDebugHooks } from './debug-hooks.js';
 import { AudioSystem } from './systems/audio-system.js';
 import { CraftGestureSystem } from './systems/craft-gesture-system.js';
 import { BenchSystem } from './systems/bench-system.js';
+import { ContactFxSystem } from './systems/contact-fx-system.js';
+import { CarrySystem } from './systems/carry-system.js';
 import { BowSystem } from './systems/bow-system.js';
 import { BuildSystem } from './systems/build-system.js';
 import { PlayerCollisionSystem } from './systems/player-collision-system.js';
@@ -40,6 +42,8 @@ World.create(
     .registerSystem(BenchSystem)
     .registerSystem(BowSystem)
     .registerSystem(DropSystem)
+    .registerSystem(CarrySystem)
+    .registerSystem(ContactFxSystem)
     .registerSystem(HandsSystem)
     .registerSystem(HudSystem)
     .registerSystem(GuideSystem)

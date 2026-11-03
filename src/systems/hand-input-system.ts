@@ -20,6 +20,9 @@ export interface HandFrame {
   /** Grip closed this frame / opened this frame. */
   gripDown: boolean;
   gripUp: boolean;
+  /** Squeeze (grip button / closed fist) held, and released this frame: what holds and lets go of carried things. */
+  squeeze: boolean;
+  squeezeUp: boolean;
   tracked: boolean;
 }
 
@@ -33,6 +36,8 @@ function frame(): HandFrame {
     grip: false,
     gripDown: false,
     gripUp: false,
+    squeeze: false,
+    squeezeUp: false,
     tracked: false,
   };
 }
@@ -84,6 +89,7 @@ export class HandInputSystem extends createSystem({}) {
   private select = [false, false];
   private squeeze = [false, false];
   private gripWas = [false, false];
+  private squeezeWas = [false, false];
   private lastX = 0;
   private lastY = 0;
   private moved = false;
@@ -202,6 +208,9 @@ export class HandInputSystem extends createSystem({}) {
       const sp = vr ? spaces[i] : undefined;
       h.tracked = !!sp;
       const grip = this.select[i] || this.squeeze[i];
+      h.squeeze = this.squeeze[i];
+      h.squeezeUp = !this.squeeze[i] && this.squeezeWas[i];
+      this.squeezeWas[i] = this.squeeze[i];
       h.gripDown = grip && !this.gripWas[i];
       h.gripUp = !grip && this.gripWas[i];
       h.grip = grip;

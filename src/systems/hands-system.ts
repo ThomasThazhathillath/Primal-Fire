@@ -19,6 +19,7 @@ import {
 } from '@iwsdk/core';
 import { ACTIONS } from '../game/actions.js';
 import type { GameEvent } from '../game/game.js';
+import { twoHanded } from '../game/items.js';
 import { lambert } from '../scene-assets/materials.js';
 import { camNudge, getGame, handPose } from './shared.js';
 
@@ -164,6 +165,14 @@ export class HandsSystem extends createSystem({}) {
     R.rotation.set(0.1, 0.25, 0);
     L.position.set(-0.24, -0.2 - s, -0.5);
     L.rotation.set(0.1, -0.25, 0);
+    // Carrying something big: both hands under its ends.
+    const held = getGame(this.world).held;
+    if (held && twoHanded(held)) {
+      R.position.set(0.24, -0.36 + s, -0.7);
+      L.position.set(-0.24, -0.36 - s, -0.7);
+      R.rotation.set(0.5, 0.6, 0.3);
+      L.rotation.set(0.5, -0.6, -0.3);
+    }
 
     if (this.holdTimer > 0) {
       this.holdTimer -= delta;

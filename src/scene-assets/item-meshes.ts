@@ -24,6 +24,7 @@ import { ITEMS, type ItemId } from '../game/items.js';
 import { mulberry32, range } from '../game/rng.js';
 import type { ResourceLook } from '../game/world-layout.js';
 import { lambert } from './materials.js';
+import { toolMesh } from './tool-meshes.js';
 
 const rng = mulberry32(77);
 const r = (a: number, b: number) => range(rng, a, b);
@@ -234,7 +235,10 @@ export function itemMesh(id: ItemId): Object3D {
   let proto = itemCache.get(id);
   if (!proto) {
     const look = ITEM_LOOK[id];
-    if (look) {
+    const tool = toolMesh(id);
+    if (tool) {
+      proto = tool;
+    } else if (look) {
       proto = builders[look]();
     } else {
       // Generic bundle in the item's colour.

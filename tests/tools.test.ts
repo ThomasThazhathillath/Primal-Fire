@@ -27,10 +27,12 @@ describe('tools', () => {
     const g = new Game();
     g.addItem('axe');
     g.gather('logs');
-    expect(g.count('logs')).toBe(2);
+    // Logs are carried, not bagged: one in your hands, the axe's extra one beside you.
+    expect(g.held).toBe('logs');
+    expect(g.drops.filter((d) => d.item === 'logs')).toHaveLength(1);
     expect(g.toolUsesLeft('axe')).toBe(19);
     for (let i = 0; i < 25 && g.count('axe') > 0; i++) {
-      g.satchel.set('logs', 0);
+      g.held = null;
       g.gather('logs');
     }
     expect(g.count('axe')).toBe(0);
@@ -39,7 +41,9 @@ describe('tools', () => {
   it('no bonus without the tool, and wear persists', () => {
     const g = new Game();
     g.gather('logs');
-    expect(g.count('logs')).toBe(1);
+    expect(g.held).toBe('logs');
+    expect(g.drops).toHaveLength(0);
+    g.dropItem('logs', 0, 0);
     g.addItem('knife');
     g.gather('fibers');
     const g2 = Game.restore(JSON.parse(JSON.stringify(g.snapshot())));
@@ -65,6 +69,7 @@ describe('science wiring', () => {
     expect(g.hasEvent('hunt.fletch.made')).toBe(true);
     g.gather('logs');
     expect(g.hasEvent('tool.wedge.split')).toBe(true);
+    g.dropItem('logs', 0, 0);
     g.addItem('greenBranch');
     g.addItem('cord');
     g.bind('bow');

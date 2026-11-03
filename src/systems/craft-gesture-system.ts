@@ -181,19 +181,20 @@ export class CraftGestureSystem extends createSystem({}) {
     const game = getGame(this.world);
     const r = this.core.strike(speed, edgeDist, angle);
     if (this.vr) pulse(this.renderer.xr.getSession(), 1, r.outcome === 'flake' ? 0.8 : 0.4, 50);
+    this.coreObj.getWorldPosition(this.flakeFrom);
+    // Hammerstone on flint: a sharp knap with sparks on a good flake, a dull crunch on a crushed edge.
+    if (r.outcome !== 'nothing' || speed > 0.5) {
+      game.contact(r.outcome === 'flake' ? 'flint' : 'stone', 'stone', this.flakeFrom.x, this.flakeFrom.y, this.flakeFrom.z, speed);
+    }
     if (r.outcome === 'flake') {
-      game.fx('knap', 1);
       // A pale scar where the flake came off.
       const scar = this.scars[this.scarCount++ % SCARS];
       scar.visible = true;
       scar.position.copy(hitDir).multiplyScalar(CORE_R * 0.98);
       scar.lookAt(this.local.copy(hitDir).multiplyScalar(CORE_R * 2));
-      this.coreObj.getWorldPosition(this.flakeFrom);
       this.flakeT = 0;
       this.flake.visible = true;
       game.work(1);
-    } else {
-      game.fx(r.outcome === 'crushed' ? 'crush' : 'thud', 0.5);
     }
     this.fail(r.code);
     if (!actionFor(game.held)) this.exit(); // the core is used up: flakes are in the satchel

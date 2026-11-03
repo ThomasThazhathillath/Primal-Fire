@@ -23,8 +23,9 @@ import { actionFor } from '../game/actions.js';
 import { collisionWorld } from '../game/collision.js';
 import { SWING_TOOLS } from '../game/interact.js';
 import { groundHeight, WORLD_RADIUS } from '../game/world-layout.js';
+import { DesktopControlsSystem } from './desktop-controls-system.js';
 import { hands } from './hand-input-system.js';
-import { getGame } from './shared.js';
+import { getGame, getUi } from './shared.js';
 
 interface MicroGestureConfig {
   config: { microGestureControlsEnabled: { value: boolean } };
@@ -52,6 +53,7 @@ export class HandLocomotionSystem extends createSystem({
   private head = new Vector3();
 
   init(): void {
+    getUi(this.world).snapTurn = (deg) => this.snapTurn(deg);
     this.marker = new Mesh(new TorusGeometry(0.28, 0.025, 6, 28), okMat);
     this.marker.rotation.x = -Math.PI / 2;
     this.marker.visible = false;
@@ -156,6 +158,24 @@ export class HandLocomotionSystem extends createSystem({
     this.target.y = rig.y;
     this.world.getSystem(LocomotionSystem)?.setPlayerPosition(this.target);
     getGame(this.world).log.add(`hand teleport to ${this.target.x.toFixed(1)},${this.target.z.toFixed(1)}`);
+  }
+
+  /** Snap turn (HUD buttons): rotate the rig about your head, so you turn in place. */
+  snapTurn(deg: number): void {
+    const a = (deg * Math.PI) / 180;
+    if (this.world.visibilityState.peek() === VisibilityState.NonImmersive) {
+      this.world.getSystem(DesktopControlsSystem)?.turn(a);
+      return;
+    }
+    this.camera.getWorldPosition(this.head);
+    const rig = this.player.position;
+    const dx = rig.x - this.head.x;
+    const dz = rig.z - this.head.z;
+    const c = Math.cos(a);
+    const s = Math.sin(a);
+    this.target.set(this.head.x + dx * c + dz * s, rig.y, this.head.z - dx * s + dz * c);
+    this.player.rotation.y += a;
+    this.world.getSystem(LocomotionSystem)?.setPlayerPosition(this.target);
   }
 
   private cancel(): void {

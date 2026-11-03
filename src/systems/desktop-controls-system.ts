@@ -90,6 +90,11 @@ export class DesktopControlsSystem extends createSystem({}) {
     this.world.getSystem(LocomotionSystem)?.setPlayerPosition(this.target);
   }
 
+  /** Turns the view by `rad` (positive = left). */
+  turn(rad: number): void {
+    this.yaw += rad;
+  }
+
   /** Turns to look at (x, z) from where you stand. */
   face(x: number, z: number): void {
     const dx = x - this.player.position.x;

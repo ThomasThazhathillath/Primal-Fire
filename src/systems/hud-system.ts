@@ -22,7 +22,7 @@ import {
 } from '@iwsdk/core';
 import { spotWorldPosition, BLUEPRINTS } from '../game/blueprint.js';
 import type { GameEvent } from '../game/game.js';
-import { itemName } from '../game/items.js';
+import { fitsPouch, itemName } from '../game/items.js';
 import { bagPrompt, gatherPrompt } from '../game/prompts.js';
 import { SatchelSystem } from './satchel-system.js';
 import { OBSERVATION_COUNT, OBSERVATIONS } from '../game/observations.js';
@@ -101,6 +101,23 @@ export class HudSystem extends createSystem({
     wire(hud, 'satchel-button', () => getUi(this.world).toggleSatchel?.());
     wire(hud, 'notebook-button', () => this.openNotebook());
     wire(hud, 'guide-button', () => getUi(this.world).toggleGuide?.());
+    // Hands-friendly: put the held thing in the bag, or set it down when it is too big for it.
+    wire(hud, 'stow-button', () => {
+      const game = getGame(this.world);
+      const held = game.held;
+      if (!held) return game.toast('Your hands are empty.', 'note');
+      if (fitsPouch(held)) game.stow();
+      else getUi(this.world).dropHeld?.(held);
+    });
+    wire(hud, 'turn-left-button', () => getUi(this.world).snapTurn?.(45));
+    wire(hud, 'turn-right-button', () => getUi(this.world).snapTurn?.(-45));
+    const stowLabel = hud.requireElementById<UIKit.Text>('stow-label');
+    this.cleanupFuncs.push(
+      getGame(this.world).on((e) => {
+        if (e.type !== 'held') return;
+        stowLabel.setProperties({ text: e.item && !fitsPouch(e.item) ? 'Put down' : 'Put away' });
+      }),
+    );
     wire(card, 'card-ok', () => this.nextCard());
     const ui = getUi(this.world);
     ui.showHint = () => this.showHint();

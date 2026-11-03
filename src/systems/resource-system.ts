@@ -30,7 +30,7 @@ export const REACH = 4.5;
 /** Resource look that is dragged rather than lifted. */
 export const DRAG_LOOK = 'fallenLog';
 /** Radius (m) of the invisible hit sphere around each resource: sticks and pebbles are far too thin to click. */
-const HIT_RADIUS = 0.4;
+const HIT_RADIUS = 0.55;
 const hitGeo = new SphereGeometry(HIT_RADIUS, 8, 6);
 const hitMat = new MeshBasicMaterial({ visible: false });
 const glowGeo = new CircleGeometry(0.22, 20);

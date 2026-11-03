@@ -54,4 +54,15 @@
       <ButtonLabel id="guide-label">Guide</ButtonLabel>
     </Button>
   </div>
+  <div class="buttons">
+    <Button id="stow-button" size="sm">
+      <ButtonLabel id="stow-label">Put away</ButtonLabel>
+    </Button>
+    <Button id="turn-left-button" size="sm">
+      <ButtonLabel>Turn left</ButtonLabel>
+    </Button>
+    <Button id="turn-right-button" size="sm">
+      <ButtonLabel>Turn right</ButtonLabel>
+    </Button>
+  </div>
 </Panel>

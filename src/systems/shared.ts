@@ -18,6 +18,8 @@ export interface UiHooks {
   openNotebook(): void;
   showHint(): void;
   toggleGuide(): void;
+  /** Snap-turn the view by `deg` degrees (positive = left), pivoting on your head. */
+  snapTurn(deg: number): void;
 }
 
 export function getGame(world: World): Game {

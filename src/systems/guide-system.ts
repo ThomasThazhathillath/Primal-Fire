@@ -1,6 +1,6 @@
 // The crafting guide card (src/game/guides.ts): one compact panel showing the
 // active step, its materials, a hand cue, the last mistake and a science line.
-// Browser: pinned bottom-centre. VR: follows lazily, low in view, so it never
+// Browser: pinned top-right, clear of the work in front of you. VR: follows lazily, low in view, so it never
 // blocks what your hands are doing. J, its Hide button or the HUD's Guide
 // button toggle it; the guide is optional and the choice is saved.
 
@@ -125,7 +125,7 @@ export class GuideSystem extends createSystem({}) {
       return;
     }
     if (!this.entity.hasComponent(ScreenSpace)) {
-      this.entity.addComponent(ScreenSpace, { width: '380px', height: '330px', bottom: '12px', left: '36%', top: 'auto', right: 'auto', zOffset: 0.25 });
+      this.entity.addComponent(ScreenSpace, { width: '340px', height: '300px', top: '12px', right: '12px', bottom: 'auto', left: 'auto', zOffset: 0.25 });
     }
     this.place(this.world.visibilityState.peek());
   }

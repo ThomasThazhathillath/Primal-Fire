@@ -159,8 +159,12 @@ export class BenchSystem extends createSystem({}) {
     const dz = pos.z - this.head.z;
     const d = Math.hypot(dx, dz) || 1;
     this.panel.visible = true;
+    // A flat screen shows it much smaller than a headset does: scale it up in the browser.
+    const desktop = this.world.visibilityState.peek() === VisibilityState.NonImmersive;
+    this.panel.scale.setScalar(desktop ? 0.2 : 0.15);
     // Readable from where you stand at the bench, low enough to keep in a narrow field of view.
-    this.panel.position.set(pos.x + (dx / d) * 0.3, 1.25, pos.z + (dz / d) * 0.3);
+    const back = desktop ? 0.5 : 0.3;
+    this.panel.position.set(pos.x + (dx / d) * back, 1.25, pos.z + (dz / d) * back);
     this.panel.rotation.set(0, Math.atan2(-dx, -dz), 0);
     this.refresh();
   }

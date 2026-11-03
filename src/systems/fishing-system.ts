@@ -7,11 +7,14 @@
 
 import { createSystem, Group, Mesh, MeshBasicMaterial, SphereGeometry, Vector3, VisibilityState } from '@iwsdk/core';
 import { apparentDepth, FISH_COUNT, WATER_Y } from '../game/food.js';
+import { STREAM_HALF_WIDTH, streamDistance } from '../game/world-layout.js';
 import { getGame } from './shared.js';
 
 /** Hand speed (m/s, mostly downward) that counts as a thrust in VR. */
 const THRUST_SPEED = 1.6;
 const POOL = FISH_COUNT + 2;
+/** Height at which fish images are drawn: just above the water surface mesh. */
+const SURFACE_Y = WATER_Y + 0.03;
 
 export class FishingSystem extends createSystem({}) {
   private root = new Group();
@@ -27,10 +30,9 @@ export class FishingSystem extends createSystem({}) {
     this.root.name = 'Fish';
     this.world.createTransformEntity(this.root);
     const geo = new SphereGeometry(0.11, 10, 6);
-    const mat = new MeshBasicMaterial({ color: 0x1d2a2e, transparent: true, opacity: 0.75, depthWrite: false });
+    const mat = new MeshBasicMaterial({ color: 0x1d2a2e, transparent: true, opacity: 0.7, depthWrite: false });
     for (let i = 0; i < POOL; i++) {
       const m = new Mesh(geo, mat);
-      m.scale.set(0.55, 0.35, 1.4);
       m.visible = false;
       this.root.add(m);
       this.meshes.push(m);
@@ -50,12 +52,26 @@ export class FishingSystem extends createSystem({}) {
   update(delta: number): void {
     const g = getGame(this.world);
     const fish = g.food.fish;
+    // The stream surface is opaque, so each fish's image (at its apparent
+    // depth) is projected along your line of sight onto the surface: from
+    // your eye it lands on exactly the same spot, and banks still hide it.
+    this.camera.getWorldPosition(this.eye);
     for (let i = 0; i < POOL; i++) {
       const m = this.meshes[i];
       const f = fish[i];
       m.visible = !!f;
       if (!f) continue;
-      m.position.set(f.x, WATER_Y - apparentDepth(f.depth), f.z);
+      const iy = WATER_Y - apparentDepth(f.depth);
+      const t = (SURFACE_Y - this.eye.y) / (iy - this.eye.y);
+      const px = this.eye.x + (f.x - this.eye.x) * t;
+      const pz = this.eye.z + (f.z - this.eye.z) * t;
+      // Seen from too low an angle the image would land on the bank: you cannot see it.
+      if (streamDistance(px, pz) > STREAM_HALF_WIDTH) {
+        m.visible = false;
+        continue;
+      }
+      m.position.set(px, SURFACE_Y, pz);
+      m.scale.set(0.55 * t, 0.12, 1.4 * t);
       m.rotation.y = f.heading;
     }
     this.cooldown = Math.max(0, this.cooldown - delta);

@@ -21,7 +21,7 @@ export const WATER_INDEX = 1.33;
 /** Stream surface height (m). */
 export const WATER_Y = 0.02;
 /** A thrust must pass this close (m) to the real fish at its depth. */
-export const SPEAR_TOLERANCE = 0.1;
+export const SPEAR_TOLERANCE = 0.08;
 /** Fish swim this close to the player (m) so there are always some to try for. */
 export const FISH_RANGE = 9;
 export const FISH_COUNT = 5;
@@ -87,7 +87,7 @@ function streamPointNear(x: number, z: number, rng: Rng): { x: number; z: number
       if (d < best.d) best = { x: px, z: pz, d };
     }
   }
-  return { x: best.x + (rng() - 0.5) * 0.6, z: best.z + (rng() - 0.5) * 3 };
+  return { x: best.x + (rng() - 0.5) * 0.4, z: best.z + (rng() - 0.5) * 3 };
 }
 
 // --------------------------------------------------------------- farming
@@ -174,7 +174,7 @@ export class FoodState {
           id: this.nextId++,
           x: s.x,
           z: s.z,
-          depth: 0.35 + this.rng() * 0.3,
+          depth: 0.3 + this.rng() * 0.15,
           heading: this.rng() * Math.PI * 2,
           speed: 0.15 + this.rng() * 0.2,
           turn: 1 + this.rng() * 3,
@@ -193,7 +193,8 @@ export class FoodState {
       const nx = f.x + Math.sin(f.heading) * v * dt;
       const nz = f.z + Math.cos(f.heading) * v * dt;
       // Stay in the channel: turn back at the banks.
-      if (streamDistance(nx, nz) < STREAM_HALF_WIDTH * 0.85) {
+      // Fish keep to the deeper middle of the channel.
+      if (streamDistance(nx, nz) < STREAM_HALF_WIDTH * 0.45) {
         f.x = nx;
         f.z = nz;
       } else {

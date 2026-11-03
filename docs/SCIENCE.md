@@ -51,6 +51,23 @@ Quests (`src/game/quests.ts`) wait on events and give recaps when they finish.
 | Radiative cooling | Clear nights | Clear skies let the ground lose heat to space; clouds slow it | `weather.night.clear` | `x_night` | ✅ |
 | Smoke | Signal fire | Damp fuel gives steam and unburned particles; thick pale smoke | `fire.signal.smoke` | `f_smoke` | ✅ |
 
+## Levels
+
+| Level | Ends when | What it teaches |
+|---|---|---|
+| 1 First Fire | the fire is lit | friction, fire triangle, fuel ladder, tripod stability, cordage |
+| 2 Clean Water | filtered water is boiled in the fired pot | clay → ceramic, pyrolysis, filtration vs disinfection |
+| 3 Camp | food has been grown and harvested | refraction, cooking and food safety, plant needs, propagation |
+
+Level 2 and 3 rules live in `src/game/water.ts` and `src/game/food.ts`; level data in `src/game/levels.ts`.
+
+| Topic | Mechanic | Core idea | Events | Entries | Conf. |
+|---|---|---|---|---|---|
+| Refraction | Spear fishing | A fish appears shallower than it is (≈ depth / 1.33 looking straight down), so a straight spear aimed at the image passes over it | `food.fish.miss.refraction`, `food.fish.caught` | `fd_refraction`, `fd_catch` | ✅ (game uses the paraxial approximation) |
+| Cooking | Fish over the fire | Heat denatures proteins (flesh turns opaque) and kills bacteria and parasites | `food.fish.opaque`, `food.cooked`, `food.raw.refused` | `fd_opaque`, `y_cook`, `fd_raw` | ✅ (63 °C figure is the US FDA guidance) |
+| Plant needs | Farm plots | Loose soil, water and light; wilting is loss of water pressure in cells; shade slows photosynthesis | `farm.plot.dug`, `farm.watered`, `farm.dry`, `farm.shade` | `fm_dig`, `fm_water`, `fm_dry`, `fm_shade` | ✅ |
+| Propagation | Harvesting tubers | Tubers store starch made from sunlight; a piece can grow a new plant | `farm.harvested` | `fm_harvest` | ✅ |
+
 ## Simplifications (say so in the game)
 
 - Ignition: we show fuels catching fire in order of size but do not state ignition
@@ -58,6 +75,8 @@ Quests (`src/game/quests.ts`) wait on events and give recaps when they finish.
 - Microbes: the lens that lets you see microbes is a game convenience (stated in `w_raw`).
 - Calories: rough adult needs are given as "a couple of thousand kcal"; individual needs vary.
 - Food chain: the "10%" figure is a rule of thumb, flagged as one.
+- Refraction: fish images use the straight-down approximation (apparent depth = depth / 1.33); at slanted views the real shift is larger.
+- Growth and drying times are compressed to minutes of game time.
 
 ## Uncertain claims (the game avoids these)
 

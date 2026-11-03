@@ -40,7 +40,8 @@ export class LevelSystem extends createSystem({}) {
     const started = this.world.getSystem(WorldSystem)?.started ?? false;
     if (started && !this.wasStarted) {
       this.wasStarted = true;
-      this.titleCard(getGame(this.world).gameLevel, getGame(this.world).time > 0);
+      // Resumed saves have played time; a fresh start has at most a frame or two.
+      this.titleCard(getGame(this.world).gameLevel, getGame(this.world).time > 1);
     }
     if (this.panel.visible && (this.timer -= delta) <= 0) this.next();
   }
@@ -71,7 +72,7 @@ export class LevelSystem extends createSystem({}) {
     p.requireElementById('level-learned-label').setProperties({ display: learned ? 'flex' : 'none' });
     p.requireElementById('level-learned').setProperties({ display: learned ? 'flex' : 'none' });
     p.visible = true;
-    placeInFront(p, this.camera, 1.1, 0, 0.05);
+    placeInFront(p, this.camera, 0.8, 0, 0.05);
     this.timer = AUTO_HIDE;
   }
 

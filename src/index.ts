@@ -7,6 +7,7 @@ import { BenchSystem } from './systems/bench-system.js';
 import { BowSystem } from './systems/bow-system.js';
 import { BuildSystem } from './systems/build-system.js';
 import { DesktopControlsSystem } from './systems/desktop-controls-system.js';
+import { WorldEnvironmentSystem } from './systems/environment-system.js';
 import { DropSystem } from './systems/drop-system.js';
 import { FireSystem } from './systems/fire-system.js';
 import { HandInputSystem } from './systems/hand-input-system.js';
@@ -27,6 +28,7 @@ World.create(
   (world.globals as Record<string, unknown>).game = game;
   world
     .registerSystem(WorldSystem)
+    .registerSystem(WorldEnvironmentSystem)
     .registerSystem(HandInputSystem)
     .registerSystem(DesktopControlsSystem)
     .registerSystem(ResourceSystem)

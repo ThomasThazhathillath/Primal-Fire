@@ -1,6 +1,7 @@
 // Game state and rules, independent of rendering and input. IWSDK systems
 // call these actions and react to the events; tests drive them directly.
 
+import { Environment, type EnvironmentSave } from './environment.js';
 import { actionFor } from './actions.js';
 import { BENCH_BY_ID, BenchSession, canStart, missingText, type BenchMotion } from './bench.js';
 import { checkPlace, FAILURE_TEXT, GrabTracker, slabStability, SUPPORT_NAMES, type GuideFailureCode } from './interact.js';
@@ -143,6 +144,8 @@ export class Game {
   readonly structures: PlacedStructure[] = [];
   /** Items dropped on the ground, pickable again. Not counted in carried weight. */
   readonly drops: WorldDrop[] = [];
+  /** Time of day and weather (EnvironmentSystem renders it). */
+  readonly env = new Environment();
   private nextDropId = 1;
   readonly discovered = new Set<string>(LANDMARKS.filter((l) => l.known).map((l) => l.id));
   readonly log: EventLog;
@@ -1108,6 +1111,7 @@ export class Game {
       drops: this.drops.map((d) => ({ ...d })),
       toolUses: Object.fromEntries(this.toolUses),
       fire: this.fire.snapshot(),
+      env: this.env.snapshot(),
     };
   }
 
@@ -1134,6 +1138,7 @@ export class Game {
     g.nextDropId = Math.max(0, ...g.drops.map((d) => d.id)) + 1;
     for (const u of data.packUpgrades ?? []) g.packUpgrades.add(u);
     if (data.fire) g.fire.restore(data.fire);
+    g.env.restore(data.env);
     g.held = data.held && data.held in ITEMS ? data.held : null;
     return g;
   }
@@ -1142,6 +1147,7 @@ export class Game {
 export interface SaveData {
   v: 1;
   fire?: FireSave;
+  env?: EnvironmentSave;
   packUpgrades?: string[];
   drops?: WorldDrop[];
   toolUses?: Partial<Record<ItemId, number>>;

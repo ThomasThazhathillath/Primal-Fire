@@ -96,7 +96,7 @@ export class WorldEnvironmentSystem extends createSystem({
   private groundMat: MeshLambertMaterial | null = null;
   private groundSearch = 0;
   /** Unlit mountain ridges (MeshBasicMaterial) and their daytime colours, dimmed with the sky. */
-  private ridges: Array<{ mat: MeshBasicMaterial; base: Color }> = [];
+  private ridges: Array<{ mat: MeshBasicMaterial; base: Color; mesh: Mesh }> = [];
   private clock = 0;
   private fireCheck = 0;
   private fireExposed = true;
@@ -195,8 +195,8 @@ export class WorldEnvironmentSystem extends createSystem({
       const eq = e.getVectorView(IBLGradient, 'equator');
       const gr = e.getVectorView(IBLGradient, 'ground');
       for (let i = 0; i < 3; i++) {
-        sky[i] = Math.min(1, env.sky[i] * 1.6 + 0.1 * (1 - env.night));
-        eq[i] = env.equator[i];
+        sky[i] = Math.min(1, env.sky[i] * 1.6 + 0.1 * (1 - env.night) + 0.45 * env.night);
+        eq[i] = Math.min(1, env.equator[i] + 0.55 * env.night);
         gr[i] = env.ground[i] * 1.2;
       }
       e.setValue(IBLGradient, 'intensity', env.iblIntensity);
@@ -205,7 +205,8 @@ export class WorldEnvironmentSystem extends createSystem({
     // --- lights: hemisphere = ambient, directional = sun by day / moon by night
     for (const e of this.queries.hemi.entities) {
       const sky = e.getVectorView(HemisphereLightComponent, 'skyColor');
-      for (let i = 0; i < 3; i++) sky[i] = Math.min(1, env.sky[i] * 0.8 + 0.45 * (1 - env.night) + 0.08);
+      // The dark night sky must not tint the ambient light: lights stay day-bright.
+      for (let i = 0; i < 3; i++) sky[i] = Math.min(1, env.sky[i] * 0.8 + 0.45 * (1 - env.night) + 0.6 * env.night + 0.08);
       e.setValue(HemisphereLightComponent, 'intensity', env.hemiIntensity);
     }
     for (const e of this.queries.sun.entities) {
@@ -263,12 +264,16 @@ export class WorldEnvironmentSystem extends createSystem({
           // Keep the true daytime colour once: rescanning must not record an already-dimmed one.
           if (this.ridges.some((r) => r.mat === mat)) return;
           mat.userData.dayColor ??= mat.color.clone();
-          this.ridges.push({ mat, base: mat.userData.dayColor as Color });
+          this.ridges.push({ mat, base: mat.userData.dayColor as Color, mesh: o as Mesh });
         }
       });
     }
-    const lum = Math.min(1, 0.35 + env.hemiIntensity / 1.6);
+    // Ridges belong to the sky: they darken with it at night (the ground stays lit) and
+    // stay centred on you, so walking to the edge never brings one looming overhead.
+    const lum = 0.25 + 0.75 * (1 - env.night);
     for (const r of this.ridges) {
+      r.mesh.position.x = this.head.x;
+      r.mesh.position.z = this.head.z;
       r.mat.color.copy(r.base).multiplyScalar(lum);
       r.mat.color.lerp(this.fog.color, Math.min(0.85, env.fog * 0.8 + env.rain * 0.4));
     }

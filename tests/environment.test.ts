@@ -28,16 +28,16 @@ describe('day/night', () => {
     expect(e.lightDir[1]).toBeGreaterThan(0.15);
   });
 
-  it('night is darker than noon and dusk is warm', () => {
+  it('night has a dark sky but day-bright light, and dusk is warm', () => {
     const e = new Environment();
     e.update(hourTime(12), 0);
     const noon = e.hemiIntensity + e.lightIntensity;
     e.update(hourTime(19), 0);
     expect(e.equator[0]).toBeGreaterThan(e.equator[2]);
     e.update(hourTime(23), 0);
-    // Clearly darker, but moonlit enough to play (well above pitch black).
-    expect(e.hemiIntensity + e.lightIntensity).toBeLessThan(noon * 0.6);
-    expect(e.hemiIntensity + e.lightIntensity).toBeGreaterThan(noon * 0.3);
+    // Dark sky, but the world is lit about as brightly as noon (weather may differ).
+    expect(e.sky[2]).toBeLessThan(0.15);
+    expect(e.hemiIntensity + e.lightIntensity).toBeGreaterThan(noon * 0.6);
   });
 
   it('skipTo jumps forward to the given hour', () => {

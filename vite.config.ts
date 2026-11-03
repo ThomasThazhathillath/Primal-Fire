@@ -17,14 +17,17 @@ function playtestLog(): Plugin {
     configureServer(server) {
       // A tiny remote control: POST /__primal-cmd?c=reload makes every open game page reload once.
       let reloadAt = 0;
+      let resetAt = 0;
       server.middlewares.use('/__primal-cmd', (req, res) => {
         if (req.method === 'POST') {
           if ((req.url ?? '').includes('c=reload')) reloadAt = Date.now();
+          // c=reset: wipe the save on every open page, then reload into a new game.
+          if ((req.url ?? '').includes('c=reset')) resetAt = Date.now();
           res.statusCode = 204;
           return void res.end();
         }
         res.setHeader('content-type', 'application/json');
-        res.end(JSON.stringify({ reloadAt }));
+        res.end(JSON.stringify({ reloadAt, resetAt }));
       });
       server.middlewares.use('/__primal-log', (req, res) => {
         if (req.method !== 'POST') return void res.end();

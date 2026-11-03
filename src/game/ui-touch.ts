@@ -43,6 +43,12 @@ export const TOUCH_CONFIG = {
   maxSlideRatio: 0.8,
   /** The approach (tip last seen >= armDepth in front) must be this recent (s). */
   approachWindow: 0.35,
+  /**
+   * A fingertip that moves farther than this (m) in one frame is a tracking
+   * jump, not a hand: that frame can never tap, and a fresh approach is
+   * needed afterwards. Real fast pokes are a few cm per frame.
+   */
+  maxJump: 0.3,
 } satisfies Record<string, number>;
 
 export const enum IconState {
@@ -146,6 +152,13 @@ export class TouchTracker {
       this.hoverIcon = -1;
       this.showFlash(icons);
       return -1;
+    }
+
+    if (this.hadPrev && Math.hypot(s.x - this.prevX, s.y - this.prevY, s.z - this.prevZ) > c.maxJump) {
+      // Tracking jump: drop the history so nothing crosses the surface on this frame.
+      this.hadPrev = false;
+      this.frontAge = Infinity;
+      this.hoverIcon = -1;
     }
 
     const over = this.hit(icons, s);

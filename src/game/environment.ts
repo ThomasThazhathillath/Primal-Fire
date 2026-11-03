@@ -75,23 +75,24 @@ interface SkyKey {
 // Display colours, matching the hand-tuned noon in main.iwsdk.scene.json.
 // Moonlit, not pitch black: dark enough that the fire matters, light enough to play.
 const NIGHT: Omit<SkyKey, 'h'> = {
-  sky: [0.1, 0.15, 0.28],
-  equator: [0.24, 0.29, 0.4],
-  ground: [0.17, 0.18, 0.15],
-  sun: [0.65, 0.75, 1],
-  sunI: 1.05,
-  hemiI: 1.25,
-  iblI: 0.4,
+  // Dark sky, but the world stays lit like day (play-test: night must be fully playable).
+  sky: [0.02, 0.03, 0.08],
+  equator: [0.06, 0.08, 0.15],
+  ground: [0.22, 0.24, 0.18],
+  sun: [0.9, 0.93, 1],
+  sunI: 2.2,
+  hemiI: 1.6,
+  iblI: 0.6,
 };
 const KEYS: SkyKey[] = [
   { h: 0, ...NIGHT },
   { h: 4.5, ...NIGHT },
-  { h: 5.8, sky: [0.16, 0.2, 0.36], equator: [0.62, 0.42, 0.38], ground: [0.1, 0.1, 0.08], sun: [1, 0.55, 0.35], sunI: 0.5, hemiI: 0.6, iblI: 0.25 },
+  { h: 5.8, sky: [0.16, 0.2, 0.36], equator: [0.62, 0.42, 0.38], ground: [0.1, 0.1, 0.08], sun: [1, 0.55, 0.35], sunI: 2, hemiI: 1.5, iblI: 0.55 },
   { h: 7, sky: [0.3, 0.45, 0.68], equator: [0.85, 0.7, 0.55], ground: [0.2, 0.2, 0.14], sun: [1, 0.78, 0.6], sunI: 1.5, hemiI: 1.2, iblI: 0.45 },
   { h: 9.5, sky: [0.26, 0.48, 0.72], equator: [0.62, 0.72, 0.76], ground: [0.22, 0.25, 0.16], sun: [1, 0.92, 0.8], sunI: 2.2, hemiI: 1.6, iblI: 0.6 },
   { h: 15.5, sky: [0.26, 0.48, 0.72], equator: [0.62, 0.72, 0.76], ground: [0.22, 0.25, 0.16], sun: [1, 0.92, 0.8], sunI: 2.2, hemiI: 1.6, iblI: 0.6 },
   { h: 18, sky: [0.3, 0.38, 0.6], equator: [0.92, 0.62, 0.42], ground: [0.2, 0.17, 0.12], sun: [1, 0.62, 0.38], sunI: 1.4, hemiI: 1.1, iblI: 0.4 },
-  { h: 19.3, sky: [0.14, 0.15, 0.32], equator: [0.6, 0.32, 0.3], ground: [0.08, 0.07, 0.06], sun: [0.95, 0.45, 0.3], sunI: 0.5, hemiI: 0.55, iblI: 0.22 },
+  { h: 19.3, sky: [0.14, 0.15, 0.32], equator: [0.6, 0.32, 0.3], ground: [0.08, 0.07, 0.06], sun: [0.95, 0.45, 0.3], sunI: 2, hemiI: 1.5, iblI: 0.55 },
   { h: 20.6, ...NIGHT },
   { h: 24, ...NIGHT },
 ];

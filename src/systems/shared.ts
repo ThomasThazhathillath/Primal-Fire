@@ -15,6 +15,8 @@ export interface UiHooks {
   /** Open the recipe panel of workbench `structureId`. */
   openBench(structureId: number): void;
   toggleSatchel(): void;
+  /** Open or close the build book. */
+  toggleBook(): void;
   openNotebook(): void;
   showHint(): void;
   toggleGuide(): void;

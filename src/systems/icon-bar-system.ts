@@ -47,6 +47,7 @@ const DEFS: Def[] = [
   { id: 'remove', show: (s) => s.canRemove, run: (s) => s.removeBuild() },
   { id: 'reload', show: () => true, run: (s) => s.reload() },
   { id: 'exit', show: (s) => s.vr, run: (s) => s.exitVr() },
+  { id: 'book', show: () => true, run: (s) => getUi(s.world).toggleBook?.() },
 ];
 
 const COLORS = {

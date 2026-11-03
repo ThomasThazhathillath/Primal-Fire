@@ -1,0 +1,39 @@
+<!--
+  The build book: one row per buildable. Tap a row to place its outline in front of you.
+  Rows entry-0..entry-7 are filled in by BuildBookSystem, one page at a time (Prev/Next).
+-->
+<style>
+  .root { flex-direction: column; width: 520px; padding-top: 20px; padding-bottom: 20px; padding-left: 24px; padding-right: 24px; gap: 10px; }
+  .title { color: #1c1d20; font-size: 24px; font-weight: 700; }
+  .title:dark { color: #f3eadb; }
+  .sub { color: #55504a; font-size: 18px; line-height: 1.3; }
+  .sub:dark { color: #b9ab95; }
+  .list { flex-direction: column; gap: 8px; flex-shrink: 0; }
+  .entry { width: 470px; height: 48px; flex-shrink: 0; }
+  .pager { flex-direction: row; gap: 10px; align-items: center; flex-shrink: 0; }
+  .page { color: #55504a; font-size: 18px; }
+  .page:dark { color: #b9ab95; }
+  .row { flex-direction: row; gap: 10px; flex-shrink: 0; }
+</style>
+<Panel class="root">
+  <div class="title">Build book</div>
+  <div id="book-sub" class="sub">Tap a build to place its outline in front of you, then fill every mark.</div>
+  <div class="list">
+    <Button id="entry-0" class="entry" variant="secondary" size="sm"><ButtonLabel id="entry-0-label">-</ButtonLabel></Button>
+    <Button id="entry-1" class="entry" variant="secondary" size="sm"><ButtonLabel id="entry-1-label">-</ButtonLabel></Button>
+    <Button id="entry-2" class="entry" variant="secondary" size="sm"><ButtonLabel id="entry-2-label">-</ButtonLabel></Button>
+    <Button id="entry-3" class="entry" variant="secondary" size="sm"><ButtonLabel id="entry-3-label">-</ButtonLabel></Button>
+    <Button id="entry-4" class="entry" variant="secondary" size="sm"><ButtonLabel id="entry-4-label">-</ButtonLabel></Button>
+    <Button id="entry-5" class="entry" variant="secondary" size="sm"><ButtonLabel id="entry-5-label">-</ButtonLabel></Button>
+    <Button id="entry-6" class="entry" variant="secondary" size="sm"><ButtonLabel id="entry-6-label">-</ButtonLabel></Button>
+    <Button id="entry-7" class="entry" variant="secondary" size="sm"><ButtonLabel id="entry-7-label">-</ButtonLabel></Button>
+  </div>
+  <div class="pager">
+    <Button id="book-prev" variant="secondary" size="sm"><ButtonLabel>Prev</ButtonLabel></Button>
+    <div id="book-page" class="page">1 / 1</div>
+    <Button id="book-next" variant="secondary" size="sm"><ButtonLabel>Next</ButtonLabel></Button>
+  </div>
+  <div class="row">
+    <Button id="book-close" variant="secondary" size="sm"><ButtonIcon><X></X></ButtonIcon><ButtonLabel>Close</ButtonLabel></Button>
+  </div>
+</Panel>

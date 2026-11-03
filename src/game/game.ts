@@ -4,6 +4,7 @@
 import { Environment, type EnvironmentSave } from './environment.js';
 import { actionFor } from './actions.js';
 import { BENCH_BY_ID, BenchSession, canStart, missingText, type BenchMotion } from './bench.js';
+import { bookEntries, findBookSpot, type BookEntry } from './buildbook.js';
 import { checkPlace, FAILURE_TEXT, GrabTracker, slabStability, SUPPORT_NAMES, type GuideFailureCode } from './interact.js';
 import { HAND_RECIPES, TOOLS, toolFor } from './tools.js';
 import { capacityFor, itemsCount, itemsWeight, moveLimits, PACK_UPGRADES, type MoveLimits, type PackUpgrade } from './backpack.js';
@@ -763,7 +764,7 @@ export class Game {
     const def = BLUEPRINTS[s.kind];
     const parts = s.spots.filter((v): v is ItemId => v !== null);
     // A keyLast key part (the slab) stays in your hand until it is set down on the supports.
-    if (!def.keyLast || s.keyPlaced) parts.push(s.key);
+    if (!s.keyOpen && (!def.keyLast || s.keyPlaced)) parts.push(s.key);
     this.structures.splice(this.structures.indexOf(s), 1);
     let dropped = false;
     parts.forEach((item, i) => {
@@ -780,9 +781,16 @@ export class Game {
     return true;
   }
 
-  placeBlueprint(kind: StructureKind, x: number, z: number, rotY = 0): PlacementResult & { structure?: PlacedStructure } {
+  placeBlueprint(
+    kind: StructureKind,
+    x: number,
+    z: number,
+    rotY = 0,
+    /** From the build book: no key part in hand needed; the key is a slot to fill. */
+    fromBook = false,
+  ): PlacementResult & { structure?: PlacedStructure } {
     const def = BLUEPRINTS[kind];
-    if (!this.held || !def.keyAccepts.includes(this.held)) {
+    if (!fromBook && (!this.held || !def.keyAccepts.includes(this.held))) {
       return { ok: false, reason: 'structure', message: `You need ${def.keyAccepts.map(itemName).join(' or ')} in hand.` };
     }
     // One plan at a time: starting a new outline clears any unfinished one of the same kind
@@ -796,7 +804,7 @@ export class Game {
       return check;
     }
     // A keyLast part (the slab) stays in your hand: the outline is only the plan.
-    const key = def.keyLast ? this.held : this.consumeHeld()!;
+    const key = fromBook ? def.keyAccepts[0] : def.keyLast ? this.held! : this.consumeHeld()!;
     const structure: PlacedStructure = {
       id: this.nextStructureId++,
       kind,
@@ -807,13 +815,16 @@ export class Game {
       spots: def.spots.map(() => null),
       complete: false,
       ...(def.keyLast ? { keyPlaced: false } : {}),
+      ...(fromBook && !def.keyLast ? { keyOpen: true } : {}),
     };
     this.structures.push(structure);
     this.log.add(`placed ${kind} #${structure.id} at ${x.toFixed(1)},${z.toFixed(1)} key=${key}`, 'ok');
     this.toast(
       def.keyLast
         ? `${def.name}: set a part on every glowing mark first, then lift the ${itemName(key).toLowerCase()} on top.`
-        : `${def.name}: fill the glowing spots to finish it.`,
+        : fromBook
+          ? `${def.name}: fill every glowing mark, including the ${def.keyAccepts.map((k) => itemName(k).toLowerCase()).join(' or ')} at the first.`
+          : `${def.name}: fill the glowing spots to finish it.`,
       'note',
     );
     if (kind === 'shelter') this.science('shelter.site.chosen');
@@ -821,6 +832,53 @@ export class Game {
     if (kind === 'workbench') this.guide.mark('workbench.site.ready');
     this.emit({ type: 'structure', structure });
     return { ok: true, structure };
+  }
+
+  // ------------------------------------------------------------ build book
+
+  /** Book entries already announced as unlocked (derived from progress, so not saved). */
+  private bookKnown: Set<string> | null = null;
+
+  /** The book's entries with have/need counts and lock state (src/game/buildbook.ts). */
+  bookEntries(): BookEntry[] {
+    return bookEntries(this);
+  }
+
+  /**
+   * Announce entries that unlocked since the last call on the message line. The
+   * first call only records what is already open (a loaded save is not news).
+   */
+  updateBook(): void {
+    const open = bookEntries(this).filter((e) => e.unlocked);
+    if (this.bookKnown) {
+      for (const e of open) if (!this.bookKnown.has(e.id)) this.toast(`New in the build book: ${e.name}.`, 'good');
+    }
+    this.bookKnown = new Set(open.map((e) => e.id));
+  }
+
+  /**
+   * Place a structure's outline from the book, a metre or two ahead (facing
+   * `dirX,dirZ`) on the first spot that checkPlacement allows. No part in hand
+   * is needed: every part, the key part too, is filled afterwards.
+   */
+  placeFromBook(id: string, dirX: number, dirZ: number): PlacementResult & { structure?: PlacedStructure } {
+    const entry = bookEntries(this).find((e) => e.id === id);
+    if (!entry || entry.kind !== 'structure') return { ok: false, reason: 'structure', message: 'That is made at the workbench.' };
+    const kind = entry.structure!;
+    if (!entry.unlocked) {
+      this.toast(entry.hint, 'note');
+      return { ok: false, reason: 'structure', message: entry.hint };
+    }
+    const stale = this.structures.filter((s) => s.kind === kind && !s.complete);
+    const others = this.structures.filter((s) => !stale.includes(s));
+    const spot = findBookSpot(kind, this.player.x, this.player.z, dirX, dirZ, others);
+    if (!spot) {
+      const msg = `No room for the ${BLUEPRINTS[kind].name.toLowerCase()} here - step to a clearer spot, away from trees, water and other builds.`;
+      this.toast(msg, 'bad');
+      this.log.add(`book ${kind}: no room`, 'bad');
+      return { ok: false, reason: 'trees', message: msg };
+    }
+    return this.placeBlueprint(kind, spot.x, spot.z, spot.rotY, true);
   }
 
   /**
@@ -869,7 +927,8 @@ export class Game {
     }
     if (s.spots.every((v) => v !== null)) {
       if (s.kind === 'workbench') this.guide.mark('workbench.supports.placed');
-      if (def.keyLast && !s.keyPlaced) this.toast(`Supports set. Now lift the ${itemName(s.key).toLowerCase()} on with both hands.`, 'note');
+      if (s.keyOpen) this.toast(`Now the ${def.keyAccepts.map((k) => itemName(k).toLowerCase()).join(' or ')} on the first mark.`, 'note');
+      else if (def.keyLast && !s.keyPlaced) this.toast(`Supports set. Now lift the ${itemName(s.key).toLowerCase()} on with both hands.`, 'note');
       else this.completeStructure(s);
     }
     this.emit({ type: 'structure', structure: s });
@@ -889,6 +948,15 @@ export class Game {
       const def = BLUEPRINTS[s.kind];
       if (def.keyLast && !s.keyPlaced && def.keyAccepts.includes(item) && s.spots.every((v) => v !== null)) {
         const d = Math.hypot(s.x - x, s.z - z);
+        if (d < bestD) {
+          bestD = d;
+          best = { structure: s, index: -1 };
+        }
+      }
+      // A book-placed structure's key part is a slot of its own, filled in any order.
+      if (s.keyOpen && def.keyAccepts.includes(item)) {
+        const p = spotWorldPosition(s, -1);
+        const d = Math.hypot(p.x - x, p.z - z);
         if (d < bestD) {
           bestD = d;
           best = { structure: s, index: -1 };
@@ -921,6 +989,7 @@ export class Game {
   placeKey(structureId: number, x: number, z: number, hands: number): boolean {
     const s = this.structures.find((t) => t.id === structureId);
     const def = s ? BLUEPRINTS[s.kind] : null;
+    if (s?.keyOpen && def) return this.fillKey(s, x, z);
     if (!s || !def?.keyLast || s.keyPlaced || s.complete) return false;
     if (!this.held || !def.keyAccepts.includes(this.held)) return false;
     // Missing supports first: that is the real problem, not the weight.
@@ -942,6 +1011,41 @@ export class Game {
     this.emit({ type: 'structure', structure: s });
     if (s.kind === 'workbench') this.guide.mark('workbench.slab.aligned');
     this.pushTest(structureId);
+    return true;
+  }
+
+  /** Fill the key slot of a book-placed structure (the held part, else one from the bag). */
+  private fillKey(s: PlacedStructure, x: number, z: number): boolean {
+    const def = BLUEPRINTS[s.kind];
+    const target = spotWorldPosition(s, -1);
+    const check = checkPlace(x, z, target.x, target.z, def.spotTolerance ?? DEFAULT_SPOT_TOLERANCE);
+    if (!check.ok) {
+      this.interactionFailure('place.tooFar', `${Math.round(check.error * 100)} cm off`);
+      return false;
+    }
+    let item: ItemId | null = null;
+    if (this.held && def.keyAccepts.includes(this.held)) item = this.consumeHeld();
+    else {
+      const found = def.keyAccepts.find((id) => this.count(id) > 0);
+      if (found) {
+        this.satchel.set(found, this.count(found) - 1);
+        this.emit({ type: 'satchel' });
+        item = found;
+      }
+    }
+    if (!item) {
+      this.toast(`You need ${def.keyAccepts.map((k) => itemName(k).toLowerCase()).join(' or ')} for the first mark.`, 'bad');
+      return false;
+    }
+    s.key = item;
+    s.keyOpen = false;
+    s.keyPos = { x: target.x, z: target.z };
+    this.fx('seat', 0.6);
+    this.lastSeatAt = this.time;
+    this.contact(ITEM_PHYSICS[item].material, 'soil', target.x, 0.05, target.z, 1.5);
+    this.log.add(`filled ${s.kind}#${s.id} key with ${item}`);
+    if (s.spots.every((v) => v !== null)) this.completeStructure(s);
+    this.emit({ type: 'structure', structure: s });
     return true;
   }
 
@@ -1008,7 +1112,7 @@ export class Game {
     // Nothing left but the plan: clear it (a non-keyLast key part goes back in the bag).
     if (s.spots.every((v) => v === null) && !s.keyPlaced) {
       this.structures.splice(this.structures.indexOf(s), 1);
-      if (!def.keyLast) this.addItem(s.key);
+      if (!def.keyLast && !s.keyOpen) this.addItem(s.key);
       this.emit({ type: 'structure', structure: s });
       return true;
     }

@@ -280,7 +280,7 @@ export class BuildSystem extends createSystem({
     const local = (p: { x: number; z: number }) => ({ x: (p.x - s.x) * c - (p.z - s.z) * n, z: (p.x - s.x) * n + (p.z - s.z) * c });
     const view: StructureView = { root: this.world.createTransformEntity(root), spots: [] };
     const key = itemMesh(s.key);
-    if (def.keyLast && !s.keyPlaced) {
+    if ((def.keyLast && !s.keyPlaced) || s.keyOpen) {
       // Not on yet: a faint ghost shows where the slab will rest.
       key.traverse((o) => {
         if ((o as Mesh).isMesh) (o as Mesh).material = ghostOk;
@@ -301,6 +301,13 @@ export class BuildSystem extends createSystem({
       const l = s.keyPos ? local(s.keyPos) : def.key;
       key.position.set(l.x, def.key.y, l.z);
       root.add(key);
+    }
+    if (s.keyOpen) {
+      // The key part is a slot too: a ring on its mark, like the other spots.
+      const ring = new Mesh(new TorusGeometry(0.08, 0.015, 6, 20), spotMat);
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.set(def.key.x, 0.05, def.key.z);
+      root.add(ring);
     }
     if (s.kind === 'firePit' && s.complete) {
       const ash = new Mesh(new CircleGeometry(0.3, 20), ashMat);

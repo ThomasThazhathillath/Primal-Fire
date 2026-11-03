@@ -24,4 +24,5 @@
   <div id="slot-9" class="slot"><Button id="ic-remove" size="sm" variant="secondary"><ButtonIcon><Trash2></Trash2></ButtonIcon></Button></div>
   <div id="slot-10" class="slot"><Button id="ic-reload" size="sm" variant="secondary"><ButtonIcon><RefreshCw></RefreshCw></ButtonIcon></Button></div>
   <div id="slot-11" class="slot"><Button id="ic-exit" size="sm" variant="secondary"><ButtonIcon><LogOut></LogOut></ButtonIcon></Button></div>
+  <div id="slot-12" class="slot"><Button id="ic-book" size="sm" variant="secondary"><ButtonIcon><Hammer></Hammer></ButtonIcon></Button></div>
 </Panel>

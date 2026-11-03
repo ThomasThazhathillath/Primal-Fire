@@ -8,6 +8,7 @@ import { installDebugHooks, streamPlaytestLog } from './debug-hooks.js';
 import { AudioSystem } from './systems/audio-system.js';
 import { CraftGestureSystem } from './systems/craft-gesture-system.js';
 import { BenchSystem } from './systems/bench-system.js';
+import { BuildBookSystem } from './systems/build-book-system.js';
 import { ContactFxSystem } from './systems/contact-fx-system.js';
 import { CarrySystem } from './systems/carry-system.js';
 import { BowSystem } from './systems/bow-system.js';
@@ -59,6 +60,7 @@ World.create(
     .registerSystem(CraftGestureSystem)
     .registerSystem(InteractionSystem)
     .registerSystem(BenchSystem)
+    .registerSystem(BuildBookSystem)
     .registerSystem(BowSystem)
     .registerSystem(DropSystem)
     .registerSystem(CarrySystem)

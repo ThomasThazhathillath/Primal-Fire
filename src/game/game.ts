@@ -719,12 +719,13 @@ export class Game {
     const def = s ? BLUEPRINTS[s.kind] : null;
     if (!s || !def?.keyLast || s.keyPlaced || s.complete) return false;
     if (!this.held || !def.keyAccepts.includes(this.held)) return false;
-    if (!GrabTracker.canLift(ITEMS[this.held].weight, hands)) {
-      this.interactionFailure('grab.tooHeavy');
+    // Missing supports first: that is the real problem, not the weight.
+    if (s.spots.some((v) => v === null)) {
+      this.interactionFailure('slab.beforeSupports', `${s.spots.filter((v) => v === null).length} still to place`);
       return false;
     }
-    if (s.spots.some((v) => v === null)) {
-      this.interactionFailure('slab.beforeSupports');
+    if (!GrabTracker.canLift(ITEMS[this.held].weight, hands)) {
+      this.interactionFailure('grab.tooHeavy');
       return false;
     }
     s.key = this.consumeHeld()!;

@@ -386,7 +386,7 @@ export interface Point {
 }
 
 /** How far (m) a support can sit from its marked spot and still count. */
-export const SUPPORT_TOLERANCE = 0.12;
+export const SUPPORT_TOLERANCE = 0.18;
 /** The slab's footprint radius (m): every support must be under it. */
 export const SLAB_RADIUS = 0.34;
 

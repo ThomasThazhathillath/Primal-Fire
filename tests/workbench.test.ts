@@ -31,7 +31,7 @@ describe('physical workbench', () => {
     const g = new Game();
     const { s, failures } = outline(g);
     expect(g.placeKey(s.id, s.x, s.z, 2)).toBe(false);
-    expect(failures).toEqual(['slab.beforeSupports']);
+    expect(failures).toEqual(['slab.beforeSupports:3 still to place']);
     expect(g.held).toBe('slab');
   });
 

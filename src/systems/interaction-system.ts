@@ -643,7 +643,8 @@ export class InteractionSystem extends createSystem({
     }
     if (target.index >= 0) game.fillSpot(target.structure.id, target.index, undefined, { x, z });
     else {
-      const both = this.viaVR ? hands[0].grip : mouse.bothHands;
+      // Desktop: a mouse has no second hand to grip with, so setting a slab down counts as a two-hand lift.
+      const both = this.viaVR ? hands[0].grip : true;
       game.placeKey(target.structure.id, x, z, both ? 2 : 1);
     }
   }

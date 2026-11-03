@@ -110,8 +110,11 @@ export function streamPlaytestLog(world: World): void {
   setInterval(() => {
     fetch('/__primal-cmd')
       .then((r) => r.json())
-      .then((c: { reloadAt: number }) => {
-        if (c.reloadAt > loadedAt) {
+      .then((c: { reloadAt: number; resetAt?: number }) => {
+        if ((c.resetAt ?? 0) > loadedAt) {
+          clearSave();
+          location.reload();
+        } else if (c.reloadAt > loadedAt) {
           (world.globals as { ui?: { saveNow?: () => void } }).ui?.saveNow?.();
           location.reload();
         }

@@ -96,7 +96,7 @@ export class WorldEnvironmentSystem extends createSystem({
   private groundMat: MeshLambertMaterial | null = null;
   private groundSearch = 0;
   /** Unlit mountain ridges (MeshBasicMaterial) and their daytime colours, dimmed with the sky. */
-  private ridges: Array<{ mat: MeshBasicMaterial; base: Color }> = [];
+  private ridges: Array<{ mat: MeshBasicMaterial; base: Color; mesh: Mesh }> = [];
   private clock = 0;
   private fireCheck = 0;
   private fireExposed = true;
@@ -264,12 +264,16 @@ export class WorldEnvironmentSystem extends createSystem({
           // Keep the true daytime colour once: rescanning must not record an already-dimmed one.
           if (this.ridges.some((r) => r.mat === mat)) return;
           mat.userData.dayColor ??= mat.color.clone();
-          this.ridges.push({ mat, base: mat.userData.dayColor as Color });
+          this.ridges.push({ mat, base: mat.userData.dayColor as Color, mesh: o as Mesh });
         }
       });
     }
-    const lum = Math.min(1, 0.35 + env.hemiIntensity / 1.6);
+    // Ridges belong to the sky: they darken with it at night (the ground stays lit) and
+    // stay centred on you, so walking to the edge never brings one looming overhead.
+    const lum = 0.25 + 0.75 * (1 - env.night);
     for (const r of this.ridges) {
+      r.mesh.position.x = this.head.x;
+      r.mesh.position.z = this.head.z;
       r.mat.color.copy(r.base).multiplyScalar(lum);
       r.mat.color.lerp(this.fog.color, Math.min(0.85, env.fog * 0.8 + env.rain * 0.4));
     }

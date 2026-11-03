@@ -24,7 +24,11 @@ export function loadGame(): Game {
   return new Game();
 }
 
+/** Set by a reset: no more saving, so the page can reload into a fresh game. */
+let saveBlocked = false;
+
 export function clearSave(): void {
+  saveBlocked = true;
   try {
     localStorage.removeItem(SAVE_KEY);
   } catch {
@@ -66,6 +70,7 @@ export class WorldSystem extends createSystem({}) {
 
   /** Registered as the saveNow UI hook in init(). */
   save(): void {
+    if (saveBlocked) return;
     if (!this.started) return;
     try {
       localStorage.setItem(SAVE_KEY, JSON.stringify(getGame(this.world).snapshot()));

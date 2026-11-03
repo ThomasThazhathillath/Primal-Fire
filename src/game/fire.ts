@@ -146,7 +146,15 @@ export class FireState {
 
   /** Fallback for browser play: one tap = one stroke. */
   stroke(): void {
+    const g = this.game;
+    if (g.held !== 'bowDrill') {
+      g.toast('Hold the bow drill, then click the pit to saw.', 'note');
+      return;
+    }
+    if (!this.layBuilt || this.stage !== 'lay' || this.carrying) return;
     this.saw(0.3, 0.25);
+    // Every stroke shows progress, so sawing never feels like nothing is happening.
+    if (!this.carrying) g.toast(`Sawing... the wood is heating up (${Math.round(this.heat * 100)}%). Keep going.`, 'info');
   }
 
   private makeEmber(): void {

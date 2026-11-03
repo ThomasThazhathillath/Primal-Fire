@@ -10,6 +10,8 @@ export interface UiHooks {
   setHeldVisible(visible: boolean): void;
   /** Would a left press right now start a hand interaction (so it must not turn the view)? */
   capturesPointer(): boolean;
+  /** Open the recipe panel of workbench `structureId`. */
+  openBench(structureId: number): void;
   toggleSatchel(): void;
   openNotebook(): void;
   showHint(): void;

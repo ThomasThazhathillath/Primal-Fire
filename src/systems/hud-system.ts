@@ -295,9 +295,11 @@ export class HudSystem extends createSystem({
       if (!s) return;
       const index = e.getValue(StructurePart, 'index') ?? 0;
       const vr = this.world.visibilityState.peek() !== VisibilityState.NonImmersive;
-      title = index < 0 ? itemName(s.key) : itemName(s.spots[index] ?? s.key);
+      title = s.kind === 'workbench' && s.complete ? 'Workbench' : index < 0 ? itemName(s.key) : itemName(s.spots[index] ?? s.key);
       sub =
-        index < 0
+        s.kind === 'workbench' && s.complete
+          ? `${vr ? 'Pinch' : 'Click'} to choose what to make here`
+          : index < 0
           ? s.complete
             ? `${vr ? 'Grip with both hands' : 'Click'} to lift it off and take it back`
             : `Press down to test if it is stable - ${vr ? 'grip with both hands' : 'Shift+click'} to lift it off`

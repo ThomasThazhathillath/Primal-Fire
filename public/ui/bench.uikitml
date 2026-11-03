@@ -1,0 +1,97 @@
+<!--
+  Workbench recipes. List view: every bench recipe with have/need parts (dim
+  when something is missing). Craft view: the current step, a hand cue and a
+  progress bar. Filled in by BenchSystem.
+-->
+<style>
+  .root { flex-direction: column; width: 560px; padding-top: 16px; padding-bottom: 16px; padding-left: 20px; padding-right: 20px; gap: 8px; }
+  .head { flex-direction: row; justify-content: space-between; align-items: center; }
+  .eyebrow { color: #8a5a00; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+  .eyebrow:dark { color: #ffb547; }
+  .headright { flex-direction: row; gap: 8px; }
+  .title { color: #1c1d20; font-size: 32px; font-weight: 700; line-height: 1.15; }
+  .title:dark { color: #fff7e6; }
+  .list { flex-direction: column; gap: 5px; }
+  .row { width: 520px; flex-direction: column; gap: 2px; padding-top: 8px; padding-bottom: 8px; padding-left: 12px; padding-right: 12px; border-radius: 12px; background-color: #e9e2d4; cursor: pointer; }
+  .row:dark { background-color: #3a352e; }
+  .row:hover { background-color: #2f4a33; }
+  .name { color: #1c1d20; font-size: 24px; font-weight: 700; }
+  .name:dark { color: #fff7e6; }
+  .parts { color: #55504a; font-size: 19px; }
+  .parts:dark { color: #d9cfbd; }
+  .step { color: #1c1d20; font-size: 30px; font-weight: 700; line-height: 1.2; }
+  .step:dark { color: #fff7e6; }
+  .cue { color: #8a5a00; font-size: 22px; font-weight: 700; }
+  .cue:dark { color: #ffb547; }
+  .hint { color: #4b463f; font-size: 21px; line-height: 1.3; }
+  .hint:dark { color: #cfc5b3; }
+  .track { width: 520px; height: 18px; border-radius: 9px; background-color: #d8d0c0; }
+  .track:dark { background-color: #3a352e; }
+  .fill { width: 0px; height: 18px; border-radius: 9px; background-color: #3f9b4f; }
+  .steps { color: #55504a; font-size: 19px; }
+  .steps:dark { color: #d9cfbd; }
+  .buttons { flex-direction: row; gap: 10px; }
+</style>
+<Panel class="root">
+  <div class="head">
+    <div id="bench-eyebrow" class="eyebrow">WORKBENCH</div>
+    <div class="headright">
+      <Button id="bench-lift" variant="secondary" size="sm"><ButtonLabel>Lift slab off</ButtonLabel></Button>
+      <Button id="bench-close" variant="secondary" size="sm"><ButtonIcon><X></X></ButtonIcon><ButtonLabel>Close</ButtonLabel></Button>
+    </div>
+  </div>
+  <div id="bench-list" class="list">
+    <div class="title">What will you make?</div>
+    <div id="rec-0" class="row">
+      <div id="rec-0-name" class="name">-</div>
+      <div id="rec-0-parts" class="parts">-</div>
+    </div>
+    <div id="rec-1" class="row">
+      <div id="rec-1-name" class="name">-</div>
+      <div id="rec-1-parts" class="parts">-</div>
+    </div>
+    <div id="rec-2" class="row">
+      <div id="rec-2-name" class="name">-</div>
+      <div id="rec-2-parts" class="parts">-</div>
+    </div>
+    <div id="rec-3" class="row">
+      <div id="rec-3-name" class="name">-</div>
+      <div id="rec-3-parts" class="parts">-</div>
+    </div>
+    <div id="rec-4" class="row">
+      <div id="rec-4-name" class="name">-</div>
+      <div id="rec-4-parts" class="parts">-</div>
+    </div>
+    <div id="rec-5" class="row">
+      <div id="rec-5-name" class="name">-</div>
+      <div id="rec-5-parts" class="parts">-</div>
+    </div>
+    <div id="rec-6" class="row">
+      <div id="rec-6-name" class="name">-</div>
+      <div id="rec-6-parts" class="parts">-</div>
+    </div>
+    <div id="rec-7" class="row">
+      <div id="rec-7-name" class="name">-</div>
+      <div id="rec-7-parts" class="parts">-</div>
+    </div>
+    <div id="rec-8" class="row">
+      <div id="rec-8-name" class="name">-</div>
+      <div id="rec-8-parts" class="parts">-</div>
+    </div>
+    <div id="rec-9" class="row">
+      <div id="rec-9-name" class="name">-</div>
+      <div id="rec-9-parts" class="parts">-</div>
+    </div>
+  </div>
+  <div id="bench-craft" class="list">
+    <div id="bench-recipe" class="title">-</div>
+    <div id="bench-steps" class="steps">-</div>
+    <div id="bench-step" class="step">-</div>
+    <div id="bench-cue" class="cue">-</div>
+    <div class="track"><div id="bench-fill" class="fill"></div></div>
+    <div id="bench-hint" class="hint">-</div>
+    <div class="buttons">
+      <Button id="bench-cancel" variant="secondary" size="sm"><ButtonIcon><Undo2></Undo2></ButtonIcon><ButtonLabel>Stop and take the parts back</ButtonLabel></Button>
+    </div>
+  </div>
+</Panel>

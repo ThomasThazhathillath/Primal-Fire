@@ -40,7 +40,7 @@ import { BlueprintGhost, SnapSpot, StructurePart } from '../components/game-comp
 import { itemMesh } from '../scene-assets/item-meshes.js';
 import type { ItemId } from '../game/items.js';
 import { hands, mouse } from './hand-input-system.js';
-import { getGame } from './shared.js';
+import { getGame, getUi } from './shared.js';
 
 /** How far away (m) you can point to place a blueprint. */
 const MAX_PLACE_DISTANCE = 6;
@@ -139,6 +139,13 @@ export class BuildSystem extends createSystem({
     if (game.held && game.wantsItem(game.held, game.player.x, game.player.z)) return;
     const id = e.getValue(StructurePart, 'structureId') ?? 0;
     const index = e.getValue(StructurePart, 'index') ?? 0;
+    // A finished workbench is a crafting station: pressing it opens its recipes
+    // (lifting the slab off is an explicit button there, so nothing is dismantled by accident).
+    const bench = game.structures.find((t) => t.id === id);
+    if (bench?.kind === 'workbench' && bench.complete) {
+      getUi(this.world).openBench?.(id);
+      return;
+    }
     if (index >= 0) {
       game.takeBack(id, index);
       return;

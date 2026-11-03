@@ -3,6 +3,7 @@ import projectOptions from 'virtual:iwsdk-project';
 import { installDebugHooks } from './debug-hooks.js';
 import { AudioSystem } from './systems/audio-system.js';
 import { CraftGestureSystem } from './systems/craft-gesture-system.js';
+import { BenchSystem } from './systems/bench-system.js';
 import { BowSystem } from './systems/bow-system.js';
 import { BuildSystem } from './systems/build-system.js';
 import { DesktopControlsSystem } from './systems/desktop-controls-system.js';
@@ -34,6 +35,7 @@ World.create(
     .registerSystem(FireSystem)
     .registerSystem(CraftGestureSystem)
     .registerSystem(InteractionSystem)
+    .registerSystem(BenchSystem)
     .registerSystem(BowSystem)
     .registerSystem(DropSystem)
     .registerSystem(HandsSystem)

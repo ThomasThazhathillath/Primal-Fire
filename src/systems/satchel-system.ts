@@ -268,7 +268,8 @@ export class SatchelSystem extends createSystem({
     const cap = game.capacity;
     const load = `${game.carriedWeight.toFixed(1)}/${cap.load} kg, ${game.carriedCount}/${cap.pockets} pockets`;
     const lim = game.moveLimits.encumbrance;
-    this.makeItems = game.makeList();
+    // Tools are made at the workbench now (by hand, step by step): no instant buttons for them here.
+    this.makeItems = game.makeList().filter((m) => m.kind !== 'bind');
     for (let i = 0; i < MAKE_SLOTS; i++) {
       const m = this.makeItems[i];
       this.panel.requireElementById(`make-${i}`).setProperties({ display: m ? 'flex' : 'none' });
@@ -279,9 +280,9 @@ export class SatchelSystem extends createSystem({
       ? `${load}${lim === 'light' ? '' : lim === 'loaded' ? ' - heavy, no running' : ' - OVERLOADED, slow'}. Pinch an item to take it.`
       : 'Empty. Point at things in the forest and pinch to gather them.';
     this.panel.requireElementById<UIKit.Text>('satchel-sub').setProperties({ text: sub });
-    const bench = game.nearbyWorkbench() !== null;
-    this.panel.requireElementById('craft-cord').setProperties({ display: bench && game.canCraft(RECIPES[0]) ? 'flex' : 'none' });
-    this.panel.requireElementById('craft-drill').setProperties({ display: bench && game.canCraft(RECIPES[1]) ? 'flex' : 'none' });
+    // Cord and the bow drill are made at the workbench (click it): the old instant buttons stay hidden.
+    this.panel.requireElementById('craft-cord').setProperties({ display: 'none' });
+    this.panel.requireElementById('craft-drill').setProperties({ display: 'none' });
     this.panel.requireElementById('stow-button').setProperties({ display: game.held ? 'flex' : 'none' });
     if (game.held) {
       this.panel.requireElementById<UIKit.Text>('stow-label').setProperties({ text: `Put back ${itemName(game.held).toLowerCase()}` });

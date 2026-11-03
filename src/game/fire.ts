@@ -131,6 +131,13 @@ export class FireState {
 
   mossDamp = false;
 
+  /** Rain on an exposed fire: `loss` seconds of burn time per second (EnvironmentSystem). */
+  weather(loss: number, dt: number): void {
+    if (loss <= 0) return;
+    if (this.stage === 'burning') this.burnLeft = Math.max(0.01, this.burnLeft - loss * dt);
+    else if (this.embedded) this.restLeft -= loss * dt;
+  }
+
   // ----------------------------------------------------------- the ember
 
   /** Hand travel while sawing the bow drill: call each frame with metres moved and dt. */

@@ -10,6 +10,9 @@ import { BowSystem } from './systems/bow-system.js';
 import { BuildSystem } from './systems/build-system.js';
 import { PlayerCollisionSystem } from './systems/player-collision-system.js';
 import { DesktopControlsSystem } from './systems/desktop-controls-system.js';
+import { WorldEnvironmentSystem } from './systems/environment-system.js';
+import { NatureSystem } from './systems/nature-system.js';
+import { AmbienceSystem } from './systems/ambience-system.js';
 import { DropSystem } from './systems/drop-system.js';
 import { FireSystem } from './systems/fire-system.js';
 import { HandInputSystem } from './systems/hand-input-system.js';
@@ -34,6 +37,8 @@ World.create(
   (world.globals as Record<string, unknown>).game = game;
   world
     .registerSystem(WorldSystem)
+    .registerSystem(WorldEnvironmentSystem)
+    .registerSystem(NatureSystem)
     .registerSystem(HandInputSystem)
     .registerSystem(DesktopControlsSystem)
     .registerSystem(PlayerCollisionSystem)
@@ -56,6 +61,7 @@ World.create(
     .registerSystem(FishingSystem)
     .registerSystem(FarmSystem)
     .registerSystem(IntroSystem)
-    .registerSystem(AudioSystem);
+    .registerSystem(AudioSystem)
+    .registerSystem(AmbienceSystem);
   installDebugHooks(world);
 });

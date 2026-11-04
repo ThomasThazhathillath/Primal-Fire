@@ -51,7 +51,6 @@ export class HudSystem extends createSystem({
   private cardQueue: string[] = [];
   /** Notebook entries recorded since you last opened it (shown on the notebook icon). */
   private newNotes = 0;
-  private questOpen = false;
   private notebookIndex = 0;
   private browsing = false;
   private toastTimer = 0;
@@ -113,11 +112,7 @@ export class HudSystem extends createSystem({
     const ui = getUi(this.world);
     ui.showHint = () => this.showHint();
     ui.openNotebook = () => this.openNotebook();
-    ui.toggleQuest = () => {
-      this.questOpen = !this.questOpen;
-      hud.requireElementById('quest-body').setProperties({ display: this.questOpen ? 'flex' : 'none' });
-    };
-    ui.questOpen = () => this.questOpen;
+    // The quest icon now opens the objective card (ObjectiveCardSystem); this strip keeps XP and toasts.
     ui.newNotes = () => this.newNotes;
 
     this.cleanupFuncs.push(
@@ -190,8 +185,12 @@ export class HudSystem extends createSystem({
     const text = (id: string, t: string) => this.hud.requireElementById<UIKit.Text>(id).setProperties({ text: uiText(t) });
     const lv = game.gameLevel;
     const inLevel = lv.quests.indexOf(q?.title ?? '');
+    // While the beginner objectives run, the objective card is the one place that names the task.
+    const tutorial = !game.objectives.done;
+    this.hud.requireElementById('quest-num').setProperties({ display: tutorial ? 'none' : 'flex' });
     text('quest-num', q ? `LEVEL ${lv.n}: ${lv.name.toUpperCase()}${inLevel >= 0 ? `  ${inLevel + 1}/${lv.quests.length}` : ''}` : 'CHAPTER 1');
     text('level', `Rank ${game.level}   ${game.xp} XP`);
+    this.hud.requireElementById('quest-title').setProperties({ display: tutorial ? 'none' : 'flex' });
     text('quest-title', q ? q.title : 'Complete');
     text('quest-desc', q ? q.desc : 'Keep exploring - can you find every observation?');
     for (let i = 0; i < STEP_LINES; i++) {

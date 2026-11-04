@@ -151,6 +151,7 @@ export class BenchSystem extends createSystem({}) {
     if (game.bench && game.bench.structureId !== id) game.cancelBench();
     this.benchId = id;
     this.open = true;
+    game.objectives.learn('bench');
     const pos = s.keyPos ?? { x: s.x, z: s.z };
     this.top.set(pos.x, BLUEPRINTS.workbench.key.y + 0.06, pos.z);
     // Above and just behind the bench, facing you, so the slab stays clear to work on.

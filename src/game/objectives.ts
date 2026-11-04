@@ -1,0 +1,787 @@
+// Beginner objectives (docs/QUEST_GUIDANCE_SPEC.md, part A): a strictly
+// sequential guidance layer over the existing quests. It adds no new rules:
+// every objective is decided from state the game already keeps (gathered
+// counts, structures, flags, science events), so old saves line up with it for
+// free and the existing quest chain, XP and science are untouched.
+//
+// One objective is current at a time; the rest stay hidden. Multi-step work
+// (the workbench) shows substeps on the same card. When an objective finishes
+// the state advances and is saved at once; the card then shows a short
+// celebration (CELEBRATE_SECONDS) before the next objective takes its place.
+// Part B (the image hint panel) reads `hint` and `hintLevel`.
+
+import { BLUEPRINTS } from './blueprint.js';
+import type { Game, GameEvent } from './game.js';
+import type { ItemId } from './items.js';
+import { QUESTS } from './quests.js';
+
+/** Seconds the finished objective stays on the card before the next one appears. */
+export const CELEBRATE_SECONDS = 2.8;
+/** Seconds a build-failure explanation stays on the card. */
+export const FEEDBACK_SECONDS = 8;
+
+/** Controls taught the first time they are needed, then never repeated. */
+export type InteractionId = 'grab' | 'place' | 'build' | 'bench' | 'tool' | 'fire';
+
+export const TEACH: Record<InteractionId, string> = {
+  grab: 'Reach out, pinch your thumb and finger on the object to pick it up, and open your hand to let go.',
+  place: 'Carry the part to its glowing mark, lower it onto the mark and open your hand.',
+  build: 'Open the hammer icon in the bottom bar to place an outline, then fill each mark.',
+  bench: 'Poke the finished workbench with a finger to see what you can make.',
+  tool: 'Pinch a tool to hold it, then swing it. Strike with the edge, not the flat.',
+  fire: 'Hold the bow drill, saw it back and forth, and steady it with your other hand.',
+};
+
+/** Four escalating hints; part B shows `levels[0..hintLevel-1]` with the reference item. */
+export interface HintData {
+  /** Identify, characteristics, location, exact action. */
+  levels: [string, string, string, string];
+  /** Item whose in-game model the reference image shows. */
+  ref?: ItemId;
+}
+
+export interface Objective {
+  id: string;
+  title: string;
+  instruction: string | ((g: Game) => string);
+  /** Shown on the card when it finishes. */
+  doneMessage: string;
+  hint: HintData;
+  /** Control taught the first time this objective is on screen. */
+  teach?: InteractionId;
+  /** Counts something: shown as "1 / 3". `base` is the stone count when the objective began. */
+  progress?: (g: Game, base: number) => { have: number; need: number };
+  /** Several conditions of one objective, shown on the same card. */
+  substeps?: (g: Game) => Array<{ text: string; done: boolean }>;
+  /** Is it finished? `base` is `baseline(g)` as it was when the objective began. */
+  done: (g: Game, base: number) => boolean;
+  /** Finished because much later play shows it must be (old saves, skipped ahead). */
+  implied?: (g: Game) => boolean;
+  /** Recorded when the objective begins, so progress counts only what happens now. */
+  baseline?: (g: Game) => number;
+  /** Same, for a save that predates objectives (the earlier first stone counts). */
+  legacyBase?: number;
+  /** Failures ("too far", "not stable") are explained on the card while this is current. */
+  explains?: boolean;
+}
+
+// ------------------------------------------------------------- helpers
+
+const stones = (g: Game): number => g.gatheredCount('dryStone') + g.gatheredCount('wetStone');
+const ever = (g: Game, id: ItemId): boolean => g.gatheredCount(id) > 0 || g.count(id) > 0 || g.held === id;
+const benchBuilt = (g: Game): boolean => g.hasStructure('workbench');
+const litFire = (g: Game): boolean => g.flag('fireLit');
+const cleanWater = (g: Game): boolean => g.flag('waterSafe');
+const capped = (n: number, max: number): number => Math.min(max, n);
+const sub = (text: string, done: boolean) => ({ text, done });
+
+const workbenchStage = (g: Game): 0 | 1 | 2 | 3 => {
+  const s = g.structures.find((t) => t.kind === 'workbench');
+  if (!s) return 0;
+  if (s.complete) return 3;
+  return s.spots.every((v) => v !== null) ? 2 : 1;
+};
+
+// ------------------------------------------------------------ sequence
+
+export const OBJECTIVES: Objective[] = [
+  {
+    id: 'firstStone',
+    title: 'Find your first stone',
+    instruction: 'Look around the forest floor and pick up one stone.',
+    doneMessage: "Good. You've found your first resource.",
+    teach: 'grab',
+    progress: (g) => ({ have: capped(stones(g), 1), need: 1 }),
+    done: (g) => stones(g) >= 1,
+    implied: benchBuilt,
+    hint: {
+      ref: 'dryStone',
+      levels: [
+        'Look for a small, hard object lying on the forest floor.',
+        'A grey or brown stone with a solid surface. Not a leaf, a root or a clump of soil.',
+        'Try the bare ground around the larger trees, and the edge of the stream.',
+        'Walk up to the stone, pinch it to pick it up, and open your hand to put it in your satchel.',
+      ],
+    },
+  },
+  {
+    id: 'moreStones',
+    title: 'Gather more stones',
+    instruction: 'Find three more stones. They will be the supports of your first workbench.',
+    doneMessage: 'Great! You have enough stones to begin building. Three supports never wobble.',
+    baseline: stones,
+    legacyBase: 1,
+    progress: (g, base) => ({ have: capped(stones(g) - base, 3), need: 3 }),
+    done: (g, base) => stones(g) - base >= 3,
+    implied: benchBuilt,
+    hint: {
+      ref: 'dryStone',
+      levels: [
+        'The same kind of small stone as before. You need three more.',
+        'Round or blocky stones you can hold in one hand. Wet stones from the stream work for supports too.',
+        'Stones lie together: check the ground near rocks, ridges and the stream.',
+        'Pinch each stone to pick it up. Your satchel keeps them until you build.',
+      ],
+    },
+  },
+  {
+    id: 'flatStone',
+    title: 'Find a flat stone',
+    instruction:
+      'Look for a broad, flat slab of stone. It will be the top of your workbench. It is heavy: hold it with both hands.',
+    doneMessage: 'That looks like a suitable flat stone.',
+    teach: 'grab',
+    done: (g) => ever(g, 'slab'),
+    implied: benchBuilt,
+    hint: {
+      ref: 'slab',
+      levels: [
+        'Look for a wide, flat piece of stone, much bigger than the small ones you carry.',
+        'A broad slab with a level top. Small rounded stones cannot hold up a work surface.',
+        'Flat slabs break off on rocky, sunny ridges, and old builders left some behind.',
+        'Pinch the slab with one hand, then pinch it with your other hand to lift it. Carry it to your build spot.',
+      ],
+    },
+  },
+  {
+    id: 'workbench',
+    title: 'Build your first workbench',
+    instruction: (g) => {
+      const stage = workbenchStage(g);
+      if (stage === 0) return 'Open the hammer icon in the bottom bar and choose Workbench to put its outline on open, dry ground.';
+      if (stage === 1) return 'Place a stone on each glowing mark to make three steady supports.';
+      if (stage === 2) return 'Lift the flat stone with both hands and lower it onto the three supports.';
+      return 'Your workbench is ready.';
+    },
+    doneMessage: 'Your first workbench is ready!',
+    teach: 'build',
+    explains: true,
+    substeps: (g) => {
+      const s = g.structures.find((t) => t.kind === 'workbench');
+      const placed = s ? s.spots.filter((v) => v !== null).length : 0;
+      const total = BLUEPRINTS.workbench.spots.length;
+      return [
+        sub('Choose a spot', !!s),
+        sub(`Place the supports (${placed} / ${total})`, !!s && placed === total),
+        sub('Set the flat stone on top', !!s?.complete),
+      ];
+    },
+    done: benchBuilt,
+    hint: {
+      ref: 'slab',
+      levels: [
+        'A workbench is three stones in a triangle with a flat stone resting on top.',
+        'The supports must sit on the marks and the slab must rest across all three.',
+        'Pick open, dry ground away from trees and the stream bank.',
+        'Place the outline from the hammer icon, put a stone on each mark, then lower the slab on top with both hands.',
+      ],
+    },
+  },
+  {
+    id: 'exploreBench',
+    title: 'Explore your workbench',
+    instruction: 'Poke your workbench with a finger and look at what you can make there.',
+    doneMessage: 'This is where your tools begin.',
+    teach: 'bench',
+    done: (g) => g.objectives.hasLearned('bench'),
+    implied: (g) => litFire(g) || g.flag('hasDrill') || g.hasEvent('tool.knap.flake'),
+    hint: {
+      ref: 'slab',
+      levels: [
+        'Your new workbench is the flat table you just built.',
+        'It is the stone table with the broad top.',
+        'It stands where you built it. Walk back to it.',
+        'Reach out and poke the workbench with a finger. A list of recipes opens.',
+      ],
+    },
+  },
+  {
+    id: 'stoneTools',
+    title: 'Make a sharp stone',
+    instruction: 'Strike two hard stones together. A thin, sharp flake breaks off.',
+    doneMessage: 'You made your first edge. Sharp things cut.',
+    teach: 'tool',
+    done: (g) => g.hasEvent('tool.knap.flake'),
+    implied: (g) => litFire(g) || g.hasEvent('tool.edge.cut'),
+    hint: {
+      ref: 'flint',
+      levels: [
+        'Some stones break into thin, glassy edges.',
+        'Dark, fine-grained stone such as flint breaks the sharpest.',
+        'Look for dark stone near water or cliffs, and strike it with a harder stone.',
+        'Hold the stone in one hand, strike its edge with a stone in the other, and keep the flake.',
+      ],
+    },
+  },
+  {
+    id: 'wood',
+    title: 'Gather wood',
+    instruction: 'Collect 3 twigs and 2 logs. Dead wood lying on the ground is dry and burns well.',
+    doneMessage: 'Good wood. Dead wood is dry, living wood is full of water.',
+    progress: (g) => ({ have: capped(g.gatheredCount('twigs'), 3) + capped(g.gatheredCount('logs'), 2), need: 5 }),
+    substeps: (g) => [
+      sub(`Twigs (${capped(g.gatheredCount('twigs'), 3)} / 3)`, g.gatheredCount('twigs') >= 3),
+      sub(`Logs (${capped(g.gatheredCount('logs'), 2)} / 2)`, g.gatheredCount('logs') >= 2),
+    ],
+    done: (g) => g.gatheredCount('twigs') >= 3 && g.gatheredCount('logs') >= 2,
+    implied: litFire,
+    hint: {
+      ref: 'logs',
+      levels: [
+        'Look for dry wood on the ground: small sticks and heavier logs.',
+        'Twigs snap with a crack. Logs are thicker and lie where trees have fallen.',
+        'Fallen sticks lie under the trees all through the forest.',
+        'Pinch a stick or log to pick it up. A log is heavy, so use both hands.',
+      ],
+    },
+  },
+  {
+    id: 'cutting',
+    title: 'Cut with your edge',
+    instruction: 'Press your sharp stone on cane, cord or soft wood to cut it.',
+    doneMessage: 'A thin edge cuts where a hand cannot.',
+    teach: 'tool',
+    done: (g) => g.hasEvent('tool.edge.cut'),
+    implied: litFire,
+    hint: {
+      ref: 'cane',
+      levels: [
+        'Use the sharp flake you made on something soft.',
+        'Hollow cane and plant stems are easy to cut.',
+        'Cane grows along the stream.',
+        'Hold the flake and draw its edge across the cane.',
+      ],
+    },
+  },
+  {
+    id: 'tinder',
+    title: 'Collect dry tinder',
+    instruction: 'Pick up 2 handfuls of dry grass. Fire starts in fine, dry material.',
+    doneMessage: 'Dry grass catches a spark. Damp moss would smother it.',
+    progress: (g) => ({ have: capped(g.gatheredCount('dryGrass'), 2), need: 2 }),
+    done: (g) => g.gatheredCount('dryGrass') >= 2,
+    implied: litFire,
+    hint: {
+      ref: 'dryGrass',
+      levels: [
+        'Tinder is dry, fine and fluffy.',
+        'Pale, dry grass. Green grass and damp moss do not catch.',
+        'Grass dries where sunlight reaches the ground: open clearings.',
+        'Pinch a tuft of pale grass and pull it free.',
+      ],
+    },
+  },
+  {
+    id: 'cord',
+    title: 'Twist some cord',
+    instruction: 'Collect stringy fibres, then twist them into cord at your workbench.',
+    doneMessage: 'Cord holds things together.',
+    substeps: (g) => [
+      sub(`Collect fibres (${capped(g.gatheredCount('fibers'), 3)} / 3)`, g.gatheredCount('fibers') >= 3 || g.flag('cordMade')),
+      sub('Twist them at the workbench', g.flag('cordMade')),
+    ],
+    done: (g) => g.flag('cordMade'),
+    implied: litFire,
+    hint: {
+      ref: 'fibers',
+      levels: [
+        'Some tall plants have long, tough fibres in their stems.',
+        'Stringy strands that pull apart lengthways.',
+        'They grow in open, sunny ground and along the stream.',
+        'Hold the fibres at your workbench and choose Cord.',
+      ],
+    },
+  },
+  {
+    id: 'frictionParts',
+    title: 'Find the bow drill parts',
+    instruction: 'You need a straight dry stick, a flat board and a springy green branch.',
+    doneMessage: 'You have everything for a bow drill.',
+    substeps: (g) => [
+      sub('Straight dry stick', g.gatheredCount('spindle') > 0),
+      sub('Flat board', g.gatheredCount('board') > 0),
+      sub('Springy green branch', g.gatheredCount('greenBranch') > 0),
+    ],
+    done: (g) => (g.gatheredCount('spindle') > 0 && g.gatheredCount('board') > 0 && g.gatheredCount('greenBranch') > 0) || g.flag('hasDrill'),
+    implied: litFire,
+    hint: {
+      ref: 'spindle',
+      levels: [
+        'A bow drill is made of a stick, a board and a bow.',
+        'The bow must bend without snapping, so it comes from a living branch.',
+        'Lightning splits trees into dry, flat pieces. Young living trees give the bow.',
+        'Pinch each piece to pick it up.',
+      ],
+    },
+  },
+  {
+    id: 'bowDrill',
+    title: 'Make the bow drill',
+    instruction: 'Poke your workbench, choose the bow drill and build it step by step with your hands.',
+    doneMessage: 'A bow drill. Friction makes heat.',
+    teach: 'bench',
+    done: (g) => g.flag('hasDrill'),
+    implied: litFire,
+    hint: {
+      ref: 'bowDrill',
+      levels: [
+        'The bow drill is made on your workbench.',
+        'It needs the stick, the board, the bow and your cord.',
+        'Walk back to your workbench.',
+        'Poke the workbench, choose Bow drill and follow each step.',
+      ],
+    },
+  },
+  {
+    id: 'firePit',
+    title: 'Build a fire pit',
+    instruction: 'Open the hammer icon, choose Fire pit and put stones on the marks to make a ring on open ground.',
+    doneMessage: 'A ring of stones keeps the fire where you want it.',
+    teach: 'build',
+    explains: true,
+    substeps: (g) => {
+      const s = g.structures.find((t) => t.kind === 'firePit');
+      const placed = s ? s.spots.filter((v) => v !== null).length + (s.keyOpen ? 0 : 1) : 0;
+      return [sub('Choose a spot', !!s), sub(`Place the stones (${placed} / 4)`, !!s?.complete)];
+    },
+    done: (g) => g.hasStructure('firePit'),
+    implied: litFire,
+    hint: {
+      ref: 'dryStone',
+      levels: [
+        'A fire needs a safe place: a ring of stones.',
+        'Dry stones. Never use wet stream stones in a fire: they can burst.',
+        'Open ground with nothing overhead.',
+        'Choose Fire pit in the build book, then place a stone on each mark.',
+      ],
+    },
+  },
+  {
+    id: 'fireLay',
+    title: 'Lay the fire',
+    instruction: 'Put tinder in the pit, then twigs around it, then logs on the outside.',
+    doneMessage: 'The finest fuel goes in first and the biggest last.',
+    teach: 'fire',
+    substeps: (g) => [
+      sub('Tinder in the middle', g.fire.tinder >= 1 || g.flag('fireLayBuilt')),
+      sub('Twigs around it', g.fire.twigs >= 3 || g.flag('fireLayBuilt')),
+      sub('Logs outside', g.fire.logs >= 2 || g.flag('fireLayBuilt')),
+    ],
+    done: (g) => g.flag('fireLayBuilt') || litFire(g),
+    implied: litFire,
+    hint: {
+      ref: 'dryGrass',
+      levels: [
+        'Fire climbs a ladder of fuel, the finest first.',
+        'Tinder, then twigs, then logs.',
+        'Put it all inside your fire pit.',
+        'Hold the fuel over the pit and let go, finest first.',
+      ],
+    },
+  },
+  {
+    id: 'ember',
+    title: 'Make an ember',
+    instruction: 'Saw the bow drill back and forth over the pit while your other hand steadies it.',
+    doneMessage: 'A glowing ember! Now keep it alive.',
+    teach: 'fire',
+    done: (g) => g.flag('emberMade') || litFire(g),
+    implied: litFire,
+    hint: {
+      ref: 'bowDrill',
+      levels: [
+        'Friction makes heat.',
+        'Smooth, steady strokes, not wild ones.',
+        'Do it over the fire pit you built.',
+        'Hold the drill, saw with a rhythm and keep your other hand still near the spindle.',
+      ],
+    },
+  },
+  {
+    id: 'fireLit',
+    title: 'Light the fire',
+    instruction: 'Carry the ember to the tinder and wave an open hand over it until flames catch.',
+    doneMessage: 'Fire! You made it from nothing but friction.',
+    teach: 'fire',
+    done: litFire,
+    hint: {
+      ref: 'dryGrass',
+      levels: [
+        'An ember needs air.',
+        'Wave an open palm over it, steadily.',
+        'It sits in the tinder in your fire pit.',
+        'Hold your open hand over the ember and wave it back and forth.',
+      ],
+    },
+  },
+  {
+    id: 'pot',
+    title: 'Make a clay pot',
+    instruction: 'Mix clay with sand, shape a pot at the workbench, let it dry, then fire it in your fire.',
+    doneMessage: 'Fired clay holds water for good.',
+    substeps: (g) => [
+      sub('Clay and sand', g.flag('potFired') || (g.gatheredCount('clay') >= 2 && g.gatheredCount('sand') > 0)),
+      sub('Shape it and let it dry', g.flag('potDry') || g.flag('potFired')),
+      sub('Fire it in the flames', g.flag('potFired')),
+    ],
+    done: (g) => g.flag('potFired'),
+    implied: cleanWater,
+    hint: {
+      ref: 'clay',
+      levels: [
+        'You need something that holds water and can sit in a fire.',
+        'Sticky earth for shaping, plus gritty sand so it does not crack.',
+        'Streams drop clay and sand where the water slows on a bend.',
+        'Make the pot at the workbench, wait for it to dry, then set it in the fire.',
+      ],
+    },
+  },
+  {
+    id: 'charcoal',
+    title: 'Make charcoal',
+    instruction: 'Dig a pit, stack wood in it, cover it with earth and watch the smoke.',
+    doneMessage: 'Charcoal: wood burned with little air.',
+    done: (g) => g.flag('charcoalMade'),
+    implied: cleanWater,
+    hint: {
+      ref: 'logs',
+      levels: [
+        'Wood burned with very little air turns black and hard.',
+        'Cover the burning wood so air cannot get in.',
+        'Dig away from the stream where the ground is dry.',
+        'Dig, stack, cover, then open the mound when the smoke turns thin and blue.',
+      ],
+    },
+  },
+  {
+    id: 'cleanWater',
+    title: 'Make safe water',
+    instruction: 'Build a filter, pour stream water through it, then boil it on your fire.',
+    doneMessage: 'Clear is not the same as safe. Boiling did the real work.',
+    teach: 'build',
+    explains: true,
+    done: cleanWater,
+    hint: {
+      ref: 'gravel',
+      levels: [
+        'Water must be strained and then boiled.',
+        'Filter layers from the bottom: cloth, charcoal, sand, gravel.',
+        'Build it beside the stream.',
+        'Fill your fired pot, tilt it over the filter, then boil what comes through.',
+      ],
+    },
+  },
+  {
+    id: 'shelter',
+    title: 'Build a shelter',
+    instruction: 'Choose dry, flat ground, raise a sloped roof, add a bed and turn the opening from the wind.',
+    doneMessage: 'A roof, a bed and a wall against the wind.',
+    teach: 'build',
+    explains: true,
+    substeps: (g) => [
+      sub('A safe, dry spot', g.hasEvent('shelter.site.chosen')),
+      sub('A roof that keeps rain off', g.hasEvent('shelter.roof.covered')),
+      sub('A bed between you and the ground', g.hasEvent('shelter.bed.insulated')),
+      sub('The opening away from the wind', g.hasEvent('shelter.wind.blocked')),
+    ],
+    done: (g) =>
+      g.hasEvent('shelter.site.chosen') &&
+      g.hasEvent('shelter.roof.covered') &&
+      g.hasEvent('shelter.bed.insulated') &&
+      g.hasEvent('shelter.wind.blocked'),
+    hint: {
+      ref: 'greenBranch',
+      levels: [
+        'A shelter keeps off rain, cold ground and wind.',
+        'It needs a sloped roof, a dry bed and an opening away from the wind.',
+        'Raised, flat ground, away from the stream and dead branches.',
+        'Choose Shelter in the build book and fill each mark.',
+      ],
+    },
+  },
+  {
+    id: 'science',
+    title: 'Visit the Science Roadmap',
+    instruction: 'Follow the rusted mast to the ruins and touch the Science Roadmap.',
+    doneMessage: 'Everything you did was an experiment. You can survive here.',
+    done: (g) => g.flag('finale'),
+    hint: {
+      levels: [
+        'Someone carved a map of science into stone.',
+        'It stands among old ruins.',
+        'Look for a rusted mast.',
+        'Walk to the ruins and touch the map.',
+      ],
+    },
+  },
+];
+
+const BY_ID = new Map(OBJECTIVES.map((o) => [o.id, o]));
+export const objectiveById = (id: string): Objective | undefined => BY_ID.get(id);
+
+// -------------------------------------------------------------- the card
+
+export interface ObjectiveView {
+  id: string;
+  title: string;
+  instruction: string;
+  progress: { have: number; need: number } | null;
+  substeps: Array<{ text: string; done: boolean }>;
+  /** A control to teach right now (first time only). */
+  tip: string | null;
+  /** Why the last build attempt failed. */
+  feedback: string | null;
+  /** The just-finished objective's message while it is celebrated. */
+  celebrating: { title: string; message: string } | null;
+  /** 1-based number in the sequence, and how many there are. */
+  step: number;
+  total: number;
+  hintLevel: number;
+}
+
+export interface ObjectivesSave {
+  v: 1;
+  index: number;
+  completed: string[];
+  bases: Record<string, number>;
+  learned: string[];
+  hints: Record<string, number>;
+  done: boolean;
+  closed: boolean;
+}
+
+export class ObjectiveTracker {
+  /** Index into OBJECTIVES of the current objective. */
+  index = 0;
+  readonly completed: string[] = [];
+  private bases: Record<string, number> = {};
+  private learned = new Set<InteractionId>();
+  private hints: Record<string, number> = {};
+  done = false;
+  /** The player closed the card (kept so a reload does not reopen it). */
+  closed = false;
+  private celebrate: { id: string; left: number } | null = null;
+  private feedback: { text: string; left: number } | null = null;
+
+  constructor(
+    private readonly game: Game,
+    private readonly emit: (e: GameEvent) => void,
+  ) {
+    this.begin(0);
+  }
+
+  get current(): Objective | null {
+    return this.done ? null : (OBJECTIVES[this.index] ?? null);
+  }
+
+  /** Close or reopen the card. Only the card changes: nothing is paused, reset or forgotten. */
+  setClosed(closed: boolean): void {
+    this.closed = closed;
+  }
+
+  hasLearned(id: InteractionId): boolean {
+    return this.learned.has(id);
+  }
+
+  learn(id: InteractionId): void {
+    if (this.learned.has(id)) return;
+    this.learned.add(id);
+    this.game.log.add(`learned interaction: ${id}`);
+    this.update();
+  }
+
+  /** Called with every game event: learns controls from what the player does. */
+  observe(e: GameEvent): void {
+    switch (e.type) {
+      case 'gather':
+        this.learned.add('grab');
+        if (e.tool) this.learned.add('tool');
+        break;
+      case 'held':
+        if (e.item) this.learned.add('grab');
+        break;
+      case 'structure':
+        this.learned.add('build');
+        if (e.structure.spots.some((v) => v !== null) || e.structure.keyPlaced) this.learned.add('place');
+        break;
+      case 'bench':
+        if (e.state === 'start') this.learned.add('bench');
+        break;
+      case 'fire':
+        if (e.stage !== 'cold') this.learned.add('fire');
+        break;
+      case 'toast':
+        if (e.kind === 'bad' && this.current?.explains) this.feedback = { text: e.text, left: FEEDBACK_SECONDS };
+        break;
+    }
+  }
+
+  /** Begin objective `i`: remember where progress counts from. */
+  private begin(i: number, legacy = false): void {
+    const o = OBJECTIVES[i];
+    if (!o) return;
+    this.bases[o.id] = legacy ? (o.legacyBase ?? 0) : (o.baseline?.(this.game) ?? 0);
+  }
+
+  private isDone(o: Objective): boolean {
+    return o.done(this.game, this.bases[o.id] ?? 0) || (o.implied?.(this.game) ?? false);
+  }
+
+  /** Check the current objective; advance (and save-worthy state changes) at once. */
+  update(): void {
+    let celebrated = false;
+    while (this.current && this.isDone(this.current)) {
+      const o = this.current;
+      this.completed.push(o.id);
+      this.index++;
+      this.feedback = null;
+      if (this.index >= OBJECTIVES.length) this.done = true;
+      else this.begin(this.index);
+      this.game.log.add(`objective complete: ${o.id}`, 'ok');
+      // Several finished at once (progress made ahead of time): celebrate the first only.
+      if (!celebrated) {
+        celebrated = true;
+        this.celebrate = { id: o.id, left: CELEBRATE_SECONDS };
+        this.emit({ type: 'objectiveDone', id: o.id, message: o.doneMessage });
+      }
+    }
+    if (celebrated) this.emit({ type: 'objective', id: this.current?.id ?? null });
+  }
+
+  tick(dt: number): void {
+    if (this.feedback && (this.feedback.left -= dt) <= 0) this.feedback = null;
+    if (this.celebrate && (this.celebrate.left -= dt) <= 0) {
+      this.celebrate = null;
+      this.emit({ type: 'objective', id: this.current?.id ?? null });
+    }
+    this.update();
+  }
+
+  /** What the card shows now, or null once the tutorial is over. */
+  view(): ObjectiveView | null {
+    const g = this.game;
+    const total = OBJECTIVES.length;
+    if (this.celebrate) {
+      const o = objectiveById(this.celebrate.id)!;
+      return {
+        id: o.id,
+        title: o.title,
+        instruction: '',
+        progress: null,
+        substeps: [],
+        tip: null,
+        feedback: null,
+        celebrating: { title: o.title, message: o.doneMessage },
+        step: OBJECTIVES.indexOf(o) + 1,
+        total,
+        hintLevel: this.hintLevel(o.id),
+      };
+    }
+    const o = this.current;
+    if (!o) return null;
+    return {
+      id: o.id,
+      title: o.title,
+      instruction: typeof o.instruction === 'function' ? o.instruction(g) : o.instruction,
+      progress: o.progress ? o.progress(g, this.bases[o.id] ?? 0) : null,
+      substeps: o.substeps ? o.substeps(g) : [],
+      tip: o.teach && !this.learned.has(o.teach) ? TEACH[o.teach] : null,
+      feedback: this.feedback?.text ?? null,
+      celebrating: null,
+      step: this.index + 1,
+      total,
+      hintLevel: this.hintLevel(o.id),
+    };
+  }
+
+  // ---------------------------------------------------------------- hints
+
+  hintLevel(id: string): number {
+    return this.hints[id] ?? 0;
+  }
+
+  /** Unlock the next hint level (1..4) of an objective and return the level now open. */
+  unlockHint(id: string): number {
+    const level = Math.min(4, this.hintLevel(id) + 1);
+    this.hints[id] = level;
+    return level;
+  }
+
+  // ----------------------------------------------------------- save / load
+
+  snapshot(): ObjectivesSave {
+    return {
+      v: 1,
+      index: this.index,
+      completed: [...this.completed],
+      bases: { ...this.bases },
+      learned: [...this.learned],
+      hints: { ...this.hints },
+      done: this.done,
+      closed: this.closed,
+    };
+  }
+
+  /**
+   * Restore from a save. A save without objectives (made before this layer)
+   * is migrated from the state it already has: every objective already
+   * satisfied is marked done, silently, so finished tutorials never restart.
+   */
+  restore(s: ObjectivesSave | undefined): void {
+    this.completed.length = 0;
+    this.celebrate = null;
+    this.feedback = null;
+    if (s) {
+      this.index = Math.max(0, Math.min(OBJECTIVES.length, s.index));
+      this.completed.push(...s.completed);
+      this.bases = { ...s.bases };
+      this.learned = new Set(s.learned as InteractionId[]);
+      this.hints = { ...s.hints };
+      this.done = s.done || this.index >= OBJECTIVES.length;
+      this.closed = !!s.closed;
+      this.update();
+      return;
+    }
+    this.index = 0;
+    this.bases = {};
+    this.done = false;
+    this.begin(0, true);
+    while (this.current && this.isDone(this.current)) {
+      const o = this.current;
+      this.completed.push(o.id);
+      if (o.teach) this.learned.add(o.teach);
+      this.index++;
+      if (this.index >= OBJECTIVES.length) this.done = true;
+      else this.begin(this.index, true);
+    }
+  }
+}
+
+/**
+ * The card's content once the beginner objectives are over (and for a closed
+ * tutorial): the existing quest's current step, in the same compact shape.
+ */
+export function questView(g: Game): ObjectiveView | null {
+  const q = g.quest;
+  if (!q) return null;
+  const cur = g.currentStep();
+  const idx = QUESTS.indexOf(q);
+  return {
+    id: 'quest',
+    title: q.title,
+    instruction: cur ? cur.step.text(g).replace(/[✓·]/g, '').trim() : q.desc,
+    progress: null,
+    substeps: [],
+    tip: null,
+    feedback: null,
+    celebrating: null,
+    step: idx + 1,
+    total: QUESTS.length,
+    hintLevel: 0,
+  };
+}
+
+/** What the objective card shows: a beginner objective, then the quest chain. */
+export function cardView(g: Game): ObjectiveView | null {
+  return g.objectives.view() ?? questView(g);
+}

@@ -37,6 +37,7 @@ const GUIDE_CODE_FOR: Partial<Record<GuideFailureCode, string>> = {
   'knap.badAngle': 'knap.angleTooSteep',
   'cord.sameDirection': 'twist.sameDirection',
 };
+import { ObjectiveTracker, type ObjectivesSave } from './objectives.js';
 import { QUESTS, type QuestStep } from './quests.js';
 import { LANDMARKS, type Landmark } from './world-layout.js';
 
@@ -65,6 +66,8 @@ export type GameEvent =
   | { type: 'held'; item: ItemId | null }
   | { type: 'structure'; structure: PlacedStructure }
   | { type: 'quest'; index: number }
+  | { type: 'objective'; id: string | null }
+  | { type: 'objectiveDone'; id: string; message: string }
   | { type: 'questComplete'; index: number; title: string; roadmapNode: string | null }
   | { type: 'levelComplete'; level: number; name: string; next: GameLevel | null }
   | { type: 'discovered'; landmark: Landmark }
@@ -157,6 +160,8 @@ export class Game {
   readonly discovered = new Set<string>(LANDMARKS.filter((l) => l.known).map((l) => l.id));
   readonly log: EventLog;
   readonly fire = new FireState(this);
+  /** Beginner objectives: one at a time, over the existing quests (objectives.ts). */
+  readonly objectives: ObjectiveTracker = new ObjectiveTracker(this, (e) => this.emit(e));
   /** Level 2: pot, charcoal and water purification (water.ts). */
   readonly water = new WaterState(this);
   /** Level 3: fishing, cooking and farming (food.ts). */
@@ -190,6 +195,7 @@ export class Game {
   }
 
   private emit(e: GameEvent): void {
+    this.objectives?.observe(e);
     for (const l of this.listeners) l(e);
   }
 
@@ -614,6 +620,7 @@ export class Game {
 
   tick(dt: number): void {
     this.time += dt;
+    this.objectives.tick(dt);
     this.fire.tick(dt);
     this.water.tick(dt);
     this.food.tick(dt);
@@ -1248,6 +1255,7 @@ export class Game {
         this.emit({ type: 'levelComplete', level: before.n, name: before.name, next: before.n < GAME_LEVELS.length ? GAME_LEVELS[before.n] : null });
       }
     }
+    this.objectives.update();
     this.emit({ type: 'quest', index: this.questIndex });
   }
 
@@ -1349,6 +1357,7 @@ export class Game {
       drops: this.drops.map((d) => ({ ...d })),
       toolUses: Object.fromEntries(this.toolUses),
       fire: this.fire.snapshot(),
+      objectives: this.objectives.snapshot(),
       env: this.env.snapshot(),
     };
   }
@@ -1383,6 +1392,7 @@ export class Game {
     // Saves from before the day/night clock: wake up in the morning, not at whatever hour the play time implies.
     if (!data.env) g.env.hourOffset = -(((g.time / g.env.dayLength) * 24) % 24);
     g.held = data.held && data.held in ITEMS ? data.held : null;
+    g.objectives.restore(data.objectives);
     return g;
   }
 }
@@ -1390,6 +1400,8 @@ export class Game {
 export interface SaveData {
   v: 1;
   fire?: FireSave;
+  /** Beginner objectives; absent in older saves (migrated from the rest of the state). */
+  objectives?: ObjectivesSave;
   env?: EnvironmentSave;
   packUpgrades?: string[];
   drops?: WorldDrop[];

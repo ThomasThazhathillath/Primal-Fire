@@ -1,0 +1,58 @@
+<!--
+  The objective card: ONE current objective, compact, near the top of view.
+  Fixed height so the two header buttons (hint, close) sit at known spots for
+  fingertip taps (ObjectiveCardSystem). The celebrate row replaces the body for
+  a moment when an objective is finished. Texts are filled in by the system.
+-->
+<style>
+  .root { flex-direction: column; width: 520px; height: 190px; padding-top: 14px; padding-bottom: 12px; padding-left: 18px; padding-right: 14px; gap: 6px; justify-content: flex-start; }
+  .head { flex-direction: row; align-items: center; justify-content: space-between; height: 44px; flex-shrink: 0; }
+  .titlebox { flex-direction: column; width: 380px; }
+  .eyebrow { color: #8a5a00; font-size: 12px; font-weight: 700; letter-spacing: 1.5px; }
+  .eyebrow:dark { color: #ffb547; }
+  .title { color: #1c1d20; font-size: 24px; font-weight: 700; }
+  .title:dark { color: #f3eadb; }
+  .btns { flex-direction: row; gap: 4px; }
+  .body { flex-direction: column; gap: 6px; flex-shrink: 0; }
+  .instr { color: #2a2620; font-size: 18px; line-height: 1.25; width: 480px; }
+  .instr:dark { color: #e4d9c6; }
+  .prow { flex-direction: row; align-items: center; gap: 12px; flex-shrink: 0; }
+  .ptext { color: #8a5a00; font-size: 20px; font-weight: 700; }
+  .ptext:dark { color: #ffb547; }
+  .bar { height: 8px; width: 330px; background-color: #3a3128; border-radius: 4px; }
+  .fill { height: 8px; width: 0px; background-color: #ffb547; border-radius: 4px; }
+  .subs { color: #55504a; font-size: 16px; line-height: 1.3; width: 480px; }
+  .subs:dark { color: #cdbfa8; }
+  .note { color: #8a5a00; font-size: 15px; line-height: 1.25; width: 480px; }
+  .note:dark { color: #ffd27a; }
+  .bad { color: #a8321c; font-size: 16px; font-weight: 700; line-height: 1.25; width: 480px; }
+  .bad:dark { color: #ff9a7a; }
+  .cele { flex-direction: row; align-items: center; gap: 14px; background-color: #1f5c2e; border-radius: 12px; padding: 12px; display: none; flex-shrink: 0; }
+  .celetext { color: #ffffff; font-size: 20px; font-weight: 700; line-height: 1.25; width: 400px; }
+</style>
+<Panel class="root">
+  <div class="head">
+    <div class="titlebox">
+      <div id="obj-step" class="eyebrow">OBJECTIVE</div>
+      <div id="obj-title" class="title">Find your first stone</div>
+    </div>
+    <div class="btns">
+      <Button id="obj-hint" size="sm" variant="secondary"><ButtonIcon><Lightbulb></Lightbulb></ButtonIcon></Button>
+      <Button id="obj-close" size="sm" variant="secondary"><ButtonIcon><X></X></ButtonIcon></Button>
+    </div>
+  </div>
+  <div id="obj-body" class="body">
+    <div id="obj-instr" class="instr">-</div>
+    <div id="obj-prow" class="prow">
+      <div id="obj-ptext" class="ptext">0 / 1</div>
+      <div class="bar"><div id="obj-fill" class="fill"></div></div>
+    </div>
+    <div id="obj-subs" class="subs"> </div>
+    <div id="obj-note" class="note"> </div>
+    <div id="obj-bad" class="bad"> </div>
+  </div>
+  <div id="obj-cele" class="cele">
+    <Button id="obj-check" size="sm" variant="secondary"><ButtonIcon><Check></Check></ButtonIcon></Button>
+    <div id="obj-cele-text" class="celetext">-</div>
+  </div>
+</Panel>

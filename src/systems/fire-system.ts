@@ -29,7 +29,9 @@ import {
 import type { GameEvent } from '../game/game.js';
 import { FirePitSpot } from '../components/game-components.js';
 import { flameGeometry, flameMaterial, glowMaterial, smokeMaterial } from './fire-fx.js';
-import { getGame } from './shared.js';
+import { BowDrillMotion, DRILL, fanStrength, Reciprocation } from '../game/gestures.js';
+import { hands } from './hand-input-system.js';
+import { getGame, handClaims } from './shared.js';
 
 const SPARKS = 24;
 const FLAMES = 4;
@@ -37,14 +39,14 @@ const SMOKE = 8;
 /** Hand must be this close (m, horizontal) to the pit to saw, fan or drop the ember. */
 const WORK_RADIUS = 1.2;
 const TRANSFER_RADIUS = 0.45;
-/** Fanning needs a hand moving at least this fast (m/s) over the pit. */
-const FAN_MIN_SPEED = 0.6;
 
 const emberMat = new MeshBasicMaterial({ color: 0xff6a1a });
 
 export class FireSystem extends createSystem({
   pitPressed: { required: [FirePitSpot, Pressed] },
 }) {
+  private drill = new BowDrillMotion();
+  private fans = [new Reciprocation(), new Reciprocation()];
   private root = new Group();
   private pitEntity: Entity | null = null;
   private pitPos = new Vector3();
@@ -65,10 +67,6 @@ export class FireSystem extends createSystem({
   private sparkLife = new Float32Array(SPARKS);
   private carried: Mesh | null = null;
   private t = 0;
-  private hands = [
-    { prev: new Vector3(), cur: new Vector3(), has: false },
-    { prev: new Vector3(), cur: new Vector3(), has: false },
-  ];
   private shownLay = '';
 
   init(): void {
@@ -184,14 +182,6 @@ export class FireSystem extends createSystem({
     }
   }
 
-  private handsRaw(): Object3D[] {
-    if (this.world.visibilityState.peek() === VisibilityState.NonImmersive) return [];
-    const out: Object3D[] = [];
-    if (this.player.gripSpaces.left) out.push(this.player.gripSpaces.left);
-    if (this.player.gripSpaces.right) out.push(this.player.gripSpaces.right);
-    return out;
-  }
-
   private setCarried(on: boolean): void {
     if (on && !this.carried) {
       this.carried = new Mesh(new SphereGeometry(0.018, 8, 6), emberMat);
@@ -212,28 +202,37 @@ export class FireSystem extends createSystem({
     this.setCarried(fire.carrying);
     if (this.carried) emberMat.color.setHex(Math.sin(this.t * 14) > 0 ? 0xff7a28 : 0xff4a10);
 
-    // Hand motion: sawing (drill in hand, near the pit) and fanning (empty hand over embedded ember).
-    const grips = this.handsRaw();
-    for (let i = 0; i < grips.length; i++) {
-      const h = this.hands[i];
-      grips[i].getWorldPosition(h.cur);
-      if (h.has) {
-        const dist = h.cur.distanceTo(h.prev);
-        const dx = h.cur.x - this.pitPos.x;
-        const dz = h.cur.z - this.pitPos.z;
-        const near = Math.hypot(dx, dz);
-        if (fire.carrying && near < TRANSFER_RADIUS && h.cur.y < 0.9) fire.transferEmber();
-        else if (near < WORK_RADIUS && dist < 0.5) {
-          if (game.held === 'bowDrill' && h.cur.y < 1.2) fire.saw(dist, delta);
-          else if (fire.embedded && near < 0.8 && h.cur.y > 0.2 && h.cur.y < 1.1 && dist / delta >= FAN_MIN_SPEED) {
-            fire.fan(Math.min(1, dist / delta / 2), delta);
-          }
-        }
+    // Hand motion (filtered, once a frame in HandInputSystem): the bow hand saws back and forth while the
+    // other hand steadies the spindle; an empty hand waved over an embedded ember fans it.
+    const vr = this.world.visibilityState.peek() !== VisibilityState.NonImmersive;
+    const driving = game.held === 'bowDrill' && fire.layBuilt && fire.stage === 'lay' && !fire.carrying;
+    for (let i = 0; i < 2 && vr; i++) {
+      const h = hands[i];
+      if (!h.tracked) {
+        this.fans[i].reset();
+        continue;
       }
-      h.prev.copy(h.cur);
-      h.has = true;
+      const near = Math.hypot(h.pos.x - this.pitPos.x, h.pos.z - this.pitPos.z);
+      if (fire.carrying && near < TRANSFER_RADIUS && h.pos.y < 0.9) {
+        fire.transferEmber();
+        continue;
+      }
+      const bowHand = driving && i === handClaims.holdHand;
+      if (bowHand) {
+        if (near < WORK_RADIUS && h.pos.y < 1.2) {
+          const other = hands[1 - i];
+          const steadyDist = other.tracked ? Math.hypot(other.pos.x - this.pitPos.x, other.pos.z - this.pitPos.z) : Infinity;
+          const k = this.drill.update(delta, h.motion.vel.x, h.motion.vel.z, steadyDist, other.motion.speed);
+          const dist = Math.min(h.motion.speed, DRILL.maxSpeed) * delta;
+          fire.saw(dist, delta, k);
+        } else this.drill.reset();
+      } else if (fire.embedded && game.held !== 'bowDrill' && near < 0.8 && h.pos.y > 0.2 && h.pos.y < 1.1) {
+        const r = this.fans[i].update(delta, h.motion.vel.x, h.motion.vel.y, h.motion.vel.z);
+        const strength = fanStrength(h.motion.speed, r);
+        if (strength > 0) fire.fan(strength, delta);
+      } else this.fans[i].reset();
     }
-    for (let i = grips.length; i < 2; i++) this.hands[i].has = false;
+    if (!driving) this.drill.reset();
 
     this.animate(delta, fire.intensity, fire.embedded, fire.heat);
   }

@@ -11,7 +11,9 @@
 //       view); G drops it, Shift+G throws it.
 
 import { Box3, createSystem, Group, type Object3D, Quaternion, Vector3, VisibilityState } from '@iwsdk/core';
+import { tiltDegrees } from '../game/gestures.js';
 import { throwImpulse } from '../game/handmotion.js';
+import { distanceToAxis, TwoHandGrip, TwoHandPose } from '../game/twohand.js';
 import { followStiffness, springStep, VelocityTracker } from '../game/carry.js';
 import type { GameEvent } from '../game/game.js';
 import { ITEM_PHYSICS, ITEMS, twoHanded, type ItemId } from '../game/items.js';
@@ -19,6 +21,7 @@ import { itemMesh } from '../scene-assets/item-meshes.js';
 import { hands } from './hand-input-system.js';
 import { releaseKind, restHeight } from '../game/pinch.js';
 import { groundHeight } from '../game/world-layout.js';
+import { spotWorldPosition } from '../game/blueprint.js';
 import { getGame, getUi, handClaims, hipPosition, pendingRelease, pickupFrom } from './shared.js';
 
 /** Desktop hold poses in camera space. */
@@ -45,6 +48,10 @@ export class CarrySystem extends createSystem({}) {
   /** Desktop one-hand pose in camera space: pointing forward, tipped up a little. */
   private deskR = new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), 0.6).multiply(this.alongHand);
   private tracker = new VelocityTracker();
+  /** Which hands hold the carried thing, and the pose two hands give it. */
+  private grip = new TwoHandGrip();
+  private pose = new TwoHandPose();
+  private axis = { x: 1, y: 0, z: 0 };
   private clock = 0;
   private reachT = 1;
   private hidden = false;
@@ -107,6 +114,8 @@ export class CarrySystem extends createSystem({}) {
     if (!hands[this.hold].tracked) this.hold = 1;
     handClaims.holdHand = this.hold;
     handClaims.grabbing[this.hold] = true;
+    this.grip.reset(this.hold);
+    this.pose.seed({ x: 1, y: 0, z: 0 }, { x: 0, y: 1, z: 0 });
     this.obj = this.build(item);
     this.obj.visible = !this.hidden;
     this.root.add(this.obj);
@@ -133,11 +142,11 @@ export class CarrySystem extends createSystem({}) {
       const l = hands[1 - this.hold];
       // Tracking lost: stay frozen at the last pose (no gestures, no release) until it returns.
       if (!r.tracked && this.hasPose) return this.lastN;
-      if (two && l.tracked && r.tracked) {
-        this.target.addVectors(l.pos, r.pos).multiplyScalar(0.5);
-        this.tmp.subVectors(hands[1].pos, hands[0].pos).setY(0);
-        if (this.tmp.lengthSq() < 1e-4) this.tmp.set(1, 0, 0);
-        this.targetQ.setFromUnitVectors(this.xAxis, this.tmp.normalize());
+      if (two && this.grip.count === 2 && l.tracked && r.tracked) {
+        // Both hands on it: position and rotation from the two hand points (full 3D, no flips).
+        this.pose.update(hands[0].pos, hands[1].pos);
+        this.target.set(this.pose.mid.x, this.pose.mid.y, this.pose.mid.z);
+        this.targetQ.set(this.pose.q.x, this.pose.q.y, this.pose.q.z, this.pose.q.w);
         this.hasPose = true;
         return (this.lastN = 2);
       }
@@ -195,10 +204,12 @@ export class CarrySystem extends createSystem({}) {
     if (this.immersive() && !throwIt) {
       const t = game.placementTarget(item, p.x, p.z, 0.5);
       if (t && game.held === item) {
+        // Brought near a build point and let go: it snaps onto the mark (no fine positioning).
+        const mark = spotWorldPosition(t.structure, t.index);
         const seated =
           t.index >= 0
-            ? game.fillSpot(t.structure.id, t.index, undefined, { x: p.x, z: p.z })
-            : game.placeKey(t.structure.id, p.x, p.z, hands[0].grip && hands[1].grip ? 2 : 1);
+            ? game.fillSpot(t.structure.id, t.index, undefined, { x: mark.x, z: mark.z })
+            : game.placeKey(t.structure.id, mark.x, mark.z, this.grip.count >= 2 ? 2 : 1);
         if (seated) return;
       }
     }
@@ -237,10 +248,36 @@ export class CarrySystem extends createSystem({}) {
     // Rotation follows too, slower for heavy things.
     this.obj.quaternion.slerp(this.targetQ, Math.min(1, dt * (30 / (1 + ITEMS[this.item].weight))));
     this.tracker.push(this.obj.position, this.clock);
-    // VR: opening the squeeze lets go (throws with the hand's speed).
-    if (this.immersive()) {
-      const two = twoHanded(this.item);
-      if (hands[this.hold].squeezeUp || (two && hands[1 - this.hold].squeezeUp)) this.release(this.item, false);
+    const q = this.obj.quaternion;
+    handClaims.heldPos.copy(this.obj.position);
+    handClaims.heldTilt = this.item === 'pot' ? tiltDegrees(1 - 2 * (q.x * q.x + q.z * q.z)) : 0;
+    if (!this.immersive()) return;
+    const two = twoHanded(this.item);
+    // The other hand pinches near a heavy / long thing: it takes hold too.
+    const other = (1 - this.hold) as 0 | 1;
+    const o = hands[other];
+    if (two && o.gripDown && o.tracked) {
+      this.axis.x = 1 - 2 * (q.y * q.y + q.z * q.z);
+      this.axis.y = 2 * (q.x * q.y + q.z * q.w);
+      this.axis.z = 2 * (q.x * q.z - q.y * q.w);
+      const at = o.tipTracked ? o.pinchPos : o.pos;
+      const d = distanceToAxis(at, this.obj.position, this.axis, ITEM_PHYSICS[this.item].size[0] / 2);
+      if (this.grip.engage(other, true, d)) {
+        handClaims.grabbing[other] = true;
+        getGame(this.world).log.add(`second hand on ${this.item}`);
+      }
+    }
+    // Opening a pinch lets go of that hand's hold; the other hand, if any, keeps it.
+    for (let h = 0; h < 2; h++) {
+      if (!hands[h].squeezeUp || !this.grip.holding[h]) continue;
+      if (this.grip.open(h as 0 | 1)) {
+        this.release(this.item, false);
+        return;
+      }
+      handClaims.grabbing[h] = false;
+      getGame(this.world).log.add(`hand ${h} let go of ${this.item}, hand ${this.grip.primary} still holds it`);
+      this.hold = this.grip.primary < 0 ? this.hold : (this.grip.primary as 0 | 1);
+      handClaims.holdHand = this.hold;
     }
   }
 }

@@ -141,12 +141,12 @@ export class FireState {
   // ----------------------------------------------------------- the ember
 
   /** Hand travel while sawing the bow drill: call each frame with metres moved and dt. */
-  saw(distance: number, dt: number): void {
+  saw(distance: number, dt: number, scale = 1): void {
     const g = this.game;
     if (g.held !== 'bowDrill' || !this.layBuilt || this.stage !== 'lay' || this.carrying) return;
     const speed = dt > 0 ? distance / dt : 0;
     if (speed >= SAW_MIN_SPEED) {
-      this.heat = Math.min(1, this.heat + distance * SAW_HEAT_PER_M);
+      this.heat = Math.min(1, this.heat + distance * SAW_HEAT_PER_M * scale);
       if (this.heat >= 1) this.makeEmber();
     }
   }

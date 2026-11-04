@@ -216,4 +216,7 @@ export const handClaims = {
   /** Hand that holds the carried object, and when the last direct grab / pickup happened. */
   holdHand: 1 as 0 | 1,
   grabAt: -10,
+  /** Tilt (degrees from upright) and world position of the carried object, written by CarrySystem each frame. */
+  heldTilt: 0,
+  heldPos: new Vector3(),
 };

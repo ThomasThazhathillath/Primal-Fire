@@ -22,7 +22,9 @@ import {
 } from '@iwsdk/core';
 import type { FoodAction } from '../game/food.js';
 import type { WaterAction } from '../game/water.js';
-import { getGame } from './shared.js';
+import { PourState, pourRate } from '../game/gestures.js';
+import { groundHeight } from '../game/world-layout.js';
+import { getGame, handClaims } from './shared.js';
 
 /** Seconds a hand must stay at the spot to act in VR. */
 const DWELL = 0.8;
@@ -120,10 +122,13 @@ export class WaterSystem extends createSystem({}) {
       if (label) g.toast(vr ? `Reach out: ${label}` : `U: ${label}`, 'info');
     }
 
+    // VR: tilt the pot to pour; the angle sets the flow and the amount.
+    if (vr) this.pour(delta);
+
     if (act?.kind === 'food' && act.a.id === 'cook') {
       // Cooking is continuous: hold the fish over the flames (or hold U).
       if (vr ? this.reaching(act.a.at) : this.keyDown) g.food.cookOver(delta);
-    } else if (act) {
+    } else if (act && !(vr && act.kind === 'water' && act.a.id === 'pourFilter')) {
       let fire = false;
       if (vr) {
         this.dwell = this.reaching(act.a.at) ? this.dwell + delta : 0;
@@ -138,6 +143,37 @@ export class WaterSystem extends createSystem({}) {
     }
     this.pressed = false;
     this.drawFx();
+  }
+
+  private pourState = new PourState();
+  private splashT = 0;
+  private lastWater = '';
+
+  /** Tipping a held pot: it runs while the rim dips; emptied over a filter it fills it, anywhere else it is poured out. */
+  private pour(delta: number): void {
+    const g = getGame(this.world);
+    const w = g.water.potWater;
+    if (w !== this.lastWater) {
+      this.lastWater = w;
+      this.pourState.refill();
+    }
+    if (g.held !== 'pot' || !g.flag('potFired') || w === 'empty') return;
+    const tilt = handClaims.heldTilt;
+    const out = this.pourState.step(delta, tilt);
+    if (out > 0) {
+      // A stream under the rim: splashes on whatever is below, more when it runs harder.
+      this.splashT -= delta;
+      if (this.splashT <= 0) {
+        this.splashT = 0.12;
+        const p = handClaims.heldPos;
+        g.contact('water', 'soil', p.x, groundHeight(p.x, p.z) + 0.02, p.z, 0.4 + pourRate(tilt) * 3);
+      }
+    }
+    if (!this.pourState.empty) return;
+    const filter = g.water.filterNear();
+    if (w === 'raw' && filter) g.water.perform('pourFilter');
+    else g.water.pourOut();
+    this.pourState.refill();
   }
 
   private drawFx(): void {

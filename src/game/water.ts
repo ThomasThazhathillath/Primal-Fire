@@ -194,6 +194,15 @@ export class WaterState {
     return pit ? { x: pit.x, z: pit.z } : null;
   }
 
+  /** Tipping the pot out: whatever it held is gone. */
+  pourOut(): boolean {
+    if (this.potWater === 'empty') return false;
+    this.potWater = 'empty';
+    this.boil = 0;
+    this.g.toast('You poured the water out.', 'note');
+    return true;
+  }
+
   /** Performs an action the player chose (the input layer checks `available` first). */
   perform(id: WaterAction['id'], at = this.g.player): boolean {
     const g = this.g;

@@ -13,7 +13,7 @@
 import { Box3, createSystem, Group, type Object3D, Quaternion, Vector3, VisibilityState } from '@iwsdk/core';
 import { tiltDegrees } from '../game/gestures.js';
 import { throwImpulse } from '../game/handmotion.js';
-import { distanceToAxis, TwoHandGrip, TwoHandPose } from '../game/twohand.js';
+import { distanceToAxis, GripBlend, TwoHandGrip, TwoHandPose } from '../game/twohand.js';
 import { followStiffness, springStep, VelocityTracker } from '../game/carry.js';
 import type { GameEvent } from '../game/game.js';
 import { ITEM_PHYSICS, ITEMS, twoHanded, type ItemId } from '../game/items.js';
@@ -62,6 +62,8 @@ export class CarrySystem extends createSystem({}) {
   /** A hand pose has been read since pickup, so tracking loss can freeze at it. */
   private hasPose = false;
   private lastN = 1;
+  private blend = new GripBlend();
+  private dtNow = 1 / 72;
 
   init(): void {
     const game = getGame(this.world);
@@ -126,6 +128,7 @@ export class CarrySystem extends createSystem({}) {
     this.vel.set(0, 0, 0);
     this.reachT = 0;
     this.hasPose = false;
+    this.blend.reset();
     this.tracker.reset();
     this.computeTarget();
     this.obj.position.copy(this.pos);
@@ -152,12 +155,14 @@ export class CarrySystem extends createSystem({}) {
       }
       if (r.tracked) {
         // Object frame = hand frame turned so the long axis points forward; the grip point sits in the palm.
-        this.targetQ.copy(r.quat).multiply(this.alongHand);
+        // One hand left a two-hand hold: start from the pose it has now and ease to the grip.
+        if (this.lastN === 2 && this.obj) this.blend.begin(r.quat, this.obj.quaternion);
+        this.blend.target(this.dtNow, r.quat, this.alongHand, this.targetQ);
         const g = phys.grips[0];
         this.tmp.set(-g.x, -g.y, -g.z).applyQuaternion(this.targetQ);
         this.target.copy(r.pos).add(this.tmp);
         // A two-handed thing held in one hand hangs low and drags.
-        if (two) this.target.y -= 0.15;
+        if (two) this.target.y -= 0.15 * this.blend.progress;
         this.hasPose = true;
         return (this.lastN = 1);
       }
@@ -232,6 +237,7 @@ export class CarrySystem extends createSystem({}) {
   update(delta: number): void {
     const dt = Math.min(delta, 0.05);
     this.clock += dt;
+    this.dtNow = dt;
     if (!this.obj || !this.item) return;
     const nHands = this.computeTarget();
     if (this.reachT < 1) {

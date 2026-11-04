@@ -170,3 +170,99 @@ export class TwoHandPose {
     }
   }
 }
+
+/** How long (s) a log takes to settle from where it was to the single-hand grip pose. */
+export const GRIP_BLEND = { seconds: 0.4 };
+
+type Q = { x: number; y: number; z: number; w: number };
+
+function mul(a: Q, b: Q, o: Q): Q {
+  const x = a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y;
+  const y = a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x;
+  const z = a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w;
+  const w = a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z;
+  o.x = x;
+  o.y = y;
+  o.z = z;
+  o.w = w;
+  return o;
+}
+
+function slerp(a: Q, b: Q, t: number, o: Q): Q {
+  let bx = b.x;
+  let by = b.y;
+  let bz = b.z;
+  let bw = b.w;
+  let d = a.x * bx + a.y * by + a.z * bz + a.w * bw;
+  if (d < 0) {
+    d = -d;
+    bx = -bx;
+    by = -by;
+    bz = -bz;
+    bw = -bw;
+  }
+  let k0 = 1 - t;
+  let k1 = t;
+  if (d < 0.9995) {
+    const th = Math.acos(d);
+    const sn = Math.sin(th);
+    k0 = Math.sin((1 - t) * th) / sn;
+    k1 = Math.sin(t * th) / sn;
+  }
+  o.x = a.x * k0 + bx * k1;
+  o.y = a.y * k0 + by * k1;
+  o.z = a.z * k0 + bz * k1;
+  o.w = a.w * k0 + bw * k1;
+  const n = Math.hypot(o.x, o.y, o.z, o.w) || 1;
+  o.x /= n;
+  o.y /= n;
+  o.z /= n;
+  o.w /= n;
+  return o;
+}
+
+/**
+ * Releasing one hand of a two-hand hold: the object keeps the pose it has in
+ * the world at that instant, the one-hand grip offset is computed from it
+ * (hand^-1 * object) and then eased to the normal grip over `GRIP_BLEND.seconds`,
+ * so the object never snaps (a log could jump ~40 degrees in one frame).
+ */
+export class GripBlend {
+  /** Object orientation in the hand's frame at the moment of release. */
+  private off: Q = { x: 0, y: 0, z: 0, w: 1 };
+  private tmp: Q = { x: 0, y: 0, z: 0, w: 1 };
+  private inv: Q = { x: 0, y: 0, z: 0, w: 1 };
+  private t = 1;
+
+  get active(): boolean {
+    return this.t < 1;
+  }
+
+  /** 0 at release, 1 once settled. */
+  get progress(): number {
+    return this.t;
+  }
+
+  reset(): void {
+    this.t = 1;
+  }
+
+  /** Call the frame a hand lets go: `handQ` is the remaining hand, `objQ` the object, both in world space. */
+  begin(handQ: Q, objQ: Q): void {
+    this.inv.x = -handQ.x;
+    this.inv.y = -handQ.y;
+    this.inv.z = -handQ.z;
+    this.inv.w = handQ.w;
+    mul(this.inv, objQ, this.off);
+    this.t = 0;
+  }
+
+  /** Target orientation this frame: the hand's pose times the eased grip offset (`rest` when settled). */
+  target(dt: number, handQ: Q, rest: Q, out: Q): Q {
+    if (this.t >= 1) return mul(handQ, rest, out);
+    this.t = Math.min(1, this.t + dt / GRIP_BLEND.seconds);
+    const e = this.t * this.t * (3 - 2 * this.t);
+    slerp(this.off, rest, e, this.tmp);
+    return mul(handQ, this.tmp, out);
+  }
+}

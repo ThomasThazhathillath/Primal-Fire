@@ -91,11 +91,20 @@ export class BowDrillMotion {
   }
 }
 
+export const FAN = {
+  /** Slower hand speed (m/s) than this moves no air. */
+  minSpeed: 0.5,
+  /** Speed range (m/s) above minSpeed over which strength rises to its maximum. */
+  speedRange: 1.6,
+  /** Share of the strength an un-rhythmic hand (a single sweep) still gets; the rest needs back-and-forth waving. */
+  rhythmFloor: 0.4,
+};
+
 /** Fanning: a hand waved over embers. Returns strength 0..1 per second. */
-export function fanStrength(speed: number, rhythm: number): number {
-  if (speed < 0.6) return 0;
-  const sp = Math.min(1, (speed - 0.6) / 1.8);
-  return sp * (0.3 + 0.7 * rhythm);
+export function fanStrength(speed: number, rhythm: number, cfg = FAN): number {
+  if (speed < cfg.minSpeed) return 0;
+  const sp = Math.min(1, (speed - cfg.minSpeed) / cfg.speedRange);
+  return sp * (cfg.rhythmFloor + (1 - cfg.rhythmFloor) * rhythm);
 }
 
 export const POUR = {

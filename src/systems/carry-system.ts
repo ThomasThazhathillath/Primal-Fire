@@ -16,7 +16,7 @@ import { throwImpulse } from '../game/handmotion.js';
 import { distanceToAxis, GripBlend, TwoHandGrip, TwoHandPose } from '../game/twohand.js';
 import { followStiffness, springStep, VelocityTracker } from '../game/carry.js';
 import type { GameEvent } from '../game/game.js';
-import { ITEM_PHYSICS, ITEMS, twoHanded, type ItemId } from '../game/items.js';
+import { carryRules, ITEM_PHYSICS, ITEMS, twoHanded, type ItemId } from '../game/items.js';
 import { itemMesh } from '../scene-assets/item-meshes.js';
 import { hands } from './hand-input-system.js';
 import { releaseKind, restHeight } from '../game/pinch.js';
@@ -35,6 +35,8 @@ const NEAR_BUILD = 3;
 
 export class CarrySystem extends createSystem({}) {
   private root = new Group();
+  /** Both hands held it at some point since it was picked up (letting go one hand first still counts as a two-hand lift). */
+  private hadTwo = false;
   private obj: Object3D | null = null;
   private item: ItemId | null = null;
   private pos = new Vector3();
@@ -120,6 +122,7 @@ export class CarrySystem extends createSystem({}) {
     handClaims.holdHand = this.hold;
     handClaims.grabbing[this.hold] = true;
     this.grip.reset(this.hold);
+    this.hadTwo = false;
     this.pose.seed({ x: 1, y: 0, z: 0 }, { x: 0, y: 1, z: 0 });
     this.obj = this.build(item);
     this.obj.visible = !this.hidden;
@@ -219,7 +222,7 @@ export class CarrySystem extends createSystem({}) {
         const seated =
           t.index >= 0
             ? game.fillSpot(t.structure.id, t.index, undefined, { x: mark.x, z: mark.z })
-            : game.placeKey(t.structure.id, mark.x, mark.z, this.grip.count >= 2 ? 2 : 1);
+            : game.placeKey(t.structure.id, mark.x, mark.z, this.grip.count >= 2 || this.hadTwo || carryRules.easy ? 2 : 1);
         if (seated) return;
       }
     }
@@ -275,6 +278,7 @@ export class CarrySystem extends createSystem({}) {
       const d = distanceToAxis(at, this.obj.position, this.axis, ITEM_PHYSICS[this.item].size[0] / 2);
       if (this.grip.engage(other, true, d)) {
         handClaims.grabbing[other] = true;
+        this.hadTwo = true;
         getGame(this.world).log.add(`second hand on ${this.item}`);
       }
     }

@@ -137,6 +137,9 @@ export type Locator = (items: ItemId[], from: { x: number; z: number }) => { x: 
 
 const DIRECTIONS = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
 
+/** Soft, fibrous things a hand-held flake can cut (the first-cut objective). */
+const CUTTABLE: ItemId[] = ['cane', 'fibers', 'vine', 'greenBranch', 'bark', 'dryGrass'];
+
 export class Game {
   time = 0;
   xp = 0;
@@ -669,6 +672,11 @@ export class Game {
       this.emit({ type: 'held', item: id });
     } else this.addItem(id);
     this.lastToolUsed = null;
+    // A flake held in the hand cuts soft, fibrous things free: your first cut with an edge.
+    if (this.held === 'flake' && CUTTABLE.includes(id) && !this.hasEvent('tool.edge.cut')) {
+      this.science('tool.edge.cut');
+      this.toast(`You cut the ${itemName(id).toLowerCase()} free with the flake's edge.`, 'good');
+    }
     const bonus = big || this.carriedCount < this.capacity.pockets ? this.toolBonus(id) : 0;
     this.emit({ type: 'gather', item: id, tool: this.lastToolUsed });
     if (bonus) {

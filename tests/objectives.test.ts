@@ -207,3 +207,12 @@ describe('beginner objectives', () => {
     expect(levels).toEqual([1, 2, 3, 4, 4]);
   });
 });
+
+describe('first cut', () => {
+  it('pinching a soft plant while holding a flake counts as cutting', () => {
+    const g = new Game();
+    g.held = 'flake';
+    g.gather('cane');
+    expect(g.hasEvent('tool.edge.cut')).toBe(true);
+  });
+});

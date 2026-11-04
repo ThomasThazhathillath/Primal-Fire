@@ -255,9 +255,11 @@ export const OBJECTIVES: Objective[] = [
   {
     id: 'cutting',
     title: 'Cut with your edge',
-    instruction: 'Press your sharp stone on cane, cord or soft wood to cut it.',
+    instruction: 'Hold your sharp flake and use it to cut a soft plant: cane, a fibre plant, a vine, bark or a green sapling.',
     doneMessage: 'A thin edge cuts where a hand cannot.',
     teach: 'tool',
+    howTo: () =>
+      'HOW TO CUT: 1. Tap the bag icon and tap Sharp flake. It sits in your hand (nothing appears in the other hand). 2. Walk up to a soft plant: cane by the stream, a stringy fibre plant, a vine or bark on a tree. 3. With your other hand, pinch the plant. The flake cuts it free.',
     done: (g) => g.hasEvent('tool.edge.cut'),
     implied: litFire,
     hint: {
@@ -266,7 +268,7 @@ export const OBJECTIVES: Objective[] = [
         'Use the sharp flake you made on something soft.',
         'Hollow cane and plant stems are easy to cut.',
         'Cane stands along the stream, around the Clay Bend.',
-        'Hold the flake and draw its edge across the cane.',
+        'Take the flake out of your bag, then pinch the cane (or a fibre plant, vine or bark) with your other hand. The flake cuts it.',
       ],
     },
   },

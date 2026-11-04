@@ -7,6 +7,7 @@
 // update() writes into preallocated arrays and never allocates: it runs every frame.
 
 import { clamp, lerp } from './rng.js';
+import { moonIllumination, moonPhase } from './sky.js';
 
 /** Real seconds per in-game day (24 h). */
 export const DAY_SECONDS = 20 * 60;
@@ -75,14 +76,15 @@ interface SkyKey {
 // Display colours, matching the hand-tuned noon in main.iwsdk.scene.json.
 // Moonlit, not pitch black: dark enough that the fire matters, light enough to play.
 const NIGHT: Omit<SkyKey, 'h'> = {
-  // Dark sky, but the world stays lit like day (play-test: night must be fully playable).
-  sky: [0.02, 0.03, 0.08],
-  equator: [0.06, 0.08, 0.15],
-  ground: [0.22, 0.24, 0.18],
-  sun: [0.9, 0.93, 1],
-  sunI: 2.2,
-  hemiI: 1.6,
-  iblI: 0.6,
+  // A cool, moonlit forest: darker than day so the campfire matters, but nearby
+  // objects stay clearly recognisable without it.
+  sky: [0.015, 0.03, 0.085],
+  equator: [0.05, 0.075, 0.15],
+  ground: [0.13, 0.17, 0.2],
+  sun: [0.62, 0.74, 1],
+  sunI: 1.15,
+  hemiI: 1.05,
+  iblI: 0.42,
 };
 const KEYS: SkyKey[] = [
   { h: 0, ...NIGHT },
@@ -148,6 +150,9 @@ export class Environment {
   readonly moonDir = new Float32Array(3);
   /** 0 at full day, 1 at full night. */
   night = 0;
+  /** Moon phase 0..1 (0 new, 0.5 full) and its lit fraction; both follow the one clock. */
+  moonPhase = 0.5;
+  moonIllum = 1;
   readonly sky = new Float32Array(3);
   readonly equator = new Float32Array(3);
   readonly ground = new Float32Array(3);
@@ -230,6 +235,8 @@ export class Environment {
     // Night factor from the sun's height: dark once it is 8° below the horizon.
     this.night = clamp((0.05 - this.sunDir[1]) / 0.2, 0, 1);
 
+    this.moonPhase = moonPhase(this.day, hour);
+    this.moonIllum = moonIllumination(this.moonPhase);
     this.mix(this.sky, a.sky, b.sky, s, overcast, rainDark);
     this.mix(this.equator, a.equator, b.equator, s, overcast, rainDark);
     this.mix(this.ground, a.ground, b.ground, s, overcast * 0.5, rainDark);
@@ -250,9 +257,12 @@ export class Environment {
     // Around twilight neither body is high: fade the direct light through the swap.
     const swap = clamp(Math.abs(this.night - 0.5) * 4, 0, 1);
     this.lightIntensity *= 0.3 + 0.7 * swap;
+    // Moonlight follows the phase: a thin moon gives less than a full one.
+    this.lightIntensity *= 1 - this.night * 0.35 * (1 - this.moonIllum);
 
     // ---- fog: horizon colour, closer in fog / rain / night
-    for (let i = 0; i < 3; i++) this.fogColor[i] = this.equator[i];
+    // Fog takes the horizon colour, a little toward the zenith so it blends into the sky, not a white wall.
+    for (let i = 0; i < 3; i++) this.fogColor[i] = this.equator[i] * 0.8 + this.sky[i] * 0.2;
     const thick = clamp(this.fog + this.rain * 0.35, 0, 1);
     this.fogFar = lerp(FOG_FAR, FOG_FAR_THICK, thick) * (1 - this.night * 0.25);
     this.fogNear = lerp(FOG_NEAR, 1.5, thick) * (1 - this.night * 0.4);

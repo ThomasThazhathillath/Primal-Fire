@@ -257,7 +257,7 @@ export class FireSystem extends createSystem({
     this.glow.visible = glowLevel > 0.02;
     this.glowMat.uniforms.uIntensity.value = glowLevel * (0.55 + 0.08 * Math.sin(this.t * 7.1) + 0.05 * Math.sin(this.t * 13.7));
     // Firelight: layered flicker so it never pulses like a metronome.
-    this.light.intensity = burning ? 2.4 * intensity * (0.82 + 0.1 * Math.sin(this.t * 11.3) + 0.06 * Math.sin(this.t * 23.7 + 1.3) + 0.04 * Math.sin(this.t * 37.1)) : embedded ? 0.4 : 0;
+    this.light.intensity = burning ? 2.4 * (1 + 0.5 * getGame(this.world).env.night) * intensity * (0.82 + 0.1 * Math.sin(this.t * 11.3) + 0.06 * Math.sin(this.t * 23.7 + 1.3) + 0.04 * Math.sin(this.t * 37.1)) : embedded ? 0.4 : 0;
 
     // Smoke: thick while it smoulders, thinner once it burns cleanly.
     const smokeRate = embedded && !burning ? 3 : burning ? 1.4 : heat > 0.3 ? heat * 2 : 0;

@@ -1,10 +1,9 @@
 // Renders Game.env (src/game/environment.ts): drives the level root's
 // DomeGradient / IBLGradient, the scene's sun + sky lights, fog, a sun and moon
 // disc, rain streaks around the player, a wet-ground tint, and rain on an
-// exposed fire. Cost: 3 draw calls (sun, moon, rain), no per-frame allocation.
+// exposed fire. Sky (sky-fx.ts): 4 draw calls; rain: 1, no per-frame allocation.
 
 import {
-  AdditiveBlending,
   BufferAttribute,
   BufferGeometry,
   Color,
@@ -18,40 +17,22 @@ import {
   Mesh,
   type MeshBasicMaterial,
   type MeshLambertMaterial,
-  PlaneGeometry,
   ShaderMaterial,
   Vector3,
 } from '@iwsdk/core';
 import { type Environment, fireExposed, RAIN_BURN_LOSS, type WeatherKind } from '../game/environment.js';
 import { mulberry32 } from '../game/rng.js';
 import { getGame } from './shared.js';
+import { SkyFx } from './sky-fx.js';
 
+/** Cool blue-grey ambient that moonlight adds at full night (r, g, b). */
+const NIGHT_AMBIENT = [0.34, 0.45, 0.68];
 const RAIN_STREAKS = 700;
 /** Rain box around the head (m): width/depth and height. */
 const RAIN_BOX = 18;
 const RAIN_HEIGHT = 12;
-const DISC_DISTANCE = 300;
 /** Seconds between image-based-light colour updates (each one rebuilds a PMREM texture). */
 const IBL_PERIOD = 4;
-
-const DISC_VERT = /* glsl */ `
-varying vec2 vUv;
-void main() {
-  vUv = uv * 2.0 - 1.0;
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-}`;
-const DISC_FRAG = /* glsl */ `
-uniform vec3 uColor;
-uniform float uOpacity;
-varying vec2 vUv;
-void main() {
-  float r = length(vUv);
-  float core = smoothstep(0.32, 0.28, r);
-  float halo = pow(max(0.0, 1.0 - r), 3.0) * 0.45;
-  float a = (core + halo) * uOpacity;
-  if (a < 0.003) discard;
-  gl_FragColor = vec4(uColor * a, a);
-}`;
 
 const RAIN_VERT = /* glsl */ `
 attribute float aEnd;
@@ -91,14 +72,11 @@ export class WorldEnvironmentSystem extends createSystem({
   private head = new Vector3();
   private rain!: LineSegments;
   private rainMat!: ShaderMaterial;
-  private sunDisc!: Mesh;
-  private moonDisc!: Mesh;
-  private sunMat!: ShaderMaterial;
-  private moonMat!: ShaderMaterial;
+  private sky = new SkyFx();
   private groundMat: MeshLambertMaterial | null = null;
   private groundSearch = 0;
-  /** Unlit mountain ridges (MeshBasicMaterial) and their daytime colours, dimmed with the sky. */
-  private ridges: Array<{ mat: MeshBasicMaterial; base: Color; mesh: Mesh }> = [];
+  /** Unlit mountain ridges (MeshBasicMaterial): stone colour and haze per layer, recoloured from the sky each frame. */
+  private ridges: Array<{ mat: MeshBasicMaterial; stone: Color; haze: number; mesh: Mesh }> = [];
   private clock = 0;
   private iblTimer = 0;
   private fireCheck = 0;
@@ -108,27 +86,8 @@ export class WorldEnvironmentSystem extends createSystem({
     this.fog = new Fog(new Color(0.62, 0.72, 0.76), 16, 52);
     this.scene.fog = this.fog;
 
-    // --- sun and moon discs (camera-centred billboards)
-    const plane = new PlaneGeometry(1, 1);
-    const disc = (color: number, size: number): [Mesh, ShaderMaterial] => {
-      const mat = new ShaderMaterial({
-        vertexShader: DISC_VERT,
-        fragmentShader: DISC_FRAG,
-        uniforms: { uColor: { value: new Color(color) }, uOpacity: { value: 1 } },
-        transparent: true,
-        depthWrite: false,
-        blending: AdditiveBlending,
-        fog: false,
-      });
-      const m = new Mesh(plane, mat);
-      m.scale.setScalar(size);
-      m.frustumCulled = false;
-      m.renderOrder = -1;
-      this.world.createTransformEntity(m);
-      return [m, mat];
-    };
-    [this.sunDisc, this.sunMat] = disc(0xfff1c8, 40);
-    [this.moonDisc, this.moonMat] = disc(0xdfe8ff, 22);
+    // --- stars, sun, moon and clouds (sky-fx.ts)
+    this.sky.init(this.world);
 
     // --- rain: one LineSegments draw call, animated entirely in the vertex shader
     const rng = mulberry32(99);
@@ -181,8 +140,8 @@ export class WorldEnvironmentSystem extends createSystem({
       const eq = e.getVectorView(IBLGradient, 'equator');
       const gr = e.getVectorView(IBLGradient, 'ground');
       for (let i = 0; i < 3; i++) {
-        sky[i] = Math.min(1, env.sky[i] * 1.6 + 0.1 * (1 - env.night) + 0.45 * env.night);
-        eq[i] = Math.min(1, env.equator[i] + 0.55 * env.night);
+        sky[i] = Math.min(1, env.sky[i] * 1.6 + 0.1 * (1 - env.night) + NIGHT_AMBIENT[i] * 0.75 * env.night);
+        eq[i] = Math.min(1, env.equator[i] + NIGHT_AMBIENT[i] * 0.9 * env.night);
         gr[i] = env.ground[i] * 1.2;
       }
       e.setValue(IBLGradient, 'intensity', env.iblIntensity);
@@ -220,7 +179,7 @@ export class WorldEnvironmentSystem extends createSystem({
     for (const e of this.queries.hemi.entities) {
       const sky = e.getVectorView(HemisphereLightComponent, 'skyColor');
       // The dark night sky must not tint the ambient light: lights stay day-bright.
-      for (let i = 0; i < 3; i++) sky[i] = Math.min(1, env.sky[i] * 0.8 + 0.45 * (1 - env.night) + 0.6 * env.night + 0.08);
+      for (let i = 0; i < 3; i++) sky[i] = Math.min(1, env.sky[i] * 0.8 + 0.45 * (1 - env.night) + NIGHT_AMBIENT[i] * env.night + 0.08);
       e.setValue(HemisphereLightComponent, 'intensity', env.hemiIntensity);
     }
     for (const e of this.queries.sun.entities) {
@@ -239,18 +198,9 @@ export class WorldEnvironmentSystem extends createSystem({
     this.fog.near = env.fogNear;
     this.fog.far = env.fogFar;
 
-    // --- sun / moon discs
+    // --- stars, sun, moon, clouds
     this.camera.getWorldPosition(this.head);
-    const sd = env.sunDir;
-    this.sunDisc.position.set(this.head.x + sd[0] * DISC_DISTANCE, this.head.y + sd[1] * DISC_DISTANCE, this.head.z + sd[2] * DISC_DISTANCE);
-    this.sunDisc.lookAt(this.head);
-    this.sunMat.uniforms.uOpacity.value = Math.max(0, Math.min(1, (sd[1] + 0.05) * 6)) * (1 - env.cloud * 0.85);
-    this.sunDisc.visible = sd[1] > -0.1;
-    const md = env.moonDir;
-    this.moonDisc.position.set(this.head.x + md[0] * DISC_DISTANCE, this.head.y + md[1] * DISC_DISTANCE, this.head.z + md[2] * DISC_DISTANCE);
-    this.moonDisc.lookAt(this.head);
-    this.moonMat.uniforms.uOpacity.value = env.night * (1 - env.cloud * 0.8) * 0.9;
-    this.moonDisc.visible = md[1] > -0.1 && env.night > 0.02;
+    this.sky.update(env, delta, this.head, this.fog.color);
 
     // --- rain
     const raining = env.rain > 0.02;
@@ -275,21 +225,20 @@ export class WorldEnvironmentSystem extends createSystem({
       this.scene.traverse((o) => {
         if (/^Ridge\d/.test(o.name) && (o as Mesh).material) {
           const mat = (o as Mesh).material as MeshBasicMaterial;
-          // Keep the true daytime colour once: rescanning must not record an already-dimmed one.
           if (this.ridges.some((r) => r.mat === mat)) return;
-          mat.userData.dayColor ??= mat.color.clone();
-          this.ridges.push({ mat, base: mat.userData.dayColor as Color, mesh: o as Mesh });
+          this.ridges.push({ mat, stone: new Color().fromArray((o.userData.stone as number[] | undefined) ?? [0.43, 0.44, 0.45]), haze: (o.userData.haze as number) ?? 0.5, mesh: o as Mesh });
         }
       });
     }
-    // Ridges belong to the sky: they darken with it at night (the ground stays lit) and
-    // stay centred on you, so walking to the edge never brings one looming overhead.
-    const lum = 0.25 + 0.75 * (1 - env.night);
+    // Ridges belong to the sky: stony colours that darken with night (the ground stays lit), hazed
+    // toward the live fog colour by distance (atmospheric perspective), and centred on you, so
+    // walking to the edge never brings one looming overhead.
+    const lum = 0.22 + 0.78 * (1 - env.night);
     for (const r of this.ridges) {
       r.mesh.position.x = this.head.x;
       r.mesh.position.z = this.head.z;
-      r.mat.color.copy(r.base).multiplyScalar(lum);
-      r.mat.color.lerp(this.fog.color, Math.min(0.85, env.fog * 0.8 + env.rain * 0.4));
+      r.mat.color.copy(r.stone).multiplyScalar(lum);
+      r.mat.color.lerp(this.fog.color, Math.min(0.9, r.haze + env.fog * 0.5 + env.rain * 0.2));
     }
     if (this.groundMat) this.groundMat.color.setScalar(1 - env.wet * 0.32);
 

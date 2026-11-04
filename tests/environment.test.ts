@@ -28,16 +28,20 @@ describe('day/night', () => {
     expect(e.lightDir[1]).toBeGreaterThan(0.15);
   });
 
-  it('night has a dark sky but day-bright light, and dusk is warm', () => {
+  it('night is a darker, cool moonlit world that is still lit, and dusk is warm', () => {
     const e = new Environment();
     e.update(hourTime(12), 0);
     const noon = e.hemiIntensity + e.lightIntensity;
     e.update(hourTime(19), 0);
     expect(e.equator[0]).toBeGreaterThan(e.equator[2]);
     e.update(hourTime(23), 0);
-    // Dark sky, but the world is lit about as brightly as noon (weather may differ).
+    // Dark sky and a darker world than noon, but never black: nearby things stay recognisable without the fire.
     expect(e.sky[2]).toBeLessThan(0.15);
-    expect(e.hemiIntensity + e.lightIntensity).toBeGreaterThan(noon * 0.6);
+    const night = e.hemiIntensity + e.lightIntensity;
+    expect(night).toBeGreaterThan(noon * 0.3);
+    expect(night).toBeLessThan(noon * 0.8);
+    // Moonlight is cool: more blue than red.
+    expect(e.lightColor[2]).toBeGreaterThan(e.lightColor[0]);
   });
 
   it('skipTo jumps forward to the given hour', () => {

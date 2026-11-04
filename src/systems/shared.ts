@@ -172,10 +172,14 @@ export const pickupFrom = { valid: false, pos: new Vector3(), time: 0 };
  * re-placed (instantly, no gliding) after you teleport or turn well away, so
  * nothing drifts around in view. Call update() every frame with the panel.
  */
+/** A head-height change (m) that re-places a static panel. */
+const MAX_RISE = 0.15;
+
 export class StaticAnchor {
   private placedYaw = 0;
   private placedX = 0;
   private placedZ = 0;
+  private placedY = 0;
   private placed = false;
   private head = new Vector3();
 
@@ -199,12 +203,16 @@ export class StaticAnchor {
     let turn = Math.abs(yaw - this.placedYaw) % (Math.PI * 2);
     if (turn > Math.PI) turn = Math.PI * 2 - turn;
     const moved = Math.hypot(this.head.x - this.placedX, this.head.z - this.placedZ);
-    if (this.placed && turn < this.maxTurn && moved < this.maxMove) return;
+    // Sitting down, standing up, or a head height that was not settled when the panel was put
+    // (entering VR) also re-places it, so it never ends up level with or above your eyes.
+    const rose = Math.abs(this.head.y - this.placedY);
+    if (this.placed && turn < this.maxTurn && moved < this.maxMove && rose < MAX_RISE) return;
     placeInFront(panel, camera, this.distance, this.side, this.down);
     this.placed = true;
     this.placedYaw = yaw;
     this.placedX = this.head.x;
     this.placedZ = this.head.z;
+    this.placedY = this.head.y;
   }
 }
 

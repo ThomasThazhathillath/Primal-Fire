@@ -436,18 +436,20 @@ export function createUndergrowth(): Object3D {
 export function createMountains(): Object3D {
   const root = new Group();
   root.name = 'Mountains';
-  const horizon = new Color(0.62, 0.72, 0.76);
-  const near = new Color(0.07, 0.16, 0.16);
-  // [radius, peak height, noise frequency, seed, haze 0..1]
-  const layers: Array<[number, number, number, number, number]> = [
-    [96, 42, 7, 1, 0.38],
-    [130, 70, 5, 2, 0.52],
-    [170, 100, 4, 3, 0.68],
-    [215, 125, 3, 4, 0.82],
+  // [radius, peak height, noise frequency, seed, haze 0..1, stone colour]
+  // The nearest range is stony grey-brown with the strongest contours; each
+  // farther one is greyer, bluer and hazier (atmospheric perspective). The
+  // environment system hazes them toward the live fog colour (EnvironmentSystem).
+  const layers: Array<[number, number, number, number, number, [number, number, number]]> = [
+    [96, 42, 7, 1, 0.08, [0.3, 0.26, 0.22]],
+    [130, 70, 5, 2, 0.2, [0.32, 0.29, 0.26]],
+    [170, 100, 4, 3, 0.36, [0.33, 0.34, 0.36]],
+    [215, 125, 3, 4, 0.55, [0.34, 0.38, 0.43]],
   ];
   const SEG = 128;
-  layers.forEach(([radius, peak, freq, seed, haze], li) => {
+  layers.forEach(([radius, peak, freq, seed, haze, stone], li) => {
     const verts = new Float32Array((SEG + 1) * 2 * 3);
+    const cols = new Float32Array((SEG + 1) * 2 * 3);
     const index: number[] = [];
     for (let i = 0; i <= SEG; i++) {
       const a = (i / SEG) * Math.PI * 2;
@@ -458,6 +460,12 @@ export function createMountains(): Object3D {
       const x = Math.cos(a) * radius;
       const z = Math.sin(a) * radius;
       verts.set([x, -6, z, x, h, z], i * 6);
+      // Rocky variation along the ridge: lighter, warmer crests against cooler, darker slopes.
+      const rock = valueNoise(nx * 3.1 + 9, nz * 3.1 - 5);
+      const crest = 0.86 + 0.3 * rock;
+      const warm = (valueNoise(nx * 1.4 - 3, nz * 1.4 + 11) - 0.5) * 0.16;
+      // Foot of the ridge (vertex 0) is a little darker so slopes read as rock, not a flat cut-out.
+      cols.set([0.82, 0.82, 0.84, crest + warm, crest, crest - warm], i * 6);
       if (i < SEG) {
         const k = i * 2;
         index.push(k, k + 1, k + 2, k + 1, k + 3, k + 2);
@@ -465,10 +473,13 @@ export function createMountains(): Object3D {
     }
     const geo = new BufferGeometry();
     geo.setAttribute('position', new BufferAttribute(verts, 3));
+    geo.setAttribute('color', new BufferAttribute(cols, 3));
     geo.setIndex(index);
-    const mat = new MeshBasicMaterial({ color: near.clone().lerp(horizon, haze), fog: false, side: DoubleSide });
+    const mat = new MeshBasicMaterial({ color: new Color(stone[0], stone[1], stone[2]), vertexColors: true, fog: false, side: DoubleSide });
     const mesh = new Mesh(geo, mat);
     mesh.name = `Ridge${li}`;
+    mesh.userData.stone = [stone[0], stone[1], stone[2]]; // plain data: userData survives cloning
+    mesh.userData.haze = haze;
     mesh.frustumCulled = false;
     root.add(mesh);
   });

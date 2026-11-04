@@ -8,7 +8,7 @@
 // the middle of view, operated ONLY by a deliberate fingertip poke
 // (src/game/ui-touch.ts) like the icon bar, never a pinch or controller button.
 
-import { createSystem, type Entity, RayInteractable, ScreenSpace, type UIKit, type UIKitMLAsset, Vector3, VisibilityState } from '@iwsdk/core';
+import { createSystem, type Entity, findUIKitDocument, RayInteractable, ScreenSpace, type UIKit, type UIKitMLAsset, Vector3, VisibilityState } from '@iwsdk/core';
 import { cardView, objectiveById, type ObjectiveView } from '../game/objectives.js';
 import { TouchTracker, type TipSample, type TouchIcon } from '../game/ui-touch.js';
 import { hands } from './hand-input-system.js';
@@ -19,7 +19,7 @@ import { WorldSystem } from './world-system.js';
 const PANEL_SCALE = 0.05;
 const UNIT_M = 0.01 * PANEL_SCALE;
 const CARD_W = 520;
-const CARD_H = 190;
+const CARD_H = 270;
 /** Header buttons (centres, in panel units from the panel centre; y up). */
 const HINT_X = 156;
 const CLOSE_X = 212;
@@ -31,6 +31,7 @@ const UP = 0.2;
 export class ObjectiveCardSystem extends createSystem({}) {
   private panel!: UIKitMLAsset;
   private entity!: Entity;
+  private doc: ReturnType<typeof findUIKitDocument> = null;
   private anchor = new StaticAnchor(DISTANCE, 0, -UP, 0.9, 1);
   private ready = false;
   private shown = false;
@@ -58,6 +59,8 @@ export class ObjectiveCardSystem extends createSystem({}) {
     panel.scale.setScalar(PANEL_SCALE);
     this.entity = this.world.createTransformEntity(panel);
     hidePanel(panel);
+    this.doc = findUIKitDocument(panel);
+    if (this.doc) this.doc.visible = false;
     this.open = !game.objectives.closed;
 
     const wire = (id: string, fn: () => void) => {
@@ -115,6 +118,8 @@ export class ObjectiveCardSystem extends createSystem({}) {
   private place(): void {
     if (!this.shown) return;
     const show = this.open && this.view !== null;
+    // ScreenSpace reparents the UIKit document onto the camera, so the document is hidden too.
+    if (this.doc) this.doc.visible = show;
     if (!show) {
       hidePanel(this.panel);
       if (this.entity.hasComponent(ScreenSpace)) this.entity.removeComponent(ScreenSpace);

@@ -1,0 +1,18 @@
+import { readFileSync } from 'node:fs';
+import { describe, expect, it } from 'vitest';
+
+const sys = readFileSync('src/systems/objective-card-system.ts', 'utf8');
+const ui = readFileSync('public/ui/objective.uikitml', 'utf8');
+
+describe('objective card layout', () => {
+  it('panel height matches CARD_H so substeps, failure and tip rows are not clipped', () => {
+    const h = Number(/const CARD_H = (\d+)/.exec(sys)![1]);
+    expect(Number(/\.root \{[^}]*height: (\d+)px/.exec(ui)![1])).toBe(h);
+    // header + instruction(2 lines) + progress + substeps + one explanation line (2 lines) + gaps/padding
+    expect(h).toBeGreaterThanOrEqual(250);
+  });
+  it('hides the UIKit document too when the card closes (ScreenSpace reparents it)', () => {
+    expect(sys).toMatch(/findUIKitDocument\(panel\)/);
+    expect(sys).toMatch(/this\.doc\.visible = show/);
+  });
+});

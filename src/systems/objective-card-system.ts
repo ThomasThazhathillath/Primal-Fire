@@ -15,8 +15,8 @@ import { hands } from './hand-input-system.js';
 import { getGame, getUi, handClaims, hidePanel, StaticAnchor, uiText } from './shared.js';
 import { WorldSystem } from './world-system.js';
 
-/** UIKit units are ~1 cm; the panel is scaled so the 520-wide card is ~34 cm. */
-const PANEL_SCALE = 0.065;
+/** UIKit units are ~1 cm; the panel is scaled so the 520-wide card is ~26 cm. */
+const PANEL_SCALE = 0.05;
 const UNIT_M = 0.01 * PANEL_SCALE;
 const CARD_W = 520;
 const CARD_H = 190;
@@ -24,9 +24,9 @@ const CARD_H = 190;
 const HINT_X = 156;
 const CLOSE_X = 212;
 const BTN_Y = CARD_H / 2 - 14 - 22;
-/** Where the card hangs in VR: above the middle of view, within comfortable reach of the eyes. */
-const DISTANCE = 0.85;
-const UP = 0.3;
+/** Where the card hangs in VR: above the middle of view and within a seated arm's reach, so a fingertip can poke it. */
+const DISTANCE = 0.5;
+const UP = 0.2;
 
 export class ObjectiveCardSystem extends createSystem({}) {
   private panel!: UIKitMLAsset;

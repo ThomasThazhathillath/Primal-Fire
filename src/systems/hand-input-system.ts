@@ -44,7 +44,15 @@ export interface HandFrame {
   pinchDist: number;
   /** The point between the thumb and index tips (world): where a pinch grabs. */
   readonly pinchPos: Vector3;
+  /**
+   * Index straight while the middle finger is curled: a deliberate point. A relaxed
+   * or lowered hand has all fingers out, so it never counts (UI taps need this).
+   */
+  pointing: boolean;
 }
+
+/** Middle-tip reach below this share of the index-tip reach = the hand is pointing. */
+export const POINT_RATIO = 0.78;
 
 function frame(): HandFrame {
   return {
@@ -65,6 +73,7 @@ function frame(): HandFrame {
     tipTracked: false,
     pinchDist: Infinity,
     pinchPos: new Vector3(),
+    pointing: false,
   };
 }
 
@@ -208,6 +217,7 @@ export class HandInputSystem extends createSystem({}) {
   private readFingertips(): void {
     hands[0].tipTracked = hands[1].tipTracked = false;
     hands[0].pinchDist = hands[1].pinchDist = Infinity;
+    hands[0].pointing = hands[1].pointing = false;
     const session = this.renderer.xr.getSession();
     const xrFrame = this.renderer.xr.getFrame?.() as XRFrame | undefined;
     const ref = this.renderer.xr.getReferenceSpace();
@@ -235,6 +245,19 @@ export class HandInputSystem extends createSystem({}) {
         this.player.localToWorld(this.jointTmp);
         h.pinchDist = this.jointTmp.distanceTo(h.tipPos);
         h.pinchPos.addVectors(h.tipPos, this.jointTmp).multiplyScalar(0.5);
+      }
+      // Pointing pose: middle tip much closer to the wrist than the index tip.
+      const wrist = hand.get('wrist');
+      const midTip = hand.get('middle-finger-tip');
+      const wp = wrist && xrFrame.getJointPose?.(wrist, ref);
+      const mtp = midTip && xrFrame.getJointPose?.(midTip, ref);
+      if (wp && mtp) {
+        const w = wp.transform.position;
+        const m = mtp.transform.position;
+        const t = tp.transform.position;
+        const indexReach = Math.hypot(t.x - w.x, t.y - w.y, t.z - w.z);
+        const middleReach = Math.hypot(m.x - w.x, m.y - w.y, m.z - w.z);
+        h.pointing = middleReach < indexReach * POINT_RATIO;
       }
       h.tipTracked = true;
     }

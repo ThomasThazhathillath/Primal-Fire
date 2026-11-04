@@ -178,3 +178,22 @@ describe('fingertip tap', () => {
     expect(c[2] - c[0]).toBeCloseTo(0.1);
   });
 });
+
+describe('pointing pose', () => {
+  it('a relaxed hand (not pointing) never taps; a pointing hand does', async () => {
+    const { TouchTracker } = await import('../src/game/ui-touch.js');
+    const icons = [{ x: 0, y: 0, r: 0.02, enabled: true }];
+    const poke = (pointing: boolean) => {
+      const t = new TouchTracker();
+      let got = -1;
+      for (let i = 0; i <= 10; i++) {
+        const z = 0.08 - i * 0.01;
+        const r = t.update(1 / 72, icons, { x: 0, y: 0, z, dz: -1, tracked: true, pointing });
+        if (r >= 0) got = r;
+      }
+      return got;
+    };
+    expect(poke(false)).toBe(-1);
+    expect(poke(true)).toBe(0);
+  });
+});

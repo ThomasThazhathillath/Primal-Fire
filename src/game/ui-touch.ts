@@ -14,17 +14,17 @@ export const TOUCH_CONFIG = {
   /** Fingertip this far (m) in front of the surface and over an icon = "approaching". */
   approachDepth: 0.07,
   /** Must have been this far in front (m) before crossing, or it is not a tap. */
-  armDepth: 0.025,
+  armDepth: 0.035,
   /** Crossing z <= this (m) counts as touching the surface. */
   touchDepth: 0.004,
   /** Past this depth behind the surface (m) the fingertip is no longer in the icon. */
   throughDepth: -0.06,
   /** Minimum speed towards the surface (m/s) at the moment of crossing. */
-  minSpeed: 0.12,
+  minSpeed: 0.2,
   /** Finger direction · into-panel must exceed this (1 = pointing straight in). */
-  minAim: 0.35,
+  minAim: 0.55,
   /** Icon hit radius = icon radius * this (a little forgiving). */
-  radiusScale: 1.15,
+  radiusScale: 0.9,
   /** Seconds after a tap before the same hand may tap again. */
   cooldown: 0.45,
   /** Must be this far (m) outside the icon region, or in front of it, to re-arm. */
@@ -49,6 +49,8 @@ export const TOUCH_CONFIG = {
    * needed afterwards. Real fast pokes are a few cm per frame.
    */
   maxJump: 0.3,
+  /** 1 = only a pointing hand (index out, other fingers curled) can tap; a resting or lowered hand never does. */
+  requirePoint: 1,
 } satisfies Record<string, number>;
 
 export const enum IconState {
@@ -78,6 +80,8 @@ export interface TipSample {
   tracked: boolean;
   /** Thumb-tip to index-tip distance (m); omit when unknown (e.g. a mouse). */
   pinchDist?: number;
+  /** Index pointing with the other fingers curled; omit when unknown (e.g. a mouse). */
+  pointing?: boolean;
 }
 
 /** One tracker per hand. */
@@ -146,7 +150,8 @@ export class TouchTracker {
       if (s.pinchDist < c.pinchOn) this.pinching = true;
       else if (s.pinchDist > c.pinchOff) this.pinching = false;
     } else this.pinching = false;
-    if (this.pinching) {
+    // Only a deliberate point taps: a relaxed hand dropping past the bar never does.
+    if (this.pinching || (c.requirePoint && s.pointing === false)) {
       this.hadPrev = false;
       this.frontAge = Infinity;
       this.hoverIcon = -1;

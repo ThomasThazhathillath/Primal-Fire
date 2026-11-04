@@ -276,7 +276,7 @@ export class IconBarSystem extends createSystem({}) {
     for (let h = 0; h < 2; h++) {
       const hand = hands[h];
       const tr = this.trackers[h];
-      const s = this.sample(hand.tipPos, hand.tipDir, hand.tipTracked, hand.pinchDist);
+      const s = this.sample(hand.tipPos, hand.tipDir, hand.tipTracked, hand.pinchDist, hand.pointing);
       const hit = tr.update(dt, this.icons, s);
       for (let i = 0; i < n; i++) if (tr.states[i] > this.merged[i]) this.merged[i] = tr.states[i];
       handClaims.uiNear[h] = tr.hoverIcon >= 0;
@@ -303,10 +303,11 @@ export class IconBarSystem extends createSystem({}) {
   private dirTmp = new Vector3();
 
   /** World fingertip → panel frame in metres (x right, y up, z towards the viewer). */
-  private sample(pos: Vector3, dir: Vector3, tracked: boolean, pinchDist: number): TipSample {
+  private sample(pos: Vector3, dir: Vector3, tracked: boolean, pinchDist: number, pointing: boolean): TipSample {
     const o = this.sampleOut;
     o.tracked = tracked;
     o.pinchDist = pinchDist;
+    o.pointing = pointing;
     if (!tracked) return o;
     this.tipLocal.copy(pos);
     this.bar.worldToLocal(this.tipLocal);

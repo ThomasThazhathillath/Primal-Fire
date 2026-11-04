@@ -60,7 +60,7 @@ export class LevelSystem extends createSystem({}) {
       .filter(Boolean)
       .map((r) => `- ${r}`)
       .join('\n');
-    this.show(`LEVEL ${n} COMPLETE  +${lv.xp} XP`, lv.name, next ? `Next: Level ${next.n}, ${next.name}.` : 'You have finished all three levels of Chapter 1.', learned, 'Continue');
+    this.show(`LEVEL ${n} COMPLETE`, lv.name, next ? `Next: Level ${next.n}, ${next.name}.` : 'You have finished all three levels of Chapter 1.', learned, 'Continue');
     if (next) this.queue.push(() => this.titleCard(next, false));
   }
 

@@ -199,7 +199,8 @@ export class SatchelSystem extends createSystem({
       this.refresh();
       this.panel.visible = true;
       // A plain list card straight ahead, a little below eye level (the 3D bag is retired for now).
-      placeInFront(this.panel, this.camera, 0.9, 0, 0.12);
+      // Closer than every other card (HUD 0.85 m, guide 0.75 m), so nothing sits in front of its rows.
+      placeInFront(this.panel, this.camera, 0.62, 0, 0.12);
     } else {
       hidePanel(this.panel);
       this.bag.visible = false;

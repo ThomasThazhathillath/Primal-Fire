@@ -24,8 +24,8 @@ export const FEEDBACK_SECONDS = 8;
 export type InteractionId = 'grab' | 'place' | 'build' | 'bench' | 'tool' | 'fire';
 
 export const TEACH: Record<InteractionId, string> = {
-  grab: 'Reach out, pinch your thumb and finger on the object to pick it up, and open your hand to let go.',
-  place: 'Carry the part to its glowing mark, lower it onto the mark and open your hand.',
+  grab: 'HOW TO PICK UP: 1. Reach your hand to the stone until your fingers are almost touching it. 2. Press your thumb and index fingertips firmly together (a pinch) and hold them shut. 3. It goes into your satchel.',
+  place: 'HOW TO PLACE: 1. Tap the bag icon and tap the stone to take it in your hand. 2. Keep your thumb and finger pinched shut while you carry it. 3. Hold it over a glowing mark and spread your fingers wide open. It snaps onto the mark.',
   build: 'Open the hammer icon in the bottom bar to place an outline, then fill each mark.',
   bench: 'Poke the finished workbench with a finger to see what you can make.',
   tool: 'Pinch a tool to hold it, then swing it. Strike with the edge, not the flat.',
@@ -49,6 +49,8 @@ export interface Objective {
   hint: HintData;
   /** Control taught the first time this objective is on screen. */
   teach?: InteractionId;
+  /** Detailed how-to shown on the card for the whole objective, even once learned (the first builds). */
+  howTo?: (g: Game) => string | null;
   /** Counts something: shown as "1 / 3". `base` is the stone count when the objective began. */
   progress?: (g: Game, base: number) => { have: number; need: number };
   /** Several conditions of one objective, shown on the same card. */
@@ -91,6 +93,7 @@ export const OBJECTIVES: Objective[] = [
     instruction: 'Look around the forest floor and pick up one stone.',
     doneMessage: "Good. You've found your first resource.",
     teach: 'grab',
+    howTo: () => TEACH.grab,
     progress: (g) => ({ have: capped(stones(g), 1), need: 1 }),
     done: (g) => stones(g) >= 1,
     implied: benchBuilt,
@@ -111,6 +114,7 @@ export const OBJECTIVES: Objective[] = [
     doneMessage: 'Great! You have enough stones to begin building. Three supports never wobble.',
     baseline: stones,
     legacyBase: 1,
+    howTo: () => 'Same as before: reach to each stone, pinch thumb and index tightly together and hold for a moment. To teleport closer, point at open ground, pinch and keep holding until a ring appears, then let go.',
     progress: (g, base) => ({ have: capped(stones(g) - base, 3), need: 3 }),
     done: (g, base) => stones(g) - base >= 3,
     implied: benchBuilt,
@@ -131,6 +135,7 @@ export const OBJECTIVES: Objective[] = [
       'Look for a broad, flat slab of stone. It will be the top of your workbench. It is heavy: hold it with both hands.',
     doneMessage: 'That looks like a suitable flat stone.',
     teach: 'grab',
+    howTo: () => 'The slab is heavy: reach both hands to it and pinch it with both at the same time. Keep both pinches shut and it goes into your satchel.',
     done: (g) => ever(g, 'slab'),
     implied: benchBuilt,
     hint: {
@@ -156,6 +161,14 @@ export const OBJECTIVES: Objective[] = [
     doneMessage: 'Your first workbench is ready!',
     teach: 'build',
     explains: true,
+    howTo: (g) => {
+      const stage = workbenchStage(g);
+      if (stage === 0) return 'HOW TO START: point a finger and tap the grid icon on your right to open the icons, then tap the hammer icon and tap Workbench. Its glowing outline appears on the ground in front of you.';
+      if (stage === 1) return TEACH.place;
+      if (stage === 2)
+        return 'HOW TO SET THE SLAB: 1. Tap the bag icon and tap the slab. 2. Pinch it with both hands and keep both pinches shut. 3. Hold it just above the three stones. 4. Open both hands wide. It drops into place.';
+      return null;
+    },
     substeps: (g) => {
       const s = g.structures.find((t) => t.kind === 'workbench');
       const placed = s ? s.spots.filter((v) => v !== null).length : 0;
@@ -339,6 +352,14 @@ export const OBJECTIVES: Objective[] = [
     doneMessage: 'A ring of stones keeps the fire where you want it.',
     teach: 'build',
     explains: true,
+    howTo: (g) => {
+      const stage = workbenchStage(g);
+      if (stage === 0) return 'HOW TO START: point a finger and tap the grid icon on your right to open the icons, then tap the hammer icon and tap Workbench. Its glowing outline appears on the ground in front of you.';
+      if (stage === 1) return TEACH.place;
+      if (stage === 2)
+        return 'HOW TO SET THE SLAB: 1. Tap the bag icon and tap the slab. 2. Pinch it with both hands and keep both pinches shut. 3. Hold it just above the three stones. 4. Open both hands wide. It drops into place.';
+      return null;
+    },
     substeps: (g) => {
       const s = g.structures.find((t) => t.kind === 'firePit');
       const placed = s ? s.spots.filter((v) => v !== null).length + (s.keyOpen ? 0 : 1) : 0;
@@ -460,6 +481,14 @@ export const OBJECTIVES: Objective[] = [
     doneMessage: 'Clear is not the same as safe. Boiling did the real work.',
     teach: 'build',
     explains: true,
+    howTo: (g) => {
+      const stage = workbenchStage(g);
+      if (stage === 0) return 'HOW TO START: point a finger and tap the grid icon on your right to open the icons, then tap the hammer icon and tap Workbench. Its glowing outline appears on the ground in front of you.';
+      if (stage === 1) return TEACH.place;
+      if (stage === 2)
+        return 'HOW TO SET THE SLAB: 1. Tap the bag icon and tap the slab. 2. Pinch it with both hands and keep both pinches shut. 3. Hold it just above the three stones. 4. Open both hands wide. It drops into place.';
+      return null;
+    },
     done: cleanWater,
     hint: {
       ref: 'gravel',
@@ -478,6 +507,14 @@ export const OBJECTIVES: Objective[] = [
     doneMessage: 'A roof, a bed and a wall against the wind.',
     teach: 'build',
     explains: true,
+    howTo: (g) => {
+      const stage = workbenchStage(g);
+      if (stage === 0) return 'HOW TO START: point a finger and tap the grid icon on your right to open the icons, then tap the hammer icon and tap Workbench. Its glowing outline appears on the ground in front of you.';
+      if (stage === 1) return TEACH.place;
+      if (stage === 2)
+        return 'HOW TO SET THE SLAB: 1. Tap the bag icon and tap the slab. 2. Pinch it with both hands and keep both pinches shut. 3. Hold it just above the three stones. 4. Open both hands wide. It drops into place.';
+      return null;
+    },
     substeps: (g) => [
       sub('A safe, dry spot', g.hasEvent('shelter.site.chosen')),
       sub('A roof that keeps rain off', g.hasEvent('shelter.roof.covered')),
@@ -685,7 +722,7 @@ export class ObjectiveTracker {
       instruction: typeof o.instruction === 'function' ? o.instruction(g) : o.instruction,
       progress: o.progress ? o.progress(g, this.bases[o.id] ?? 0) : null,
       substeps: o.substeps ? o.substeps(g) : [],
-      tip: o.teach && !this.learned.has(o.teach) ? TEACH[o.teach] : null,
+      tip: o.howTo?.(g) ?? (o.teach && !this.learned.has(o.teach) ? TEACH[o.teach] : null),
       feedback: this.feedback?.text ?? null,
       celebrating: null,
       step: this.index + 1,

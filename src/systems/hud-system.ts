@@ -19,6 +19,8 @@ import {
   type UIKitMLAsset,
   Vector3,
   VisibilityState,
+  findUIKitDocument,
+  type Object3D,
 } from '@iwsdk/core';
 import { spotWorldPosition, BLUEPRINTS } from '../game/blueprint.js';
 import type { GameEvent } from '../game/game.js';
@@ -355,9 +357,31 @@ export class HudSystem extends createSystem({
   private hoverShown = false;
   private hoverText = '';
 
+  /** Hidden while it has nothing to say (no message, nothing hovered, no quest line): no empty box in view. */
+  private idle = false;
+  private hudDoc: Object3D | null | undefined;
+
+  private setIdle(idle: boolean): void {
+    if (idle === this.idle) return;
+    this.idle = idle;
+    if (this.hudDoc === undefined) this.hudDoc = findUIKitDocument(this.hud);
+    // In the browser ScreenSpace reparents the UIKit document onto the camera: hide it too.
+    if (this.hudDoc) this.hudDoc.visible = !idle;
+    if (idle) hidePanel(this.hud);
+    else {
+      this.hud.visible = true;
+      this.hudAnchor.reset();
+    }
+  }
+
   update(delta: number): void {
     if (!this.ready) return;
-    if (this.shown && this.world.visibilityState.peek() !== VisibilityState.NonImmersive) this.hudAnchor.update(this.hud, this.camera);
+    if (this.shown) {
+      const vr = this.world.visibilityState.peek() !== VisibilityState.NonImmersive;
+      // The flat view keeps it for the Enter VR button.
+      this.setIdle(this.toastTimer <= 0 && !this.hoverShown && !getGame(this.world).objectives.done && (vr || !this.world.xrEnabled));
+      if (!this.idle && vr) this.hudAnchor.update(this.hud, this.camera);
+    }
     if (this.toastTimer > 0 && (this.toastTimer -= delta) <= 0) {
       this.hud.requireElementById<UIKit.Text>('toast').setProperties({ text: ' ' });
     }

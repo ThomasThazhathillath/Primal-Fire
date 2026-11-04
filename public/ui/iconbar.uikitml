@@ -26,4 +26,5 @@
   <div id="slot-11" class="slot"><Button id="ic-exit" size="sm" variant="secondary"><ButtonIcon><LogOut></LogOut></ButtonIcon></Button></div>
   <div id="slot-12" class="slot"><Button id="ic-book" size="sm" variant="secondary"><ButtonIcon><Hammer></Hammer></ButtonIcon></Button></div>
   <div id="slot-13" class="slot"><Button id="ic-restart" size="sm" variant="secondary"><ButtonIcon><ListRestart></ListRestart></ButtonIcon></Button></div>
+  <div id="slot-14" class="slot"><Button id="ic-menu" size="sm" variant="secondary"><ButtonIcon><LayoutGrid></LayoutGrid></ButtonIcon></Button></div>
 </Panel>

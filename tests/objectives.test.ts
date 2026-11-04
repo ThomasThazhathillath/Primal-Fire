@@ -162,12 +162,13 @@ describe('beginner objectives', () => {
     expect(cur(g)).toBe('workbench');
   });
 
-  it('shows each control tip once, then never again', () => {
+  it('the first objectives keep a detailed how-to on the card', () => {
     const g = new Game();
     expect(g.objectives.view()!.tip).toMatch(/pinch/i);
     stones(g, 1);
     finish(g);
-    expect(g.objectives.view()!.tip).toBeNull();
+    // Gathering more stones still explains the pinch (and moving), step by step.
+    expect(g.objectives.view()!.tip).toMatch(/pinch/i);
   });
 
   it('migrates an old save: finished steps stay finished and the tutorial does not restart', () => {

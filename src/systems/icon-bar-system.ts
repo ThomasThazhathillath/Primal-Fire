@@ -22,6 +22,11 @@ import { clearSave, WorldSystem } from './world-system.js';
 
 const SLOT = 52;
 const GAP = 6;
+const SLOT_H = 56;
+/** VR: icons sit in a small grid this many wide, off to your right. */
+const COLS = 3;
+/** VR: an open menu folds itself away after this long without a tap (s). */
+const MENU_IDLE = 10;
 const PAD = 8;
 /** Panel local units → metres (UIKit units are ~1 cm; the panel is scaled by PANEL_SCALE). */
 const PANEL_SCALE = 0.09;
@@ -52,6 +57,8 @@ const DEFS: Def[] = [
   { id: 'exit', show: (s) => s.vr, run: (s) => s.exitVr() },
   { id: 'book', show: () => true, run: (s) => getUi(s.world).toggleBook?.() },
   { id: 'restart', show: () => true, run: (s) => s.restart() },
+  // VR: the bar folds into this one button on your right; tap it to open the icons, tap again to fold.
+  { id: 'menu', show: (s) => s.vr, run: (s) => s.toggleMenu() },
 ];
 
 const COLORS = {
@@ -66,13 +73,16 @@ const COLORS = {
 export const BAR_DISTANCE = 0.4;
 /** The bar's no-move zone (m, panel frame): this far around the icons, in front of and behind the surface. */
 const BAR_ZONE = { margin: 0.08, front: 0.15, behind: 0.25 };
-// Chest height for a seated player: well above hands resting on the knees.
-export const BAR_DOWN = 0.38;
+// Chest height for a seated player, off to the right: out of the way of your hands and your view.
+export const BAR_DOWN = 0.36;
+export const BAR_SIDE = 0.22;
 
 export class IconBarSystem extends createSystem({}) {
   private bar!: UIKitMLAsset;
   private entity!: Entity;
-  private anchor = new StaticAnchor(BAR_DISTANCE, 0, BAR_DOWN, 0.9, 1);
+  private anchor = new StaticAnchor(BAR_DISTANCE, BAR_SIDE, BAR_DOWN, 0.9, 1);
+  private expanded = false;
+  private menuIdle = 0;
   private ready = false;
   private shown = false;
   vr = false;
@@ -167,6 +177,11 @@ export class IconBarSystem extends createSystem({}) {
     getUi(this.world).saveNow?.();
     location.reload();
   }
+  toggleMenu(): void {
+    this.expanded = !this.expanded;
+    this.menuIdle = 0;
+  }
+
   private restartArmedAt = -1e9;
   /** Start a brand-new game. Needs a second tap within a few seconds, so a stray touch never wipes the save. */
   restart(): void {
@@ -220,14 +235,21 @@ export class IconBarSystem extends createSystem({}) {
     const shown = new Set(this.visible);
     DEFS.forEach((_, i) => this.slots[i].setProperties({ display: shown.has(i) ? 'flex' : 'none' }));
     const n = this.visible.length;
-    const w = PAD * 2 + n * SLOT + (n - 1) * GAP;
-    this.bar.requireElementById('bar').setProperties({ width: w });
+    // VR: a compact grid; the flat view keeps one row along the bottom.
+    const cols = this.vr ? Math.min(COLS, n) : n;
+    const rows = Math.ceil(n / cols);
+    const w = PAD * 2 + cols * SLOT + (cols - 1) * GAP;
+    const h = PAD * 2 + rows * SLOT_H + (rows - 1) * GAP;
+    this.bar.requireElementById('bar').setProperties({ width: w, height: h, flexWrap: 'wrap', borderRadius: this.vr ? 20 : 32 } as never);
     this.icons.length = n;
     for (let v = 0; v < n; v++) {
-      const px = -w / 2 + PAD + SLOT / 2 + v * (SLOT + GAP);
+      const col = v % cols;
+      const row = Math.floor(v / cols);
+      const px = -w / 2 + PAD + SLOT / 2 + col * (SLOT + GAP);
+      const py = h / 2 - PAD - SLOT_H / 2 - row * (SLOT_H + GAP);
       const ic = this.icons[v] ?? (this.icons[v] = { x: 0, y: 0, r: 0, enabled: true });
       ic.x = px * UNIT_M;
-      ic.y = 0;
+      ic.y = py * UNIT_M;
       ic.r = (SLOT / 2) * UNIT_M * 0.9;
       ic.enabled = true;
     }
@@ -250,7 +272,9 @@ export class IconBarSystem extends createSystem({}) {
       this.canRemove = !!game.nearestUnfinished(6);
     }
     this.visible.length = 0;
-    DEFS.forEach((d, i) => d.show(this) && this.visible.push(i));
+    if (this.expanded && (this.menuIdle += delta) > MENU_IDLE) this.expanded = false;
+    // Folded (VR): only the menu button shows.
+    DEFS.forEach((d, i) => d.show(this) && (!this.vr || this.expanded || d.id === 'menu') && this.visible.push(i));
     this.layout();
 
     // Badges and active dots.
@@ -290,7 +314,11 @@ export class IconBarSystem extends createSystem({}) {
         this.click();
         if (this.taps.length > 50) this.taps.shift();
         this.taps.push(DEFS[this.visible[hit]].id);
-        DEFS[this.visible[hit]].run(this);
+        const def = DEFS[this.visible[hit]];
+        def.run(this);
+        this.menuIdle = 0;
+        // One action per opening (turning keeps it open so you can turn again).
+        if (def.id !== 'menu' && def.id !== 'turn-left' && def.id !== 'turn-right') this.expanded = false;
       }
     }
     // Paint only what changed.
@@ -316,9 +344,14 @@ export class IconBarSystem extends createSystem({}) {
       if (ic.x - ic.r < minX) minX = ic.x - ic.r;
       if (ic.x + ic.r > maxX) maxX = ic.x + ic.r;
     }
-    const y0 = this.icons[0].y;
-    const r = this.icons[0].r;
-    return s.x > minX - BAR_ZONE.margin && s.x < maxX + BAR_ZONE.margin && Math.abs(s.y - y0) < r + BAR_ZONE.margin;
+    let minY = Infinity;
+    let maxY = -Infinity;
+    for (const ic of this.icons) {
+      if (ic.y - ic.r < minY) minY = ic.y - ic.r;
+      if (ic.y + ic.r > maxY) maxY = ic.y + ic.r;
+    }
+    const m = BAR_ZONE.margin;
+    return s.x > minX - m && s.x < maxX + m && s.y > minY - m && s.y < maxY + m;
   }
 
   private sample(pos: Vector3, dir: Vector3, tracked: boolean, pinchDist: number, pointing: boolean): TipSample {

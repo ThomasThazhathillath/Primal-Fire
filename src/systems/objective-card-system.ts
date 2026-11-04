@@ -19,7 +19,7 @@ import { WorldSystem } from './world-system.js';
 const PANEL_SCALE = 0.05;
 const UNIT_M = 0.01 * PANEL_SCALE;
 const CARD_W = 520;
-const CARD_H = 300;
+const CARD_H = 380;
 /** Header buttons (centres, in panel units from the panel centre; y up). */
 const HINT_X = 156;
 const CLOSE_X = 212;

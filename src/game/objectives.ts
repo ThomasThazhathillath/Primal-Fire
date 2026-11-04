@@ -358,14 +358,8 @@ export const OBJECTIVES: Objective[] = [
     doneMessage: 'A ring of stones keeps the fire where you want it.',
     teach: 'build',
     explains: true,
-    howTo: (g) => {
-      const stage = workbenchStage(g);
-      if (stage === 0) return 'HOW TO START: point a finger and tap the grid icon on your right to open the icons, then tap the hammer icon and tap Workbench. Its glowing outline appears on the ground in front of you.';
-      if (stage === 1) return TEACH.place;
-      if (stage === 2)
-        return 'HOW TO SET THE SLAB: 1. Tap the bag icon and tap the slab. 2. Pinch it with both hands and keep both pinches shut. 3. Hold it just above the three stones. 4. Open both hands wide. It drops into place.';
-      return null;
-    },
+    howTo: () =>
+      'HOW TO BUILD: 1. Open the grid icon, tap the hammer, tap Fire pit: a ring of glowing marks appears on the ground. 2. Take a stone from the bag, keep it pinched, hold it over a mark and open your fingers. 3. Repeat for every mark.',
     substeps: (g) => {
       const s = g.structures.find((t) => t.kind === 'firePit');
       const placed = s ? s.spots.filter((v) => v !== null).length + (s.keyOpen ? 0 : 1) : 0;
@@ -409,9 +403,11 @@ export const OBJECTIVES: Objective[] = [
   {
     id: 'ember',
     title: 'Make an ember',
-    instruction: 'Saw the bow drill back and forth over the pit while your other hand steadies it.',
+    instruction: 'Hold the bow drill at your fire pit and saw it back and forth until an ember glows. You do not put it down.',
     doneMessage: 'A glowing ember! Now keep it alive.',
     teach: 'fire',
+    howTo: () =>
+      'HOW TO MAKE AN EMBER: 1. Take the bow drill out of your bag and keep it pinched. 2. Kneel or reach down to the fire pit so your hand is just above it. 3. Put your other hand near the pit too (it steadies the spindle). 4. Move the bow hand back and forth, steadily, for several seconds until smoke and an ember appear. In the browser: hold it and click the fire pit again and again.',
     done: (g) => g.flag('emberMade') || litFire(g),
     implied: litFire,
     hint: {

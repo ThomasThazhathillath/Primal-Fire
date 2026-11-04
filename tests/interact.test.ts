@@ -137,8 +137,8 @@ describe('swing', () => {
 describe('knapping', () => {
   it('outcome depends on location and strength', () => {
     expect(knap(2, 0.01, 60).outcome).toBe('flake');
-    expect(knap(0.5, 0.01, 60).code).toBe('knap.tooSoft');
-    expect(knap(5, 0.01, 60)).toEqual({ outcome: 'crushed', code: 'knap.tooHard' });
+    expect(knap(0.3, 0.01, 60).code).toBe('knap.tooSoft');
+    expect(knap(6, 0.01, 60)).toEqual({ outcome: 'crushed', code: 'knap.tooHard' });
     expect(knap(2, KNAP_EDGE * 2, 60).code).toBe('knap.offEdge');
     expect(knap(2, 0.01, 95).code).toBe('knap.badAngle');
   });

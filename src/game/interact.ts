@@ -300,12 +300,12 @@ export class Notch {
 // ------------------------------------------------------------------ knapping
 
 /** Strike speed range (m/s) that detaches a flake. */
-export const KNAP_MIN = 1.0;
-export const KNAP_MAX = 3.6;
+export const KNAP_MIN = 0.55;
+export const KNAP_MAX = 5;
 /** Distance (m) from the core's edge within which a blow can detach a flake. */
-export const KNAP_EDGE = 0.02;
+export const KNAP_EDGE = 0.045;
 /** Best platform angles (degrees between blow and striking platform). */
-export const KNAP_ANGLE: [number, number] = [45, 80];
+export const KNAP_ANGLE: [number, number] = [25, 88];
 
 export type KnapOutcome = 'flake' | 'crushed' | 'nothing';
 

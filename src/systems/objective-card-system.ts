@@ -19,7 +19,7 @@ import { WorldSystem } from './world-system.js';
 const PANEL_SCALE = 0.05;
 const UNIT_M = 0.01 * PANEL_SCALE;
 const CARD_W = 520;
-const CARD_H = 270;
+const CARD_H = 300;
 /** Header buttons (centres, in panel units from the panel centre; y up). */
 const HINT_X = 156;
 const CLOSE_X = 212;
@@ -170,13 +170,10 @@ export class ObjectiveCardSystem extends createSystem({}) {
       this.panel.requireElementById('obj-fill').setProperties({ width: Math.round((330 * v.progress.have) / v.progress.need) });
     }
     const subs = v.substeps.map((s) => `${s.done ? '[x]' : '[ ]'} ${s.text}`).join('   ');
-    show('obj-subs', v.substeps.length > 0);
-    text('obj-subs', subs);
+    text('obj-subs', subs);  // rows stay display:flex with fixed heights; toggling display from none left them zero-height
     // A failed attempt is explained first; the control lesson only until it is learned.
-    show('obj-bad', !!v.feedback);
     text('obj-bad', v.feedback ?? '');
-    show('obj-note', !!v.tip && !v.feedback);
-    text('obj-note', v.tip ?? '');
+    text('obj-note', v.feedback ? '' : (v.tip ?? ''));
   }
 
   private refresh(): void {

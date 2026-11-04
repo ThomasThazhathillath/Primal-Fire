@@ -128,3 +128,18 @@ describe('tracking loss while holding', () => {
     expect(handSqueeze(q, { ...lost, vr: false }).squeeze).toBe(false);
   });
 });
+
+describe('release hold', () => {
+  it('a brief finger wobble does not drop; staying open does', async () => {
+    const { PinchDetector, PINCH_CONFIG } = await import('../src/game/pinch.js');
+    const p = new PinchDetector();
+    const dt = 1 / 72;
+    p.update(0.01, true, PINCH_CONFIG, dt);
+    expect(p.pinch).toBe(true);
+    for (let i = 0; i < 5; i++) p.update(0.07, true, PINCH_CONFIG, dt); // ~70 ms open
+    p.update(0.02, true, PINCH_CONFIG, dt);
+    expect(p.pinch).toBe(true);
+    for (let i = 0; i < 15; i++) p.update(0.07, true, PINCH_CONFIG, dt); // ~210 ms open
+    expect(p.pinch).toBe(false);
+  });
+});

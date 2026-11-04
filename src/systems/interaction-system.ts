@@ -90,6 +90,9 @@ notchGeo.rotateZ(Math.PI / 4); // a diamond: the top half reads as a V cut into 
 const bounds = new Box3();
 const CHIP_COLOR: Record<Material, number> = { wood: 0xd8b07a, stone: 0xfff2b0, soil: 0x6b5236 };
 
+/** In VR, a part let go within this distance (m) of a build that wants it snaps onto its nearest free mark. */
+const NEAR_BUILD = 4;
+
 export class InteractionSystem extends createSystem({
   hoverGather: { required: [Gatherable, Hovered] },
   spots: { required: [Gatherable] },
@@ -707,7 +710,9 @@ export class InteractionSystem extends createSystem({
       if (releasing) this.endPlace();
       return;
     }
-    const target = game.placementTarget(held, this.tmp.x, this.tmp.z);
+    // Near a build that wants this part, it goes to the nearest free mark even if the
+    // aim is a little off: seated players can't point precisely at a mark metres away.
+    const target = game.placementTarget(held, this.tmp.x, this.tmp.z) ?? (this.viaVR ? game.placementTarget(held, game.player.x, game.player.z, NEAR_BUILD) : null);
     // Preview: where it will land, green when it would seat on its mark.
     // Anywhere near a mark snaps exactly onto it: no fine positioning.
     let seats = false;

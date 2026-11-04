@@ -6,7 +6,9 @@ export const PINCH_CONFIG = {
   /** Thumb-tip to index-tip distance (m) that starts a pinch. */
   start: 0.024,
   /** The pinch only ends once the tips are this far apart (m): hysteresis, so it never flickers. */
-  release: 0.042,
+  release: 0.055,
+  /** ...and stay that far apart this long (s): a tracking wobble of the fingers never drops what you hold. */
+  releaseHold: 0.15,
   /** A pinching hand that has been untracked this long (s) is let go (nothing is launched). */
   lossTimeout: 4,
   /** Direct grab: an object this close (m) to the pinch point can be taken. */
@@ -35,22 +37,30 @@ export class PinchDetector implements PinchState {
 
   /** Seconds of tracking loss while pinching. */
   lostFor = 0;
+  /** Seconds the fingers have been open past the release distance. */
+  openFor = 0;
 
   reset(): void {
     this.pinch = this.down = this.up = false;
     this.lostFor = 0;
+    this.openFor = 0;
   }
 
-  update(distance: number, tracked: boolean, cfg: Pick<typeof PINCH_CONFIG, 'start' | 'release'> = PINCH_CONFIG): void {
+  /** `dt` (s) enables the release hold; without it the pinch ends as soon as the fingers open. */
+  update(distance: number, tracked: boolean, cfg: Pick<typeof PINCH_CONFIG, 'start' | 'release'> & { releaseHold?: number } = PINCH_CONFIG, dt?: number): void {
     this.down = this.up = false;
     if (!tracked || !Number.isFinite(distance)) return;
     if (!this.pinch && distance <= cfg.start) {
       this.pinch = true;
       this.down = true;
     } else if (this.pinch && distance >= cfg.release) {
-      this.pinch = false;
-      this.up = true;
-    }
+      this.openFor += dt ?? Infinity;
+      if (this.openFor >= (cfg.releaseHold ?? 0)) {
+        this.pinch = false;
+        this.up = true;
+        this.openFor = 0;
+      }
+    } else this.openFor = 0;
   }
 }
 
@@ -75,7 +85,7 @@ export interface HandSignals {
 export function handSqueeze(p: PinchDetector, h: HandSignals): { squeeze: boolean; grip: boolean } {
   if (h.tipTracked) {
     p.lostFor = 0;
-    p.update(h.distance, true);
+    p.update(h.distance, true, PINCH_CONFIG, h.dt);
     return { squeeze: p.pinch, grip: p.pinch };
   }
   // Frozen through a loss, but not for ever: a hand that never returns lets go.

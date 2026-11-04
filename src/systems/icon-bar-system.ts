@@ -64,7 +64,8 @@ const COLORS = {
 
 /** Where the bar hangs (m): within a seated arm's reach, below eye level, either hand. */
 export const BAR_DISTANCE = 0.4;
-export const BAR_DOWN = 0.5;
+// Chest height for a seated player: well above hands resting on the knees.
+export const BAR_DOWN = 0.3;
 
 export class IconBarSystem extends createSystem({}) {
   private bar!: UIKitMLAsset;

@@ -125,3 +125,31 @@ remaining Quest hardware tests.
   `carry-system.ts`, `craft-gesture-system.ts`, `bench-system.ts`, `hand-locomotion-system.ts`
   (pinch-hold teleport + micro-gestures), `hud-system.ts` + `public/ui/hud.uikitml` (current icon HUD),
   `shared.ts` StaticAnchor (non-drifting VR panels), `src/game/interact.ts` and `carry.ts` (pure rules).
+
+## Quest hardware test list (phase 6)
+Run on the headset with hand tracking only (controllers put away), against the dev server. Each test passes only
+if it works first time without a retry. Record fps from `playtest.log` (heartbeat) during the whole session: the
+target is a steady 60 or more, and no frame hitches when something is grabbed, thrown or the weather changes.
+
+1. **Direct UI**: poke each bottom icon with the index tip. It activates once, the icon flashes, a soft click plays.
+   Sweep a finger across the bar in front of the icons and along its surface: nothing activates. A pinch near an icon does nothing.
+2. **Grab**: pinch a stone on the ground (thumb and index tips touching, 2 to 4 cm). It follows the hand without a jump.
+   Open the fingers: it lets go. Try both hands.
+3. **Place**: lower the stone slowly to the ground and open the fingers: it stays where you let go, with a soft sound, no float.
+   Do the same from chest height: it falls.
+4. **Throw**: swing back and then forward and open the fingers at the end. It flies the way you swung, not faster than a
+   plausible throw. A gentle release never throws.
+5. **Axe**: pinch the axe and chop a sapling with downward swings (wrist flicks count). A slow touch does nothing,
+   good swings deepen the notch, upward flicks do nothing, the log falls after several blows.
+6. **Hammer**: strike wood and a construction part with the hammer. Blows scale with speed; a gentle tap does nothing.
+7. **Construction**: carry a branch or stone to a build outline and let go near it: it snaps into the mark.
+8. **Two hands**: grab a log with one hand, add the other, rotate it, then open one hand: it stays held by the other.
+9. **Conflicts**: poke an icon while a stone lies close to the finger (it must not be grabbed); pinch a stone with a
+   finger near the bar (no icon fires); hold a stone for several seconds with the hand pointing at the ground (no teleport);
+   a grab never starts a placement or bend.
+10. **Tracking loss**: hold a stone, then bring the hand out of view (behind your back, or cover the cameras) for
+    2 seconds. The stone stays in place, does not launch, and is not dropped; bring the hand back and continue
+    holding. Repeat with a log held in two hands, an axe mid-swing and a bow drill mid-stroke: nothing fires on the way
+    back in. A hand that stays lost for about 4 s lets go gently (no throw).
+
+Also check: the fps figure while looking at the whole clearing from the middle, while it rains (rain streaks) and at night.

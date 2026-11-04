@@ -283,6 +283,7 @@ export class HandInputSystem extends createSystem({}) {
         vr,
         select: this.select[i],
         squeeze: this.squeeze[i],
+        dt,
       });
       h.squeeze = sq;
       h.squeezeUp = !sq && this.squeezeWas[i];

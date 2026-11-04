@@ -7,6 +7,8 @@ export const PINCH_CONFIG = {
   start: 0.024,
   /** The pinch only ends once the tips are this far apart (m): hysteresis, so it never flickers. */
   release: 0.042,
+  /** A pinching hand that has been untracked this long (s) is let go (nothing is launched). */
+  lossTimeout: 4,
   /** Direct grab: an object this close (m) to the pinch point can be taken. */
   grabRadius: 0.16,
   /** Let go slower than this (m/s) and close enough to a surface: it is set down, not dropped. */
@@ -31,8 +33,12 @@ export class PinchDetector implements PinchState {
   down = false;
   up = false;
 
+  /** Seconds of tracking loss while pinching. */
+  lostFor = 0;
+
   reset(): void {
     this.pinch = this.down = this.up = false;
+    this.lostFor = 0;
   }
 
   update(distance: number, tracked: boolean, cfg: Pick<typeof PINCH_CONFIG, 'start' | 'release'> = PINCH_CONFIG): void {
@@ -57,6 +63,8 @@ export interface HandSignals {
   /** Controller buttons, used when there are no hand joints. */
   select: boolean;
   squeeze: boolean;
+  /** Frame time (s), to time out a long tracking loss. */
+  dt?: number;
 }
 
 /**
@@ -66,10 +74,12 @@ export interface HandSignals {
  */
 export function handSqueeze(p: PinchDetector, h: HandSignals): { squeeze: boolean; grip: boolean } {
   if (h.tipTracked) {
+    p.lostFor = 0;
     p.update(h.distance, true);
     return { squeeze: p.pinch, grip: p.pinch };
   }
-  if (h.vr && p.pinch && !h.select && !h.squeeze) return { squeeze: true, grip: true };
+  // Frozen through a loss, but not for ever: a hand that never returns lets go.
+  if (h.vr && p.pinch && !h.select && !h.squeeze && (p.lostFor += h.dt ?? 0) < PINCH_CONFIG.lossTimeout) return { squeeze: true, grip: true };
   p.reset();
   return { squeeze: h.squeeze, grip: h.select || h.squeeze };
 }

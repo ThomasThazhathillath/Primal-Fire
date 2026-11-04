@@ -3,6 +3,7 @@
 
 import { AdditiveBlending, MeshBasicMaterial, type Object3D, Quaternion, Vector3, type World } from '@iwsdk/core';
 import type { Game } from '../game/game.js';
+import type { HandBusy } from '../game/priority.js';
 
 export interface UiHooks {
   dropHeld(item: import('../game/items.js').ItemId): void;
@@ -213,6 +214,8 @@ export const handClaims = {
   uiTapAt: [-10, -10],
   /** This hand's current pinch grabbed (or is holding) something: it must not start a teleport. */
   grabbing: [false, false],
+  /** This hand's pinch is a teleport aim in progress. */
+  moving: [false, false],
   /** Hand that holds the carried object, and when the last direct grab / pickup happened. */
   holdHand: 1 as 0 | 1,
   grabAt: -10,
@@ -220,3 +223,14 @@ export const handClaims = {
   heldTilt: 0,
   heldPos: new Vector3(),
 };
+
+/** What hand `h` is busy with, for the one priority order (src/game/priority.ts). */
+export function handBusy(world: World, h: 0 | 1): HandBusy {
+  const now = performance.now() / 1000;
+  return {
+    held: !!getGame(world).held && handClaims.holdHand === h && handClaims.grabbing[h],
+    ui: handClaims.uiNear[h] || now - handClaims.uiTapAt[h] < 0.5,
+    grab: false,
+    move: handClaims.moving[h],
+  };
+}

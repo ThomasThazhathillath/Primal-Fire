@@ -22,7 +22,7 @@ import {
   ShaderMaterial,
   Vector3,
 } from '@iwsdk/core';
-import { fireExposed, RAIN_BURN_LOSS, type WeatherKind } from '../game/environment.js';
+import { type Environment, fireExposed, RAIN_BURN_LOSS, type WeatherKind } from '../game/environment.js';
 import { mulberry32 } from '../game/rng.js';
 import { getGame } from './shared.js';
 
@@ -31,6 +31,8 @@ const RAIN_STREAKS = 700;
 const RAIN_BOX = 18;
 const RAIN_HEIGHT = 12;
 const DISC_DISTANCE = 300;
+/** Seconds between image-based-light colour updates (each one rebuilds a PMREM texture). */
+const IBL_PERIOD = 4;
 
 const DISC_VERT = /* glsl */ `
 varying vec2 vUv;
@@ -98,6 +100,7 @@ export class WorldEnvironmentSystem extends createSystem({
   /** Unlit mountain ridges (MeshBasicMaterial) and their daytime colours, dimmed with the sky. */
   private ridges: Array<{ mat: MeshBasicMaterial; base: Color; mesh: Mesh }> = [];
   private clock = 0;
+  private iblTimer = 0;
   private fireCheck = 0;
   private fireExposed = true;
 
@@ -171,6 +174,21 @@ export class WorldEnvironmentSystem extends createSystem({
     };
   }
 
+
+  private updateIbl(env: Environment): void {
+    for (const e of this.queries.ibl.entities) {
+      const sky = e.getVectorView(IBLGradient, 'sky');
+      const eq = e.getVectorView(IBLGradient, 'equator');
+      const gr = e.getVectorView(IBLGradient, 'ground');
+      for (let i = 0; i < 3; i++) {
+        sky[i] = Math.min(1, env.sky[i] * 1.6 + 0.1 * (1 - env.night) + 0.45 * env.night);
+        eq[i] = Math.min(1, env.equator[i] + 0.55 * env.night);
+        gr[i] = env.ground[i] * 1.2;
+      }
+      e.setValue(IBLGradient, 'intensity', env.iblIntensity);
+    }
+  }
+
   update(delta: number): void {
     const game = getGame(this.world);
     const env = game.env;
@@ -190,16 +208,12 @@ export class WorldEnvironmentSystem extends createSystem({
         gr[i] = env.ground[i];
       }
     }
-    for (const e of this.queries.ibl.entities) {
-      const sky = e.getVectorView(IBLGradient, 'sky');
-      const eq = e.getVectorView(IBLGradient, 'equator');
-      const gr = e.getVectorView(IBLGradient, 'ground');
-      for (let i = 0; i < 3; i++) {
-        sky[i] = Math.min(1, env.sky[i] * 1.6 + 0.1 * (1 - env.night) + 0.45 * env.night);
-        eq[i] = Math.min(1, env.equator[i] + 0.55 * env.night);
-        gr[i] = env.ground[i] * 1.2;
-      }
-      e.setValue(IBLGradient, 'intensity', env.iblIntensity);
+    // The image-based light rebuilds a PMREM texture whenever its colours change, so it follows the sky
+    // in slow steps (every few seconds), not every frame.
+    this.iblTimer -= delta;
+    if (this.iblTimer <= 0) {
+      this.iblTimer = IBL_PERIOD;
+      this.updateIbl(env);
     }
 
     // --- lights: hemisphere = ambient, directional = sun by day / moon by night

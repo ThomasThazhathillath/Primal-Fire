@@ -293,7 +293,9 @@ export class CraftGestureSystem extends createSystem({}) {
     if (this.vr) {
       const l = hands[0];
       const r = hands[1];
-      if (!l.tracked || !r.tracked || !l.grip || !r.grip) {
+      // Tracking lost: pause (no rolling, no progress) and pick up again when the hands return.
+      if (!l.tracked || !r.tracked) return;
+      if (!l.grip || !r.grip) {
         this.exit();
         return;
       }

@@ -14,10 +14,8 @@ import { fitsPouch } from '../game/items.js';
 import { groundHeight, RESOURCES } from '../game/world-layout.js';
 import { hands } from './hand-input-system.js';
 import { DRAG_LOOK, ResourceSystem } from './resource-system.js';
-import { getGame, handClaims } from './shared.js';
-
-/** A fingertip tap on an icon this recently (s) keeps the same hand from grabbing. */
-const TAP_QUIET = 0.5;
+import { mayStart } from '../game/priority.js';
+import { getGame, handBusy, handClaims } from './shared.js';
 
 interface Target extends GrabCandidate {
   spotId?: string;
@@ -39,7 +37,7 @@ export class PinchGrabSystem extends createSystem({}) {
       }
       if (!hand.gripDown) continue;
       if (game.held) continue; // 1. what you hold comes first
-      if (handClaims.uiNear[h] || now - handClaims.uiTapAt[h] < TAP_QUIET) continue; // 2. a UI tap
+      if (!mayStart('grab', handBusy(this.world, h as 0 | 1))) continue; // 2. a UI tap on this hand
       const target = this.find(hand.pinchPos);
       if (!target) continue;
       handClaims.holdHand = h as 0 | 1;

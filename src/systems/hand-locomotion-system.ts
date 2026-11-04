@@ -25,7 +25,8 @@ import { SWING_TOOLS } from '../game/interact.js';
 import { groundHeight, WORLD_RADIUS } from '../game/world-layout.js';
 import { DesktopControlsSystem } from './desktop-controls-system.js';
 import { hands } from './hand-input-system.js';
-import { getGame, getUi, handClaims } from './shared.js';
+import { mayStart } from '../game/priority.js';
+import { getGame, getUi, handBusy, handClaims } from './shared.js';
 
 interface MicroGestureConfig {
   config: { microGestureControlsEnabled: { value: boolean } };
@@ -109,7 +110,8 @@ export class HandLocomotionSystem extends createSystem({
       // Near a build that wants what you hold, the pinch sets the part down instead.
       if (held && game.wantsItem(held, game.player.x, game.player.z, 3)) return;
       for (let h = 0; h < 2; h++) {
-        if (hands[h].tracked && hands[h].gripDown && !handClaims.uiNear[h] && !handClaims.grabbing[h]) {
+        if (hands[h].tracked && hands[h].gripDown && mayStart('move', { ...handBusy(this.world, h as 0 | 1), grab: handClaims.grabbing[h] })) {
+          handClaims.moving[h] = true;
           this.holdHand = h;
           this.holdTime = 0;
           break;
@@ -181,6 +183,7 @@ export class HandLocomotionSystem extends createSystem({
   }
 
   private cancel(): void {
+    handClaims.moving[0] = handClaims.moving[1] = false;
     this.holdHand = -1;
     this.holdTime = 0;
     if (this.marker) this.marker.visible = false;

@@ -41,7 +41,9 @@ const AIM_CONE = 0.21;
 const AIM_HISTORY = 12;
 const AIM_LOOKBACK = 9;
 /** Spots farther than this (m) are hidden: they sit in full fog and cost draw calls. */
-const CULL_DISTANCE = 30;
+const CULL_DISTANCE = 20;
+/** The pickup glow only matters up close (it is one draw call per spot): beyond this (m) it is hidden. */
+const GLOW_DISTANCE = 9;
 
 interface Flight {
   obj: Object3D;
@@ -61,6 +63,8 @@ export class ResourceSystem extends createSystem({
   private head = new Vector3();
   private hip = new Vector3();
   private regrowTimer = 0;
+  private parked = new Map<Object3D, Object3D[]>();
+  private glowOf = new Map<Entity, Object3D | null>();
   private crosshair: HTMLDivElement | null = null;
   private litObj: Object3D | null = null;
   private pulse = 0;
@@ -127,6 +131,25 @@ export class ResourceSystem extends createSystem({
       ch.remove();
       window.removeEventListener('pointermove', onMove);
     });
+  }
+
+  /**
+   * Far spots drop their meshes out of the scene graph (the root stays: IWSDK owns entity roots and
+   * re-adds them): IWSDK walks the whole graph several times a frame (UI, transforms) and the spots'
+   * meshes are three quarters of all objects.
+   */
+  private setNear(o: Object3D, near: boolean): void {
+    o.visible = near;
+    const parked = this.parked.get(o);
+    if (near) {
+      if (parked) {
+        for (const c of parked) o.add(c);
+        this.parked.delete(o);
+      }
+    } else if (!parked && o.children.length) {
+      this.parked.set(o, o.children.slice());
+      o.clear();
+    }
   }
 
   spot(id: string): ResourceSpot | undefined {
@@ -313,14 +336,20 @@ export class ResourceSystem extends createSystem({
       const at = e.getValue(Gatherable, 'regrowAt') ?? 0;
       if ((e.getValue(Gatherable, 'charges') ?? 0) > 0) {
         const o = e.object3D!;
-        o.visible = Math.hypot(o.position.x - this.head.x, o.position.z - this.head.z) < CULL_DISTANCE;
+        const d = Math.hypot(o.position.x - this.head.x, o.position.z - this.head.z);
+        const near = d < CULL_DISTANCE;
+        this.setNear(o, near);
+        if (near) {
+          const glow = this.glowOf.get(e) ?? this.glowOf.set(e, o.getObjectByName('Glow') ?? null).get(e);
+          if (glow) glow.visible = d < GLOW_DISTANCE;
+        }
       }
       if (at <= 0 || now < at) continue;
       const spot = this.bySpot.get(e.getValue(Gatherable, 'spotId') ?? '');
       if (!spot) continue;
       e.setValue(Gatherable, 'charges', spot.charges);
       e.setValue(Gatherable, 'regrowAt', 0);
-      e.object3D!.visible = true;
+      this.setNear(e.object3D!, true);
       e.addComponent(RayInteractable);
     }
   }

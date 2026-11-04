@@ -99,7 +99,7 @@ export const OBJECTIVES: Objective[] = [
       levels: [
         'Look for a small, hard object lying on the forest floor.',
         'A grey or brown stone with a solid surface. Not a leaf, a root or a clump of soil.',
-        'Try the bare ground around the larger trees, and the edge of the stream.',
+        'A couple of stones lie on the ground around the clearing where you woke. Look within a few steps.',
         'Walk up to the stone, pinch it to pick it up, and open your hand to put it in your satchel.',
       ],
     },
@@ -119,7 +119,7 @@ export const OBJECTIVES: Objective[] = [
       levels: [
         'The same kind of small stone as before. You need three more.',
         'Round or blocky stones you can hold in one hand. Wet stones from the stream work for supports too.',
-        'Stones lie together: check the ground near rocks, ridges and the stream.',
+        'Check the clearing, the stream bank (wet stones), the Sunny Meadow and the Split Rock ridge.',
         'Pinch each stone to pick it up. Your satchel keeps them until you build.',
       ],
     },
@@ -138,7 +138,7 @@ export const OBJECTIVES: Objective[] = [
       levels: [
         'Look for a wide, flat piece of stone, much bigger than the small ones you carry.',
         'A broad slab with a level top. Small rounded stones cannot hold up a work surface.',
-        'Flat slabs break off on rocky, sunny ridges, and old builders left some behind.',
+        'Slabs lie on the Split Rock ridge and among the old ruins, and a few are scattered through the far forest.',
         'Pinch the slab with one hand, then pinch it with your other hand to lift it. Carry it to your build spot.',
       ],
     },
@@ -208,7 +208,7 @@ export const OBJECTIVES: Objective[] = [
       levels: [
         'Some stones break into thin, glassy edges.',
         'Dark, fine-grained stone such as flint breaks the sharpest.',
-        'Look for dark stone near water or cliffs, and strike it with a harder stone.',
+        'Flint is a dark, glassy nodule. You strike it with a harder stone held in your other hand.',
         'Hold the stone in one hand, strike its edge with a stone in the other, and keep the flake.',
       ],
     },
@@ -248,7 +248,7 @@ export const OBJECTIVES: Objective[] = [
       levels: [
         'Use the sharp flake you made on something soft.',
         'Hollow cane and plant stems are easy to cut.',
-        'Cane grows along the stream.',
+        'Cane stands along the stream, around the Clay Bend.',
         'Hold the flake and draw its edge across the cane.',
       ],
     },
@@ -266,7 +266,7 @@ export const OBJECTIVES: Objective[] = [
       levels: [
         'Tinder is dry, fine and fluffy.',
         'Pale, dry grass. Green grass and damp moss do not catch.',
-        'Grass dries where sunlight reaches the ground: open clearings.',
+        'Dry grass grows in the Sunny Meadow and around the Lightning Glade.',
         'Pinch a tuft of pale grass and pull it free.',
       ],
     },
@@ -490,7 +490,7 @@ export const OBJECTIVES: Objective[] = [
       g.hasEvent('shelter.bed.insulated') &&
       g.hasEvent('shelter.wind.blocked'),
     hint: {
-      ref: 'greenBranch',
+      ref: 'branch',
       levels: [
         'A shelter keeps off rain, cold ground and wind.',
         'It needs a sloped roof, a dry bed and an opening away from the wind.',

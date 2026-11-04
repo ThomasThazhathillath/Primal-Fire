@@ -1,0 +1,46 @@
+<!--
+  The hint panel (docs/QUEST_GUIDANCE_SPEC.md, part B). Fixed layout: HintPanelSystem
+  puts the reference picture (a rendered texture) over the empty .pic area and
+  tests fingertip taps against the two buttons at known spots. Rows (top to
+  bottom, px): header 48, picture 342, name 34, look-for / why / avoid / what-to-do 4 x 60,
+  level row 44, level text 128. Panel height 904.
+-->
+<style>
+  .root { flex-direction: column; width: 600px; height: 904px; padding-top: 18px; padding-bottom: 18px; padding-left: 20px; padding-right: 20px; justify-content: flex-start; }
+  .head { flex-direction: row; align-items: center; justify-content: space-between; height: 48px; flex-shrink: 0; }
+  .titlebox { flex-direction: column; width: 440px; }
+  .eyebrow { color: #8a5a00; font-size: 13px; font-weight: 700; letter-spacing: 1.5px; }
+  .eyebrow:dark { color: #ffb547; }
+  .title { color: #1c1d20; font-size: 24px; font-weight: 700; }
+  .title:dark { color: #f3eadb; }
+  .pic { width: 456px; height: 342px; margin-top: 8px; margin-left: 52px; flex-shrink: 0; }
+  .name { height: 34px; margin-top: 6px; flex-shrink: 0; color: #1c1d20; font-size: 26px; font-weight: 700; width: 560px; }
+  .name:dark { color: #ffd27a; }
+  .row { height: 60px; flex-shrink: 0; margin-top: 0px; color: #2a2620; font-size: 19px; line-height: 1.2; width: 560px; }
+  .row:dark { color: #e4d9c6; }
+  .lvl { flex-direction: row; align-items: center; justify-content: space-between; height: 44px; margin-top: 8px; flex-shrink: 0; }
+  .lvltext { color: #8a5a00; font-size: 19px; font-weight: 700; }
+  .lvltext:dark { color: #ffb547; }
+  .hinttext { height: 128px; margin-top: 4px; flex-shrink: 0; color: #2a2620; font-size: 20px; line-height: 1.25; width: 560px; }
+  .hinttext:dark { color: #e4d9c6; }
+</style>
+<Panel class="root">
+  <div class="head">
+    <div class="titlebox">
+      <div id="hint-eyebrow" class="eyebrow">HINT</div>
+      <div id="hint-title" class="title">-</div>
+    </div>
+    <Button id="hint-close" size="sm" variant="secondary"><ButtonIcon><X></X></ButtonIcon></Button>
+  </div>
+  <div class="pic"></div>
+  <div id="hint-name" class="name">-</div>
+  <div id="hint-look" class="row">-</div>
+  <div id="hint-why" class="row">-</div>
+  <div id="hint-avoid" class="row">-</div>
+  <div id="hint-do" class="row">-</div>
+  <div class="lvl">
+    <div id="hint-level" class="lvltext">Hint 1 of 4</div>
+    <Button id="hint-more" size="sm"><ButtonIcon><Plus></Plus></ButtonIcon><ButtonLabel>More help</ButtonLabel></Button>
+  </div>
+  <div id="hint-text" class="hinttext">-</div>
+</Panel>

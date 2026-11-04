@@ -222,6 +222,7 @@ const ITEM_LOOK: Partial<Record<ItemId, ResourceLook>> = {
   cloth: 'cloth',
   lens: 'lens',
   dryStone: 'stone',
+  flint: 'stoneDark',
   wetStone: 'wetStone',
   slab: 'slab',
   forkedStick: 'forkedStick',

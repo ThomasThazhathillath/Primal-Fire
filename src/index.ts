@@ -33,6 +33,7 @@ import { WaterSystem } from './systems/water-system.js';
 import { HudSystem } from './systems/hud-system.js';
 import { IconBarSystem } from './systems/icon-bar-system.js';
 import { PinchGrabSystem } from './systems/pinch-grab-system.js';
+import { HintPanelSystem } from './systems/hint-panel-system.js';
 import { PerfSystem } from './systems/perf-system.js';
 import { IntroSystem } from './systems/intro-system.js';
 import { ResourceSystem } from './systems/resource-system.js';
@@ -79,7 +80,8 @@ World.create(
     .registerSystem(IntroSystem)
     .registerSystem(AudioSystem)
     .registerSystem(AmbienceSystem)
-    .registerSystem(PerfSystem);
+    .registerSystem(PerfSystem)
+    .registerSystem(HintPanelSystem);
   installDebugHooks(world);
   streamPlaytestLog(world);
 });

@@ -30,6 +30,9 @@ const DESK_TWO = new Vector3(0, -0.42, -0.75);
 /** Seconds a pickup takes to arrive in the hand. */
 const REACH_TIME = 0.25;
 
+/** A part let go within this distance (m) of a build that wants it seats on its nearest free mark. */
+const NEAR_BUILD = 3;
+
 export class CarrySystem extends createSystem({}) {
   private root = new Group();
   private obj: Object3D | null = null;
@@ -74,8 +77,8 @@ export class CarrySystem extends createSystem({}) {
       if (this.obj) this.obj.visible = v;
     };
     // G: set down what you hold; Shift+G: throw it.
-    getUi(this.world).dropHeld = (item: ItemId) => this.release(item, false);
-    getUi(this.world).throwHeld = () => this.item && this.release(this.item, true);
+    getUi(this.world).dropHeld = (item: ItemId) => this.release(item, false, 'drop button');
+    getUi(this.world).throwHeld = () => this.item && this.release(this.item, true, 'throw');
     this.cleanupFuncs.push(
       game.on((e: GameEvent) => {
         if (e.type === 'held') this.show(e.item);
@@ -182,8 +185,9 @@ export class CarrySystem extends createSystem({}) {
   }
 
   /** Let go: `throwIt` adds a forward toss. The object keeps the hand's momentum. */
-  private release(item: ItemId, throwIt: boolean): void {
+  private release(item: ItemId, throwIt: boolean, via = 'pinch'): void {
     const game = getGame(this.world);
+    game.log.add(`let go of ${item} (${via})`);
     if (!this.obj || this.item !== item) {
       // Not in hand (a bag item): it drops in front of you from about waist height.
       this.camera.getWorldPosition(this.tmp);
@@ -207,7 +211,8 @@ export class CarrySystem extends createSystem({}) {
     const p = this.obj.position;
     // Lowered onto a construction mark: it seats there (snap marks still apply), else it is just set down below.
     if (this.immersive() && !throwIt) {
-      const t = game.placementTarget(item, p.x, p.z, 0.5);
+      // Let go anywhere near a build that wants it: it seats on the nearest free mark.
+      const t = game.placementTarget(item, p.x, p.z, 0.5) ?? game.placementTarget(item, p.x, p.z, NEAR_BUILD);
       if (t && game.held === item) {
         // Brought near a build point and let go: it snaps onto the mark (no fine positioning).
         const mark = spotWorldPosition(t.structure, t.index);

@@ -64,8 +64,10 @@ const COLORS = {
 
 /** Where the bar hangs (m): within a seated arm's reach, below eye level, either hand. */
 export const BAR_DISTANCE = 0.4;
+/** The bar's no-move zone (m, panel frame): this far around the icons, in front of and behind the surface. */
+const BAR_ZONE = { margin: 0.08, front: 0.15, behind: 0.25 };
 // Chest height for a seated player: well above hands resting on the knees.
-export const BAR_DOWN = 0.3;
+export const BAR_DOWN = 0.38;
 
 export class IconBarSystem extends createSystem({}) {
   private bar!: UIKitMLAsset;
@@ -280,7 +282,9 @@ export class IconBarSystem extends createSystem({}) {
       const s = this.sample(hand.tipPos, hand.tipDir, hand.tipTracked, hand.pinchDist, hand.pointing);
       const hit = tr.update(dt, this.icons, s);
       for (let i = 0; i < n; i++) if (tr.states[i] > this.merged[i]) this.merged[i] = tr.states[i];
-      handClaims.uiNear[h] = tr.hoverIcon >= 0;
+      // The whole space around the bar (in front of it and pressed through it) belongs to the UI:
+      // a pinch there is never a teleport or a grab, however hard you press.
+      handClaims.uiNear[h] = tr.hoverIcon >= 0 || (s.tracked && this.inBarZone(s));
       if (hit >= 0) {
         handClaims.uiTapAt[h] = performance.now() / 1000;
         this.click();
@@ -304,6 +308,19 @@ export class IconBarSystem extends createSystem({}) {
   private dirTmp = new Vector3();
 
   /** World fingertip → panel frame in metres (x right, y up, z towards the viewer). */
+  private inBarZone(s: TipSample): boolean {
+    if (this.icons.length === 0 || s.z > BAR_ZONE.front || s.z < -BAR_ZONE.behind) return false;
+    let minX = Infinity;
+    let maxX = -Infinity;
+    for (const ic of this.icons) {
+      if (ic.x - ic.r < minX) minX = ic.x - ic.r;
+      if (ic.x + ic.r > maxX) maxX = ic.x + ic.r;
+    }
+    const y0 = this.icons[0].y;
+    const r = this.icons[0].r;
+    return s.x > minX - BAR_ZONE.margin && s.x < maxX + BAR_ZONE.margin && Math.abs(s.y - y0) < r + BAR_ZONE.margin;
+  }
+
   private sample(pos: Vector3, dir: Vector3, tracked: boolean, pinchDist: number, pointing: boolean): TipSample {
     const o = this.sampleOut;
     o.tracked = tracked;

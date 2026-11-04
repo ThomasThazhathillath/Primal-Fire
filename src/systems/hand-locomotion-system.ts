@@ -120,7 +120,8 @@ export class HandLocomotionSystem extends createSystem({
       return;
     }
     const hf = hands[this.holdHand];
-    if (!hf.tracked) {
+    // A hand that reaches into the icon bar (or just tapped it) is using the UI: never a move.
+    if (!hf.tracked || handClaims.uiNear[this.holdHand] || performance.now() / 1000 - handClaims.uiTapAt[this.holdHand] < 1.5) {
       this.cancel();
       return;
     }

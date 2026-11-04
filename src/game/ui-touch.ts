@@ -20,11 +20,11 @@ export const TOUCH_CONFIG = {
   /** Past this depth behind the surface (m) the fingertip is no longer in the icon. */
   throughDepth: -0.06,
   /** Minimum speed towards the surface (m/s) at the moment of crossing. */
-  minSpeed: 0.2,
+  minSpeed: 0.15,
   /** Finger direction · into-panel must exceed this (1 = pointing straight in). */
-  minAim: 0.55,
+  minAim: 0.45,
   /** Icon hit radius = icon radius * this (a little forgiving). */
-  radiusScale: 0.9,
+  radiusScale: 1.05,
   /** Seconds after a tap before the same hand may tap again. */
   cooldown: 0.45,
   /** Must be this far (m) outside the icon region, or in front of it, to re-arm. */

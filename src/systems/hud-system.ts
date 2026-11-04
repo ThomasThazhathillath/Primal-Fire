@@ -378,8 +378,11 @@ export class HudSystem extends createSystem({
     if (!this.ready) return;
     if (this.shown) {
       const vr = this.world.visibilityState.peek() !== VisibilityState.NonImmersive;
-      // The flat view keeps it for the Enter VR button.
-      this.setIdle(this.toastTimer <= 0 && !this.hoverShown && !getGame(this.world).objectives.done && (vr || !this.world.xrEnabled));
+      // VR during the tutorial: never shown (the objective card carries the task and the
+      // failure reasons; a strip that flickers in for each message read as an empty floating box).
+      // The flat view keeps it for messages and the Enter VR button.
+      const tutorial = !getGame(this.world).objectives.done;
+      this.setIdle(tutorial && (vr || (this.toastTimer <= 0 && !this.hoverShown && !this.world.xrEnabled)));
       if (!this.idle && vr) this.hudAnchor.update(this.hud, this.camera);
     }
     if (this.toastTimer > 0 && (this.toastTimer -= delta) <= 0) {

@@ -302,7 +302,7 @@ const LABELS: Record<ResourceLook, string> = {
   leafLitter: 'A drift of crisp, brown leaves',
   vine: 'A tough, trailing vine hanging from the trees',
   bark: 'A curl of bark peeling from a dead trunk',
-  stoneDark: 'A heavy, dark stone, rough to the touch',
+  stoneDark: 'Flint: a dark, glassy stone that breaks into sharp flakes',
   stonePale: 'A pale, chalky stone with a flat face',
 };
 
@@ -330,7 +330,8 @@ const LOOK_ITEM: Record<ResourceLook, ItemId> = {
   leafLitter: 'leafLitter',
   vine: 'vine',
   bark: 'bark',
-  stoneDark: 'dryStone',
+  // The dark, glassy stones are the flint you knap (they used to give plain stone, so flint was nowhere).
+  stoneDark: 'flint',
   stonePale: 'dryStone',
 };
 
@@ -398,6 +399,9 @@ export const SCATTER_RULES: ScatterRule[] = [
   { look: 'gravelBed', count: 10, zone: 'stream', minR: 0.9, maxR: 1.7 },
   { look: 'sandBar', count: 3, zone: 'stream', minR: 0.9, maxR: 1.5 },
   { look: 'cane', count: 5, zone: 'stream', minR: 1.1, maxR: 2.2 },
+  // Last, so the random layout of everything above stays exactly where it was.
+  // A few flint nodules close to where you wake, for the first sharp stone.
+  { look: 'stoneDark', count: 3, zone: 'forest', minR: 3, maxR: 7 },
 ];
 
 function scatterPoint(rule: ScatterRule, rng: () => number): [number, number] | null {

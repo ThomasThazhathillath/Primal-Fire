@@ -211,9 +211,13 @@ export const OBJECTIVES: Objective[] = [
   {
     id: 'stoneTools',
     title: 'Make a sharp stone',
-    instruction: 'Strike two hard stones together. A thin, sharp flake breaks off.',
+    instruction: 'Find a piece of flint, take it out of your bag, and knock flakes off it with a stone.',
     doneMessage: 'You made your first edge. Sharp things cut.',
     teach: 'tool',
+    howTo: (g) =>
+      g.count('flint') === 0 && g.held !== 'flint'
+        ? 'First find flint: a dark, glassy stone (tap the hint bulb to see it). Pinch it to put it in your bag. Keep an ordinary stone in your bag too.'
+        : 'HOW TO KNAP: 1. Tap the bag icon and tap Flint. It sits in one hand. 2. A stone appears in your other hand automatically (you only need one in your bag). 3. Swing that hand and hit the edge of the flint firmly, a few times, until a flake breaks off.',
     done: (g) => g.hasEvent('tool.knap.flake'),
     implied: (g) => litFire(g) || g.hasEvent('tool.edge.cut'),
     hint: {
@@ -222,7 +226,7 @@ export const OBJECTIVES: Objective[] = [
         'Some stones break into thin, glassy edges.',
         'Dark, fine-grained stone such as flint breaks the sharpest.',
         'Flint is a dark, glassy nodule. You strike it with a harder stone held in your other hand.',
-        'Hold the stone in one hand, strike its edge with a stone in the other, and keep the flake.',
+        'Take the flint out of your bag; a hammer stone appears in your other hand. Strike the flint edge firmly with it until a flake breaks off.',
       ],
     },
   },

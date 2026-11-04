@@ -22,6 +22,8 @@ export interface UiHooks {
   showHint(): void;
   /** Open the image-hint panel for an objective (part B); the card's hint icon calls it. */
   openHint(objectiveId: string): void;
+  /** True while the hint panel is open; the objective card hides meanwhile so the two never overlap. */
+  hintOpen?(): boolean;
   toggleGuide(): void;
   /** Fold the quest details open or closed on the status strip. */
   toggleQuest(): void;

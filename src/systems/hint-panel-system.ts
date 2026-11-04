@@ -91,6 +91,7 @@ export class HintPanelSystem extends createSystem({}) {
     wire('hint-more', () => this.more());
     wire('hint-close', () => this.close());
 
+    getUi(this.world).hintOpen = () => this.opened !== null;
     getUi(this.world).openHint = (id: string) => (this.opened === id ? this.close() : this.open(id));
     this.cleanupFuncs.push(this.world.visibilityState.subscribe((v) => this.onVisibility(v)));
     this.ready = true;
@@ -155,7 +156,7 @@ export class HintPanelSystem extends createSystem({}) {
 
   private place(): void {
     if (this.vr) this.anchor.update(this.panel, this.camera);
-    else placeInFront(this.panel, this.camera, 0.6, 0, 0);
+    else placeInFront(this.panel, this.camera, 0.6, 0, 0.1); // below the top HUD (Enter XR button)
   }
 
   private render(): void {

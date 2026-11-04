@@ -36,6 +36,7 @@ export class ObjectiveCardSystem extends createSystem({}) {
   private ready = false;
   private shown = false;
   private open = true;
+  private hintOn = false;
   private vr = false;
   private dirty = true;
   private timer = 0;
@@ -117,7 +118,7 @@ export class ObjectiveCardSystem extends createSystem({}) {
 
   private place(): void {
     if (!this.shown) return;
-    const show = this.open && this.view !== null;
+    const show = this.open && this.view !== null && !this.hintOn;
     // ScreenSpace reparents the UIKit document onto the camera, so the document is hidden too.
     if (this.doc) this.doc.visible = show;
     if (!show) {
@@ -196,12 +197,20 @@ export class ObjectiveCardSystem extends createSystem({}) {
       this.refresh();
       this.place();
     }
+    // The hint panel opens over the same area: hide the card while it is open, restore it on close.
+    const hint = getUi(this.world).hintOpen?.() ?? false;
+    if (hint !== this.hintOn) {
+      this.hintOn = hint;
+      this.trackers[0].reset();
+      this.trackers[1].reset();
+      this.place();
+    }
     if (this.dirty || (this.timer += delta) > 0.25) {
       this.timer = 0;
       this.dirty = false;
       this.refresh();
     }
-    if (!this.open || !this.view || !this.vr) return;
+    if (!this.open || !this.view || !this.vr || this.hintOn) return;
     this.anchor.update(this.panel, this.camera);
     this.panel.updateMatrixWorld(true);
     this.tapUpdate(delta);

@@ -18,7 +18,7 @@ import { fitsPouch } from '../game/items.js';
 import { IconState, TouchTracker, type TipSample, type TouchIcon } from '../game/ui-touch.js';
 import { hands } from './hand-input-system.js';
 import { getGame, getUi, handClaims, hidePanel, StaticAnchor } from './shared.js';
-import { WorldSystem } from './world-system.js';
+import { clearSave, WorldSystem } from './world-system.js';
 
 const SLOT = 52;
 const GAP = 6;
@@ -34,6 +34,9 @@ interface Def {
   run: (s: IconBarSystem) => void;
 }
 
+/** Second tap on Restart must come within this long (ms). */
+const RESTART_CONFIRM_MS = 4000;
+
 const DEFS: Def[] = [
   { id: 'satchel', show: () => true, run: (s) => getUi(s.world).toggleSatchel?.() },
   { id: 'quest', show: () => true, run: (s) => getUi(s.world).toggleQuest?.() },
@@ -48,6 +51,7 @@ const DEFS: Def[] = [
   { id: 'reload', show: () => true, run: (s) => s.reload() },
   { id: 'exit', show: (s) => s.vr, run: (s) => s.exitVr() },
   { id: 'book', show: () => true, run: (s) => getUi(s.world).toggleBook?.() },
+  { id: 'restart', show: () => true, run: (s) => s.restart() },
 ];
 
 const COLORS = {
@@ -158,6 +162,18 @@ export class IconBarSystem extends createSystem({}) {
   }
   reload(): void {
     getUi(this.world).saveNow?.();
+    location.reload();
+  }
+  private restartArmedAt = -1e9;
+  /** Start a brand-new game. Needs a second tap within a few seconds, so a stray touch never wipes the save. */
+  restart(): void {
+    const now = performance.now();
+    if (now - this.restartArmedAt > RESTART_CONFIRM_MS) {
+      this.restartArmedAt = now;
+      getGame(this.world).toast('Start over from the beginning? Tap restart again to confirm.', 'note');
+      return;
+    }
+    clearSave();
     location.reload();
   }
   exitVr(): void {

@@ -27,6 +27,8 @@ export interface UiHooks {
   openHint(objectiveId: string): void;
   /** True while the hint panel is open; the objective card hides meanwhile so the two never overlap. */
   hintOpen?(): boolean;
+  /** True while the notebook card is open; the objective card hides meanwhile. */
+  notebookOpen?(): boolean;
   toggleGuide(): void;
   /** Fold the quest details open or closed on the status strip. */
   toggleQuest(): void;

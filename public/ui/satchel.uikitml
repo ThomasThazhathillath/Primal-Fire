@@ -5,7 +5,7 @@
 -->
 <style>
   .theme-begin { display: flex; }
-  .t-root { background-color: rgba(36, 28, 22, 0.94); border-radius: 18px; }
+  .t-root { background-color: rgba(62, 40, 22, 0.96); border-radius: 18px; }
   .t-title { color: #f8eedb; font-size: 30px; font-weight: 700; }
   .t-name { color: #f8eedb; font-size: 25px; font-weight: 700; }
   .t-lead { color: #f8eedb; font-size: 22px; line-height: 1.25; }
@@ -17,10 +17,10 @@
   .t-note { color: #ffc283; font-size: 17px; line-height: 1.25; }
   .t-ok { color: #86dc97; font-size: 18px; font-weight: 700; line-height: 1.25; }
   .t-bad { color: #ff9684; font-size: 18px; font-weight: 700; line-height: 1.25; }
-  .t-row { background-color: rgba(255, 236, 205, 0.10); border-radius: 12px; }
-  .t-btn { background-color: rgba(255, 236, 205, 0.10); border-radius: 12px; }
+  .t-row { background-color: rgba(255, 200, 140, 0.13); border-radius: 12px; }
+  .t-btn { background-color: rgba(255, 200, 140, 0.13); border-radius: 12px; }
   .t-go { background-color: #ff8a3d; border-radius: 12px; }
-  .t-track { background-color: rgba(255, 236, 205, 0.16); border-radius: 4px; }
+  .t-track { background-color: rgba(255, 200, 140, 0.20); border-radius: 4px; }
   .t-fill { background-color: #ff8a3d; border-radius: 4px; }
 .theme-end { display: flex; }
   .root { flex-direction: column; width: 480px; padding-top: 22px; padding-bottom: 22px; padding-left: 26px; padding-right: 26px; gap: 12px; }

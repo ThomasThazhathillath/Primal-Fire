@@ -28,6 +28,7 @@ import type { HintPiece, HintView } from '../game/hint-info.js';
 import type { ItemId } from '../game/items.js';
 import type { ResourceLook } from '../game/world-layout.js';
 import { itemMesh, resourceMesh } from '../scene-assets/item-meshes.js';
+import { createRuins } from '../scene-assets/landmarks.scene-asset.js';
 
 export const PIC_W = 512;
 export const PIC_H = 384;
@@ -64,6 +65,7 @@ function build(p: HintPiece): Object3D | null {
       }
       return g;
     }
+    if (p.kind === 'landmark') return createRuins();
     const o = p.kind === 'item' ? itemMesh(p.id as ItemId) : resourceMesh(p.id as ResourceLook);
     if (p.tint !== undefined) tinted(o, p.tint);
     if (p.kind === 'item' && p.scale) o.scale.set(...p.scale);

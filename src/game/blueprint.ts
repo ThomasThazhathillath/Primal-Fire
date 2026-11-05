@@ -148,8 +148,11 @@ export const STORAGE_SLOTS = 40;
 export const CAMP_RADIUS = 14;
 
 /** The kinds a held item could start, in priority order. */
-export function blueprintsForKeyItem(item: ItemId): BlueprintDef[] {
-  return Object.values(BLUEPRINTS).filter((b) => b.keyAccepts.includes(item));
+export function blueprintsForKeyItem(item: ItemId, prefer?: StructureKind | null): BlueprintDef[] {
+  const all = Object.values(BLUEPRINTS).filter((b) => b.keyAccepts.includes(item));
+  // The structure the current objective builds comes first: a stone in hand must offer the workbench
+  // (not the fire pit that shares the stone) while the player is building the workbench.
+  return prefer ? [...all.filter((b) => b.kind === prefer), ...all.filter((b) => b.kind !== prefer)] : all;
 }
 
 export interface PlacedStructure {

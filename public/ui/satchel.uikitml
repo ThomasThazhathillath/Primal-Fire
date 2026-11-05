@@ -10,6 +10,8 @@
   .sub:dark { color: #b9ab95; }
   .grid { flex-direction: row; flex-wrap: wrap; gap: 8px; }
   .item { width: 134px; }
+  .bagrow { width: 412px; }
+  .bagtext { font-size: 15px; }
   .row { flex-direction: row; gap: 10px; }
   .back { width: 190px; height: 60px; }
 </style>
@@ -17,24 +19,24 @@
   <div class="title">Bag</div>
   <div id="satchel-sub" class="sub">Tap an item to take it in hand. Tap Back to return to the icons.</div>
   <div class="grid">
-    <Button id="item-0" class="item" variant="secondary" size="sm"><ButtonLabel id="item-0-label">-</ButtonLabel></Button>
-    <Button id="item-1" class="item" variant="secondary" size="sm"><ButtonLabel id="item-1-label">-</ButtonLabel></Button>
-    <Button id="item-2" class="item" variant="secondary" size="sm"><ButtonLabel id="item-2-label">-</ButtonLabel></Button>
-    <Button id="item-3" class="item" variant="secondary" size="sm"><ButtonLabel id="item-3-label">-</ButtonLabel></Button>
-    <Button id="item-4" class="item" variant="secondary" size="sm"><ButtonLabel id="item-4-label">-</ButtonLabel></Button>
-    <Button id="item-5" class="item" variant="secondary" size="sm"><ButtonLabel id="item-5-label">-</ButtonLabel></Button>
-    <Button id="item-6" class="item" variant="secondary" size="sm"><ButtonLabel id="item-6-label">-</ButtonLabel></Button>
-    <Button id="item-7" class="item" variant="secondary" size="sm"><ButtonLabel id="item-7-label">-</ButtonLabel></Button>
-    <Button id="item-8" class="item" variant="secondary" size="sm"><ButtonLabel id="item-8-label">-</ButtonLabel></Button>
-    <Button id="item-9" class="item" variant="secondary" size="sm"><ButtonLabel id="item-9-label">-</ButtonLabel></Button>
-    <Button id="item-10" class="item" variant="secondary" size="sm"><ButtonLabel id="item-10-label">-</ButtonLabel></Button>
-    <Button id="item-11" class="item" variant="secondary" size="sm"><ButtonLabel id="item-11-label">-</ButtonLabel></Button>
-    <Button id="item-12" class="item" variant="secondary" size="sm"><ButtonLabel id="item-12-label">-</ButtonLabel></Button>
-    <Button id="item-13" class="item" variant="secondary" size="sm"><ButtonLabel id="item-13-label">-</ButtonLabel></Button>
-    <Button id="item-14" class="item" variant="secondary" size="sm"><ButtonLabel id="item-14-label">-</ButtonLabel></Button>
-    <Button id="item-15" class="item" variant="secondary" size="sm"><ButtonLabel id="item-15-label">-</ButtonLabel></Button>
-    <Button id="item-16" class="item" variant="secondary" size="sm"><ButtonLabel id="item-16-label">-</ButtonLabel></Button>
-    <Button id="item-17" class="item" variant="secondary" size="sm"><ButtonLabel id="item-17-label">-</ButtonLabel></Button>
+    <Button id="item-0" class="bagrow" variant="secondary" size="sm"><ButtonLabel id="item-0-label" class="bagtext">-</ButtonLabel></Button>
+    <Button id="item-1" class="bagrow" variant="secondary" size="sm"><ButtonLabel id="item-1-label" class="bagtext">-</ButtonLabel></Button>
+    <Button id="item-2" class="bagrow" variant="secondary" size="sm"><ButtonLabel id="item-2-label" class="bagtext">-</ButtonLabel></Button>
+    <Button id="item-3" class="bagrow" variant="secondary" size="sm"><ButtonLabel id="item-3-label" class="bagtext">-</ButtonLabel></Button>
+    <Button id="item-4" class="bagrow" variant="secondary" size="sm"><ButtonLabel id="item-4-label" class="bagtext">-</ButtonLabel></Button>
+    <Button id="item-5" class="bagrow" variant="secondary" size="sm"><ButtonLabel id="item-5-label" class="bagtext">-</ButtonLabel></Button>
+    <Button id="item-6" class="bagrow" variant="secondary" size="sm"><ButtonLabel id="item-6-label" class="bagtext">-</ButtonLabel></Button>
+    <Button id="item-7" class="bagrow" variant="secondary" size="sm"><ButtonLabel id="item-7-label" class="bagtext">-</ButtonLabel></Button>
+    <Button id="item-8" class="bagrow" variant="secondary" size="sm"><ButtonLabel id="item-8-label" class="bagtext">-</ButtonLabel></Button>
+    <Button id="item-9" class="bagrow" variant="secondary" size="sm"><ButtonLabel id="item-9-label" class="bagtext">-</ButtonLabel></Button>
+    <Button id="item-10" class="bagrow" variant="secondary" size="sm"><ButtonLabel id="item-10-label" class="bagtext">-</ButtonLabel></Button>
+    <Button id="item-11" class="bagrow" variant="secondary" size="sm"><ButtonLabel id="item-11-label" class="bagtext">-</ButtonLabel></Button>
+    <Button id="item-12" class="bagrow" variant="secondary" size="sm"><ButtonLabel id="item-12-label" class="bagtext">-</ButtonLabel></Button>
+    <Button id="item-13" class="bagrow" variant="secondary" size="sm"><ButtonLabel id="item-13-label" class="bagtext">-</ButtonLabel></Button>
+    <Button id="item-14" class="bagrow" variant="secondary" size="sm"><ButtonLabel id="item-14-label" class="bagtext">-</ButtonLabel></Button>
+    <Button id="item-15" class="bagrow" variant="secondary" size="sm"><ButtonLabel id="item-15-label" class="bagtext">-</ButtonLabel></Button>
+    <Button id="item-16" class="bagrow" variant="secondary" size="sm"><ButtonLabel id="item-16-label" class="bagtext">-</ButtonLabel></Button>
+    <Button id="item-17" class="bagrow" variant="secondary" size="sm"><ButtonLabel id="item-17-label" class="bagtext">-</ButtonLabel></Button>
   </div>
   <div id="make-title" class="sub">Make by hand (you have the parts):</div>
   <div class="grid">

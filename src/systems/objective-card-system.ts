@@ -11,13 +11,13 @@
 import { createSystem, type Entity, findUIKitDocument, RayInteractable, ScreenSpace, type UIKit, type UIKitMLAsset, VisibilityState } from '@iwsdk/core';
 import { cardView, objectiveById, type ObjectiveView } from '../game/objectives.js';
 import { PanelTouch } from './panel-touch.js';
-import { getGame, getUi, hidePanel, menu, StaticAnchor, uiText } from './shared.js';
+import { getGame, getUi, hidePanel, headYaw, menu, StaticAnchor, uiText } from './shared.js';
 import { WorldSystem } from './world-system.js';
 
 /** UIKit units are ~1 cm; the panel is scaled so the 520-wide card is ~26 cm. */
 const PANEL_SCALE = 0.05;
 const CARD_W = 520;
-const CARD_H = 380;
+const CARD_H = 420;
 /** Where the card hangs in VR: above the middle of view and within a seated arm's reach, so a fingertip can poke it. */
 const DISTANCE = 0.5;
 const UP = 0.2;
@@ -152,6 +152,7 @@ export class ObjectiveCardSystem extends createSystem({}) {
       return;
     }
     text('obj-instr', v.instruction);
+    text('obj-where', v.where ?? '');
     show('obj-prow', !!v.progress);
     if (v.progress) {
       text('obj-ptext', `${v.progress.have} / ${v.progress.need}`);
@@ -161,11 +162,12 @@ export class ObjectiveCardSystem extends createSystem({}) {
     text('obj-subs', subs);  // rows stay display:flex with fixed heights; toggling display from none left them zero-height
     // A failed attempt is explained first; the control lesson only until it is learned.
     text('obj-bad', v.feedback ?? '');
-    text('obj-note', v.feedback ? '' : (v.tip ?? ''));
+    text('obj-note', v.feedback ? '' : (v.next ?? v.tip ?? ''));
   }
 
   private refresh(): void {
     const game = getGame(this.world);
+    game.facingYaw = headYaw(this.camera);
     const v = cardView(game);
     this.view = v;
     const sig = JSON.stringify(v);

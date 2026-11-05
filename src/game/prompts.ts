@@ -35,6 +35,8 @@ export const ITEM_ACTIONS: Partial<Record<ItemId, string>> = {
 export type HeldContext = ItemId | null;
 
 const WOOD: ItemId[] = ['logs', 'branch', 'dryBranch', 'twigs'];
+/** What a bare sharp flake can cut (tools.ts). */
+const FLAKE_CUTS: ItemId[] = ['fibers', 'vine', 'bark', 'cane'];
 const SOFT: ItemId[] = ['fibers', 'vine', 'bark', 'dryGrass', 'cane', 'cloth'];
 
 /**
@@ -45,6 +47,7 @@ export function gatherPrompt(item: ItemId, held: HeldContext, carrying: Readonly
   const has = (i: ItemId) => (typeof carrying === 'function' ? carrying(i) : carrying.has(i));
   if ((held === 'axe' || has('axe')) && WOOD.includes(item)) return held === 'axe' ? 'Swing to chop: you get extra wood' : 'Gather - your axe gets you extra wood';
   if ((held === 'knife' || has('knife')) && SOFT.includes(item)) return 'Gather - your knife cuts cleanly for extra';
+  if ((held === 'flake' || has('flake')) && FLAKE_CUTS.includes(item)) return 'Pinch to gather - your sharp flake cuts it cleanly';
   if (held === 'hammer' && (item === 'dryStone' || item === 'flint')) return 'Gather - your hammer breaks off more';
   return ITEM_ACTIONS[item] ?? `Pick up the ${ITEMS[item].name.toLowerCase()}`;
 }

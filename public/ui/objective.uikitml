@@ -5,7 +5,7 @@
   a moment when an objective is finished. Texts are filled in by the system.
 -->
 <style>
-  .root { flex-direction: column; width: 520px; height: 380px; padding-top: 14px; padding-bottom: 12px; padding-left: 18px; padding-right: 14px; gap: 6px; justify-content: flex-start; }
+  .root { flex-direction: column; width: 520px; height: 420px; padding-top: 14px; padding-bottom: 12px; padding-left: 18px; padding-right: 14px; gap: 6px; justify-content: flex-start; }
   .head { flex-direction: row; align-items: center; justify-content: space-between; height: 44px; flex-shrink: 0; }
   .titlebox { flex-direction: column; width: 380px; }
   .eyebrow { color: #8a5a00; font-size: 12px; font-weight: 700; letter-spacing: 1.5px; }
@@ -16,6 +16,8 @@
   .body { flex-direction: column; gap: 6px; flex-shrink: 0; }
   .instr { color: #2a2620; font-size: 18px; line-height: 1.25; width: 480px; }
   .instr:dark { color: #e4d9c6; }
+  .where { color: #1f6b34; font-size: 17px; font-weight: 700; line-height: 1.25; width: 480px; }
+  .where:dark { color: #8fe0a0; }
   .prow { flex-direction: row; align-items: center; gap: 12px; flex-shrink: 0; }
   .ptext { color: #8a5a00; font-size: 20px; font-weight: 700; }
   .ptext:dark { color: #ffb547; }
@@ -43,6 +45,7 @@
   </div>
   <div id="obj-body" class="body">
     <div id="obj-instr" class="instr">-</div>
+    <div id="obj-where" class="where"> </div>
     <div id="obj-prow" class="prow">
       <div id="obj-ptext" class="ptext">0 / 1</div>
       <div class="bar"><div id="obj-fill" class="fill"></div></div>

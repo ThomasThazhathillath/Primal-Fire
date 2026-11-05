@@ -14,7 +14,9 @@ export type HintPiece =
   /** A scenery look from resourceMesh (e.g. the green fibre plant, the dry-grass tuft). */
   | { kind: 'look'; id: string; x: number; z: number; y?: number; tint?: number }
   /** A bare tree trunk to show bark on. */
-  | { kind: 'trunk'; x: number; z: number };
+  | { kind: 'trunk'; x: number; z: number }
+  /** A whole landmark as the world builds it (`ruins`: the collapsed station, the rusted mast and the carved Science Roadmap wall). */
+  | { kind: 'landmark'; id: 'ruins' };
 
 export interface HintView {
   pieces: HintPiece[];
@@ -211,6 +213,13 @@ export const HINT_INFO: Record<string, HintInfo> = {
     why: 'A roof keeps off rain and wind, and the shelter keeps you off the cold ground.',
     avoid: 'The stream bank, and ground under dead overhanging branches.',
     views: [{ pieces: [item('branch', -0.4, 0), item('twigs', 0.05, 0), item('dryGrass', 0.4, 0)], caption: 'Branches, twigs and a roof cover' }],
+  },
+  science: {
+    name: 'Science Roadmap',
+    look: 'A wall of carvings at the old ruins, beside a tall rusted mast that rises above the treetops.',
+    why: 'Everything you learned was an experiment: touching the map lights up what you discovered.',
+    avoid: 'Other broken walls in the ruins. The carved one faces the open clearing.',
+    views: [{ pieces: [{ kind: 'landmark', id: 'ruins' }], caption: 'The ruins, the rusted mast and the carved wall' }],
   },
 };
 

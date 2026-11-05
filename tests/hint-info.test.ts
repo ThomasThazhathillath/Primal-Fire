@@ -12,7 +12,6 @@ const pieces = (): HintPiece[] => Object.values(HINT_INFO).flatMap((i) => i.view
 describe('hint info', () => {
   it('every beginner objective has a name, advice and at least one picture', () => {
     for (const o of OBJECTIVES) {
-      if (o.id === 'science') continue; // a place, not an object
       const i = hintInfo(o.id);
       expect(i, o.id).toBeDefined();
       expect(i!.name.length).toBeGreaterThan(2);
@@ -24,6 +23,7 @@ describe('hint info', () => {
   it('every picture shows real items and real scenery looks (no invented ids)', () => {
     for (const p of pieces()) {
       if (p.kind === 'item') expect(ITEMS[p.id as ItemId], p.id).toBeDefined();
+      if (p.kind === 'landmark') expect(p.id).toBe('ruins');
       if (p.kind === 'look') expect(LOOK_MATERIAL[p.id] ?? RESOURCES.some((r) => r.look === p.id), p.id).toBeTruthy();
     }
   });

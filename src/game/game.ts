@@ -6,7 +6,7 @@ import { actionFor } from './actions.js';
 import { BENCH_BY_ID, BenchSession, canStart, missingText, type BenchMotion } from './bench.js';
 import { bookEntries, findBookSpot, type BookEntry } from './buildbook.js';
 import { checkPlace, FAILURE_TEXT, GrabTracker, slabStability, SUPPORT_NAMES, type GuideFailureCode } from './interact.js';
-import { HAND_RECIPES, TOOLS, toolFor } from './tools.js';
+import { HAND_RECIPES, TOOLS } from './tools.js';
 import { capacityFor, itemsCount, itemsWeight, moveLimits, PACK_UPGRADES, type MoveLimits, type PackUpgrade } from './backpack.js';
 import { FireState, type FireSave, type FireStage } from './fire.js';
 import {
@@ -147,6 +147,8 @@ export class Game {
   questIndex = 0;
   held: ItemId | null = null;
   readonly player = { x: 0, z: 0 };
+  /** Head yaw in radians (0 = towards -Z); set each frame by the UI so directions can say "to your left". Not saved. */
+  facingYaw = 0;
   readonly satchel = new Map<ItemId, number>();
   readonly gathered = new Map<ItemId, number>();
   readonly notebook: string[] = [];
@@ -451,8 +453,9 @@ export class Game {
 
   /** The tool bonus when gathering `id`: spends one use. Returns extra items. */
   private toolBonus(id: ItemId): number {
-    const t = toolFor(id);
-    if (!t || this.count(t.id) <= 0) return 0;
+    // The first tool you actually carry that helps with this (a knife beats a bare flake).
+    const t = TOOLS.find((x) => x.bonus.includes(id) && this.count(x.id) > 0);
+    if (!t) return 0;
     const left = (this.toolUses.get(t.id) ?? t.uses) - 1;
     if (left <= 0) {
       this.satchel.set(t.id, this.count(t.id) - 1);
@@ -460,7 +463,7 @@ export class Game {
       this.toast(`Your ${itemName(t.id).toLowerCase()} broke.`, 'bad');
     } else this.toolUses.set(t.id, left);
     this.lastToolUsed = t.id;
-    if (t.id === 'knife') this.science('tool.edge.cut');
+    if (t.id === 'knife' || t.id === 'flake') this.science('tool.edge.cut');
     if (t.id === 'axe' && id === 'logs') this.science('tool.wedge.split');
     return 1;
   }

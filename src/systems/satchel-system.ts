@@ -21,13 +21,13 @@ import {
 } from '@iwsdk/core';
 import { actionFor } from '../game/actions.js';
 import { RECIPES, type GameEvent } from '../game/game.js';
-import { carryRules, itemName, type ItemId } from '../game/items.js';
+import { carryRules, ITEMS, itemName, type ItemId } from '../game/items.js';
 import { SatchelItem, SatchelPouch } from '../components/game-components.js';
 import { BAG_HEIGHT, buildOpenBag } from '../scene-assets/bag.js';
 import { heldItemMesh } from '../scene-assets/item-meshes.js';
 import { lambert } from '../scene-assets/materials.js';
 import { PanelTouch } from './panel-touch.js';
-import { getGame, getUi, hidePanel, hipPosition, menu, PANEL_DISTANCE, PANEL_DOWN, placeInFront } from './shared.js';
+import { getGame, getUi, hidePanel, hipPosition, menu, PANEL_DISTANCE, PANEL_DOWN, placeInFront, uiText } from './shared.js';
 
 const SLOTS = 18;
 const MAKE_SLOTS = 8;
@@ -276,7 +276,7 @@ export class SatchelSystem extends createSystem({
       if (entry) {
         this.panel
           .requireElementById<UIKit.Text>(`item-${i}-label`)
-          .setProperties({ text: entry.count > 1 ? `${itemName(entry.id)} x${entry.count}` : itemName(entry.id) });
+          .setProperties({ text: uiText(`${itemName(entry.id)}${entry.count > 1 ? ` x${entry.count}` : ''}: ${ITEMS[entry.id].usedFor}`) });
       }
     }
     this.fillBag(contents);

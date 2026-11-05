@@ -16,6 +16,8 @@ export interface ToolDef {
 
 export const TOOLS: ToolDef[] = [
   { id: 'knife', bonus: ['fibers', 'dryGrass', 'cane', 'cloth'], uses: 25, verb: 'cut cleanly with your knife' },
+  // A bare sharp flake cuts soft plants too, but wears out sooner than a hafted knife.
+  { id: 'flake', bonus: ['fibers', 'cane', 'vine', 'bark'], uses: 8, verb: 'cut cleanly with your sharp flake' },
   { id: 'axe', bonus: ['logs', 'twigs', 'branch'], uses: 20, verb: 'chopped extra with your axe' },
   { id: 'hammer', bonus: ['dryStone', 'wetStone', 'flint', 'gravel'], uses: 30, verb: 'broke off more with your hammer' },
   { id: 'diggingStick', bonus: ['clay', 'sand', 'gravel'], uses: 20, verb: 'dug extra with your digging stick' },

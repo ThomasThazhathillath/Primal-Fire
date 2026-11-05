@@ -93,8 +93,10 @@ export class WaterSystem extends createSystem({}) {
   private current(): Action | null {
     const g = getGame(this.world);
     const f = g.food.available();
-    if (f) return { kind: 'food', a: f };
     const w = g.water.available();
+    // With logs in the bag, the digging stick digs the charcoal pit, not a planting plot
+    // (the plot would otherwise always win, so the charcoal objective could not be done).
+    if (f && !(f.id === 'digPlot' && w?.id === 'digMound')) return { kind: 'food', a: f };
     return w ? { kind: 'water', a: w } : null;
   }
 

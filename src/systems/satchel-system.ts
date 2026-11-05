@@ -27,6 +27,8 @@ import { BAG_HEIGHT, buildOpenBag } from '../scene-assets/bag.js';
 import { heldItemMesh } from '../scene-assets/item-meshes.js';
 import { lambert } from '../scene-assets/materials.js';
 import { PanelTouch } from './panel-touch.js';
+import { itemPicture, RowThumbs } from './row-thumbs.js';
+import { PopIn } from './ui-fx.js';
 import { getGame, getUi, hidePanel, hipPosition, menu, PANEL_DISTANCE, PANEL_DOWN, placeInFront, uiText } from './shared.js';
 
 const SLOTS = 18;
@@ -41,6 +43,9 @@ export class SatchelSystem extends createSystem({
   private panel!: UIKitMLAsset;
   private panelEntity!: Entity;
   private touch!: PanelTouch;
+  private thumbs!: RowThumbs;
+  private pop!: PopIn;
+  private thumbTimer = 0;
   private vr = false;
   private open = false;
   private makeItems: Array<{ id: string; label: string; kind: 'bind' | 'pack' | 'store' | 'take' } | undefined> = [];
@@ -119,6 +124,8 @@ export class SatchelSystem extends createSystem({
     hidePanel(this.panel);
     // In VR the rows and buttons are fingertip targets only (no ray or pinch click).
     this.touch = new PanelTouch(this.world, this.panel, 0.1, 'bag');
+    this.thumbs = new RowThumbs(this.panel, this.renderer, SLOTS);
+    this.pop = new PopIn(this.panel, () => 0.1);
     this.cleanupFuncs.push(
       this.world.visibilityState.subscribe((v) => {
         this.vr = v !== VisibilityState.NonImmersive;
@@ -217,9 +224,10 @@ export class SatchelSystem extends createSystem({
       // A plain list card straight ahead, a little below eye level, in seated reach for a fingertip.
       placeInFront(this.panel, this.camera, this.vr ? PANEL_DISTANCE : 0.62, 0, this.vr ? PANEL_DOWN : 0.12);
       this.touch.reset();
+      this.pop.open();
     } else {
       menu.closed('bag');
-      hidePanel(this.panel);
+      this.pop.close(() => hidePanel(this.panel));
       this.bag.visible = false;
       for (const e of this.bagSlots) if (e.object3D) e.object3D.visible = false;
     }
@@ -280,6 +288,8 @@ export class SatchelSystem extends createSystem({
       }
     }
     this.fillBag(contents);
+    // A small picture of the real item beside each row.
+    if (this.open) this.thumbs.setRows(contents.map((c, i) => ({ el: `item-${i}`, pic: itemPicture(c.id) })));
     const cap = game.capacity;
     const load = carryRules.easy
       ? `${game.carriedCount} item${game.carriedCount === 1 ? '' : 's'}`
@@ -311,7 +321,12 @@ export class SatchelSystem extends createSystem({
       this.bag.position.lerpVectors(this.bagFrom, this.bagTo, t);
       this.bag.position.y += Math.sin(t * Math.PI) * 0.12;
     }
+    if (this.pop.busy) this.pop.update(delta);
     if (this.open && this.vr) this.touch.update(delta);
+    if (this.open && (this.thumbTimer += delta) > 0.25) {
+      this.thumbTimer = 0;
+      this.thumbs.update();
+    }
     if (this.open) for (const e of this.bagSlots) e.object3D?.scale.setScalar(1);
     if (this.open) for (const e of this.queries.itemHovered.entities) e.object3D?.scale.setScalar(1.3);
     this.watchShoulder(delta);

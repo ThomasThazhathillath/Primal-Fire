@@ -6,27 +6,45 @@
   real layout, so nothing here needs to be measured by hand.
 -->
 <style>
-  .bar { flex-direction: row; align-items: center; justify-content: flex-start; height: 84px; padding-left: 8px; padding-right: 8px; gap: 6px; background-color: rgba(20, 18, 14, 0.62); border-radius: 32px; }
-  .slot { width: 64px; height: 76px; flex-direction: column; align-items: center; justify-content: center; gap: 1px; border-radius: 12px; }
-  .lbl { color: #f3eadb; font-size: 13px; font-weight: 700; text-align: center; }
-  .dot { width: 6px; height: 6px; border-radius: 3px; background-color: #ffb547; display: none; }
+  .theme-begin { display: flex; }
+  .t-root { background-color: rgba(36, 28, 22, 0.94); border-radius: 18px; }
+  .t-title { color: #f8eedb; font-size: 30px; font-weight: 700; }
+  .t-name { color: #f8eedb; font-size: 25px; font-weight: 700; }
+  .t-lead { color: #f8eedb; font-size: 22px; line-height: 1.25; }
+  .t-body { color: #f8eedb; font-size: 21px; line-height: 1.3; }
+  .t-muted { color: #d3c4a6; font-size: 18px; line-height: 1.3; }
+  .t-small { color: #f8eedb; font-size: 15px; font-weight: 700; }
+  .t-label { color: #ff8a3d; font-size: 14px; font-weight: 700; letter-spacing: 1.5px; }
+  .t-accent { color: #ff8a3d; font-size: 22px; font-weight: 700; }
+  .t-note { color: #ffc283; font-size: 17px; line-height: 1.25; }
+  .t-ok { color: #86dc97; font-size: 18px; font-weight: 700; line-height: 1.25; }
+  .t-bad { color: #ff9684; font-size: 18px; font-weight: 700; line-height: 1.25; }
+  .t-row { background-color: rgba(255, 236, 205, 0.10); border-radius: 12px; }
+  .t-btn { background-color: rgba(255, 236, 205, 0.10); border-radius: 12px; }
+  .t-go { background-color: #ff8a3d; border-radius: 12px; }
+  .t-track { background-color: rgba(255, 236, 205, 0.16); border-radius: 4px; }
+  .t-fill { background-color: #ff8a3d; border-radius: 4px; }
+.theme-end { display: flex; }
+  .bar { flex-direction: row; align-items: center; justify-content: flex-start; height: 90px; padding-left: 8px; padding-right: 8px; gap: 10px; }
+  .slot { width: 68px; height: 80px; flex-direction: column; align-items: center; justify-content: center; gap: 1px; border-radius: 12px; }
+  .dot { width: 7px; height: 7px; border-radius: 4px; background-color: #ff8a3d; display: none; }
   .badge { padding-left: 5px; padding-right: 5px; height: 14px; border-radius: 7px; background-color: #ff7a45; color: #ffffff; font-size: 11px; font-weight: 700; align-items: center; justify-content: center; display: none; }
 </style>
-<Panel id="bar" class="bar">
-  <div id="slot-0" class="slot"><Button id="ic-satchel" size="sm" variant="secondary"><ButtonIcon><Backpack></Backpack></ButtonIcon></Button><div id="lbl-0" class="lbl">Bag</div><div id="dot-0" class="dot"></div></div>
-  <div id="slot-1" class="slot"><Button id="ic-quest" size="sm" variant="secondary"><ButtonIcon><ListChecks></ListChecks></ButtonIcon></Button><div id="lbl-1" class="lbl">Quest</div><div id="dot-1" class="dot"></div></div>
-  <div id="slot-2" class="slot"><Button id="ic-hint" size="sm" variant="secondary"><ButtonIcon><Lightbulb></Lightbulb></ButtonIcon></Button><div id="lbl-2" class="lbl">Hint</div><div id="dot-2" class="dot"></div></div>
-  <div id="slot-3" class="slot"><Button id="ic-guide" size="sm" variant="secondary"><ButtonIcon><Compass></Compass></ButtonIcon></Button><div id="lbl-3" class="lbl">Guide</div><div id="dot-3" class="dot"></div></div>
-  <div id="slot-4" class="slot"><Button id="ic-notebook" size="sm" variant="secondary"><ButtonIcon><BookOpen></BookOpen></ButtonIcon></Button><div id="lbl-4" class="lbl">Notes</div><div id="badge-4" class="badge">0</div></div>
-  <div id="slot-5" class="slot"><Button id="ic-stow" size="sm" variant="secondary"><ButtonIcon><Hand></Hand></ButtonIcon></Button><div id="lbl-5" class="lbl">Put away</div></div>
-  <div id="slot-6" class="slot"><Button id="ic-drop" size="sm" variant="secondary"><ButtonIcon><ArrowDownToLine></ArrowDownToLine></ButtonIcon></Button><div id="lbl-6" class="lbl">Drop</div></div>
-  <div id="slot-7" class="slot"><Button id="ic-turn-left" size="sm" variant="secondary"><ButtonIcon><RotateCcw></RotateCcw></ButtonIcon></Button><div id="lbl-7" class="lbl">Turn L</div></div>
-  <div id="slot-8" class="slot"><Button id="ic-turn-right" size="sm" variant="secondary"><ButtonIcon><RotateCw></RotateCw></ButtonIcon></Button><div id="lbl-8" class="lbl">Turn R</div></div>
-  <div id="slot-9" class="slot"><Button id="ic-remove" size="sm" variant="secondary"><ButtonIcon><Trash2></Trash2></ButtonIcon></Button><div id="lbl-9" class="lbl">Remove</div></div>
-  <div id="slot-10" class="slot"><Button id="ic-reload" size="sm" variant="secondary"><ButtonIcon><RefreshCw></RefreshCw></ButtonIcon></Button><div id="lbl-10" class="lbl">Reload</div></div>
-  <div id="slot-11" class="slot"><Button id="ic-exit" size="sm" variant="secondary"><ButtonIcon><LogOut></LogOut></ButtonIcon></Button><div id="lbl-11" class="lbl">Exit</div></div>
-  <div id="slot-12" class="slot"><Button id="ic-book" size="sm" variant="secondary"><ButtonIcon><Hammer></Hammer></ButtonIcon></Button><div id="lbl-12" class="lbl">Build</div></div>
-  <div id="slot-13" class="slot"><Button id="ic-restart" size="sm" variant="secondary"><ButtonIcon><ListRestart></ListRestart></ButtonIcon></Button><div id="lbl-13" class="lbl">Restart</div></div>
-  <div id="slot-14" class="slot"><Button id="ic-menu" size="sm" variant="secondary"><ButtonIcon><LayoutGrid></LayoutGrid></ButtonIcon></Button><div id="lbl-14" class="lbl">Menu</div></div>
-  <div id="slot-15" class="slot"><Button id="ic-bench" size="sm" variant="secondary"><ButtonIcon><Wrench></Wrench></ButtonIcon></Button><div id="lbl-15" class="lbl">Bench</div></div>
+<Panel id="bar" class="bar t-root">
+  <div id="slot-0" class="slot"><Button class="t-btn" id="ic-satchel" size="sm" variant="secondary"><ButtonIcon><Backpack></Backpack></ButtonIcon></Button><div id="lbl-0" class="lbl t-small">Bag</div><div id="dot-0" class="dot"></div></div>
+  <div id="slot-1" class="slot"><Button class="t-btn" id="ic-quest" size="sm" variant="secondary"><ButtonIcon><ListChecks></ListChecks></ButtonIcon></Button><div id="lbl-1" class="lbl t-small">Quest</div><div id="dot-1" class="dot"></div></div>
+  <div id="slot-2" class="slot"><Button class="t-btn" id="ic-hint" size="sm" variant="secondary"><ButtonIcon><Lightbulb></Lightbulb></ButtonIcon></Button><div id="lbl-2" class="lbl t-small">Hint</div><div id="dot-2" class="dot"></div></div>
+  <div id="slot-3" class="slot"><Button class="t-btn" id="ic-guide" size="sm" variant="secondary"><ButtonIcon><Compass></Compass></ButtonIcon></Button><div id="lbl-3" class="lbl t-small">Guide</div><div id="dot-3" class="dot"></div></div>
+  <div id="slot-4" class="slot"><Button class="t-btn" id="ic-notebook" size="sm" variant="secondary"><ButtonIcon><BookOpen></BookOpen></ButtonIcon></Button><div id="lbl-4" class="lbl t-small">Notes</div><div id="badge-4" class="badge">0</div></div>
+  <div id="slot-5" class="slot"><Button class="t-btn" id="ic-stow" size="sm" variant="secondary"><ButtonIcon><Hand></Hand></ButtonIcon></Button><div id="lbl-5" class="lbl t-small">Put away</div></div>
+  <div id="slot-6" class="slot"><Button class="t-btn" id="ic-drop" size="sm" variant="secondary"><ButtonIcon><ArrowDownToLine></ArrowDownToLine></ButtonIcon></Button><div id="lbl-6" class="lbl t-small">Drop</div></div>
+  <div id="slot-7" class="slot"><Button class="t-btn" id="ic-turn-left" size="sm" variant="secondary"><ButtonIcon><RotateCcw></RotateCcw></ButtonIcon></Button><div id="lbl-7" class="lbl t-small">Turn L</div></div>
+  <div id="slot-8" class="slot"><Button class="t-btn" id="ic-turn-right" size="sm" variant="secondary"><ButtonIcon><RotateCw></RotateCw></ButtonIcon></Button><div id="lbl-8" class="lbl t-small">Turn R</div></div>
+  <div id="slot-9" class="slot"><Button class="t-btn" id="ic-remove" size="sm" variant="secondary"><ButtonIcon><Trash2></Trash2></ButtonIcon></Button><div id="lbl-9" class="lbl t-small">Remove</div></div>
+  <div id="slot-10" class="slot"><Button class="t-btn" id="ic-reload" size="sm" variant="secondary"><ButtonIcon><RefreshCw></RefreshCw></ButtonIcon></Button><div id="lbl-10" class="lbl t-small">Reload</div></div>
+  <div id="slot-11" class="slot"><Button class="t-btn" id="ic-exit" size="sm" variant="secondary"><ButtonIcon><LogOut></LogOut></ButtonIcon></Button><div id="lbl-11" class="lbl t-small">Exit</div></div>
+  <div id="slot-12" class="slot"><Button class="t-btn" id="ic-book" size="sm" variant="secondary"><ButtonIcon><Hammer></Hammer></ButtonIcon></Button><div id="lbl-12" class="lbl t-small">Build</div></div>
+  <div id="slot-13" class="slot"><Button class="t-btn" id="ic-restart" size="sm" variant="secondary"><ButtonIcon><ListRestart></ListRestart></ButtonIcon></Button><div id="lbl-13" class="lbl t-small">Restart</div></div>
+  <div id="slot-14" class="slot"><Button class="t-btn" id="ic-menu" size="sm" variant="secondary"><ButtonIcon><LayoutGrid></LayoutGrid></ButtonIcon></Button><div id="lbl-14" class="lbl t-small">Menu</div></div>
+  <div id="slot-15" class="slot"><Button class="t-btn" id="ic-bench" size="sm" variant="secondary"><ButtonIcon><Wrench></Wrench></ButtonIcon></Button><div id="lbl-15" class="lbl t-small">Bench</div></div>
 </Panel>

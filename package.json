@@ -13,7 +13,8 @@
     "typecheck": "tsc --noEmit",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "theme": "node scripts/ui-theme.mjs"
   },
   "dependencies": {
     "@iwsdk/core": "1.1.0-rc.2",

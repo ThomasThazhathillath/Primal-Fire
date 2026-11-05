@@ -233,3 +233,10 @@ export function hintView(id: string, level: number): HintView | null {
   if (!v?.length) return null;
   return v[level >= 2 ? Math.min(1, v.length - 1) : 0];
 }
+
+/** A picture for a build-book structure (the objective hint pictures already draw the workbench, fire pit and shelter). */
+export function structureView(kind: string): HintView | null {
+  const map: Record<string, string> = { workbench: 'workbench', firePit: 'firePit', shelter: 'shelter' };
+  const id = map[kind];
+  return id ? (HINT_INFO[id]?.views[0] ?? null) : null;
+}

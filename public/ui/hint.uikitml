@@ -6,42 +6,52 @@
   level row 44, level text 128. Panel height 904.
 -->
 <style>
+  .theme-begin { display: flex; }
+  .t-root { background-color: rgba(36, 28, 22, 0.94); border-radius: 18px; }
+  .t-title { color: #f8eedb; font-size: 30px; font-weight: 700; }
+  .t-name { color: #f8eedb; font-size: 25px; font-weight: 700; }
+  .t-lead { color: #f8eedb; font-size: 22px; line-height: 1.25; }
+  .t-body { color: #f8eedb; font-size: 21px; line-height: 1.3; }
+  .t-muted { color: #d3c4a6; font-size: 18px; line-height: 1.3; }
+  .t-small { color: #f8eedb; font-size: 15px; font-weight: 700; }
+  .t-label { color: #ff8a3d; font-size: 14px; font-weight: 700; letter-spacing: 1.5px; }
+  .t-accent { color: #ff8a3d; font-size: 22px; font-weight: 700; }
+  .t-note { color: #ffc283; font-size: 17px; line-height: 1.25; }
+  .t-ok { color: #86dc97; font-size: 18px; font-weight: 700; line-height: 1.25; }
+  .t-bad { color: #ff9684; font-size: 18px; font-weight: 700; line-height: 1.25; }
+  .t-row { background-color: rgba(255, 236, 205, 0.10); border-radius: 12px; }
+  .t-btn { background-color: rgba(255, 236, 205, 0.10); border-radius: 12px; }
+  .t-go { background-color: #ff8a3d; border-radius: 12px; }
+  .t-track { background-color: rgba(255, 236, 205, 0.16); border-radius: 4px; }
+  .t-fill { background-color: #ff8a3d; border-radius: 4px; }
+.theme-end { display: flex; }
   .root { flex-direction: column; width: 600px; height: 904px; padding-top: 18px; padding-bottom: 18px; padding-left: 20px; padding-right: 20px; justify-content: flex-start; }
   .head { flex-direction: row; align-items: center; justify-content: space-between; height: 48px; flex-shrink: 0; }
   .titlebox { flex-direction: column; width: 360px; }
-  .eyebrow { color: #8a5a00; font-size: 13px; font-weight: 700; letter-spacing: 1.5px; }
-  .eyebrow:dark { color: #ffb547; }
-  .title { color: #1c1d20; font-size: 24px; font-weight: 700; }
-  .title:dark { color: #f3eadb; }
   .pic { width: 456px; height: 342px; margin-top: 8px; margin-left: 52px; flex-shrink: 0; }
-  .name { height: 34px; margin-top: 6px; flex-shrink: 0; color: #1c1d20; font-size: 26px; font-weight: 700; width: 560px; }
-  .name:dark { color: #ffd27a; }
-  .row { height: 60px; flex-shrink: 0; margin-top: 0px; color: #2a2620; font-size: 19px; line-height: 1.2; width: 560px; }
-  .row:dark { color: #e4d9c6; }
+  .name { height: 34px; margin-top: 6px; flex-shrink: 0; width: 560px; }
+  .row { height: 60px; flex-shrink: 0; margin-top: 0px; line-height: 1.2; width: 560px; }
   .lvl { flex-direction: row; align-items: center; justify-content: space-between; height: 44px; margin-top: 8px; flex-shrink: 0; }
-  .lvltext { color: #8a5a00; font-size: 19px; font-weight: 700; }
-  .lvltext:dark { color: #ffb547; }
-  .hinttext { height: 128px; margin-top: 4px; flex-shrink: 0; color: #2a2620; font-size: 20px; line-height: 1.25; width: 560px; }
-  .hinttext:dark { color: #e4d9c6; }
+  .hinttext { height: 128px; margin-top: 4px; flex-shrink: 0; line-height: 1.25; width: 560px; }
   .back { width: 170px; height: 56px; }
 </style>
-<Panel class="root">
+<Panel class="root t-root">
   <div class="head">
     <div class="titlebox">
-      <div id="hint-eyebrow" class="eyebrow">HINT</div>
-      <div id="hint-title" class="title">-</div>
+      <div id="hint-eyebrow" class="eyebrow t-label">HINT</div>
+      <div id="hint-title" class="title t-title">-</div>
     </div>
-    <Button id="hint-close" class="back" size="lg" variant="secondary"><ButtonIcon><ArrowLeft></ArrowLeft></ButtonIcon><ButtonLabel>Back</ButtonLabel></Button>
+    <Button id="hint-close" class="back t-btn" size="lg" variant="secondary"><ButtonIcon><ArrowLeft></ArrowLeft></ButtonIcon><ButtonLabel>Back</ButtonLabel></Button>
   </div>
   <div class="pic"></div>
-  <div id="hint-name" class="name">-</div>
-  <div id="hint-look" class="row">-</div>
-  <div id="hint-why" class="row">-</div>
-  <div id="hint-avoid" class="row">-</div>
-  <div id="hint-do" class="row">-</div>
+  <div id="hint-name" class="name t-name">-</div>
+  <div id="hint-look" class="row t-body">-</div>
+  <div id="hint-why" class="row t-body">-</div>
+  <div id="hint-avoid" class="row t-body">-</div>
+  <div id="hint-do" class="row t-body">-</div>
   <div class="lvl">
-    <div id="hint-level" class="lvltext">Hint 1 of 4</div>
-    <Button id="hint-more" size="lg"><ButtonIcon><Plus></Plus></ButtonIcon><ButtonLabel>More help</ButtonLabel></Button>
+    <div id="hint-level" class="lvltext t-accent">Hint 1 of 4</div>
+    <Button id="hint-more" class="t-go" size="lg"><ButtonIcon><Plus></Plus></ButtonIcon><ButtonLabel>More help</ButtonLabel></Button>
   </div>
-  <div id="hint-text" class="hinttext">-</div>
+  <div id="hint-text" class="hinttext t-body">-</div>
 </Panel>

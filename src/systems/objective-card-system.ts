@@ -11,13 +11,14 @@
 import { createSystem, type Entity, findUIKitDocument, RayInteractable, ScreenSpace, type UIKit, type UIKitMLAsset, VisibilityState } from '@iwsdk/core';
 import { cardView, objectiveById, type ObjectiveView } from '../game/objectives.js';
 import { PanelTouch } from './panel-touch.js';
+import { PopIn } from './ui-fx.js';
 import { getGame, getUi, hidePanel, headYaw, menu, StaticAnchor, uiText } from './shared.js';
 import { WorldSystem } from './world-system.js';
 
 /** UIKit units are ~1 cm; the panel is scaled so the 520-wide card is ~26 cm. */
 const PANEL_SCALE = 0.05;
 const CARD_W = 520;
-const CARD_H = 420;
+const CARD_H = 330;
 /** Where the card hangs in VR: above the middle of view and within a seated arm's reach, so a fingertip can poke it. */
 const DISTANCE = 0.5;
 const UP = 0.2;
@@ -31,12 +32,21 @@ export class ObjectiveCardSystem extends createSystem({}) {
   private shown = false;
   private open = true;
   private hintOn = false;
+  /** The long how-to is folded away behind a small "How?" until it is asked for. */
+  private howOpen = false;
+  private howFor = '';
+  private lastHeight = 0;
+  /** Seconds into the completion check-mark pop (null when not celebrating). */
+  private celeT: number | null = null;
   private vr = false;
   private dirty = true;
   private timer = 0;
   private sig = '';
   private view: ObjectiveView | null = null;
   private touch!: PanelTouch;
+  private pop!: PopIn;
+  private wasShown = false;
+  private popPending = false;
 
   async init(): Promise<void> {
     const game = getGame(this.world);
@@ -61,10 +71,13 @@ export class ObjectiveCardSystem extends createSystem({}) {
     };
     wire('obj-hint', () => this.hint());
     wire('obj-close', () => this.setOpen(false));
+    wire('obj-how', () => this.toggleHow());
     // Fingertip targets (never smaller than 4.5 cm, even for the small header icons).
     this.touch = new PanelTouch(this.world, panel, PANEL_SCALE, 'objective');
+    this.pop = new PopIn(panel, () => PANEL_SCALE);
     this.touch.add('obj-hint', () => this.view?.id !== 'quest' && !this.view?.celebrating && this.hint());
     this.touch.add('obj-close', () => this.setOpen(false));
+    this.touch.add('obj-how', () => this.toggleHow());
 
     const ui = getUi(this.world);
     ui.toggleQuest = () => this.setOpen(!this.open);
@@ -107,13 +120,22 @@ export class ObjectiveCardSystem extends createSystem({}) {
     if (!this.shown) return;
     const show = this.open && this.view !== null && !this.hintOn;
     // ScreenSpace reparents the UIKit document onto the camera, so the document is hidden too.
-    if (this.doc) this.doc.visible = show;
-    if (!show) {
+    const was = this.wasShown;
+    this.wasShown = show;
+    const hide = (): void => {
+      if (this.doc) this.doc.visible = false;
       hidePanel(this.panel);
       if (this.entity.hasComponent(ScreenSpace)) this.entity.removeComponent(ScreenSpace);
+    };
+    if (!show) {
+      // VR: ease out before hiding; the flat view's card is a screen overlay and just goes.
+      if (this.vr && was && this.panel.visible) this.pop.close(hide);
+      else hide();
       return;
     }
+    if (this.doc) this.doc.visible = true;
     this.panel.visible = true;
+    this.popPending = this.vr && !was;
     if (this.vr) {
       if (this.entity.hasComponent(ScreenSpace)) this.entity.removeComponent(ScreenSpace);
       this.anchor.reset();
@@ -138,6 +160,12 @@ export class ObjectiveCardSystem extends createSystem({}) {
     this.dirty = true;
   }
 
+  private toggleHow(): void {
+    this.howOpen = !this.howOpen;
+    this.sig = ''; // re-render now
+    this.dirty = true;
+  }
+
   private render(v: ObjectiveView): void {
     const text = (id: string, t: string) => this.panel.requireElementById<UIKit.Text>(id).setProperties({ text: uiText(t || ' ') });
     const show = (id: string, on: boolean) => this.panel.requireElementById(id).setProperties({ display: on ? 'flex' : 'none' });
@@ -149,20 +177,49 @@ export class ObjectiveCardSystem extends createSystem({}) {
     this.panel.requireElementById('obj-hint').setProperties({ display: v.id === 'quest' || cele ? 'none' : 'flex' });
     if (cele) {
       text('obj-cele-text', v.celebrating!.message);
+      this.lastHeight = 0;
+      this.panel.requireElementById('obj-root').setProperties({ height: 190 } as never);
+      this.celeT = 0;
       return;
     }
+    if (v.id !== this.howFor) {
+      this.howFor = v.id;
+      this.howOpen = false; // a new objective starts folded
+    }
     text('obj-instr', v.instruction);
-    text('obj-where', v.where ?? '');
+    const where = v.where ?? '';
+    text('obj-where', where);
     show('obj-prow', !!v.progress);
     if (v.progress) {
       text('obj-ptext', `${v.progress.have} / ${v.progress.need}`);
       this.panel.requireElementById('obj-fill').setProperties({ width: Math.round((330 * v.progress.have) / v.progress.need) });
     }
     const subs = v.substeps.map((s) => `${s.done ? '[x]' : '[ ]'} ${s.text}`).join('   ');
-    text('obj-subs', subs);  // rows stay display:flex with fixed heights; toggling display from none left them zero-height
+    text('obj-subs', subs);
     // A failed attempt is explained first; the control lesson only until it is learned.
     text('obj-bad', v.feedback ?? '');
-    text('obj-note', v.feedback ? '' : (v.next ?? v.tip ?? ''));
+    const how = v.feedback ? '' : (v.next ?? v.tip ?? '');
+    text('obj-note', how);
+    text('obj-how-label', this.howOpen ? 'Hide' : 'How?');
+    // Rows that have nothing to say take no room (height, not display: a display toggle left rows zero-height).
+    const h = {
+      where: where ? 28 : 0,
+      subs: subs ? 44 : 0,
+      how: how ? 44 : 0,
+      note: how && this.howOpen ? 100 : 0,
+      bad: v.feedback ? 40 : 0,
+    };
+    const set = (id: string, height: number) => this.panel.requireElementById(id).setProperties({ height } as never);
+    set('obj-where', h.where);
+    set('obj-subs', h.subs);
+    set('obj-howrow', h.how);
+    set('obj-note', h.note);
+    set('obj-bad', h.bad);
+    const total = 16 + 56 + 6 + 60 + h.where + (v.progress ? 30 : 0) + h.subs + h.how + h.note + h.bad + 14 + 6 * 5;
+    if (total !== this.lastHeight) {
+      this.lastHeight = total;
+      this.panel.requireElementById('obj-root').setProperties({ height: total } as never);
+    }
   }
 
   private refresh(): void {
@@ -178,6 +235,8 @@ export class ObjectiveCardSystem extends createSystem({}) {
   }
 
   update(delta: number): void {
+    if (this.pop?.busy) this.pop.update(delta);
+    if (this.celeT !== null) this.checkPop(delta);
     if (!this.ready) return;
     if (!this.shown) {
       if (!this.world.getSystem(WorldSystem)?.started) return;
@@ -201,6 +260,19 @@ export class ObjectiveCardSystem extends createSystem({}) {
     }
     if (!this.open || !this.view || !this.vr || this.hintOn) return;
     this.anchor.update(this.panel, this.camera);
+    if (this.popPending) {
+      this.popPending = false;
+      this.pop.open();
+    }
     this.touch.update(delta);
+  }
+
+  /** The completion check mark pops (a short swell and settle); only runs while it plays. */
+  private checkPop(dt: number): void {
+    const t = (this.celeT = (this.celeT ?? 0) + dt);
+    const k = Math.min(1, t / 0.55);
+    const size = 36 + 26 * Math.sin(k * Math.PI) * (1 - k * 0.3) + 8 * k;
+    this.panel.requireElementById('obj-check').setProperties({ width: Math.round(size), height: Math.round(size), backgroundColor: k < 1 ? '#7bd88f' : '#4fae68' } as never);
+    if (k >= 1) this.celeT = null;
   }
 }

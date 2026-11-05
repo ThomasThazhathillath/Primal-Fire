@@ -20,11 +20,11 @@ import { PanelTouch } from './panel-touch.js';
 import { getGame, getUi, hidePanel, menu, StaticAnchor } from './shared.js';
 import { clearSave, WorldSystem } from './world-system.js';
 
-const SLOT = 64;
-const GAP = 6;
-const SLOT_H = 76;
+const SLOT = 68;
+const GAP = 10;
+const SLOT_H = 80;
 /** VR: icons sit in a small grid this many wide, off to your right. */
-const COLS = 4;
+const COLS = 5;
 /** VR: an open menu folds itself away after this long without a tap (s). */
 /** Tunable at runtime (window.__iconbar.config): seconds before an unfolded grid folds itself. */
 export const MENU_CONFIG = { gridIdleSeconds: 20 };
@@ -78,6 +78,9 @@ export class IconBarSystem extends createSystem({}) {
   private entity!: Entity;
   private anchor = new StaticAnchor(BAR_DISTANCE, BAR_SIDE, BAR_DOWN, 0.9, 1);
   private menuIdle = 0;
+  private btns: Array<ReturnType<UIKitMLAsset['requireElementById']>> = [];
+  /** Icons mid-shrink after a tap (restored after a moment). */
+  private shrunk: Array<{ i: number; left: number }> = [];
   private touch!: PanelTouch;
   benchNear = false;
   private ready = false;
@@ -91,7 +94,6 @@ export class IconBarSystem extends createSystem({}) {
   private slots: Array<ReturnType<UIKitMLAsset["requireElementById"]>> = [];
   private lastNotes = -1;
   private lastQuestOpen = false;
-  private ctx: AudioContext | null = null;
 
   async init(): Promise<void> {
     const bar = await this.world.assets.instantiate<UIKitMLAsset>('iconbar-panel');
@@ -106,6 +108,7 @@ export class IconBarSystem extends createSystem({}) {
     DEFS.forEach((d, i) => {
       const btn = bar.requireElementById(`ic-${d.id}`);
       this.slots.push(bar.requireElementById(`slot-${i}`));
+      this.btns.push(btn);
       btn.setProperties({ width: 48, height: 48, borderRadius: 24 } as never);
       // The whole slot (icon and its label) is the fingertip target.
       this.touch.add(`slot-${i}`, () => this.activate(i));
@@ -187,7 +190,9 @@ export class IconBarSystem extends createSystem({}) {
   /** A fingertip tap on slot `i`: run it, then fold the grid unless it opened a panel or is a repeatable turn. */
   private activate(i: number): void {
     const def = DEFS[i];
-    this.click();
+    // A quick shrink on the tapped icon (PanelTouch adds the flash and the sound).
+    this.btns[i].setProperties({ width: 38, height: 38 } as never);
+    this.shrunk.push({ i, left: 0.12 });
     this.menuIdle = 0;
     def.run(this);
     if (!['menu', 'turn-left', 'turn-right'].includes(def.id) && menu.current === null) menu.gridOpen = false;
@@ -208,34 +213,6 @@ export class IconBarSystem extends createSystem({}) {
   exitVr(): void {
     getUi(this.world).saveNow?.();
     void this.renderer.xr.getSession()?.end();
-  }
-
-  /** A soft procedural tick. */
-  private click(): void {
-    try {
-      if (!this.ctx) {
-        const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-        if (!Ctor) return;
-        this.ctx = new Ctor();
-      }
-      const ctx = this.ctx;
-      if (ctx.state === 'suspended') void ctx.resume();
-      if (ctx.state !== 'running') return;
-      const t = ctx.currentTime;
-      const o = ctx.createOscillator();
-      const g = ctx.createGain();
-      o.type = 'sine';
-      o.frequency.setValueAtTime(1500, t);
-      o.frequency.exponentialRampToValueAtTime(900, t + 0.05);
-      g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(0.1, t + 0.005);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
-      o.connect(g).connect(ctx.destination);
-      o.start(t);
-      o.stop(t + 0.08);
-    } catch {
-      // No audio.
-    }
   }
 
   /** Re-lay out when the set of visible icons changes. */
@@ -291,6 +268,12 @@ export class IconBarSystem extends createSystem({}) {
       this.bar.requireElementById('dot-1').setProperties({ display: qo ? 'flex' : 'none' });
     }
 
+    for (let k = this.shrunk.length - 1; k >= 0; k--) {
+      const f = this.shrunk[k];
+      if ((f.left -= delta) > 0) continue;
+      this.btns[f.i].setProperties({ width: 48, height: 48 } as never);
+      this.shrunk.splice(k, 1);
+    }
     if (this.vr) {
       this.anchor.update(this.bar, this.camera);
       this.touch.update(delta);

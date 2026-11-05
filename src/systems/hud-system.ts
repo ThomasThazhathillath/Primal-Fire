@@ -32,6 +32,7 @@ import { QUESTS } from '../game/quests.js';
 import { Gatherable, SatchelItem, SnapSpot, StructurePart, WorldDropItem } from '../components/game-components.js';
 import { REACH, ResourceSystem } from './resource-system.js';
 import { PanelTouch } from './panel-touch.js';
+import { PopIn } from './ui-fx.js';
 import { getGame, getUi, hidePanel, menu, PANEL_DISTANCE, PANEL_DOWN, placeInFront, StaticAnchor, uiText } from './shared.js';
 
 const STEP_LINES = 6;
@@ -49,6 +50,8 @@ export class HudSystem extends createSystem({
   private hudEntity!: Entity;
   private cardEntity!: Entity;
   private cardTouch!: PanelTouch;
+  private cardPop!: PopIn;
+  private cardScale = 0.09;
   private vrNow = false;
   /** VR: low and to the left, out of the way of rays aimed at the ground; it never drifts. */
   private hudAnchor = new StaticAnchor(0.85, -0.42, 0.12);
@@ -119,6 +122,7 @@ export class HudSystem extends createSystem({
     wire(card, 'card-back', () => menu.back());
     // The notebook is a fingertip panel in VR: Back / Next are targets, never a ray or pinch click.
     this.cardTouch = new PanelTouch(this.world, card, 0.09, 'notebook');
+    this.cardPop = new PopIn(card, () => this.cardScale);
     this.cardTouch.add('card-ok', () => this.nextCard());
     this.cardTouch.add('card-back', () => menu.back());
     this.cleanupFuncs.push(
@@ -129,7 +133,7 @@ export class HudSystem extends createSystem({
     );
     menu.register('notebook', () => {
       this.browsing = false;
-      hidePanel(this.card);
+      this.cardPop.close(() => hidePanel(this.card));
     });
     const ui = getUi(this.world);
     ui.showHint = () => this.showHint();
@@ -255,7 +259,7 @@ export class HudSystem extends createSystem({
     }
     if (id) this.showCard(id);
     else {
-      hidePanel(this.card);
+      this.cardPop.close(() => hidePanel(this.card));
       menu.closed('notebook');
     }
   }
@@ -274,6 +278,7 @@ export class HudSystem extends createSystem({
     set('card-why', o.why ?? '-');
     this.card.requireElementById('card-why-label').setProperties({ display: o.why ? 'flex' : 'none' });
     this.card.requireElementById('card-why').setProperties({ display: o.why ? 'flex' : 'none' });
+    const wasVisible = this.card.visible;
     this.card.visible = true;
     menu.open('notebook');
     if (this.vrNow) {
@@ -287,6 +292,8 @@ export class HudSystem extends createSystem({
       placeInFront(this.card, this.camera, 0.75, 0.3, 0.05);
     }
     this.cardTouch.reset();
+    this.cardScale = this.card.scale.x;
+    if (!wasVisible) this.cardPop.open();
   }
 
   /** Pages through every observation you have recorded, oldest first. */
@@ -422,6 +429,7 @@ export class HudSystem extends createSystem({
       this.hud.requireElementById<UIKit.Text>('toast').setProperties({ text: ' ' });
     }
     if (this.beaconTimer > 0 && (this.beaconTimer -= delta) <= 0) this.beacon.visible = false;
+    if (this.cardPop?.busy) this.cardPop.update(delta);
     if (this.card.visible && this.vrNow) this.cardTouch.update(delta);
     this.updateTip();
   }

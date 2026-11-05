@@ -32,6 +32,8 @@ import { BenchFx } from './bench-fx.js';
 import { itemMesh } from '../scene-assets/item-meshes.js';
 import { hands, mouse, pulse } from './hand-input-system.js';
 import { PanelTouch } from './panel-touch.js';
+import { itemPicture, RowThumbs } from './row-thumbs.js';
+import { PopIn } from './ui-fx.js';
 import { getGame, getUi, handPose, hidePanel, menu, PANEL_DISTANCE, PANEL_DOWN, placeInFront, uiText } from './shared.js';
 
 const ROWS = 10;
@@ -77,6 +79,10 @@ export class BenchSystem extends createSystem({}) {
   private panel!: UIKitMLAsset;
   private panelEntity!: Entity;
   private touch!: PanelTouch;
+  private thumbs!: RowThumbs;
+  private pop!: PopIn;
+  private baseScale = VR_SCALE;
+  private thumbTimer = 0;
   private vrNow = false;
   private open = false;
   private benchId = -1;
@@ -134,6 +140,8 @@ export class BenchSystem extends createSystem({}) {
     hidePanel(this.panel);
     // In VR the recipe rows and buttons are fingertip targets only.
     this.touch = new PanelTouch(this.world, this.panel, VR_SCALE, 'bench');
+    this.thumbs = new RowThumbs(this.panel, this.renderer, ROWS);
+    this.pop = new PopIn(this.panel, () => this.baseScale);
     this.cleanupFuncs.push(
       this.world.visibilityState.subscribe((v) => {
         this.vrNow = v !== VisibilityState.NonImmersive;
@@ -200,7 +208,9 @@ export class BenchSystem extends createSystem({}) {
       this.touch.setScale(VR_SCALE);
       placeInFront(this.panel, this.camera, PANEL_DISTANCE, 0, PANEL_DOWN + 0.04);
     } else this.placeAtBench(dx, dz, d, pos);
+    this.baseScale = this.panel.scale.x;
     this.refresh();
+    this.pop.open();
   }
 
   /** Above and just behind the bench, facing you: where the step cards stay while your hands work. */
@@ -217,7 +227,7 @@ export class BenchSystem extends createSystem({}) {
   hide(): void {
     this.open = false;
     menu.closed('bench');
-    if (this.panel) hidePanel(this.panel);
+    if (this.panel) this.pop.close(() => hidePanel(this.panel));
   }
 
   private text(id: string, t: string): void {
@@ -242,6 +252,7 @@ export class BenchSystem extends createSystem({}) {
         this.text(`rec-${i}-parts`, parts.map((p) => `${itemName(p.id)} ${Math.min(p.have, p.need)}/${p.need}`).join('  -  '));
         this.panel.requireElementById(`rec-${i}`).setProperties({ opacity: ready ? 1 : 0.5 });
       }
+      this.thumbs.setRows(BENCH_RECIPES.slice(0, ROWS).map((r, i) => ({ el: `rec-${i}`, pic: itemPicture(r.output) })));
       return;
     }
     const step = b.step;
@@ -466,8 +477,13 @@ export class BenchSystem extends createSystem({}) {
   update(delta: number): void {
     const dt = Math.min(delta, 0.05);
     this.t += dt;
+    if (this.pop?.busy) this.pop.update(dt);
     const game = getGame(this.world);
     if (this.open && this.vrNow) this.touch.update(dt);
+    if (this.open && !game.bench && (this.thumbTimer += dt) > 0.25) {
+      this.thumbTimer = 0;
+      this.thumbs.update();
+    }
     if (!game.bench) {
       if (this.open && this.panel) {
         // Close when you walk away.

@@ -3,38 +3,52 @@
   Rows entry-0..entry-7 are filled in by BuildBookSystem, one page at a time (Prev/Next).
 -->
 <style>
+  .theme-begin { display: flex; }
+  .t-root { background-color: rgba(36, 28, 22, 0.94); border-radius: 18px; }
+  .t-title { color: #f8eedb; font-size: 30px; font-weight: 700; }
+  .t-name { color: #f8eedb; font-size: 25px; font-weight: 700; }
+  .t-lead { color: #f8eedb; font-size: 22px; line-height: 1.25; }
+  .t-body { color: #f8eedb; font-size: 21px; line-height: 1.3; }
+  .t-muted { color: #d3c4a6; font-size: 18px; line-height: 1.3; }
+  .t-small { color: #f8eedb; font-size: 15px; font-weight: 700; }
+  .t-label { color: #ff8a3d; font-size: 14px; font-weight: 700; letter-spacing: 1.5px; }
+  .t-accent { color: #ff8a3d; font-size: 22px; font-weight: 700; }
+  .t-note { color: #ffc283; font-size: 17px; line-height: 1.25; }
+  .t-ok { color: #86dc97; font-size: 18px; font-weight: 700; line-height: 1.25; }
+  .t-bad { color: #ff9684; font-size: 18px; font-weight: 700; line-height: 1.25; }
+  .t-row { background-color: rgba(255, 236, 205, 0.10); border-radius: 12px; }
+  .t-btn { background-color: rgba(255, 236, 205, 0.10); border-radius: 12px; }
+  .t-go { background-color: #ff8a3d; border-radius: 12px; }
+  .t-track { background-color: rgba(255, 236, 205, 0.16); border-radius: 4px; }
+  .t-fill { background-color: #ff8a3d; border-radius: 4px; }
+.theme-end { display: flex; }
   .root { flex-direction: column; width: 520px; padding-top: 20px; padding-bottom: 20px; padding-left: 24px; padding-right: 24px; gap: 10px; }
-  .title { color: #1c1d20; font-size: 24px; font-weight: 700; }
-  .title:dark { color: #f3eadb; }
-  .sub { color: #55504a; font-size: 18px; line-height: 1.3; }
-  .sub:dark { color: #b9ab95; }
+  .sub { line-height: 1.3; }
   .list { flex-direction: column; gap: 8px; flex-shrink: 0; }
-  .entry { width: 470px; height: 48px; flex-shrink: 0; }
+  .entry { width: 470px; height: 56px; flex-shrink: 0; padding-left: 66px; }
   .pager { flex-direction: row; gap: 10px; align-items: center; flex-shrink: 0; }
-  .page { color: #55504a; font-size: 18px; }
-  .page:dark { color: #b9ab95; }
   .row { flex-direction: row; gap: 10px; flex-shrink: 0; }
   .back { width: 190px; height: 60px; }
 </style>
-<Panel class="root">
-  <div class="title">Build book</div>
-  <div id="book-sub" class="sub">Tap a build to place its outline in front of you, then fill every mark.</div>
+<Panel class="root t-root">
+  <div class="title t-title">Build book</div>
+  <div id="book-sub" class="sub t-muted">Tap a build to place its outline in front of you, then fill every mark.</div>
   <div class="list">
-    <Button id="entry-0" class="entry" variant="secondary" size="sm"><ButtonLabel id="entry-0-label">-</ButtonLabel></Button>
-    <Button id="entry-1" class="entry" variant="secondary" size="sm"><ButtonLabel id="entry-1-label">-</ButtonLabel></Button>
-    <Button id="entry-2" class="entry" variant="secondary" size="sm"><ButtonLabel id="entry-2-label">-</ButtonLabel></Button>
-    <Button id="entry-3" class="entry" variant="secondary" size="sm"><ButtonLabel id="entry-3-label">-</ButtonLabel></Button>
-    <Button id="entry-4" class="entry" variant="secondary" size="sm"><ButtonLabel id="entry-4-label">-</ButtonLabel></Button>
-    <Button id="entry-5" class="entry" variant="secondary" size="sm"><ButtonLabel id="entry-5-label">-</ButtonLabel></Button>
-    <Button id="entry-6" class="entry" variant="secondary" size="sm"><ButtonLabel id="entry-6-label">-</ButtonLabel></Button>
-    <Button id="entry-7" class="entry" variant="secondary" size="sm"><ButtonLabel id="entry-7-label">-</ButtonLabel></Button>
+    <Button id="entry-0" class="entry t-btn" variant="secondary" size="sm"><ButtonLabel id="entry-0-label">-</ButtonLabel></Button>
+    <Button id="entry-1" class="entry t-btn" variant="secondary" size="sm"><ButtonLabel id="entry-1-label">-</ButtonLabel></Button>
+    <Button id="entry-2" class="entry t-btn" variant="secondary" size="sm"><ButtonLabel id="entry-2-label">-</ButtonLabel></Button>
+    <Button id="entry-3" class="entry t-btn" variant="secondary" size="sm"><ButtonLabel id="entry-3-label">-</ButtonLabel></Button>
+    <Button id="entry-4" class="entry t-btn" variant="secondary" size="sm"><ButtonLabel id="entry-4-label">-</ButtonLabel></Button>
+    <Button id="entry-5" class="entry t-btn" variant="secondary" size="sm"><ButtonLabel id="entry-5-label">-</ButtonLabel></Button>
+    <Button id="entry-6" class="entry t-btn" variant="secondary" size="sm"><ButtonLabel id="entry-6-label">-</ButtonLabel></Button>
+    <Button id="entry-7" class="entry t-btn" variant="secondary" size="sm"><ButtonLabel id="entry-7-label">-</ButtonLabel></Button>
   </div>
   <div class="pager">
-    <Button id="book-prev" variant="secondary" size="sm"><ButtonLabel>Prev</ButtonLabel></Button>
-    <div id="book-page" class="page">1 / 1</div>
-    <Button id="book-next" variant="secondary" size="sm"><ButtonLabel>Next</ButtonLabel></Button>
+    <Button id="book-prev" class="t-btn" variant="secondary" size="sm"><ButtonLabel>Prev</ButtonLabel></Button>
+    <div id="book-page" class="page t-muted">1 / 1</div>
+    <Button id="book-next" class="t-btn" variant="secondary" size="sm"><ButtonLabel>Next</ButtonLabel></Button>
   </div>
   <div class="row">
-    <Button id="book-close" class="back" variant="secondary" size="lg"><ButtonIcon><ArrowLeft></ArrowLeft></ButtonIcon><ButtonLabel>Back</ButtonLabel></Button>
+    <Button id="book-close" class="back t-btn" variant="secondary" size="lg"><ButtonIcon><ArrowLeft></ArrowLeft></ButtonIcon><ButtonLabel>Back</ButtonLabel></Button>
   </div>
 </Panel>

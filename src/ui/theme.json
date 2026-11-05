@@ -1,0 +1,17 @@
+{
+  "name": "field journal",
+  "color": {
+    "bg": "rgba(36, 28, 22, 0.94)",
+    "raised": "rgba(255, 236, 205, 0.10)",
+    "raisedHi": "rgba(255, 236, 205, 0.18)",
+    "text": "#f8eedb",
+    "muted": "#d3c4a6",
+    "accent": "#ff8a3d",
+    "accentSoft": "#ffc283",
+    "ok": "#86dc97",
+    "bad": "#ff9684",
+    "track": "rgba(255, 236, 205, 0.16)"
+  },
+  "radius": { "panel": 18, "control": 12 },
+  "font": { "title": 30, "name": 25, "lead": 22, "body": 21, "muted": 18, "small": 15, "label": 14 }
+}

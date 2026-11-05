@@ -7,6 +7,9 @@
 import { createSystem, type Entity, RayInteractable, type UIKit, type UIKitMLAsset, Vector3, VisibilityState } from '@iwsdk/core';
 import type { BookEntry } from '../game/buildbook.js';
 import { PanelTouch } from './panel-touch.js';
+import { structureView } from '../game/hint-info.js';
+import { RowThumbs } from './row-thumbs.js';
+import { PopIn } from './ui-fx.js';
 import { getGame, getUi, hidePanel, menu, PANEL_DISTANCE, PANEL_DOWN, placeInFront, StaticAnchor, uiText } from './shared.js';
 
 /** Entries per page: keeps every row a full-size fingertip target and the card on screen. */
@@ -18,6 +21,9 @@ export class BuildBookSystem extends createSystem({}) {
   private panel!: UIKitMLAsset;
   private panelEntity!: Entity;
   private touch!: PanelTouch;
+  private thumbs!: RowThumbs;
+  private pop!: PopIn;
+  private thumbTimer = 0;
   private vr = false;
   private open = false;
   private rows: BookEntry[] = [];
@@ -35,6 +41,8 @@ export class BuildBookSystem extends createSystem({}) {
     this.panelEntity.addComponent(RayInteractable);
     hidePanel(this.panel);
     this.touch = new PanelTouch(this.world, this.panel, 0.1, 'book');
+    this.thumbs = new RowThumbs(this.panel, this.renderer, ROWS);
+    this.pop = new PopIn(this.panel, () => (this.vr ? VR_SCALE : 0.1));
     this.cleanupFuncs.push(
       this.world.visibilityState.subscribe((v) => {
         this.vr = v !== VisibilityState.NonImmersive;
@@ -101,9 +109,10 @@ export class BuildBookSystem extends createSystem({}) {
       this.touch.setScale(sc);
       placeInFront(this.panel, this.camera, this.vr ? PANEL_DISTANCE : 0.9, 0, this.vr ? PANEL_DOWN + 0.04 : 0.1);
       this.touch.reset();
+      this.pop.open();
     } else {
       menu.closed('book');
-      hidePanel(this.panel);
+      this.pop.close(() => hidePanel(this.panel));
     }
   }
 
@@ -128,6 +137,16 @@ export class BuildBookSystem extends createSystem({}) {
       if (!e) continue;
       this.panel.requireElementById<UIKit.Text>(`entry-${i}-label`).setProperties({ text: uiText(label(e)) });
     }
+    // A small picture of the build (only where a real picture exists: a locked row shows none).
+    if (this.open) {
+      this.thumbs.setRows(
+        Array.from({ length: ROWS }, (_, i) => {
+          const e = this.rows[this.page * ROWS + i];
+          const view = e?.unlocked && e.structure ? structureView(e.structure) : null;
+          return { el: `entry-${i}`, pic: view ? { key: `struct:${e!.structure}`, view } : null };
+        }),
+      );
+    }
   }
 
   update(delta: number): void {
@@ -138,7 +157,12 @@ export class BuildBookSystem extends createSystem({}) {
       game.updateBook();
       if (this.open) this.refresh();
     }
+    if (this.pop.busy) this.pop.update(delta);
     if (this.open && this.immersive()) this.touch.update(delta);
+    if (this.open && (this.thumbTimer += delta) > 0.25) {
+      this.thumbTimer = 0;
+      this.thumbs.update();
+    }
   }
 }
 

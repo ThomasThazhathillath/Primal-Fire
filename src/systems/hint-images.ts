@@ -32,6 +32,9 @@ import { createRuins } from '../scene-assets/landmarks.scene-asset.js';
 
 export const PIC_W = 512;
 export const PIC_H = 384;
+/** Small pictures for list rows (same renderer, smaller target). */
+export const THUMB_W = 128;
+export const THUMB_H = 96;
 
 const BACKGROUND = 0xd9d3c6;
 const FLOOR = 0xbdb6a6;
@@ -105,7 +108,16 @@ export class HintImages {
     return rt?.texture ?? null;
   }
 
-  private render(view: HintView): WebGLRenderTarget | null {
+  /** A small picture of `view` for a list row (cached), or null if nothing in it could be drawn. */
+  thumb(key: string, view: HintView): Texture | null {
+    const k = `thumb:${key}`;
+    if (this.cache.has(k)) return this.cache.get(k)?.texture ?? null;
+    const rt = this.render(view, THUMB_W, THUMB_H);
+    this.cache.set(k, rt);
+    return rt?.texture ?? null;
+  }
+
+  private render(view: HintView, w = PIC_W, h = PIC_H): WebGLRenderTarget | null {
     const objs: Object3D[] = [];
     for (const p of view.pieces) {
       const o = build(p);
@@ -128,7 +140,7 @@ export class HintImages {
     this.floor.scale.setScalar(Math.max(0.3, r * 1.7));
     this.floor.position.set(this.sphere.center.x, -0.001, this.sphere.center.z);
 
-    const rt = new WebGLRenderTarget(PIC_W, PIC_H, { samples: 4, colorSpace: SRGBColorSpace });
+    const rt = new WebGLRenderTarget(w, h, { samples: w >= PIC_W ? 4 : 2, colorSpace: SRGBColorSpace });
     const r_ = this.renderer;
     const prevTarget = r_.getRenderTarget();
     const prevXr = r_.xr.enabled;
@@ -159,4 +171,10 @@ export class HintImages {
     ctx.putImageData(img, 0, 0);
     return c.toDataURL('image/png');
   }
+}
+
+let shared: HintImages | null = null;
+/** One renderer-backed picture cache for every panel (hint pictures and list thumbnails). */
+export function sharedImages(renderer: WebGLRenderer): HintImages {
+  return (shared ??= new HintImages(renderer));
 }

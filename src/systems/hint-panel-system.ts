@@ -23,8 +23,9 @@ import {
 } from '@iwsdk/core';
 import { hintInfo, hintView } from '../game/hint-info.js';
 import { cardView, objectiveById } from '../game/objectives.js';
-import { HintImages } from './hint-images.js';
+import { type HintImages, sharedImages } from './hint-images.js';
 import { PanelTouch } from './panel-touch.js';
+import { PopIn } from './ui-fx.js';
 import { getGame, getUi, hidePanel, menu, PANEL_DISTANCE, PANEL_DOWN, placeInFront, StaticAnchor, uiText } from './shared.js';
 
 const PANEL_SCALE = 0.047;
@@ -49,6 +50,7 @@ export class HintPanelSystem extends createSystem({}) {
   private watch = 0;
   private vr = false;
   private touch!: PanelTouch;
+  private pop!: PopIn;
 
   async init(): Promise<void> {
     const panel = await this.world.assets.instantiate<UIKitMLAsset>('hint-panel');
@@ -76,6 +78,7 @@ export class HintPanelSystem extends createSystem({}) {
     wire('hint-more', () => this.more());
     wire('hint-close', () => menu.back());
     this.touch = new PanelTouch(this.world, panel, PANEL_SCALE, 'hint');
+    this.pop = new PopIn(panel, () => PANEL_SCALE);
     this.touch.add('hint-more', () => this.more());
     this.touch.add('hint-close', () => menu.back());
     menu.register('hint', () => this.close());
@@ -97,7 +100,7 @@ export class HintPanelSystem extends createSystem({}) {
   }
 
   private imgs(): HintImages {
-    return (this.images ??= new HintImages(this.renderer));
+    return (this.images ??= sharedImages(this.renderer));
   }
 
   private onVisibility(v: VisibilityState): void {
@@ -123,13 +126,16 @@ export class HintPanelSystem extends createSystem({}) {
     this.anchor.reset();
     this.touch.reset();
     this.place();
+    this.pop.open();
   }
 
   close(): void {
     menu.closed('hint');
     this.opened = null;
-    hidePanel(this.panel);
-    this.pic.visible = false;
+    this.pop.close(() => {
+      hidePanel(this.panel);
+      this.pic.visible = false;
+    });
   }
 
   private more(): void {
@@ -182,6 +188,7 @@ export class HintPanelSystem extends createSystem({}) {
   }
 
   update(delta: number): void {
+    if (this.pop?.busy) this.pop.update(delta);
     if (!this.ready || !this.opened) return;
     this.idle += delta;
     if (this.idle > IDLE_CLOSE) return this.close();

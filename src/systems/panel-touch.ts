@@ -10,6 +10,7 @@ import { type Entity, RayInteractable, type UIKitMLAsset, Vector3, type World } 
 import { RejectLog, rejectLine } from '../game/menu.js';
 import { fitTarget, IconState, TouchTracker, type TipSample, type TouchIcon } from '../game/ui-touch.js';
 import { hands } from './hand-input-system.js';
+import { tapSound } from './ui-fx.js';
 import { getGame, handClaims } from './shared.js';
 
 /** UIKit layout units are 1/100 of a panel-scale unit: px * 0.01 * scale = metres. */
@@ -18,6 +19,8 @@ const UNIT = 0.01;
 const ZONE_MARGIN = 0.1;
 const ZONE_FRONT = 0.2;
 const ZONE_BEHIND = 0.3;
+/** How long the tapped target stays flashed (s). */
+const FLASH_SECONDS = 0.14;
 
 interface Target {
   id: string;
@@ -129,7 +132,7 @@ export class PanelTouch {
       if (!shown(t.el)) continue;
       const size = t.el.size?.peek?.();
       const gm = t.el.globalMatrix?.peek?.();
-      if (!size || !gm) continue;
+      if (!size || !gm || size[0] < 1 || size[1] < 1) continue; // folded away (zero size): not a target
       const e = gm.elements;
       this.active.push(t);
       this.icons.push(
@@ -145,8 +148,24 @@ export class PanelTouch {
     }
   }
 
+  private flashing: Array<{ t: Target; left: number }> = [];
+
+  /** A quick shrink and flash on the tapped target: scale it down, light its ring, then restore. */
+  private flash(t: Target): void {
+    t.el.setProperties({ opacity: 0.55, borderWidth: 4, borderColor: '#ffd6a8' } as never);
+    this.flashing.push({ t, left: FLASH_SECONDS });
+  }
+
   /** Call every frame while the panel is open in VR. */
   update(dt: number): void {
+    if (this.flashing.length) {
+      for (let i = this.flashing.length - 1; i >= 0; i--) {
+        const f = this.flashing[i];
+        if ((f.left -= dt) > 0) continue;
+        f.t.el.setProperties({ opacity: 1, borderWidth: 0 } as never);
+        this.flashing.splice(i, 1);
+      }
+    }
     this.panel.updateMatrixWorld(true);
     this.layout();
     const n = this.icons.length;
@@ -171,6 +190,8 @@ export class PanelTouch {
         const t = this.active[hit];
         if (this.taps.length > 50) this.taps.shift();
         this.taps.push(t.id);
+        tapSound();
+        this.flash(t);
         t.tap();
         return; // the handler may have closed the panel
       }
@@ -182,7 +203,7 @@ export class PanelTouch {
       const st = merged[i];
       const props =
         st === IconState.Approaching
-          ? { borderWidth: 3, borderColor: '#ffb547' }
+          ? { borderWidth: 3, borderColor: '#ff8a3d' }
           : st === IconState.Touched || st === IconState.Activated
             ? { borderWidth: 4, borderColor: '#7dff8a' }
             : { borderWidth: 0 };

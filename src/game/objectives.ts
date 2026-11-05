@@ -449,7 +449,7 @@ export const OBJECTIVES: Objective[] = [
     doneMessage: 'A glowing ember! Now keep it alive.',
     teach: 'fire',
     howTo: () =>
-      'HOW TO MAKE AN EMBER: 1. Take the bow drill out of your bag and keep it pinched. 2. Kneel or reach down to the fire pit so your hand is just above it. 3. Put your other hand near the pit too (it steadies the spindle). 4. Move the bow hand back and forth, steadily, for several seconds until smoke and an ember appear. In the browser: hold it and click the fire pit again and again.',
+      'HOW TO MAKE AN EMBER: 1. Take the bow drill out of your bag: it stays in your hand (Menu > Put away to let go). 2. Kneel or reach down to the fire pit so your hand is just above it. 3. Put your other hand near the pit too (it steadies the spindle). 4. Move the bow hand back and forth, steadily, for several seconds until smoke and an ember appear. In the browser: hold it and click the fire pit again and again.',
     done: (g) => g.flag('emberMade') || litFire(g),
     implied: litFire,
     hint: {

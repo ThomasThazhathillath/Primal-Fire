@@ -23,12 +23,17 @@ import { releaseKind, restHeight } from '../game/pinch.js';
 import { groundHeight } from '../game/world-layout.js';
 import { spotWorldPosition } from '../game/blueprint.js';
 import { getGame, getUi, handClaims, hipPosition, pendingRelease, pickupFrom } from './shared.js';
+import { SWING_TOOLS } from '../game/interact.js';
+import { actionFor } from '../game/actions.js';
 
 /** Desktop hold poses in camera space. */
 const DESK_ONE = new Vector3(0.235, -0.205, -0.54);
 const DESK_TWO = new Vector3(0, -0.42, -0.75);
 /** Seconds a pickup takes to arrive in the hand. */
 const REACH_TIME = 0.25;
+
+/** Held tools that only Put away / Drop lets go of (see the release loop). */
+const STICKY: readonly ItemId[] = ['bowDrill', 'flake', 'knife', 'flint', 'diggingStick', 'pot'];
 
 /** A part let go within this distance (m) of a build that wants it seats on its nearest free mark. */
 const NEAR_BUILD = 3;
@@ -283,7 +288,11 @@ export class CarrySystem extends createSystem({}) {
       }
     }
     // Opening a pinch lets go of that hand's hold; the other hand, if any, keeps it.
+    // Tools you work with (bow drill, axe, hammer, flint, flake...) stay in your hand while you use
+    // them: opening your fingers mid-stroke must not drop them. Put away or Drop (menu) lets go.
+    const sticky = this.immersive() && (SWING_TOOLS.includes(this.item) || !!actionFor(this.item) || STICKY.includes(this.item));
     for (let h = 0; h < 2; h++) {
+      if (sticky) break;
       if (!hands[h].squeezeUp || !this.grip.holding[h]) continue;
       if (this.grip.open(h as 0 | 1)) {
         this.release(this.item, false);

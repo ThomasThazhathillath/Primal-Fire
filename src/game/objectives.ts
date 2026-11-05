@@ -442,6 +442,14 @@ export const OBJECTIVES: Objective[] = [
     title: 'Make a clay pot',
     instruction: 'Mix clay with sand, shape a pot at the workbench, let it dry, then fire it in your fire.',
     doneMessage: 'Fired clay holds water for good.',
+    howTo: (g) =>
+      g.flag('potFired')
+        ? null
+        : g.flag('potDry')
+          ? 'HOW TO FIRE IT: the pot is dry. With your fire burning, reach your hand into the flames and hold it there for a moment: the pot goes in. In the browser: stand by the fire and press U. Keep the fire fed until it is fired.'
+          : g.count('pot') > 0 || g.held === 'pot'
+            ? 'DRYING: you do not need to do anything (the pot stays in your bag). Keep the pot in your bag for about 45 seconds and a message says when it is bone dry. Do not put it in the fire before that: a damp pot bursts.'
+            : null,
     substeps: (g) => [
       sub('Clay and sand', g.flag('potFired') || (g.gatheredCount('clay') >= 2 && g.gatheredCount('sand') > 0)),
       sub('Shape it and let it dry', g.flag('potDry') || g.flag('potFired')),

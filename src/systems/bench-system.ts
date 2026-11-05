@@ -27,13 +27,15 @@ import { BENCH_RECIPES, partsStatus, type BenchMotion } from '../game/bench.js';
 import { BLUEPRINTS } from '../game/blueprint.js';
 import type { GameEvent } from '../game/game.js';
 import { itemName, type ItemId } from '../game/items.js';
+import { stepStarted, WorkRate } from '../game/stepfx.js';
+import { BenchFx } from './bench-fx.js';
 import { itemMesh } from '../scene-assets/item-meshes.js';
 import { hands, mouse, pulse } from './hand-input-system.js';
 import { PanelTouch } from './panel-touch.js';
 import { getGame, getUi, handPose, hidePanel, menu, PANEL_DISTANCE, PANEL_DOWN, placeInFront, uiText } from './shared.js';
 
 const ROWS = 10;
-const TRACK_PX = 520;
+const TRACK_PX = 260;
 /** Walk further than this (m) from the bench and the craft stops. */
 const LEAVE_DISTANCE = 3.5;
 /** Desktop motion scales. */
@@ -84,6 +86,10 @@ export class BenchSystem extends createSystem({}) {
   /** What the current craft will make (so it can go to your hand when done). */
   private making: ItemId | null = null;
   private cue = [cueHand(), cueHand()];
+  private fx!: BenchFx;
+  private work = new WorkRate();
+  private lastProg = 0;
+  private lastStep = -1;
   private t = 0;
   // desktop motion tracking
   private lastX = 0;
@@ -109,6 +115,7 @@ export class BenchSystem extends createSystem({}) {
       c.visible = false;
       this.layout.add(c);
     }
+    this.fx = new BenchFx(this.layout);
     getUi(this.world).openBench = (id: number) => this.show(id);
     getUi(this.world).openNearestBench = () => {
       const s = getGame(this.world).nearbyWorkbench();
@@ -256,11 +263,15 @@ export class BenchSystem extends createSystem({}) {
     const game = getGame(this.world);
     for (let i = this.layout.children.length - 1; i >= 0; i--) {
       const c = this.layout.children[i];
-      if (!this.cue.includes(c as Group)) this.layout.remove(c);
+      if (!this.cue.includes(c as Group) && !this.fx.objects.includes(c)) this.layout.remove(c);
     }
     this.result = null;
     const b = game.bench;
-    if (!b) return;
+    if (!b) {
+      this.fx.setParts([], this.top);
+      return;
+    }
+    const placed: Object3D[] = [];
     const items: ItemId[] = [];
     for (const [id, n] of Object.entries(b.recipe.inputs)) for (let k = 0; k < (n ?? 0); k++) items.push(id as ItemId);
     items.forEach((id, i) => {
@@ -270,7 +281,12 @@ export class BenchSystem extends createSystem({}) {
       m.rotation.y = i * 0.7;
       m.name = 'BenchPart';
       this.layout.add(m);
+      placed.push(m);
     });
+    this.fx.setParts(placed, this.top);
+    this.work.reset();
+    this.lastProg = 0;
+    this.lastStep = b.stepIndex;
     const ghost = itemMesh(b.recipe.output);
     ghost.traverse((o) => {
       if ((o as Mesh).isMesh) (o as Mesh).material = ghostMat;
@@ -305,6 +321,9 @@ export class BenchSystem extends createSystem({}) {
       return;
     }
     if (state === 'step') {
+      this.fx.rest();
+      this.work.reset();
+      this.lastProg = 0;
       game.fx('seat', 0.8);
       if (this.immersive()) pulse(this.renderer.xr.getSession(), 1, 0.6, 60);
     }
@@ -404,8 +423,10 @@ export class BenchSystem extends createSystem({}) {
   private animateCue(): void {
     const b = getGame(this.world).bench;
     const step = b?.step;
-    for (const c of this.cue) c.visible = !!step;
-    if (!step) return;
+    // The looping ghost hand is only for before you start: once the parts move with your hands it goes.
+    const started = !!b && stepStarted(b.progress, this.work.rate);
+    for (const c of this.cue) c.visible = !!step && !started;
+    if (!step || started) return;
     const t = this.t;
     const [a, c2] = this.cue;
     a.position.set(this.top.x, this.top.y + 0.1, this.top.z);
@@ -475,6 +496,12 @@ export class BenchSystem extends createSystem({}) {
         for (const c of this.layout.children) if (c.name === 'BenchPart') c.rotation.z = (Math.random() - 0.5) * 0.08;
       }
       if (this.result) this.result.rotation.y += dt * (0.5 + b.total * 2);
+      // The parts move with the work the hands just did.
+      const gained = b.stepIndex === this.lastStep ? Math.max(0, b.progress - this.lastProg) : 0;
+      this.lastStep = b.stepIndex;
+      this.lastProg = b.progress;
+      this.work.update(dt, gained);
+      this.fx.update(dt, b.step?.motion ?? null, b.progress, gained, b.step?.work ?? 1);
     }
     this.animateCue();
   }

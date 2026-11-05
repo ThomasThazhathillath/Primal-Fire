@@ -74,7 +74,7 @@ export const BENCH_RECIPES: BenchRecipe[] = [
     flag: 'cordMade',
     steps: [
       { id: 'strands', title: 'Pull the fibres into strands', motion: 'scrape', work: 0.6, hint: 'Comb the stems apart against the bench edge.', mark: 'cord.strands' },
-      { id: 'twist', title: 'Twist the strands, wrists in opposite directions', motion: 'twist', work: Math.PI * 6, hint: 'Each strand twists one way; together they lock the other way.', mark: 'cord.twisted' },
+      { id: 'twist', title: 'Twist the strands, wrists in opposite directions', motion: 'twist', work: Math.PI * 4, hint: 'Each strand twists one way; together they lock the other way.', mark: 'cord.twisted' },
     ],
   },
   {

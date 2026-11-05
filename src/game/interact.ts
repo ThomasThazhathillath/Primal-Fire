@@ -105,9 +105,9 @@ export const TOUGHNESS: Partial<Record<ItemId, number>> = {
 };
 
 /** Bend angle (rad) at which wood starts to take damage instead of springing back. */
-export const BEND_YIELD = 0.35;
+export const BEND_YIELD = 0.3;
 /** Bend angle at which a dry branch is fully loaded (more bend adds stress faster). */
-export const BEND_MAX = 1.1;
+export const BEND_MAX = 0.95;
 /** Stress lost per second while you ease off (wood partly recovers). */
 export const BEND_RECOVER = 0.15;
 
@@ -346,7 +346,7 @@ export const SPLIT_PULL = 0.18;
 /** Minimum separation (m) to keep the strands under tension while twisting. */
 export const TWIST_MIN_SEP = 0.1;
 /** Total counter-rotation (rad, summed over both wrists) that makes one cord. */
-export const TWIST_NEEDED = Math.PI * 6;
+export const TWIST_NEEDED = Math.PI * 4;
 /** Per-frame wrist roll below this (rad) is tremor, not twisting. */
 const ROLL_NOISE = 0.002;
 

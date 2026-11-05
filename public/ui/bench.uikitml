@@ -25,9 +25,9 @@
   .cue:dark { color: #ffb547; }
   .hint { color: #4b463f; font-size: 21px; line-height: 1.3; }
   .hint:dark { color: #cfc5b3; }
-  .track { width: 520px; height: 18px; border-radius: 9px; background-color: #d8d0c0; }
+  .track { width: 260px; height: 6px; border-radius: 3px; background-color: #d8d0c0; }
   .track:dark { background-color: #3a352e; }
-  .fill { width: 0px; height: 18px; border-radius: 9px; background-color: #3f9b4f; }
+  .fill { width: 0px; height: 6px; border-radius: 3px; background-color: #3f9b4f; }
   .steps { color: #55504a; font-size: 19px; }
   .steps:dark { color: #d9cfbd; }
   .buttons { flex-direction: row; gap: 10px; }

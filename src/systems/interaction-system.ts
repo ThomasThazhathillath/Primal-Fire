@@ -51,7 +51,7 @@ import {
   type GuideFailureCode,
   type Material,
 } from '../game/interact.js';
-import { ITEMS, type ItemId } from '../game/items.js';
+import { ITEMS, type ItemId, carryRules } from '../game/items.js';
 import { BLUEPRINTS, spotWorldPosition } from '../game/blueprint.js';
 import { itemMesh } from '../scene-assets/item-meshes.js';
 import { Gatherable, SnapSpot } from '../components/game-components.js';
@@ -652,6 +652,13 @@ export class InteractionSystem extends createSystem({
     // Both hands (VR: both grips; desktop: Shift) pull harder.
     d.hands = this.viaVR ? (hands[0].grip && hands[1].grip ? 2 : 1) : mouse.bothHands ? 2 : 1;
     if (!d.update(this.tmp.x, this.tmp.z, dt)) {
+      // Play-test (easy carry): a one-hand pull on a fallen log just takes logs from it,
+      // as a still pinch does; hand tracking wobble made every VR pinch count as a drag.
+      if (carryRules.easy) {
+        this.endDrag(false);
+        this.world.getSystem(ResourceSystem)?.tryGather(e);
+        return;
+      }
       this.fail('drag.tooHeavy');
       return this.endDrag(false);
     }

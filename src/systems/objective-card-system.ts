@@ -247,7 +247,8 @@ export class ObjectiveCardSystem extends createSystem({}) {
     }
     // The hint panel opens over the same area: hide the card while it is open, restore it on close.
     // (and in VR any open panel: the bag, build book, ... has the view to itself)
-    const hint = (getUi(this.world).hintOpen?.() ?? false) || (this.vr && menu.current !== null);
+    const ui = getUi(this.world);
+    const hint = (ui.hintOpen?.() ?? false) || (ui.notebookOpen?.() ?? false) || (this.vr && menu.current !== null);
     if (hint !== this.hintOn) {
       this.hintOn = hint;
       this.touch.reset();

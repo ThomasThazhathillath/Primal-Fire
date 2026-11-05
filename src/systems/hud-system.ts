@@ -138,6 +138,7 @@ export class HudSystem extends createSystem({
     const ui = getUi(this.world);
     ui.showHint = () => this.showHint();
     ui.openNotebook = () => this.openNotebook();
+    ui.notebookOpen = () => this.card.visible;
     // The quest icon now opens the objective card (ObjectiveCardSystem); this strip keeps XP and toasts.
     ui.newNotes = () => this.newNotes;
 
@@ -288,8 +289,8 @@ export class HudSystem extends createSystem({
       placeInFront(this.card, this.camera, PANEL_DISTANCE, 0, PANEL_DOWN + 0.03);
     }
     else {
-      this.card.scale.setScalar(0.09);
-      placeInFront(this.card, this.camera, 0.75, 0.3, 0.05);
+      this.card.scale.setScalar(0.08);
+      placeInFront(this.card, this.camera, 0.75, 0, 0.04); // centred, below the top HUD, clear of the hands
     }
     this.cardTouch.reset();
     this.cardScale = this.card.scale.x;

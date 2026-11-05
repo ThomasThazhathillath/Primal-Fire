@@ -15,7 +15,7 @@ import { getGame, getUi, hidePanel, menu, PANEL_DISTANCE, PANEL_DOWN, placeInFro
 /** Entries per page: keeps every row a full-size fingertip target and the card on screen. */
 const ROWS = 8;
 /** Panel scale in VR (metres per layout unit * 100). */
-const VR_SCALE = 0.052;
+const VR_SCALE = 0.08; // 20px row text * 0.08 = the bag's 16px * 0.1 on screen, in a panel short enough to fit the view
 
 export class BuildBookSystem extends createSystem({}) {
   private panel!: UIKitMLAsset;

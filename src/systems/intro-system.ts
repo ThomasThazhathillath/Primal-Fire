@@ -32,6 +32,8 @@ export class IntroSystem extends createSystem({}) {
       this.world.visibilityState.subscribe((v) => {
         const show = this.world.xrEnabled && v === VisibilityState.NonImmersive;
         xrButton.setProperties({ display: show ? 'flex' : 'none' });
+        // In the headset the game just starts: a missed "Wake up" left everything (the menu too) hidden.
+        if (v !== VisibilityState.NonImmersive && !this.world.getSystem(WorldSystem)?.started) this.begin();
       }),
     );
   }

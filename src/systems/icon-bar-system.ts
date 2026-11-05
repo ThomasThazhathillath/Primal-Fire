@@ -26,7 +26,8 @@ const SLOT_H = 76;
 /** VR: icons sit in a small grid this many wide, off to your right. */
 const COLS = 4;
 /** VR: an open menu folds itself away after this long without a tap (s). */
-const MENU_IDLE = 20;
+/** Tunable at runtime (window.__iconbar.config): seconds before an unfolded grid folds itself. */
+export const MENU_CONFIG = { gridIdleSeconds: 20 };
 const PAD = 8;
 /** Panel local units → metres (UIKit units are ~1 cm; the panel is scaled by PANEL_SCALE). */
 const PANEL_SCALE = 0.09;
@@ -66,9 +67,11 @@ const DEFS: Def[] = [
 
 /** Where the bar hangs (m): within a seated arm's reach, below eye level, either hand. */
 export const BAR_DISTANCE = 0.4;
-// Chest height for a seated player, off to the right: out of the way of your hands and your view.
-export const BAR_DOWN = 0.3;
-export const BAR_SIDE = 0.18;
+// The bottom edge of the bar (the Menu button when folded) hangs this far below eye level: chest height for a
+// seated player, off to the right. An unfolded grid grows UP from there, so every row stays in view and reach.
+export const BAR_BOTTOM = 0.34;
+export const BAR_DOWN = BAR_BOTTOM;
+export const BAR_SIDE = 0.08;
 
 export class IconBarSystem extends createSystem({}) {
   private bar!: UIKitMLAsset;
@@ -115,12 +118,28 @@ export class IconBarSystem extends createSystem({}) {
     });
     this.cleanupFuncs.push(this.world.visibilityState.subscribe((v) => this.onVisibility(v)));
     this.ready = true;
+    // Test hook: window.__menu.tap(id) taps a visible icon (e.g. 'satchel'), tapPanel(elementId) a target in the open
+    // panel. Both run the same activation a real fingertip tap runs, after the tap has been accepted; the
+    // fingertip rules themselves (speed, angle, pinch, ...) are not bypassed, they are simply not involved.
+    (window as unknown as { __menu?: unknown }).__menu = {
+      tap: (id: string) => {
+        const di = DEFS.findIndex((d) => d.id === id);
+        if (di < 0 || !this.visible.includes(di)) return false;
+        this.activate(di);
+        return true;
+      },
+      tapPanel: (elementId: string) => {
+        const reg = (window as unknown as { __touch?: Record<string, { tap(id: string): boolean }> }).__touch ?? {};
+        return Object.values(reg).some((t) => t.tap(elementId));
+      },
+    };
     // Debug/tuning hook: where each icon is, in the panel frame (metres).
     (window as unknown as { __iconbar?: unknown }).__iconbar = {
       visible: () => this.visible.map((i) => DEFS[i].id),
       panel: bar,
       taps: this.touch.taps,
       menu,
+      config: MENU_CONFIG,
     };
   }
 
@@ -234,6 +253,8 @@ export class IconBarSystem extends createSystem({}) {
     const h = PAD * 2 + rows * SLOT_H + (rows - 1) * GAP;
     this.bar.requireElementById('bar').setProperties({ width: w, height: h, flexWrap: 'wrap', borderRadius: this.vr ? 20 : 32 } as never);
     this.touch.reset();
+    // Keep the bottom edge where the folded button was: the grid grows upwards, not down out of view.
+    this.anchor.setDown(BAR_BOTTOM - (h * PANEL_SCALE * 0.01) / 2);
     if (!this.vr) {
       this.entity.removeComponent(ScreenSpace);
       this.entity.addComponent(ScreenSpace, { width: `${w * 1.15}px`, height: '76px', bottom: '8px', left: `calc(50% - ${(w * 1.15) / 2}px)`, top: 'auto', right: 'auto', zOffset: 0.25 });
@@ -253,7 +274,7 @@ export class IconBarSystem extends createSystem({}) {
       this.benchNear = !!game.nearbyWorkbench();
     }
     this.visible.length = 0;
-    if (menu.gridOpen && (this.menuIdle += delta) > MENU_IDLE) menu.gridOpen = false;
+    if (menu.gridOpen && (this.menuIdle += delta) > MENU_CONFIG.gridIdleSeconds) menu.gridOpen = false;
     // Folded (VR): only the Menu button shows, whenever the grid is not unfolded (and always while a panel is open).
     DEFS.forEach((d, i) => d.show(this) && (!this.vr || menu.gridVisible || d.id === 'menu') && this.visible.push(i));
     this.layout();

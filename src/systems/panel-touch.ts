@@ -61,7 +61,22 @@ export class PanelTouch {
     for (const t of this.trackers) t.requirePoint = false;
     // Debug / tuning: window.__touch[name].targets() lists where every target is in the world.
     const g = window as unknown as { __touch?: Record<string, unknown> };
-    (g.__touch ??= {})[name] = { targets: () => this.debugTargets(), taps: this.taps };
+    (g.__touch ??= {})[name] = { targets: () => this.debugTargets(), taps: this.taps, tap: (id: string) => this.tapById(id) };
+  }
+
+  /**
+   * Test hook: run target `id`'s tap handler exactly as a real tap would (same handler, same tap log),
+   * but only if the panel is open and the target is on show. It does NOT bypass the fingertip rules:
+   * those are what a real tap is judged by; this only stands in for a finished, accepted tap.
+   */
+  tapById(id: string): boolean {
+    if (!this.panel.visible) return false;
+    const t = this.targets.find((x) => x.id === id);
+    if (!t || !shown(t.el)) return false;
+    if (this.taps.length > 50) this.taps.shift();
+    this.taps.push(t.id);
+    t.tap();
+    return true;
   }
 
   /** World centre and facing of each live target, for tests (metres, world frame). */

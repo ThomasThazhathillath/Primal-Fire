@@ -200,6 +200,13 @@ export class StaticAnchor {
     this.placed = false;
   }
 
+  /** Change how far below eye level the panel hangs (it is re-placed on the next update). */
+  setDown(down: number): void {
+    if (Math.abs(down - this.down) < 1e-4) return;
+    this.down = down;
+    this.placed = false;
+  }
+
   update(panel: Object3D, camera: Object3D): void {
     camera.getWorldPosition(this.head);
     const yaw = headYaw(camera);

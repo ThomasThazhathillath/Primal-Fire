@@ -6,14 +6,19 @@
 
 import { createSystem, type Entity, RayInteractable, type UIKit, type UIKitMLAsset, Vector3, VisibilityState } from '@iwsdk/core';
 import type { BookEntry } from '../game/buildbook.js';
-import { getGame, getUi, hidePanel, placeInFront, StaticAnchor, uiText } from './shared.js';
+import { PanelTouch } from './panel-touch.js';
+import { getGame, getUi, hidePanel, menu, PANEL_DISTANCE, PANEL_DOWN, placeInFront, StaticAnchor, uiText } from './shared.js';
 
 /** Entries per page: keeps every row a full-size fingertip target and the card on screen. */
 const ROWS = 8;
+/** Panel scale in VR (metres per layout unit * 100). */
+const VR_SCALE = 0.052;
 
 export class BuildBookSystem extends createSystem({}) {
   private panel!: UIKitMLAsset;
   private panelEntity!: Entity;
+  private touch!: PanelTouch;
+  private vr = false;
   private open = false;
   private rows: BookEntry[] = [];
   private anchor = new StaticAnchor(0.9, 0, 0.1);
@@ -29,15 +34,25 @@ export class BuildBookSystem extends createSystem({}) {
     this.panelEntity = this.world.createTransformEntity(this.panel);
     this.panelEntity.addComponent(RayInteractable);
     hidePanel(this.panel);
+    this.touch = new PanelTouch(this.world, this.panel, 0.1, 'book');
+    this.cleanupFuncs.push(
+      this.world.visibilityState.subscribe((v) => {
+        this.vr = v !== VisibilityState.NonImmersive;
+        PanelTouch.setRay(this.world, this.panelEntity, this.vr);
+      }),
+    );
+    menu.register('book', () => this.setOpen(false));
     for (let i = 0; i < ROWS; i++) {
       const el = this.panel.requireElementById(`entry-${i}`);
       const onClick = () => this.choose(i);
       el.addEventListener('click', onClick);
+      this.touch.add(`entry-${i}`, onClick);
       this.cleanupFuncs.push(() => el.removeEventListener('click', onClick));
     }
     const close = this.panel.requireElementById('book-close');
-    const onClose = () => this.setOpen(false);
+    const onClose = () => menu.back();
     close.addEventListener('click', onClose);
+    this.touch.add('book-close', onClose);
     this.cleanupFuncs.push(() => close.removeEventListener('click', onClose));
     for (const [id, step] of [['book-prev', -1], ['book-next', 1]] as const) {
       const el = this.panel.requireElementById(id);
@@ -46,6 +61,7 @@ export class BuildBookSystem extends createSystem({}) {
         this.refresh();
       };
       el.addEventListener('click', onPage);
+      this.touch.add(id, onPage);
       this.cleanupFuncs.push(() => el.removeEventListener('click', onPage));
     }
     getUi(this.world).toggleBook = () => this.setOpen(!this.open);
@@ -74,12 +90,21 @@ export class BuildBookSystem extends createSystem({}) {
     if (!this.panel) return;
     this.open = open;
     if (open) {
+      menu.open('book');
       this.page = 0;
       this.refresh();
       this.panel.visible = true;
       this.anchor.reset();
-      placeInFront(this.panel, this.camera, 0.9, 0, 0.1);
-    } else hidePanel(this.panel);
+      // Tall list: a little smaller in VR so all eight rows fit the view at arm's length.
+      const sc = this.vr ? VR_SCALE : 0.1;
+      this.panel.scale.setScalar(sc);
+      this.touch.setScale(sc);
+      placeInFront(this.panel, this.camera, this.vr ? PANEL_DISTANCE : 0.9, 0, this.vr ? PANEL_DOWN + 0.04 : 0.1);
+      this.touch.reset();
+    } else {
+      menu.closed('book');
+      hidePanel(this.panel);
+    }
   }
 
   private refresh(): void {
@@ -113,7 +138,7 @@ export class BuildBookSystem extends createSystem({}) {
       game.updateBook();
       if (this.open) this.refresh();
     }
-    if (this.open && this.immersive()) this.anchor.update(this.panel, this.camera);
+    if (this.open && this.immersive()) this.touch.update(delta);
   }
 }
 

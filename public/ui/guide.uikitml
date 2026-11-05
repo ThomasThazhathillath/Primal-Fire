@@ -27,7 +27,7 @@
     <div id="guide-name" class="eyebrow">GUIDE</div>
     <div class="headright">
       <div id="guide-count" class="count">1 / 1</div>
-      <Button id="guide-close" variant="secondary" size="sm"><ButtonLabel>Hide (J)</ButtonLabel></Button>
+      <Button id="guide-close" variant="secondary" size="sm"><ButtonLabel>Hide</ButtonLabel></Button>
     </div>
   </div>
   <div id="guide-title" class="title">-</div>

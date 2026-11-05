@@ -14,15 +14,15 @@ export const TOUCH_CONFIG = {
   /** Fingertip this far (m) in front of the surface and over an icon = "approaching". */
   approachDepth: 0.07,
   /** Must have been this far in front (m) before crossing, or it is not a tap. */
-  armDepth: 0.035,
+  armDepth: 0.03,
   /** Crossing z <= this (m) counts as touching the surface. */
   touchDepth: 0.004,
   /** Past this depth behind the surface (m) the fingertip is no longer in the icon. */
   throughDepth: -0.06,
   /** Minimum speed towards the surface (m/s) at the moment of crossing. */
-  minSpeed: 0.15,
+  minSpeed: 0.1,
   /** Finger direction · into-panel must exceed this (1 = pointing straight in). */
-  minAim: 0.45,
+  minAim: 0.35,
   /** Icon hit radius = icon radius * this (a little forgiving). */
   radiusScale: 1.05,
   /** Seconds after a tap before the same hand may tap again. */
@@ -40,9 +40,9 @@ export const TOUCH_CONFIG = {
    * frame and to the whole approach from the last time the tip was in front,
    * so diagonal or sideways slides across icons never fire. 0.8 ≈ 39° off normal.
    */
-  maxSlideRatio: 0.8,
+  maxSlideRatio: 0.9,
   /** The approach (tip last seen >= armDepth in front) must be this recent (s). */
-  approachWindow: 0.35,
+  approachWindow: 0.5,
   /**
    * A fingertip that moves farther than this (m) in one frame is a tracking
    * jump, not a hand: that frame can never tap, and a fresh approach is
@@ -51,6 +51,8 @@ export const TOUCH_CONFIG = {
   maxJump: 0.3,
   /** 1 = only a pointing hand (index out, other fingers curled) can tap; a resting or lowered hand never does. */
   requirePoint: 1,
+  /** Smallest tap target (m): every button and row is at least this big, whatever it looks like (4.5 cm). */
+  minTarget: 0.045,
 } satisfies Record<string, number>;
 
 export const enum IconState {
@@ -67,8 +69,27 @@ export interface TouchIcon {
   y: number;
   /** Radius (m). */
   r: number;
+  /** Half width / height (m) for a rectangular target (a list row, a wide button); omit for a round one. */
+  hw?: number;
+  hh?: number;
   enabled: boolean;
 }
+
+/**
+ * A target never smaller than TOUCH_CONFIG.minTarget (4.5 cm) each way: small
+ * on-screen buttons stay easy to hit. Mutates and returns `t`.
+ */
+export function fitTarget<T extends TouchIcon>(t: T, minSize: number = TOUCH_CONFIG.minTarget): T {
+  const half = minSize / 2;
+  if (t.hw !== undefined || t.hh !== undefined) {
+    t.hw = Math.max(t.hw ?? 0, half);
+    t.hh = Math.max(t.hh ?? 0, half);
+  } else t.r = Math.max(t.r, half);
+  return t;
+}
+
+/** Why a tap that was aimed at something did not count (for the play-test log). */
+export type RejectReason = 'pinching' | 'notPointing' | 'tooSlow' | 'angle' | 'slide' | 'noApproach' | 'cooldown' | 'disabled' | 'miss' | 'jump';
 
 export interface TipSample {
   x: number;
@@ -105,6 +126,11 @@ export class TouchTracker {
   private flashIcon = -1;
   /** Seconds the finger has been over the same icon, in front (for the hover line). */
   hoverIcon = -1;
+  /** Why the last aimed-at tap was refused this frame, or null; `rejectIcon` is the target it was aimed at. */
+  reject: RejectReason | null = null;
+  rejectIcon = -1;
+  /** Override TOUCH_CONFIG.requirePoint for this tracker (panels that are already open drop it). */
+  requirePoint: boolean | null = null;
 
   reset(): void {
     this.hadPrev = false;
@@ -114,13 +140,26 @@ export class TouchTracker {
   }
 
   /** Index of the icon under the tip (lateral test only), or -1. */
-  private hit(icons: readonly TouchIcon[], s: TipSample): number {
+  private hit(icons: readonly TouchIcon[], s: TipSample, grow = 1): number {
     let best = -1;
     let bestD = Infinity;
     for (let i = 0; i < icons.length; i++) {
       const ic = icons[i];
-      const d = Math.hypot(s.x - ic.x, s.y - ic.y);
-      if (d <= ic.r * TOUCH_CONFIG.radiusScale && d < bestD) {
+      const dx = s.x - ic.x;
+      const dy = s.y - ic.y;
+      if (ic.hw !== undefined && ic.hh !== undefined) {
+        // Rectangular target: inside the box; the nearest centre wins where boxes overlap.
+        if (Math.abs(dx) <= ic.hw * TOUCH_CONFIG.radiusScale * grow && Math.abs(dy) <= ic.hh * TOUCH_CONFIG.radiusScale * grow) {
+          const d = Math.hypot(dx / ic.hw, dy / ic.hh);
+          if (d < bestD) {
+            best = i;
+            bestD = d;
+          }
+        }
+        continue;
+      }
+      const d = Math.hypot(dx, dy) / Math.max(ic.r, 1e-6);
+      if (d <= TOUCH_CONFIG.radiusScale * grow && d < bestD) {
         best = i;
         bestD = d;
       }
@@ -138,6 +177,8 @@ export class TouchTracker {
     for (let i = 0; i < icons.length; i++) this.states[i] = icons[i].enabled ? IconState.Normal : IconState.Disabled;
     if (this.cooldown > 0) this.cooldown = Math.max(0, this.cooldown - dt);
     if (this.flashT > 0) this.flashT -= dt;
+    this.reject = null;
+    this.rejectIcon = -1;
 
     if (!s.tracked) {
       this.reset();
@@ -151,7 +192,15 @@ export class TouchTracker {
       else if (s.pinchDist > c.pinchOff) this.pinching = false;
     } else this.pinching = false;
     // Only a deliberate point taps: a relaxed hand dropping past the bar never does.
-    if (this.pinching || (c.requirePoint && s.pointing === false)) {
+    const needPoint = this.requirePoint ?? c.requirePoint !== 0;
+    const notPointing = needPoint && s.pointing === false;
+    if (this.pinching || notPointing) {
+      // Say why, but only while the finger is actually at something (not for every hand wave).
+      const near = this.hit(icons, s);
+      if (near >= 0 && s.z < c.approachDepth && s.z > c.throughDepth) {
+        this.reject = this.pinching ? 'pinching' : 'notPointing';
+        this.rejectIcon = near;
+      }
       this.hadPrev = false;
       this.frontAge = Infinity;
       this.hoverIcon = -1;
@@ -161,6 +210,7 @@ export class TouchTracker {
 
     if (this.hadPrev && Math.hypot(s.x - this.prevX, s.y - this.prevY, s.z - this.prevZ) > c.maxJump) {
       // Tracking jump: drop the history so nothing crosses the surface on this frame.
+      this.reject = 'jump';
       this.hadPrev = false;
       this.frontAge = Infinity;
       this.hoverIcon = -1;
@@ -195,6 +245,21 @@ export class TouchTracker {
       const lateralApproach = Math.hypot(cx - this.frontX, cy - this.frontY);
       const forwardApproach = this.frontZ - c.touchDepth;
       const fromFront = this.frontAge <= c.approachWindow && forwardApproach >= c.armDepth - c.touchDepth;
+      const slideOk = lateralFrame <= fwd * c.maxSlideRatio && lateralApproach <= forwardApproach * c.maxSlideRatio;
+      // Name the first rule that refused it (aimed at a target, or crossing right beside one).
+      if (hit < 0) {
+        const nearby = this.hit(icons, { ...s, x: cx, y: cy, tracked: true }, 1.8);
+        if (nearby >= 0) {
+          this.reject = 'miss';
+          this.rejectIcon = nearby;
+        }
+      } else if (!icons[hit].enabled) this.reject = 'disabled';
+      else if (!fromFront) this.reject = 'noApproach';
+      else if (this.locked >= 0 || this.cooldown > 0) this.reject = 'cooldown';
+      else if (speed < c.minSpeed) this.reject = 'tooSlow';
+      else if (-s.dz < c.minAim) this.reject = 'angle';
+      else if (!slideOk) this.reject = 'slide';
+      if (this.reject && hit >= 0) this.rejectIcon = hit;
       if (
         fromFront &&
         hit >= 0 &&
@@ -203,9 +268,9 @@ export class TouchTracker {
         this.cooldown <= 0 &&
         speed >= c.minSpeed &&
         -s.dz >= c.minAim &&
-        lateralFrame <= fwd * c.maxSlideRatio &&
-        lateralApproach <= forwardApproach * c.maxSlideRatio
+        slideOk
       ) {
+        this.reject = null;
         activated = hit;
         this.locked = hit;
         this.cooldown = c.cooldown;

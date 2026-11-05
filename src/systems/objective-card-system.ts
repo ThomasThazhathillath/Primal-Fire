@@ -8,22 +8,16 @@
 // the middle of view, operated ONLY by a deliberate fingertip poke
 // (src/game/ui-touch.ts) like the icon bar, never a pinch or controller button.
 
-import { createSystem, type Entity, findUIKitDocument, RayInteractable, ScreenSpace, type UIKit, type UIKitMLAsset, Vector3, VisibilityState } from '@iwsdk/core';
+import { createSystem, type Entity, findUIKitDocument, RayInteractable, ScreenSpace, type UIKit, type UIKitMLAsset, VisibilityState } from '@iwsdk/core';
 import { cardView, objectiveById, type ObjectiveView } from '../game/objectives.js';
-import { TouchTracker, type TipSample, type TouchIcon } from '../game/ui-touch.js';
-import { hands } from './hand-input-system.js';
-import { getGame, getUi, handClaims, hidePanel, StaticAnchor, uiText } from './shared.js';
+import { PanelTouch } from './panel-touch.js';
+import { getGame, getUi, hidePanel, menu, StaticAnchor, uiText } from './shared.js';
 import { WorldSystem } from './world-system.js';
 
 /** UIKit units are ~1 cm; the panel is scaled so the 520-wide card is ~26 cm. */
 const PANEL_SCALE = 0.05;
-const UNIT_M = 0.01 * PANEL_SCALE;
 const CARD_W = 520;
 const CARD_H = 380;
-/** Header buttons (centres, in panel units from the panel centre; y up). */
-const HINT_X = 156;
-const CLOSE_X = 212;
-const BTN_Y = CARD_H / 2 - 14 - 22;
 /** Where the card hangs in VR: above the middle of view and within a seated arm's reach, so a fingertip can poke it. */
 const DISTANCE = 0.5;
 const UP = 0.2;
@@ -42,15 +36,7 @@ export class ObjectiveCardSystem extends createSystem({}) {
   private timer = 0;
   private sig = '';
   private view: ObjectiveView | null = null;
-  private icons: TouchIcon[] = [
-    { x: HINT_X * UNIT_M, y: BTN_Y * UNIT_M, r: 24 * UNIT_M, enabled: true },
-    { x: CLOSE_X * UNIT_M, y: BTN_Y * UNIT_M, r: 24 * UNIT_M, enabled: true },
-  ];
-  private trackers = [new TouchTracker(), new TouchTracker()];
-  private tipLocal = new Vector3();
-  private dirTmp = new Vector3();
-  private sampleOut: TipSample = { x: 0, y: 0, z: 0, dz: 0, tracked: false };
-  private taps: string[] = [];
+  private touch!: PanelTouch;
 
   async init(): Promise<void> {
     const game = getGame(this.world);
@@ -75,6 +61,10 @@ export class ObjectiveCardSystem extends createSystem({}) {
     };
     wire('obj-hint', () => this.hint());
     wire('obj-close', () => this.setOpen(false));
+    // Fingertip targets (never smaller than 4.5 cm, even for the small header icons).
+    this.touch = new PanelTouch(this.world, panel, PANEL_SCALE, 'objective');
+    this.touch.add('obj-hint', () => this.view?.id !== 'quest' && !this.view?.celebrating && this.hint());
+    this.touch.add('obj-close', () => this.setOpen(false));
 
     const ui = getUi(this.world);
     ui.toggleQuest = () => this.setOpen(!this.open);
@@ -88,10 +78,8 @@ export class ObjectiveCardSystem extends createSystem({}) {
     );
     this.ready = true;
     (window as unknown as { __objcard?: unknown }).__objcard = {
-      icons: this.icons,
       panel,
-      trackers: this.trackers,
-      taps: this.taps,
+      taps: this.touch.taps,
       state: () => ({ open: this.open, shown: this.shown, vr: this.vr, view: this.view }),
     };
   }
@@ -102,8 +90,7 @@ export class ObjectiveCardSystem extends createSystem({}) {
     if (this.vr && this.entity.hasComponent(RayInteractable)) this.entity.removeComponent(RayInteractable);
     if (!this.vr && !this.entity.hasComponent(RayInteractable)) this.entity.addComponent(RayInteractable);
     this.anchor.reset();
-    this.trackers[0].reset();
-    this.trackers[1].reset();
+    this.touch.reset();
     this.place();
   }
 
@@ -198,11 +185,11 @@ export class ObjectiveCardSystem extends createSystem({}) {
       this.place();
     }
     // The hint panel opens over the same area: hide the card while it is open, restore it on close.
-    const hint = getUi(this.world).hintOpen?.() ?? false;
+    // (and in VR any open panel: the bag, build book, ... has the view to itself)
+    const hint = (getUi(this.world).hintOpen?.() ?? false) || (this.vr && menu.current !== null);
     if (hint !== this.hintOn) {
       this.hintOn = hint;
-      this.trackers[0].reset();
-      this.trackers[1].reset();
+      this.touch.reset();
       this.place();
     }
     if (this.dirty || (this.timer += delta) > 0.25) {
@@ -212,42 +199,6 @@ export class ObjectiveCardSystem extends createSystem({}) {
     }
     if (!this.open || !this.view || !this.vr || this.hintOn) return;
     this.anchor.update(this.panel, this.camera);
-    this.panel.updateMatrixWorld(true);
-    this.tapUpdate(delta);
-  }
-
-  private tapUpdate(dt: number): void {
-    for (let h = 0; h < 2; h++) {
-      const hand = hands[h];
-      const tr = this.trackers[h];
-      const s = this.sample(hand.tipPos, hand.tipDir, hand.tipTracked, hand.pinchDist);
-      this.icons[0].enabled = this.view?.id !== 'quest' && !this.view?.celebrating;
-      const hit = tr.update(dt, this.icons, s);
-      handClaims.uiNear[h] = handClaims.uiNear[h] || tr.hoverIcon >= 0;
-      if (hit < 0) continue;
-      handClaims.uiTapAt[h] = performance.now() / 1000;
-      if (this.taps.length > 50) this.taps.shift();
-      this.taps.push(hit === 0 ? 'hint' : 'close');
-      if (hit === 0) this.hint();
-      else this.setOpen(false);
-    }
-  }
-
-  /** World fingertip to the panel's frame in metres (x right, y up, z towards the viewer). */
-  private sample(pos: Vector3, dir: Vector3, tracked: boolean, pinchDist: number): TipSample {
-    const o = this.sampleOut;
-    o.tracked = tracked;
-    o.pinchDist = pinchDist;
-    if (!tracked) return o;
-    this.tipLocal.copy(pos);
-    this.panel.worldToLocal(this.tipLocal);
-    o.x = this.tipLocal.x * PANEL_SCALE;
-    o.y = this.tipLocal.y * PANEL_SCALE;
-    o.z = this.tipLocal.z * PANEL_SCALE;
-    const e = this.panel.matrixWorld.elements;
-    this.dirTmp.copy(dir);
-    o.dz = (this.dirTmp.x * e[8] + this.dirTmp.y * e[9] + this.dirTmp.z * e[10]) / PANEL_SCALE;
-    return o;
+    this.touch.update(delta);
   }
 }
-

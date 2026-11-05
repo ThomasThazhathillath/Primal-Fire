@@ -3,6 +3,7 @@
 
 import { AdditiveBlending, MeshBasicMaterial, type Object3D, Quaternion, Vector3, type World } from '@iwsdk/core';
 import type { Game } from '../game/game.js';
+import { MenuStack } from '../game/menu.js';
 import type { HandBusy } from '../game/priority.js';
 
 export interface UiHooks {
@@ -15,6 +16,8 @@ export interface UiHooks {
   capturesPointer(): boolean;
   /** Open the recipe panel of workbench `structureId`. */
   openBench(structureId: number): void;
+  /** Open the recipe panel of the finished workbench you are standing at, if any. */
+  openNearestBench(): void;
   toggleSatchel(): void;
   /** Open or close the build book. */
   toggleBook(): void;
@@ -246,3 +249,10 @@ export function handBusy(world: World, h: 0 | 1): HandBusy {
     move: handClaims.moving[h],
   };
 }
+
+/** Which one fingertip panel is open and whether the icon grid is unfolded (src/game/menu.ts). */
+export const menu = new MenuStack();
+
+/** Where an open fingertip panel hangs (m): in comfortable seated reach, a little below the eyes, facing you. */
+export const PANEL_DISTANCE = 0.45;
+export const PANEL_DOWN = 0.1;

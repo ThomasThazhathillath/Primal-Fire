@@ -1,5 +1,5 @@
 <!--
-  The satchel: pinch an item to take it in hand. Item buttons item-0..item-17
+  The satchel: tap an item with a fingertip to take it in hand. Item buttons item-0..item-17
   are filled in by SatchelSystem; craft buttons appear at a workbench.
 -->
 <style>
@@ -11,10 +11,11 @@
   .grid { flex-direction: row; flex-wrap: wrap; gap: 8px; }
   .item { width: 134px; }
   .row { flex-direction: row; gap: 10px; }
+  .back { width: 190px; height: 60px; }
 </style>
 <Panel class="root">
-  <div class="title">Satchel</div>
-  <div id="satchel-sub" class="sub">Pinch an item to take it in hand. Pinch the bag icon again to close.</div>
+  <div class="title">Bag</div>
+  <div id="satchel-sub" class="sub">Tap an item to take it in hand. Tap Back to return to the icons.</div>
   <div class="grid">
     <Button id="item-0" class="item" variant="secondary" size="sm"><ButtonLabel id="item-0-label">-</ButtonLabel></Button>
     <Button id="item-1" class="item" variant="secondary" size="sm"><ButtonLabel id="item-1-label">-</ButtonLabel></Button>
@@ -48,6 +49,6 @@
   </div>
   <div class="row">
     <Button id="stow-button" variant="secondary" size="sm"><ButtonIcon><Undo2></Undo2></ButtonIcon><ButtonLabel id="stow-label">Put back</ButtonLabel></Button>
-    <Button id="satchel-close" variant="secondary" size="sm"><ButtonIcon><X></X></ButtonIcon><ButtonLabel>Close</ButtonLabel></Button>
+    <Button id="satchel-close" class="back" variant="secondary" size="lg"><ButtonIcon><ArrowLeft></ArrowLeft></ButtonIcon><ButtonLabel>Back</ButtonLabel></Button>
   </div>
 </Panel>

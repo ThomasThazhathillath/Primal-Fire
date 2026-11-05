@@ -52,7 +52,7 @@ export interface HandFrame {
 }
 
 /** Middle-tip reach below this share of the index-tip reach = the hand is pointing. */
-export const POINT_RATIO = 0.78;
+export const POINT_RATIO = 0.88;
 
 function frame(): HandFrame {
   return {

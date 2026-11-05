@@ -1,8 +1,10 @@
-// The bottom icon bar: a compact row of round icons low in view. In the browser
-// it is pinned to the bottom of the screen and clicked with the mouse. In VR it
-// floats (still, StaticAnchor) below the centre of view, within seated reach,
-// and is operated ONLY by a deliberate fingertip poke (src/game/ui-touch.ts);
-// ray / pinch clicking is disabled on it so a pinch can never press an icon.
+// The icon bar. In the browser it is a row pinned to the bottom of the screen,
+// clicked with the mouse. In VR it is folded to one Menu button off to your
+// right; tapping Menu unfolds a grid of labelled icons (Bag, Quest, Hint, Guide,
+// Notes, Build, Put away, Drop, Turn, Remove, Reload, Restart, Exit, and Bench
+// when you stand at one). Opening a panel folds the grid; the panel's Back
+// button (or Menu) brings it back. Operated ONLY by a fingertip poke
+// (PanelTouch / src/game/ui-touch.ts): ray and pinch clicks are disabled in VR.
 
 import {
   createSystem,
@@ -11,26 +13,23 @@ import {
   ScreenSpace,
   type UIKit,
   type UIKitMLAsset,
-  Vector3,
   VisibilityState,
 } from '@iwsdk/core';
 import { fitsPouch } from '../game/items.js';
-import { IconState, TouchTracker, type TipSample, type TouchIcon } from '../game/ui-touch.js';
-import { hands } from './hand-input-system.js';
-import { getGame, getUi, handClaims, hidePanel, StaticAnchor } from './shared.js';
+import { PanelTouch } from './panel-touch.js';
+import { getGame, getUi, hidePanel, menu, StaticAnchor } from './shared.js';
 import { clearSave, WorldSystem } from './world-system.js';
 
-const SLOT = 52;
+const SLOT = 64;
 const GAP = 6;
-const SLOT_H = 56;
+const SLOT_H = 76;
 /** VR: icons sit in a small grid this many wide, off to your right. */
-const COLS = 3;
+const COLS = 4;
 /** VR: an open menu folds itself away after this long without a tap (s). */
-const MENU_IDLE = 10;
+const MENU_IDLE = 20;
 const PAD = 8;
 /** Panel local units → metres (UIKit units are ~1 cm; the panel is scaled by PANEL_SCALE). */
 const PANEL_SCALE = 0.09;
-const UNIT_M = 0.01 * PANEL_SCALE;
 
 interface Def {
   id: string;
@@ -58,31 +57,26 @@ const DEFS: Def[] = [
   { id: 'book', show: () => true, run: (s) => getUi(s.world).toggleBook?.() },
   { id: 'restart', show: () => true, run: (s) => s.restart() },
   // VR: the bar folds into this one button on your right; tap it to open the icons, tap again to fold.
-  { id: 'menu', show: (s) => s.vr, run: (s) => s.toggleMenu() },
+  { id: 'menu', show: (s) => s.vr, run: () => menu.toggleGrid() },
+  // Only at a finished workbench: opens its recipe panel (no more poking the 3D bench).
+  { id: 'bench', show: (s) => s.benchNear, run: (s) => getUi(s.world).openNearestBench?.() },
 ];
 
-const COLORS = {
-  [IconState.Normal]: '#3a352c',
-  [IconState.Approaching]: '#6b5f49',
-  [IconState.Touched]: '#ffb547',
-  [IconState.Activated]: '#ffb547',
-  [IconState.Disabled]: '#2a2722',
-} as const;
+/** Icons that act and fold the grid (the rest open a panel, which folds it itself). */
 
 /** Where the bar hangs (m): within a seated arm's reach, below eye level, either hand. */
 export const BAR_DISTANCE = 0.4;
-/** The bar's no-move zone (m, panel frame): this far around the icons, in front of and behind the surface. */
-const BAR_ZONE = { margin: 0.08, front: 0.15, behind: 0.25 };
 // Chest height for a seated player, off to the right: out of the way of your hands and your view.
-export const BAR_DOWN = 0.36;
-export const BAR_SIDE = 0.22;
+export const BAR_DOWN = 0.3;
+export const BAR_SIDE = 0.18;
 
 export class IconBarSystem extends createSystem({}) {
   private bar!: UIKitMLAsset;
   private entity!: Entity;
   private anchor = new StaticAnchor(BAR_DISTANCE, BAR_SIDE, BAR_DOWN, 0.9, 1);
-  private expanded = false;
   private menuIdle = 0;
+  private touch!: PanelTouch;
+  benchNear = false;
   private ready = false;
   private shown = false;
   vr = false;
@@ -91,15 +85,7 @@ export class IconBarSystem extends createSystem({}) {
   /** Indices into DEFS of the icons currently visible, in order. */
   private visible: number[] = [];
   private lastVisible = '';
-  private buttons: Array<ReturnType<UIKitMLAsset["requireElementById"]>> = [];
   private slots: Array<ReturnType<UIKitMLAsset["requireElementById"]>> = [];
-  private lastState: number[] = [];
-  private icons: TouchIcon[] = [];
-  private trackers = [new TouchTracker(), new TouchTracker()];
-  private merged: number[] = [];
-  private tipLocal = new Vector3();
-  /** Ids of icons activated by a fingertip tap, newest last (debug/tests). */
-  private taps: string[] = [];
   private lastNotes = -1;
   private lastQuestOpen = false;
   private ctx: AudioContext | null = null;
@@ -111,11 +97,15 @@ export class IconBarSystem extends createSystem({}) {
     bar.scale.setScalar(PANEL_SCALE);
     this.entity = this.world.createTransformEntity(bar);
     hidePanel(bar);
+    this.touch = new PanelTouch(this.world, bar, PANEL_SCALE, 'menu');
+    // The icon grid sits off to the side, so it asks for a deliberate pointing hand (open panels do not).
+    this.touch.setRequirePoint(true);
     DEFS.forEach((d, i) => {
       const btn = bar.requireElementById(`ic-${d.id}`);
-      this.buttons.push(btn);
       this.slots.push(bar.requireElementById(`slot-${i}`));
-      btn.setProperties({ width: 48, height: 48, borderRadius: 24, backgroundColor: COLORS[IconState.Normal] } as never);
+      btn.setProperties({ width: 48, height: 48, borderRadius: 24 } as never);
+      // The whole slot (icon and its label) is the fingertip target.
+      this.touch.add(`slot-${i}`, () => this.activate(i));
       const click = () => {
         // Mouse clicks (flat view). In VR the ray component is removed, and a tap never goes through here.
         if (!this.vr) d.run(this);
@@ -127,11 +117,10 @@ export class IconBarSystem extends createSystem({}) {
     this.ready = true;
     // Debug/tuning hook: where each icon is, in the panel frame (metres).
     (window as unknown as { __iconbar?: unknown }).__iconbar = {
-      icons: this.icons,
       visible: () => this.visible.map((i) => DEFS[i].id),
       panel: bar,
-      trackers: this.trackers,
-      taps: this.taps,
+      taps: this.touch.taps,
+      menu,
     };
   }
 
@@ -142,8 +131,7 @@ export class IconBarSystem extends createSystem({}) {
     if (this.vr && this.entity.hasComponent(RayInteractable)) this.entity.removeComponent(RayInteractable);
     if (!this.vr && !this.entity.hasComponent(RayInteractable)) this.entity.addComponent(RayInteractable);
     this.anchor.reset();
-    this.trackers[0].reset();
-    this.trackers[1].reset();
+    this.touch.reset();
     this.lastVisible = '';
   }
 
@@ -177,9 +165,13 @@ export class IconBarSystem extends createSystem({}) {
     getUi(this.world).saveNow?.();
     location.reload();
   }
-  toggleMenu(): void {
-    this.expanded = !this.expanded;
+  /** A fingertip tap on slot `i`: run it, then fold the grid unless it opened a panel or is a repeatable turn. */
+  private activate(i: number): void {
+    const def = DEFS[i];
+    this.click();
     this.menuIdle = 0;
+    def.run(this);
+    if (!['menu', 'turn-left', 'turn-right'].includes(def.id) && menu.current === null) menu.gridOpen = false;
   }
 
   private restartArmedAt = -1e9;
@@ -241,19 +233,7 @@ export class IconBarSystem extends createSystem({}) {
     const w = PAD * 2 + cols * SLOT + (cols - 1) * GAP;
     const h = PAD * 2 + rows * SLOT_H + (rows - 1) * GAP;
     this.bar.requireElementById('bar').setProperties({ width: w, height: h, flexWrap: 'wrap', borderRadius: this.vr ? 20 : 32 } as never);
-    this.icons.length = n;
-    for (let v = 0; v < n; v++) {
-      const col = v % cols;
-      const row = Math.floor(v / cols);
-      const px = -w / 2 + PAD + SLOT / 2 + col * (SLOT + GAP);
-      const py = h / 2 - PAD - SLOT_H / 2 - row * (SLOT_H + GAP);
-      const ic = this.icons[v] ?? (this.icons[v] = { x: 0, y: 0, r: 0, enabled: true });
-      ic.x = px * UNIT_M;
-      ic.y = py * UNIT_M;
-      ic.r = (SLOT / 2) * UNIT_M * 0.9;
-      ic.enabled = true;
-    }
-    this.lastState.length = 0;
+    this.touch.reset();
     if (!this.vr) {
       this.entity.removeComponent(ScreenSpace);
       this.entity.addComponent(ScreenSpace, { width: `${w * 1.15}px`, height: '76px', bottom: '8px', left: `calc(50% - ${(w * 1.15) / 2}px)`, top: 'auto', right: 'auto', zOffset: 0.25 });
@@ -270,11 +250,12 @@ export class IconBarSystem extends createSystem({}) {
     if ((this.removeTimer -= delta) <= 0) {
       this.removeTimer = 0.25;
       this.canRemove = !!game.nearestUnfinished(6);
+      this.benchNear = !!game.nearbyWorkbench();
     }
     this.visible.length = 0;
-    if (this.expanded && (this.menuIdle += delta) > MENU_IDLE) this.expanded = false;
-    // Folded (VR): only the menu button shows.
-    DEFS.forEach((d, i) => d.show(this) && (!this.vr || this.expanded || d.id === 'menu') && this.visible.push(i));
+    if (menu.gridOpen && (this.menuIdle += delta) > MENU_IDLE) menu.gridOpen = false;
+    // Folded (VR): only the Menu button shows, whenever the grid is not unfolded (and always while a panel is open).
+    DEFS.forEach((d, i) => d.show(this) && (!this.vr || menu.gridVisible || d.id === 'menu') && this.visible.push(i));
     this.layout();
 
     // Badges and active dots.
@@ -291,85 +272,7 @@ export class IconBarSystem extends createSystem({}) {
 
     if (this.vr) {
       this.anchor.update(this.bar, this.camera);
-      this.bar.updateMatrixWorld(true);
-      this.tapUpdate(delta);
+      this.touch.update(delta);
     }
-  }
-
-  private tapUpdate(dt: number): void {
-    const n = this.icons.length;
-    this.merged.length = n;
-    this.merged.fill(IconState.Normal);
-    for (let h = 0; h < 2; h++) {
-      const hand = hands[h];
-      const tr = this.trackers[h];
-      const s = this.sample(hand.tipPos, hand.tipDir, hand.tipTracked, hand.pinchDist, hand.pointing);
-      const hit = tr.update(dt, this.icons, s);
-      for (let i = 0; i < n; i++) if (tr.states[i] > this.merged[i]) this.merged[i] = tr.states[i];
-      // The whole space around the bar (in front of it and pressed through it) belongs to the UI:
-      // a pinch there is never a teleport or a grab, however hard you press.
-      handClaims.uiNear[h] = tr.hoverIcon >= 0 || (s.tracked && this.inBarZone(s));
-      if (hit >= 0) {
-        handClaims.uiTapAt[h] = performance.now() / 1000;
-        this.click();
-        if (this.taps.length > 50) this.taps.shift();
-        this.taps.push(DEFS[this.visible[hit]].id);
-        const def = DEFS[this.visible[hit]];
-        def.run(this);
-        this.menuIdle = 0;
-        // One action per opening (turning keeps it open so you can turn again).
-        if (def.id !== 'menu' && def.id !== 'turn-left' && def.id !== 'turn-right') this.expanded = false;
-      }
-    }
-    // Paint only what changed.
-    for (let v = 0; v < n; v++) {
-      if (this.lastState[v] === this.merged[v]) continue;
-      this.lastState[v] = this.merged[v];
-      const st = this.merged[v] as IconState;
-      const btn = this.buttons[this.visible[v]];
-      const big = st === IconState.Activated ? 42 : st === IconState.Approaching ? 56 : 48;
-      btn.setProperties({ backgroundColor: COLORS[st], width: big, height: big, opacity: st === IconState.Disabled ? 0.4 : 1 } as never);
-    }
-  }
-
-  private sampleOut: TipSample = { x: 0, y: 0, z: 0, dz: 0, tracked: false };
-  private dirTmp = new Vector3();
-
-  /** World fingertip → panel frame in metres (x right, y up, z towards the viewer). */
-  private inBarZone(s: TipSample): boolean {
-    if (this.icons.length === 0 || s.z > BAR_ZONE.front || s.z < -BAR_ZONE.behind) return false;
-    let minX = Infinity;
-    let maxX = -Infinity;
-    for (const ic of this.icons) {
-      if (ic.x - ic.r < minX) minX = ic.x - ic.r;
-      if (ic.x + ic.r > maxX) maxX = ic.x + ic.r;
-    }
-    let minY = Infinity;
-    let maxY = -Infinity;
-    for (const ic of this.icons) {
-      if (ic.y - ic.r < minY) minY = ic.y - ic.r;
-      if (ic.y + ic.r > maxY) maxY = ic.y + ic.r;
-    }
-    const m = BAR_ZONE.margin;
-    return s.x > minX - m && s.x < maxX + m && s.y > minY - m && s.y < maxY + m;
-  }
-
-  private sample(pos: Vector3, dir: Vector3, tracked: boolean, pinchDist: number, pointing: boolean): TipSample {
-    const o = this.sampleOut;
-    o.tracked = tracked;
-    o.pinchDist = pinchDist;
-    o.pointing = pointing;
-    if (!tracked) return o;
-    this.tipLocal.copy(pos);
-    this.bar.worldToLocal(this.tipLocal);
-    o.x = this.tipLocal.x * PANEL_SCALE;
-    o.y = this.tipLocal.y * PANEL_SCALE;
-    o.z = this.tipLocal.z * PANEL_SCALE;
-    // Direction in panel space: rotate by the inverse of the panel's world rotation (scale is uniform).
-    const e = this.bar.matrixWorld.elements;
-    const sc = PANEL_SCALE;
-    this.dirTmp.copy(dir);
-    o.dz = (this.dirTmp.x * e[8] + this.dirTmp.y * e[9] + this.dirTmp.z * e[10]) / sc;
-    return o;
   }
 }

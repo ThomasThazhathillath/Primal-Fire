@@ -31,7 +31,8 @@ import { OBSERVATIONS } from '../game/observations.js';
 import { QUESTS } from '../game/quests.js';
 import { Gatherable, SatchelItem, SnapSpot, StructurePart, WorldDropItem } from '../components/game-components.js';
 import { REACH, ResourceSystem } from './resource-system.js';
-import { getGame, getUi, hidePanel, placeInFront, StaticAnchor, uiText } from './shared.js';
+import { PanelTouch } from './panel-touch.js';
+import { getGame, getUi, hidePanel, menu, PANEL_DISTANCE, PANEL_DOWN, placeInFront, StaticAnchor, uiText } from './shared.js';
 
 const STEP_LINES = 6;
 const TOAST_SECONDS = 4.5;
@@ -46,6 +47,9 @@ export class HudSystem extends createSystem({
 }) {
   private hud!: UIKitMLAsset;
   private hudEntity!: Entity;
+  private cardEntity!: Entity;
+  private cardTouch!: PanelTouch;
+  private vrNow = false;
   /** VR: low and to the left, out of the way of rays aimed at the ground; it never drifts. */
   private hudAnchor = new StaticAnchor(0.85, -0.42, 0.12);
   private card!: UIKitMLAsset;
@@ -83,7 +87,8 @@ export class HudSystem extends createSystem({
     this.hudEntity.addComponent(RayInteractable);
     hidePanel(hud); // shown when you wake up
 
-    this.world.createTransformEntity(card).addComponent(RayInteractable);
+    this.cardEntity = this.world.createTransformEntity(card);
+    this.cardEntity.addComponent(RayInteractable);
     card.scale.setScalar(0.09);
     hidePanel(card);
     this.world.createTransformEntity(tip);
@@ -111,6 +116,21 @@ export class HudSystem extends createSystem({
       }),
     );
     wire(card, 'card-ok', () => this.nextCard());
+    wire(card, 'card-back', () => menu.back());
+    // The notebook is a fingertip panel in VR: Back / Next are targets, never a ray or pinch click.
+    this.cardTouch = new PanelTouch(this.world, card, 0.09, 'notebook');
+    this.cardTouch.add('card-ok', () => this.nextCard());
+    this.cardTouch.add('card-back', () => menu.back());
+    this.cleanupFuncs.push(
+      this.world.visibilityState.subscribe((v) => {
+        this.vrNow = v !== VisibilityState.NonImmersive;
+        PanelTouch.setRay(this.world, this.cardEntity, this.vrNow);
+      }),
+    );
+    menu.register('notebook', () => {
+      this.browsing = false;
+      hidePanel(this.card);
+    });
     const ui = getUi(this.world);
     ui.showHint = () => this.showHint();
     ui.openNotebook = () => this.openNotebook();
@@ -234,7 +254,10 @@ export class HudSystem extends createSystem({
       id = this.cardQueue.shift();
     }
     if (id) this.showCard(id);
-    else hidePanel(this.card);
+    else {
+      hidePanel(this.card);
+      menu.closed('notebook');
+    }
   }
 
   private showCard(id: string): void {
@@ -252,7 +275,18 @@ export class HudSystem extends createSystem({
     this.card.requireElementById('card-why-label').setProperties({ display: o.why ? 'flex' : 'none' });
     this.card.requireElementById('card-why').setProperties({ display: o.why ? 'flex' : 'none' });
     this.card.visible = true;
-    placeInFront(this.card, this.camera, 0.75, 0.3, 0.05);
+    menu.open('notebook');
+    if (this.vrNow) {
+      // Smaller in VR so the whole card and its Back / Next buttons fit the view at arm's length.
+      this.card.scale.setScalar(0.07);
+      this.cardTouch.setScale(0.07);
+      placeInFront(this.card, this.camera, PANEL_DISTANCE, 0, PANEL_DOWN + 0.03);
+    }
+    else {
+      this.card.scale.setScalar(0.09);
+      placeInFront(this.card, this.camera, 0.75, 0.3, 0.05);
+    }
+    this.cardTouch.reset();
   }
 
   /** Pages through every observation you have recorded, oldest first. */
@@ -260,8 +294,7 @@ export class HudSystem extends createSystem({
     const game = getGame(this.world);
     // A second press closes it.
     if (this.card.visible) {
-      this.browsing = false;
-      hidePanel(this.card);
+      menu.back();
       return;
     }
     if (!game.notebook.length) {
@@ -389,6 +422,7 @@ export class HudSystem extends createSystem({
       this.hud.requireElementById<UIKit.Text>('toast').setProperties({ text: ' ' });
     }
     if (this.beaconTimer > 0 && (this.beaconTimer -= delta) <= 0) this.beacon.visible = false;
+    if (this.card.visible && this.vrNow) this.cardTouch.update(delta);
     this.updateTip();
   }
 }

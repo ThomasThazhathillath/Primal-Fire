@@ -20,6 +20,7 @@ import {
 import type { GuideView, HandDiagram } from '../game/guides.js';
 import { ITEMS, type ItemId } from '../game/items.js';
 import { RESOURCES } from '../game/world-layout.js';
+import { PanelTouch } from './panel-touch.js';
 import { getGame, getUi, StaticAnchor, uiText } from './shared.js';
 import { WorldSystem } from './world-system.js';
 
@@ -47,7 +48,9 @@ export class GuideSystem extends createSystem({}) {
   private timer = 0;
   private lastKey = '';
   private visible = false;
-  private anchor = new StaticAnchor(0.75, 0.2, 0.35);
+  private anchor = new StaticAnchor(0.55, 0.2, 0.3);
+  private touch!: PanelTouch;
+  private vr = false;
   private nearby: ItemId[] = [];
   private selectCtx = { nearby: this.nearby as readonly ItemId[] };
 
@@ -69,10 +72,18 @@ export class GuideSystem extends createSystem({}) {
     const onClose = () => this.toggle();
     close.addEventListener('click', onClose);
     getUi(this.world).toggleGuide = () => this.toggle();
+    // Its Hide button is a fingertip target in VR (no ray or pinch).
+    this.touch = new PanelTouch(this.world, panel, 0.07, 'guide');
+    this.touch.setRequirePoint(true);
+    this.touch.add('guide-close', () => this.toggle());
     this.cleanupFuncs.push(
       () => window.removeEventListener('keydown', onKey),
       () => close.removeEventListener('click', onClose),
-      this.world.visibilityState.subscribe((v) => this.place(v)),
+      this.world.visibilityState.subscribe((v) => {
+        this.vr = v !== VisibilityState.NonImmersive;
+        PanelTouch.setRay(this.world, this.entity, this.vr);
+        this.place(v);
+      }),
       getGame(this.world).on(() => (this.timer = REFRESH_SECONDS)),
     );
   }
@@ -89,7 +100,10 @@ export class GuideSystem extends createSystem({}) {
 
   update(delta: number): void {
     if (!this.panel) return;
-    if (this.visible && this.world.visibilityState.peek() !== VisibilityState.NonImmersive) this.anchor.update(this.panel, this.camera);
+    if (this.visible && this.vr) {
+      this.anchor.update(this.panel, this.camera);
+      this.touch.update(delta);
+    }
     this.timer += delta;
     if (this.timer < REFRESH_SECONDS) return;
     this.timer = 0;

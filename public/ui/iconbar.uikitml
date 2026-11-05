@@ -1,30 +1,32 @@
 <!--
-  Bottom icon bar: one fixed-size slot per action so IconBarSystem knows where
-  each icon is without asking the layout (fingertip taps are tested against
-  those slots). Slots are shown/hidden by state; labels are tooltips on the
-  status strip, not text here. The small dot is the active indicator; the
-  notebook slot's badge counts new entries.
+  Icon bar / grid: one fixed-size slot per action (icon + a short text label), so every
+  slot is a big, readable fingertip target. Slots are shown or hidden by state; the
+  grid folds to the Menu button while a panel is open. The small dot marks an open
+  card; the notebook slot's badge counts new entries. PanelTouch reads each slot's
+  real layout, so nothing here needs to be measured by hand.
 -->
 <style>
-  .bar { flex-direction: row; align-items: center; justify-content: flex-start; height: 68px; padding-left: 8px; padding-right: 8px; gap: 6px; background-color: rgba(20, 18, 14, 0.55); border-radius: 32px; }
-  .slot { width: 52px; height: 56px; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
+  .bar { flex-direction: row; align-items: center; justify-content: flex-start; height: 84px; padding-left: 8px; padding-right: 8px; gap: 6px; background-color: rgba(20, 18, 14, 0.62); border-radius: 32px; }
+  .slot { width: 64px; height: 76px; flex-direction: column; align-items: center; justify-content: center; gap: 1px; border-radius: 12px; }
+  .lbl { color: #f3eadb; font-size: 13px; font-weight: 700; text-align: center; }
   .dot { width: 6px; height: 6px; border-radius: 3px; background-color: #ffb547; display: none; }
   .badge { padding-left: 5px; padding-right: 5px; height: 14px; border-radius: 7px; background-color: #ff7a45; color: #ffffff; font-size: 11px; font-weight: 700; align-items: center; justify-content: center; display: none; }
 </style>
 <Panel id="bar" class="bar">
-  <div id="slot-0" class="slot"><Button id="ic-satchel" size="sm" variant="secondary"><ButtonIcon><Backpack></Backpack></ButtonIcon></Button><div id="dot-0" class="dot"></div></div>
-  <div id="slot-1" class="slot"><Button id="ic-quest" size="sm" variant="secondary"><ButtonIcon><ListChecks></ListChecks></ButtonIcon></Button><div id="dot-1" class="dot"></div></div>
-  <div id="slot-2" class="slot"><Button id="ic-hint" size="sm" variant="secondary"><ButtonIcon><Lightbulb></Lightbulb></ButtonIcon></Button><div id="dot-2" class="dot"></div></div>
-  <div id="slot-3" class="slot"><Button id="ic-guide" size="sm" variant="secondary"><ButtonIcon><Compass></Compass></ButtonIcon></Button><div id="dot-3" class="dot"></div></div>
-  <div id="slot-4" class="slot"><Button id="ic-notebook" size="sm" variant="secondary"><ButtonIcon><BookOpen></BookOpen></ButtonIcon></Button><div id="badge-4" class="badge">0</div></div>
-  <div id="slot-5" class="slot"><Button id="ic-stow" size="sm" variant="secondary"><ButtonIcon><Hand></Hand></ButtonIcon></Button></div>
-  <div id="slot-6" class="slot"><Button id="ic-drop" size="sm" variant="secondary"><ButtonIcon><ArrowDownToLine></ArrowDownToLine></ButtonIcon></Button></div>
-  <div id="slot-7" class="slot"><Button id="ic-turn-left" size="sm" variant="secondary"><ButtonIcon><RotateCcw></RotateCcw></ButtonIcon></Button></div>
-  <div id="slot-8" class="slot"><Button id="ic-turn-right" size="sm" variant="secondary"><ButtonIcon><RotateCw></RotateCw></ButtonIcon></Button></div>
-  <div id="slot-9" class="slot"><Button id="ic-remove" size="sm" variant="secondary"><ButtonIcon><Trash2></Trash2></ButtonIcon></Button></div>
-  <div id="slot-10" class="slot"><Button id="ic-reload" size="sm" variant="secondary"><ButtonIcon><RefreshCw></RefreshCw></ButtonIcon></Button></div>
-  <div id="slot-11" class="slot"><Button id="ic-exit" size="sm" variant="secondary"><ButtonIcon><LogOut></LogOut></ButtonIcon></Button></div>
-  <div id="slot-12" class="slot"><Button id="ic-book" size="sm" variant="secondary"><ButtonIcon><Hammer></Hammer></ButtonIcon></Button></div>
-  <div id="slot-13" class="slot"><Button id="ic-restart" size="sm" variant="secondary"><ButtonIcon><ListRestart></ListRestart></ButtonIcon></Button></div>
-  <div id="slot-14" class="slot"><Button id="ic-menu" size="sm" variant="secondary"><ButtonIcon><LayoutGrid></LayoutGrid></ButtonIcon></Button></div>
+  <div id="slot-0" class="slot"><Button id="ic-satchel" size="sm" variant="secondary"><ButtonIcon><Backpack></Backpack></ButtonIcon></Button><div id="lbl-0" class="lbl">Bag</div><div id="dot-0" class="dot"></div></div>
+  <div id="slot-1" class="slot"><Button id="ic-quest" size="sm" variant="secondary"><ButtonIcon><ListChecks></ListChecks></ButtonIcon></Button><div id="lbl-1" class="lbl">Quest</div><div id="dot-1" class="dot"></div></div>
+  <div id="slot-2" class="slot"><Button id="ic-hint" size="sm" variant="secondary"><ButtonIcon><Lightbulb></Lightbulb></ButtonIcon></Button><div id="lbl-2" class="lbl">Hint</div><div id="dot-2" class="dot"></div></div>
+  <div id="slot-3" class="slot"><Button id="ic-guide" size="sm" variant="secondary"><ButtonIcon><Compass></Compass></ButtonIcon></Button><div id="lbl-3" class="lbl">Guide</div><div id="dot-3" class="dot"></div></div>
+  <div id="slot-4" class="slot"><Button id="ic-notebook" size="sm" variant="secondary"><ButtonIcon><BookOpen></BookOpen></ButtonIcon></Button><div id="lbl-4" class="lbl">Notes</div><div id="badge-4" class="badge">0</div></div>
+  <div id="slot-5" class="slot"><Button id="ic-stow" size="sm" variant="secondary"><ButtonIcon><Hand></Hand></ButtonIcon></Button><div id="lbl-5" class="lbl">Put away</div></div>
+  <div id="slot-6" class="slot"><Button id="ic-drop" size="sm" variant="secondary"><ButtonIcon><ArrowDownToLine></ArrowDownToLine></ButtonIcon></Button><div id="lbl-6" class="lbl">Drop</div></div>
+  <div id="slot-7" class="slot"><Button id="ic-turn-left" size="sm" variant="secondary"><ButtonIcon><RotateCcw></RotateCcw></ButtonIcon></Button><div id="lbl-7" class="lbl">Turn L</div></div>
+  <div id="slot-8" class="slot"><Button id="ic-turn-right" size="sm" variant="secondary"><ButtonIcon><RotateCw></RotateCw></ButtonIcon></Button><div id="lbl-8" class="lbl">Turn R</div></div>
+  <div id="slot-9" class="slot"><Button id="ic-remove" size="sm" variant="secondary"><ButtonIcon><Trash2></Trash2></ButtonIcon></Button><div id="lbl-9" class="lbl">Remove</div></div>
+  <div id="slot-10" class="slot"><Button id="ic-reload" size="sm" variant="secondary"><ButtonIcon><RefreshCw></RefreshCw></ButtonIcon></Button><div id="lbl-10" class="lbl">Reload</div></div>
+  <div id="slot-11" class="slot"><Button id="ic-exit" size="sm" variant="secondary"><ButtonIcon><LogOut></LogOut></ButtonIcon></Button><div id="lbl-11" class="lbl">Exit</div></div>
+  <div id="slot-12" class="slot"><Button id="ic-book" size="sm" variant="secondary"><ButtonIcon><Hammer></Hammer></ButtonIcon></Button><div id="lbl-12" class="lbl">Build</div></div>
+  <div id="slot-13" class="slot"><Button id="ic-restart" size="sm" variant="secondary"><ButtonIcon><ListRestart></ListRestart></ButtonIcon></Button><div id="lbl-13" class="lbl">Restart</div></div>
+  <div id="slot-14" class="slot"><Button id="ic-menu" size="sm" variant="secondary"><ButtonIcon><LayoutGrid></LayoutGrid></ButtonIcon></Button><div id="lbl-14" class="lbl">Menu</div></div>
+  <div id="slot-15" class="slot"><Button id="ic-bench" size="sm" variant="secondary"><ButtonIcon><Wrench></Wrench></ButtonIcon></Button><div id="lbl-15" class="lbl">Bench</div></div>
 </Panel>

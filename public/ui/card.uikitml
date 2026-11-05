@@ -9,6 +9,8 @@
   .label:dark { color: #ffb547; }
   .body { color: #2a2620; font-size: 19px; line-height: 1.35; }
   .body:dark { color: #e9dfcd; }
+  .btnrow { flex-direction: row; gap: 14px; }
+  .back { width: 190px; height: 60px; }
 </style>
 <Panel class="root">
   <div id="card-eyebrow" class="eyebrow">NEW OBSERVATION</div>
@@ -21,5 +23,8 @@
   <div id="card-lim" class="body">-</div>
   <div id="card-why-label" class="label">WHY DID THAT WORK?</div>
   <div id="card-why" class="body">-</div>
-  <Button id="card-ok" size="sm"><ButtonIcon><Check></Check></ButtonIcon><ButtonLabel>Got it</ButtonLabel></Button>
+  <div class="btnrow">
+    <Button id="card-back" class="back" variant="secondary" size="lg"><ButtonIcon><ArrowLeft></ArrowLeft></ButtonIcon><ButtonLabel>Back</ButtonLabel></Button>
+    <Button id="card-ok" size="lg"><ButtonIcon><Check></Check></ButtonIcon><ButtonLabel>Next</ButtonLabel></Button>
+  </div>
 </Panel>

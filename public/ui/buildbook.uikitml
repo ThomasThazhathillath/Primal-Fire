@@ -14,6 +14,7 @@
   .page { color: #55504a; font-size: 18px; }
   .page:dark { color: #b9ab95; }
   .row { flex-direction: row; gap: 10px; flex-shrink: 0; }
+  .back { width: 190px; height: 60px; }
 </style>
 <Panel class="root">
   <div class="title">Build book</div>
@@ -34,6 +35,6 @@
     <Button id="book-next" variant="secondary" size="sm"><ButtonLabel>Next</ButtonLabel></Button>
   </div>
   <div class="row">
-    <Button id="book-close" variant="secondary" size="sm"><ButtonIcon><X></X></ButtonIcon><ButtonLabel>Close</ButtonLabel></Button>
+    <Button id="book-close" class="back" variant="secondary" size="lg"><ButtonIcon><ArrowLeft></ArrowLeft></ButtonIcon><ButtonLabel>Back</ButtonLabel></Button>
   </div>
 </Panel>

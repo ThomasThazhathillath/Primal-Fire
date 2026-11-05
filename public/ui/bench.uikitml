@@ -31,13 +31,14 @@
   .steps { color: #55504a; font-size: 19px; }
   .steps:dark { color: #d9cfbd; }
   .buttons { flex-direction: row; gap: 10px; }
+  .back { width: 190px; height: 60px; }
 </style>
 <Panel class="root">
   <div class="head">
     <div id="bench-eyebrow" class="eyebrow">WORKBENCH</div>
     <div class="headright">
       <Button id="bench-lift" variant="secondary" size="sm"><ButtonLabel>Lift slab off</ButtonLabel></Button>
-      <Button id="bench-close" variant="secondary" size="sm"><ButtonIcon><X></X></ButtonIcon><ButtonLabel>Close</ButtonLabel></Button>
+      <Button id="bench-close" class="back" variant="secondary" size="lg"><ButtonIcon><ArrowLeft></ArrowLeft></ButtonIcon><ButtonLabel>Back</ButtonLabel></Button>
     </div>
   </div>
   <div id="bench-list" class="list">

@@ -12,6 +12,7 @@
 import {
   BoxGeometry,
   createSystem,
+  type Entity,
   Group,
   Mesh,
   MeshBasicMaterial,
@@ -28,7 +29,8 @@ import type { GameEvent } from '../game/game.js';
 import { itemName, type ItemId } from '../game/items.js';
 import { itemMesh } from '../scene-assets/item-meshes.js';
 import { hands, mouse, pulse } from './hand-input-system.js';
-import { getGame, getUi, handPose, hidePanel, uiText } from './shared.js';
+import { PanelTouch } from './panel-touch.js';
+import { getGame, getUi, handPose, hidePanel, menu, PANEL_DISTANCE, PANEL_DOWN, placeInFront, uiText } from './shared.js';
 
 const ROWS = 10;
 const TRACK_PX = 520;
@@ -66,8 +68,14 @@ function cueHand(): Group {
   return g;
 }
 
+/** Panel scale in VR while choosing a recipe (close to you); crafting keeps the old size above the bench. */
+const VR_SCALE = 0.042;
+
 export class BenchSystem extends createSystem({}) {
   private panel!: UIKitMLAsset;
+  private panelEntity!: Entity;
+  private touch!: PanelTouch;
+  private vrNow = false;
   private open = false;
   private benchId = -1;
   private top = new Vector3();
@@ -102,6 +110,11 @@ export class BenchSystem extends createSystem({}) {
       this.layout.add(c);
     }
     getUi(this.world).openBench = (id: number) => this.show(id);
+    getUi(this.world).openNearestBench = () => {
+      const s = getGame(this.world).nearbyWorkbench();
+      if (s) this.show(s.id);
+      else getGame(this.world).toast('Stand at a finished workbench to use it.', 'note');
+    };
     const prev = getUi(this.world).capturesPointer;
     // While crafting at the bench, mouse drags are hand motions, not looking around.
     getUi(this.world).capturesPointer = () => !!game.bench || (prev?.() ?? false);
@@ -109,11 +122,22 @@ export class BenchSystem extends createSystem({}) {
     this.panel = await this.world.assets.instantiate<UIKitMLAsset>('bench-panel');
     this.panel.name = 'BenchPanel';
     this.panel.scale.setScalar(0.15);
-    this.world.createTransformEntity(this.panel).addComponent(RayInteractable);
+    this.panelEntity = this.world.createTransformEntity(this.panel);
+    this.panelEntity.addComponent(RayInteractable);
     hidePanel(this.panel);
+    // In VR the recipe rows and buttons are fingertip targets only.
+    this.touch = new PanelTouch(this.world, this.panel, VR_SCALE, 'bench');
+    this.cleanupFuncs.push(
+      this.world.visibilityState.subscribe((v) => {
+        this.vrNow = v !== VisibilityState.NonImmersive;
+        PanelTouch.setRay(this.world, this.panelEntity, this.vrNow);
+      }),
+    );
+    menu.register('bench', () => this.hide());
     const wire = (id: string, fn: () => void) => {
       const el = this.panel.requireElementById(id);
       el.addEventListener('click', fn);
+      this.touch.add(id, fn);
       this.cleanupFuncs.push(() => el.removeEventListener('click', fn));
     };
     for (let i = 0; i < ROWS; i++) {
@@ -124,7 +148,7 @@ export class BenchSystem extends createSystem({}) {
         game.startBench(r.id, this.benchId);
       });
     }
-    wire('bench-close', () => this.hide());
+    wire('bench-close', () => menu.back());
     wire('bench-cancel', () => game.cancelBench());
     wire('bench-lift', () => {
       game.cancelBench();
@@ -160,6 +184,20 @@ export class BenchSystem extends createSystem({}) {
     const dz = pos.z - this.head.z;
     const d = Math.hypot(dx, dz) || 1;
     this.panel.visible = true;
+    menu.open('bench');
+    this.touch.setRequirePoint(false);
+    this.touch.reset();
+    if (this.vrNow && !game.bench) {
+      // Choosing a recipe: the panel comes close, in reach of a fingertip.
+      this.panel.scale.setScalar(VR_SCALE);
+      this.touch.setScale(VR_SCALE);
+      placeInFront(this.panel, this.camera, PANEL_DISTANCE, 0, PANEL_DOWN + 0.04);
+    } else this.placeAtBench(dx, dz, d, pos);
+    this.refresh();
+  }
+
+  /** Above and just behind the bench, facing you: where the step cards stay while your hands work. */
+  private placeAtBench(dx: number, dz: number, d: number, pos: { x: number; z: number }): void {
     // A flat screen shows it much smaller than a headset does: scale it up in the browser.
     const desktop = this.world.visibilityState.peek() === VisibilityState.NonImmersive;
     this.panel.scale.setScalar(desktop ? 0.2 : 0.15);
@@ -167,11 +205,11 @@ export class BenchSystem extends createSystem({}) {
     const back = desktop ? 0.5 : 0.3;
     this.panel.position.set(pos.x + (dx / d) * back, 1.25, pos.z + (dz / d) * back);
     this.panel.rotation.set(0, Math.atan2(-dx, -dz), 0);
-    this.refresh();
   }
 
   hide(): void {
     this.open = false;
+    menu.closed('bench');
     if (this.panel) hidePanel(this.panel);
   }
 
@@ -247,6 +285,21 @@ export class BenchSystem extends createSystem({}) {
     const game = getGame(this.world);
     if (state === 'start') this.making = game.bench?.recipe.output ?? null;
     if (state === 'start' || state === 'cancel') this.lay();
+    if (state === 'start' && this.open && this.vrNow) {
+      // Crafting: the step card goes above the bench and only a deliberate point can press Stop.
+      const s = game.structures.find((t) => t.id === this.benchId);
+      if (s) {
+        const pos = s.keyPos ?? { x: s.x, z: s.z };
+        this.camera.getWorldPosition(this.head);
+        const dx = pos.x - this.head.x;
+        const dz = pos.z - this.head.z;
+        this.placeAtBench(dx, dz, Math.hypot(dx, dz) || 1, pos);
+        this.touch.setScale(0.15);
+        this.touch.setRequirePoint(true);
+        this.touch.reset();
+      }
+    }
+    if (state === 'cancel' || state === 'done') this.touch.setRequirePoint(false);
     if (state === 'progress') {
       this.updateBar();
       return;
@@ -393,6 +446,7 @@ export class BenchSystem extends createSystem({}) {
     const dt = Math.min(delta, 0.05);
     this.t += dt;
     const game = getGame(this.world);
+    if (this.open && this.vrNow) this.touch.update(dt);
     if (!game.bench) {
       if (this.open && this.panel) {
         // Close when you walk away.

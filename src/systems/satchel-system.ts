@@ -26,7 +26,8 @@ import { SatchelItem, SatchelPouch } from '../components/game-components.js';
 import { BAG_HEIGHT, buildOpenBag } from '../scene-assets/bag.js';
 import { heldItemMesh } from '../scene-assets/item-meshes.js';
 import { lambert } from '../scene-assets/materials.js';
-import { getGame, getUi, hidePanel, hipPosition, placeInFront } from './shared.js';
+import { PanelTouch } from './panel-touch.js';
+import { getGame, getUi, hidePanel, hipPosition, menu, PANEL_DISTANCE, PANEL_DOWN, placeInFront } from './shared.js';
 
 const SLOTS = 18;
 const MAKE_SLOTS = 8;
@@ -39,6 +40,8 @@ export class SatchelSystem extends createSystem({
   private pouch!: Object3D;
   private panel!: UIKitMLAsset;
   private panelEntity!: Entity;
+  private touch!: PanelTouch;
+  private vr = false;
   private open = false;
   private makeItems: Array<{ id: string; label: string; kind: 'bind' | 'pack' | 'store' | 'take' } | undefined> = [];
   private slotItems: Array<ItemId | null> = [];
@@ -114,6 +117,15 @@ export class SatchelSystem extends createSystem({
     this.panelEntity = this.world.createTransformEntity(this.panel);
     this.panelEntity.addComponent(RayInteractable);
     hidePanel(this.panel);
+    // In VR the rows and buttons are fingertip targets only (no ray or pinch click).
+    this.touch = new PanelTouch(this.world, this.panel, 0.1, 'bag');
+    this.cleanupFuncs.push(
+      this.world.visibilityState.subscribe((v) => {
+        this.vr = v !== VisibilityState.NonImmersive;
+        PanelTouch.setRay(this.world, this.panelEntity, this.vr);
+      }),
+    );
+    menu.register('bag', () => this.setOpen(false));
 
     for (let i = 0; i < SLOTS; i++) {
       const button = this.panel.requireElementById(`item-${i}`);
@@ -122,6 +134,7 @@ export class SatchelSystem extends createSystem({
         if (id && game.takeOut(id)) this.setOpen(false);
       };
       button.addEventListener('click', onClick);
+      this.touch.add(`item-${i}`, onClick);
       this.cleanupFuncs.push(() => button.removeEventListener('click', onClick));
     }
     for (let i = 0; i < MAKE_SLOTS; i++) {
@@ -138,15 +151,17 @@ export class SatchelSystem extends createSystem({
         }
       };
       button.addEventListener('click', onClick);
+      this.touch.add(`make-${i}`, onClick);
       this.cleanupFuncs.push(() => button.removeEventListener('click', onClick));
     }
     const wire = (id: string, fn: () => void) => {
       const el = this.panel.requireElementById(id);
+      this.touch.add(id, fn);
       el.addEventListener('click', fn);
       this.cleanupFuncs.push(() => el.removeEventListener('click', fn));
     };
     wire('stow-button', () => game.stow());
-    wire('satchel-close', () => this.setOpen(false));
+    wire('satchel-close', () => menu.back());
 
     getUi(this.world).toggleSatchel = () => this.toggle();
     // What you hold is drawn by CarrySystem.
@@ -196,12 +211,14 @@ export class SatchelSystem extends createSystem({
     if (!this.panel) return;
     this.open = open;
     if (open) {
+      menu.open('bag');
       this.refresh();
       this.panel.visible = true;
-      // A plain list card straight ahead, a little below eye level (the 3D bag is retired for now).
-      // Closer than every other card (HUD 0.85 m, guide 0.75 m), so nothing sits in front of its rows.
-      placeInFront(this.panel, this.camera, 0.62, 0, 0.12);
+      // A plain list card straight ahead, a little below eye level, in seated reach for a fingertip.
+      placeInFront(this.panel, this.camera, this.vr ? PANEL_DISTANCE : 0.62, 0, this.vr ? PANEL_DOWN : 0.12);
+      this.touch.reset();
     } else {
+      menu.closed('bag');
       hidePanel(this.panel);
       this.bag.visible = false;
       for (const e of this.bagSlots) if (e.object3D) e.object3D.visible = false;
@@ -277,7 +294,7 @@ export class SatchelSystem extends createSystem({
     }
     this.panel.requireElementById('make-title').setProperties({ display: this.makeItems.length ? 'flex' : 'none' });
     const sub = contents.length
-      ? `${load}${lim === 'light' ? '' : lim === 'loaded' ? ' - heavy, no running' : ' - OVERLOADED, slow'}. Pinch an item to take it.`
+      ? `${load}${lim === 'light' ? '' : lim === 'loaded' ? ' - heavy, no running' : ' - OVERLOADED, slow'}. Tap an item to take it.`
       : 'Empty. Point at things in the forest and pinch to gather them.';
     this.panel.requireElementById<UIKit.Text>('satchel-sub').setProperties({ text: sub });
     // Cord and the bow drill are made at the workbench (click it): the old instant buttons stay hidden.
@@ -294,6 +311,7 @@ export class SatchelSystem extends createSystem({
       this.bag.position.lerpVectors(this.bagFrom, this.bagTo, t);
       this.bag.position.y += Math.sin(t * Math.PI) * 0.12;
     }
+    if (this.open && this.vr) this.touch.update(delta);
     if (this.open) for (const e of this.bagSlots) e.object3D?.scale.setScalar(1);
     if (this.open) for (const e of this.queries.itemHovered.entities) e.object3D?.scale.setScalar(1.3);
     this.watchShoulder(delta);

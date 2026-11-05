@@ -8,7 +8,7 @@
 <style>
   .root { flex-direction: column; width: 600px; height: 904px; padding-top: 18px; padding-bottom: 18px; padding-left: 20px; padding-right: 20px; justify-content: flex-start; }
   .head { flex-direction: row; align-items: center; justify-content: space-between; height: 48px; flex-shrink: 0; }
-  .titlebox { flex-direction: column; width: 440px; }
+  .titlebox { flex-direction: column; width: 360px; }
   .eyebrow { color: #8a5a00; font-size: 13px; font-weight: 700; letter-spacing: 1.5px; }
   .eyebrow:dark { color: #ffb547; }
   .title { color: #1c1d20; font-size: 24px; font-weight: 700; }
@@ -23,6 +23,7 @@
   .lvltext:dark { color: #ffb547; }
   .hinttext { height: 128px; margin-top: 4px; flex-shrink: 0; color: #2a2620; font-size: 20px; line-height: 1.25; width: 560px; }
   .hinttext:dark { color: #e4d9c6; }
+  .back { width: 170px; height: 56px; }
 </style>
 <Panel class="root">
   <div class="head">
@@ -30,7 +31,7 @@
       <div id="hint-eyebrow" class="eyebrow">HINT</div>
       <div id="hint-title" class="title">-</div>
     </div>
-    <Button id="hint-close" size="sm" variant="secondary"><ButtonIcon><X></X></ButtonIcon></Button>
+    <Button id="hint-close" class="back" size="lg" variant="secondary"><ButtonIcon><ArrowLeft></ArrowLeft></ButtonIcon><ButtonLabel>Back</ButtonLabel></Button>
   </div>
   <div class="pic"></div>
   <div id="hint-name" class="name">-</div>
@@ -40,7 +41,7 @@
   <div id="hint-do" class="row">-</div>
   <div class="lvl">
     <div id="hint-level" class="lvltext">Hint 1 of 4</div>
-    <Button id="hint-more" size="sm"><ButtonIcon><Plus></Plus></ButtonIcon><ButtonLabel>More help</ButtonLabel></Button>
+    <Button id="hint-more" size="lg"><ButtonIcon><Plus></Plus></ButtonIcon><ButtonLabel>More help</ButtonLabel></Button>
   </div>
   <div id="hint-text" class="hinttext">-</div>
 </Panel>

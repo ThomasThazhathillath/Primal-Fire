@@ -19,27 +19,20 @@ import {
   type Texture,
   type UIKit,
   type UIKitMLAsset,
-  Vector3,
   VisibilityState,
 } from '@iwsdk/core';
 import { hintInfo, hintView } from '../game/hint-info.js';
 import { cardView, objectiveById } from '../game/objectives.js';
-import { TouchTracker, type TipSample, type TouchIcon } from '../game/ui-touch.js';
-import { hands } from './hand-input-system.js';
 import { HintImages } from './hint-images.js';
-import { getGame, getUi, handClaims, hidePanel, placeInFront, StaticAnchor, uiText } from './shared.js';
+import { PanelTouch } from './panel-touch.js';
+import { getGame, getUi, hidePanel, menu, PANEL_DISTANCE, PANEL_DOWN, placeInFront, StaticAnchor, uiText } from './shared.js';
 
-const PANEL_SCALE = 0.065;
-const UNIT_M = 0.01 * PANEL_SCALE;
+const PANEL_SCALE = 0.047;
 /** Layout (px, from hint.uikitml): the root is 600 x 904; the picture area is 456 x 342 at 74 px from the top. */
 const W = 600;
 const H = 904;
 const PIC_X = 0;
 const PIC_Y = (H / 2 - (74 + 171)) * 0.01;
-const MORE_X = 205;
-const MORE_Y = H / 2 - (702 + 22);
-const CLOSE_X = W / 2 - 20 - 24;
-const CLOSE_Y = H / 2 - 18 - 24;
 const LEVEL_NAME = ['', 'What to look for', 'What it looks like', 'Where to look', 'Exactly what to do'];
 const IDLE_CLOSE = 90;
 
@@ -49,21 +42,13 @@ export class HintPanelSystem extends createSystem({}) {
   private images: HintImages | null = null;
   private pic!: Mesh;
   private picMat!: MeshBasicMaterial;
-  private anchor = new StaticAnchor(0.55, 0, 0.02, 0.9, 1);
+  private anchor = new StaticAnchor(PANEL_DISTANCE, 0, PANEL_DOWN - 0.1, 0.9, 1);
   private ready = false;
   private opened: string | null = null;
   private idle = 0;
   private watch = 0;
   private vr = false;
-  private icons: TouchIcon[] = [
-    { x: MORE_X * UNIT_M, y: MORE_Y * UNIT_M, r: 36 * UNIT_M, enabled: true },
-    { x: CLOSE_X * UNIT_M, y: CLOSE_Y * UNIT_M, r: 26 * UNIT_M, enabled: true },
-  ];
-  private trackers = [new TouchTracker(), new TouchTracker()];
-  private tipLocal = new Vector3();
-  private dirTmp = new Vector3();
-  private sampleOut: TipSample = { x: 0, y: 0, z: 0, dz: 0, tracked: false };
-  private taps: string[] = [];
+  private touch!: PanelTouch;
 
   async init(): Promise<void> {
     const panel = await this.world.assets.instantiate<UIKitMLAsset>('hint-panel');
@@ -89,16 +74,19 @@ export class HintPanelSystem extends createSystem({}) {
       this.cleanupFuncs.push(() => el.removeEventListener('click', click));
     };
     wire('hint-more', () => this.more());
-    wire('hint-close', () => this.close());
+    wire('hint-close', () => menu.back());
+    this.touch = new PanelTouch(this.world, panel, PANEL_SCALE, 'hint');
+    this.touch.add('hint-more', () => this.more());
+    this.touch.add('hint-close', () => menu.back());
+    menu.register('hint', () => this.close());
 
     getUi(this.world).hintOpen = () => this.opened !== null;
     getUi(this.world).openHint = (id: string) => (this.opened === id ? this.close() : this.open(id));
     this.cleanupFuncs.push(this.world.visibilityState.subscribe((v) => this.onVisibility(v)));
     this.ready = true;
     (window as unknown as { __hint?: unknown }).__hint = {
-      icons: this.icons,
       panel,
-      taps: this.taps,
+      taps: this.touch.taps,
       state: () => ({ opened: this.opened, vr: this.vr, level: this.opened ? getGame(this.world).objectives.hintLevel(this.opened) : 0 }),
       open: (id: string) => this.open(id),
       image: (id: string, level: number) => {
@@ -127,17 +115,18 @@ export class HintPanelSystem extends createSystem({}) {
       game.objectives.unlockHint(id);
       getUi(this.world).saveNow?.();
     }
+    menu.open('hint');
     this.opened = id;
     this.idle = 0;
     this.render();
     this.panel.visible = true;
     this.anchor.reset();
-    this.trackers[0].reset();
-    this.trackers[1].reset();
+    this.touch.reset();
     this.place();
   }
 
   close(): void {
+    menu.closed('hint');
     this.opened = null;
     hidePanel(this.panel);
     this.pic.visible = false;
@@ -180,7 +169,6 @@ export class HintPanelSystem extends createSystem({}) {
     text('hint-text', o.hint.levels[level - 1]);
     const more = this.panel.requireElementById('hint-more');
     more.setProperties({ display: level >= 4 ? 'none' : 'flex' });
-    this.icons[0].enabled = level < 4;
 
     // The reference picture: from the real game meshes, drawn once and cached.
     const pv = hintView(id, level);
@@ -205,42 +193,6 @@ export class HintPanelSystem extends createSystem({}) {
     }
     this.place();
     if (!this.vr) return;
-    this.panel.updateMatrixWorld(true);
-    this.tapUpdate(delta);
-  }
-
-  private tapUpdate(dt: number): void {
-    for (let h = 0; h < 2; h++) {
-      const hand = hands[h];
-      const tr = this.trackers[h];
-      const s = this.sample(hand.tipPos, hand.tipDir, hand.tipTracked, hand.pinchDist);
-      const hit = tr.update(dt, this.icons, s);
-      handClaims.uiNear[h] = handClaims.uiNear[h] || tr.hoverIcon >= 0;
-      if (hit < 0) continue;
-      handClaims.uiTapAt[h] = performance.now() / 1000;
-      if (this.taps.length > 50) this.taps.shift();
-      this.taps.push(hit === 0 ? 'more' : 'close');
-      this.idle = 0;
-      if (hit === 0) this.more();
-      else this.close();
-      return;
-    }
-  }
-
-  /** World fingertip to the panel's frame in metres (x right, y up, z towards the viewer). */
-  private sample(pos: Vector3, dir: Vector3, tracked: boolean, pinchDist: number): TipSample {
-    const o = this.sampleOut;
-    o.tracked = tracked;
-    o.pinchDist = pinchDist;
-    if (!tracked) return o;
-    this.tipLocal.copy(pos);
-    this.panel.worldToLocal(this.tipLocal);
-    o.x = this.tipLocal.x * PANEL_SCALE;
-    o.y = this.tipLocal.y * PANEL_SCALE;
-    o.z = this.tipLocal.z * PANEL_SCALE;
-    const e = this.panel.matrixWorld.elements;
-    this.dirTmp.copy(dir);
-    o.dz = (this.dirTmp.x * e[8] + this.dirTmp.y * e[9] + this.dirTmp.z * e[10]) / PANEL_SCALE;
-    return o;
+    this.touch.update(delta);
   }
 }

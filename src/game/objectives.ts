@@ -472,6 +472,11 @@ export const OBJECTIVES: Objective[] = [
     title: 'Make charcoal',
     instruction: 'Dig a pit, stack wood in it, cover it with earth and watch the smoke.',
     doneMessage: 'Charcoal: wood burned with little air.',
+    howTo: (g) => {
+      if (!g.flag('moundBuilt'))
+        return 'HOW TO DIG: 1. Have 2 logs in your bag and a digging stick (a sturdy pointed stick on the forest floor). 2. Take the digging stick out and hold it. 3. Stand on open, dry ground: at least 6 steps from the stream and not under a tree. 4. Reach your hand down towards the ground and hold it there a moment (browser: press U).';
+      return 'NEXT: hold clay and reach to the mound to seal its vents. With your fire burning nearby, reach to the mound again to light it. When the smoke turns thin and blue, reach to it to open it.';
+    },
     done: (g) => g.flag('charcoalMade'),
     implied: cleanWater,
     hint: {

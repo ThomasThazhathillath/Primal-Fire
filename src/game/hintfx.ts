@@ -78,3 +78,8 @@ export function planHint(g: Game, spots: readonly Spot[]): HintPlan {
 export function arrived(plan: HintPlan, px: number, pz: number): boolean {
   return !!plan.target && Math.hypot(plan.target.x - px, plan.target.z - pz) <= ARRIVED;
 }
+
+/** The ground glow goes exactly where the pillar goes (levels 3 and 4) and nowhere else. */
+export function glowFor(plan: HintPlan): HintTarget | null {
+  return plan.effects.beacon && plan.target ? plan.target : null;
+}

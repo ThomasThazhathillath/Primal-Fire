@@ -11,7 +11,7 @@ import { RejectLog, rejectLine } from '../game/menu.js';
 import { fitTarget, IconState, TOUCH_CONFIG, TouchTracker, type TipSample, type TouchIcon } from '../game/ui-touch.js';
 import { hands } from './hand-input-system.js';
 import { tapSound } from './ui-fx.js';
-import { getGame, handClaims } from './shared.js';
+import { type GazeUiAdd, type GazeUiOwner, gazeUi, getGame, handClaims } from './shared.js';
 
 /** UIKit layout units are 1/100 of a panel-scale unit: px * 0.01 * scale = metres. */
 const UNIT = 0.01;
@@ -44,7 +44,7 @@ function shown(el: Target['el']): boolean {
   return true;
 }
 
-export class PanelTouch {
+export class PanelTouch implements GazeUiOwner {
   private targets: Target[] = [];
   private active: Target[] = [];
   private icons: TouchIcon[] = [];
@@ -66,6 +66,7 @@ export class PanelTouch {
     for (const t of this.trackers) t.requirePoint = false;
     // Debug / tuning: window.__touch[name].targets() lists where every target is in the world.
     const g = window as unknown as { __touch?: Record<string, unknown> };
+    gazeUi.push(this);
     (g.__touch ??= {})[name] = { targets: () => this.debugTargets(), taps: this.taps, tap: (id: string) => this.tapById(id) };
   }
 
@@ -97,6 +98,47 @@ export class PanelTouch {
       this.panel.localToWorld(v);
       return { id: t.id, c: [v.x, v.y, v.z], n: n.map((x) => x / len), w: (ic.hw ?? ic.r) * 2, h: (ic.hh ?? ic.r) * 2 };
     });
+  }
+
+  private gazeIds: string[] = [];
+  private gazeV = new Vector3();
+
+  /** Gaze selection: offer every shown target of this panel (10 Hz, only while the panel is up). */
+  collectGaze(add: GazeUiAdd): void {
+    this.gazeIds.length = 0;
+    if (!this.panel.visible) return;
+    this.panel.updateMatrixWorld(true);
+    this.layout();
+    for (let i = 0; i < this.active.length; i++) {
+      const ic = this.icons[i];
+      this.gazeV.set(ic.x / this.scale, ic.y / this.scale, 0);
+      this.panel.localToWorld(this.gazeV);
+      this.gazeIds.push(this.active[i].id);
+      add(`ui:${this.name}:`, this.active[i].id, this.gazeV.x, this.gazeV.y, this.gazeV.z, Math.max(ic.hw ?? ic.r, ic.hh ?? ic.r), this, i);
+    }
+  }
+
+  private gazeTarget(i: number): Target | undefined {
+    const id = this.gazeIds[i];
+    return id === undefined ? undefined : this.targets.find((t) => t.id === id);
+  }
+
+  /** The same activation a fingertip tap runs (sound, assist, flash, handler). */
+  gazeActivate(i: number): void {
+    const t = this.gazeTarget(i);
+    if (!t || !this.panel.visible || !shown(t.el)) return;
+    if (this.taps.length > 50) this.taps.shift();
+    this.taps.push(t.id);
+    tapSound();
+    this.flash(t);
+    t.tap();
+  }
+
+  gazeHover(i: number, on: boolean): void {
+    const t = this.gazeTarget(i);
+    if (!t) return;
+    t.el.setProperties((on ? { borderWidth: 3, borderColor: '#ffc283' } : { borderWidth: 0 }) as never);
+    this.lastState.length = 0; // let the fingertip hover logic re-apply its own ring
   }
 
   /** Make element `id` a fingertip target that runs `tap` (the same handler its click runs). */

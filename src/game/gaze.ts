@@ -7,7 +7,7 @@
 //   - gazeAction: the one table that says what a pinch on the gaze target does.
 // GazeTargetSystem feeds it the gaze ray (eye gaze, else head, else the mouse) and applies the result.
 
-export type GazeKind = 'resource' | 'drop' | 'mark' | 'bench' | 'firePit';
+export type GazeKind = 'resource' | 'drop' | 'mark' | 'bench' | 'firePit' | 'ui';
 
 export interface GazeCandidate {
   kind: GazeKind;
@@ -32,9 +32,9 @@ export const GAZE = {
   /** Nothing nearer than this (m): that is direct-hand territory. */
   minDist: 0.25,
   /** Per-kind reach (m). Gaze is far interaction, but not across the forest. */
-  maxDist: { resource: 6, drop: 6, mark: 7, bench: 7, firePit: 7 } as Record<GazeKind, number>,
+  maxDist: { resource: 6, drop: 6, mark: 7, bench: 7, firePit: 7, ui: 2.5 } as Record<GazeKind, number>,
   /** Per-kind bias added to the score (things you build on win over loose things behind them). */
-  priority: { resource: 0, drop: 0.05, mark: 0.15, bench: 0.1, firePit: 0.1 } as Record<GazeKind, number>,
+  priority: { resource: 0, drop: 0.05, mark: 0.15, bench: 0.1, firePit: 0.1, ui: 0.6 } as Record<GazeKind, number>,
   /** A challenger must beat the current target's score by this much... */
   switchMargin: 0.15,
   /** ...for this long (s) before the target switches. */
@@ -226,7 +226,7 @@ export class GazePinchGate {
 
 // ------------------------------------------------------------- action table
 
-export type GazeVerb = 'none' | 'take' | 'pickUp' | 'fillFromBag' | 'seatHeld' | 'wrongPart' | 'openBench' | 'useAtFire';
+export type GazeVerb = 'none' | 'take' | 'pickUp' | 'fillFromBag' | 'seatHeld' | 'wrongPart' | 'openBench' | 'useAtFire' | 'pressUi';
 
 export interface GazeActionCtx {
   kind: GazeKind | null;
@@ -255,6 +255,8 @@ export function gazeAction(c: GazeActionCtx): GazeVerb {
       return c.held ? 'none' : 'openBench';
     case 'firePit':
       return c.held && c.fits ? 'useAtFire' : 'none';
+    case 'ui':
+      return 'pressUi';
   }
 }
 

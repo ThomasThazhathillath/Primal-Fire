@@ -181,3 +181,26 @@ describe('occlusion segment', () => {
     expect(segmentBlocked(0, 0, 0, -4, atTarget)).toBe(false);
   });
 });
+
+describe('gaze selection of UI', () => {
+  it('a pinch on a UI target presses it; an owned pinch does nothing (one pinch, one handler)', () => {
+    expect(gazeAction({ kind: 'ui', held: false, fits: false, bagFits: false, owned: false })).toBe('pressUi');
+    expect(gazeAction({ kind: 'ui', held: true, fits: false, bagFits: false, owned: false })).toBe('pressUi');
+    expect(gazeAction({ kind: 'ui', held: false, fits: false, bagFits: false, owned: true })).toBe('none');
+  });
+
+  it('a small icon at arm distance is targetable and beats a world thing behind it', () => {
+    const icon = cand('ui:menu:slot-0', 0.1, 1.4, -0.6, 'ui', 0.03);
+    const stone = cand('r:a', 0.1, 0.1, -3, 'resource', 0.14);
+    const t = new GazeTargeter();
+    const d = dir(0.1, 1.4, -0.6);
+    expect(step(t, [stone, icon], d)).toBe(1);
+    // Looking well past the panel reaches the world again.
+    const t2 = new GazeTargeter();
+    expect(step(t2, [stone, icon], dir(0.1, 0.1, -3))).toBe(0);
+  });
+
+  it('UI is out of reach beyond a couple of metres', () => {
+    expect(gazeScore(cand('u', 0, 1.6, -4, 'ui', 0.1), 0, 1.6, 0, 0, 0, -1, GAZE.enterDeg)).toBe(-1);
+  });
+});

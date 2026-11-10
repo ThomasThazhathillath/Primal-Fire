@@ -32,14 +32,16 @@ import { fitsPouch, type ItemId, itemName } from '../game/items.js';
 import { groundHeight, RESOURCES } from '../game/world-layout.js';
 import { hands, mouse } from './hand-input-system.js';
 import { DRAG_LOOK, ResourceSystem } from './resource-system.js';
-import { getGame, getUi, handBusy, handClaims } from './shared.js';
+import { type GazeUiOwner, gazeUi, getGame, getUi, handBusy, handClaims } from './shared.js';
 
 const MAX_CANDS = 96;
+/** Gaze can open the bench panel from this far (m); the panel itself closes beyond 3.5 m. */
+const BENCH_GAZE_REACH = 3;
 /** Candidates are gathered within this distance (m) of the head. */
 const GATHER_RANGE = 8;
 /** Static solids that block the eye (fallen logs and structures are low enough to look over). */
 const OCCLUDERS = new Set(['tree', 'boulder', 'splitRock', 'ruinsWall', 'mast', 'shatteredTree']);
-const RADIUS: Record<GazeKind, number> = { resource: 0.14, drop: 0.14, mark: 0.12, bench: 0.6, firePit: 0.5 };
+const RADIUS: Record<GazeKind, number> = { resource: 0.14, drop: 0.14, mark: 0.12, bench: 0.6, firePit: 0.5, ui: 0.05 };
 
 export type GazeSource = 'eye' | 'head' | 'mouse' | 'none';
 
@@ -56,6 +58,21 @@ export class GazeTargetSystem extends createSystem({
   private n = 0;
   /** Spot id per resource candidate slot. */
   private spotIds: string[] = [];
+  /** Owner and element id per UI candidate slot (panels, icon bar, objective card). */
+  private uiOwner: Array<GazeUiOwner | null> = [];
+  private uiId: number[] = [];
+  /** The UI element currently lit by gaze. */
+  private hoverOwner: GazeUiOwner | null = null;
+  private hoverId = -1;
+  private hoverKey = '';
+  private addUi = (prefix: string, key: string, x: number, y: number, z: number, r: number, owner: GazeUiOwner, id: number): void => {
+    const slot = this.n;
+    const c = this.push('ui', this.key(prefix, key), x, y, z, slot, true);
+    if (!c) return;
+    c.r = r;
+    this.uiOwner[slot] = owner;
+    this.uiId[slot] = id;
+  };
   private marks: Mark[] = [];
   private keys = new Map<string, string>();
   private targeter = new GazeTargeter();
@@ -66,6 +83,7 @@ export class GazeTargetSystem extends createSystem({
   private q = new Quaternion();
   private tmp = new Vector3();
   private source: GazeSource = 'none';
+  private vrNow = false;
   private target: GazeCandidate | null = null;
   /** Hand whose gaze pinch took something, until it is let go. */
   private pickedHand = -1;
@@ -90,12 +108,14 @@ export class GazeTargetSystem extends createSystem({
     for (let i = 0; i < near.length; i++) if (OCCLUDERS.has(near[i].tag)) return true;
     return false;
   };
-  private occluded = (c: GazeCandidate): boolean => segmentBlocked(this.origin.x, this.origin.z, c.x, c.z, this.solidAt);
+  private occluded = (c: GazeCandidate): boolean => c.kind !== 'ui' && segmentBlocked(this.origin.x, this.origin.z, c.x, c.z, this.solidAt);
 
   init(): void {
     for (let i = 0; i < MAX_CANDS; i++) {
       this.cands.push({ kind: 'resource', key: '', x: 0, y: 0, z: 0, r: 0.1, ref: 0, enabled: true });
       this.spotIds.push('');
+      this.uiOwner.push(null);
+      this.uiId.push(-1);
     }
     this.ringMat = new MeshBasicMaterial({ color: COLORS.take, transparent: true, opacity: 0, depthWrite: false, depthTest: false, side: DoubleSide });
     this.ring = new Mesh(ringGeo, this.ringMat);
@@ -249,18 +269,25 @@ export class GazeTargetSystem extends createSystem({
         if (useful) this.push('firePit', this.key('f:', s.id), s.x, groundHeight(s.x, s.z) + 0.15, s.z, s.id, true);
       }
     }
+    // In VR every shown UI element is a target too: icon bar, panels, the objective card.
+    if (this.vrNow) for (let i = 0; i < gazeUi.length; i++) gazeUi[i].collectGaze(this.addUi);
   }
 
   update(delta: number): void {
     const dt = Math.min(delta, 0.1);
     const game = getGame(this.world);
     const vr = this.world.visibilityState.peek() !== VisibilityState.NonImmersive;
+    this.vrNow = vr;
     const have = this.readRay(vr);
+    // An eye-gaze input source (metaVRGlasses) is itself a pointer ray in IWSDK and hovers whatever you look at: that
+    // hover is this system's own target, not another handler's, so it must not hand the pinch to the ray (which
+    // would gather into the bag). Head gaze has no such ray; eye gaze now behaves the same.
     this.rayOwns =
-      this.queries.hoverGather.entities.size > 0 ||
+      this.source !== 'eye' &&
+      (this.queries.hoverGather.entities.size > 0 ||
       this.queries.hoverSpot.entities.size > 0 ||
       this.queries.hoverDrop.entities.size > 0 ||
-      this.queries.hoverPart.entities.size > 0;
+        this.queries.hoverPart.entities.size > 0);
     if ((this.rebuildIn -= dt) <= 0 && have) {
       this.rebuildIn = 0.1;
       this.rebuild();
@@ -268,6 +295,7 @@ export class GazeTargetSystem extends createSystem({
     this.targeter.locked = this.lockHand >= 0;
     const i = have ? this.targeter.update(this.cands, this.n, this.origin.x, this.origin.y, this.origin.z, this.dir.x, this.dir.y, this.dir.z, dt, this.occluded) : -1;
     this.target = i >= 0 ? this.cands[i] : null;
+    this.updateUiHover();
 
     if (vr) {
       for (let h = 0 as 0 | 1; h < 2; h = (h + 1) as 0 | 1) {
@@ -345,13 +373,48 @@ export class GazeTargetSystem extends createSystem({
         if (m) game.toast(`This mark needs ${needText(m)}.`, 'bad');
         return;
       }
-      case 'openBench':
+      case 'openBench': {
+        // The bench panel closes itself when you are further than the bench's leave distance, so opening it from
+        // across the clearing would flash and vanish: ask for a step closer instead.
+        if (Math.hypot(game.player.x - t.x, game.player.z - t.z) > BENCH_GAZE_REACH) {
+          game.toast('Step closer to the workbench to use it.', 'note');
+          return;
+        }
         getUi(this.world).openBench?.(t.ref);
         return;
+      }
+      case 'pressUi': {
+        const owner = this.uiOwner[t.ref];
+        if (!owner) return;
+        // A UI press is a tap: this pinch is neither a grab nor a teleport aim, and no other handler may take it.
+        handClaims.uiTapAt[h] = now;
+        handClaims.uiNear[h] = true;
+        handClaims.uiNearAt[h] = now;
+        owner.gazeActivate(this.uiId[t.ref]);
+        this.rebuildIn = 0;
+        return;
+      }
       case 'useAtFire':
         game.runIntent(game.held, t.x, t.z, 'release');
         return;
     }
+  }
+
+  /** Light the UI element the gaze is on (and clear the one it left). */
+  private updateUiHover(): void {
+    const t = this.target;
+    const ui = t && t.kind === 'ui' && !this.rayOwns ? t : null;
+    if (ui && ui.key === this.hoverKey) return;
+    if (this.hoverOwner) this.hoverOwner.gazeHover(this.hoverId, false);
+    this.hoverOwner = null;
+    this.hoverKey = '';
+    if (!ui) return;
+    const owner = this.uiOwner[ui.ref];
+    if (!owner) return;
+    this.hoverOwner = owner;
+    this.hoverId = this.uiId[ui.ref];
+    this.hoverKey = ui.key;
+    owner.gazeHover(this.hoverId, true);
   }
 
   private picked(h: 0 | 1): void {
@@ -367,7 +430,7 @@ export class GazeTargetSystem extends createSystem({
     const game = getGame(this.world);
     const t = this.target;
     // A ray already shows its own hover (HighlightSystem): never two highlights for one thing.
-    const show = !!t && !this.rayOwns;
+    const show = !!t && !this.rayOwns && t.kind !== 'ui';
     this.fade += ((show ? 1 : 0) - this.fade) * Math.min(1, dt * (show ? 18 : 10));
     const visible = this.fade > 0.02;
     this.ring.visible = visible;
@@ -417,6 +480,8 @@ export class GazeTargetSystem extends createSystem({
         return 'Workbench';
       case 'firePit':
         return 'Fire pit';
+      case 'ui':
+        return '';
     }
   }
 

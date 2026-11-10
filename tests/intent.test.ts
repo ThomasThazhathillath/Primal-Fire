@@ -141,3 +141,53 @@ describe('Game.intentAt builds the targets from the world', () => {
     expect(g.runIntent('dryStone', s.x, s.z)).toBeNull();
   });
 });
+
+describe('intentAt sees marks (a stone on a mark is a placement)', () => {
+  it('a stone on, or let go near, a mark resolves to place; the wrong part and a far stone do not', async () => {
+    const { openMarks } = await import('../src/game/assist.js');
+    const g = new Game();
+    g.addItem('dryStone', 3);
+    g.placeFromBook('firePit', 0, -1);
+    const m = openMarks(g.structures)[0];
+    expect(g.intentAt('dryStone', m.x, m.z, 'touch')?.action).toBe('place');
+    expect(g.intentAt('dryStone', m.x + 0.8, m.z, 'release')?.action).toBe('place');
+    expect(g.intentAt('dryStone', m.x + 0.8, m.z, 'touch')).toBeNull(); // a touch needs to be on it
+    expect(g.intentAt('twigs', m.x, m.z, 'release')).toBeNull();
+    expect(g.intentAt('dryStone', m.x + 9, m.z, 'release')).toBeNull();
+  });
+  it('runIntent places it, with auto-refill, through the same path as everything else', async () => {
+    const { openMarks } = await import('../src/game/assist.js');
+    const g = new Game();
+    g.addItem('dryStone', 4);
+    const s = g.placeFromBook('firePit', 0, -1).structure!;
+    g.player.x = s.x;
+    g.player.z = s.z + 1;
+    g.takeOut('dryStone');
+    const m = openMarks(g.structures)[0];
+    expect(g.runIntent('dryStone', m.x, m.z, 'release')).toBe('place');
+    expect(g.held).toBe('dryStone'); // the next stone came to the hand
+  });
+});
+
+describe('every seat path refills the hand', () => {
+  it('a direct fillSpot of the held stone (hammered home, ray press) refills too', async () => {
+    const { openMarks } = await import('../src/game/assist.js');
+    const g = new Game();
+    g.addItem('dryStone', 4);
+    const s = g.placeFromBook('firePit', 0, -1).structure!;
+    g.player.x = s.x;
+    g.player.z = s.z + 1;
+    g.takeOut('dryStone');
+    const m = openMarks(g.structures).find((k) => k.index >= 0)!;
+    expect(g.fillSpot(s.id, m.index, undefined, { x: m.x, z: m.z })).toBe(true);
+    expect(g.held).toBe('dryStone');
+  });
+  it('placing the plan keeps the key part for that pinch', () => {
+    const g = new Game();
+    g.addItem('slab');
+    g.takeOut('slab');
+    expect(g.placeBlueprint('workbench', 0, -1.6, 0).ok).toBe(true);
+    expect(g.held).toBe('slab');
+    expect(g.time - g.planPlacedAt).toBeLessThan(1);
+  });
+});

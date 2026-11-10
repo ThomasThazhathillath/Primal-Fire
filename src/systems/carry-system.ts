@@ -21,6 +21,7 @@ import { itemMesh } from '../scene-assets/item-meshes.js';
 import { hands } from './hand-input-system.js';
 import { releaseKind, restHeight } from '../game/pinch.js';
 import { groundHeight } from '../game/world-layout.js';
+import { BLUEPRINTS } from '../game/blueprint.js';
 import { ASSIST, magnetPull, type Mark, nearestMarkIndex, openMarks, placementIntent, scan } from '../game/assist.js';
 import { getGame, getUi, handClaims, hipPosition, pendingRelease, pickupFrom } from './shared.js';
 import { SWING_TOOLS } from '../game/interact.js';
@@ -224,6 +225,14 @@ export class CarrySystem extends createSystem({}) {
       this.tmp2.y += 1.5 * k;
     }
     const p = this.obj.position;
+    // The pinch that just put the plan down (the slab stays in hand for a keyLast build) must not also let go of it.
+    if (!throwIt && game.time - game.planPlacedAt < 3 && game.structures.length > 0 && BLUEPRINTS[game.structures[game.structures.length - 1].kind].keyLast && game.held === item) {
+      this.grip.reset(this.hold);
+      handClaims.grabbing[this.hold] = true;
+      game.planPlacedAt = -10; // this pinch only; the next let-go is a real one
+      game.log.add(`kept ${item}: the plan was just placed`);
+      return;
+    }
     const sz = ITEM_PHYSICS[item].size;
     const half = Math.min(sz[0], sz[1], sz[2]) / 2;
     const ground = groundHeight(p.x, p.z);

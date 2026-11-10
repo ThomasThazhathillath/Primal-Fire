@@ -165,6 +165,8 @@ export class Game {
    * in your hand. Stops with Put away (cancelRefill) or when you walk away from the build. Not saved.
    */
   autoRefill = true;
+  /** Game time a plan (outline) was last placed from a held key part: that pinch must not also let go of the part. */
+  planPlacedAt = -10;
   /**
    * The structure the current lesson wants (set by the tutorial): `undefined` = no lesson says anything,
    * `null` = this lesson builds nothing, so no outline may start. Takes precedence over the objective.
@@ -864,6 +866,7 @@ export class Game {
       ...(fromBook && !def.keyLast ? { keyOpen: true } : {}),
     };
     this.structures.push(structure);
+    this.planPlacedAt = this.time;
     this.log.add(`placed ${kind} #${structure.id} at ${x.toFixed(1)},${z.toFixed(1)} key=${key}`, 'ok');
     this.toast(
       def.keyLast
@@ -937,6 +940,7 @@ export class Game {
     const def = BLUEPRINTS[s.kind];
     const spot = def.spots[index];
     const target = spotWorldPosition(s, index);
+    const heldBefore = this.held;
     if (at) {
       // Released by hand: it seats only if it landed close enough to the mark.
       const check = checkPlace(at.x, at.z, target.x, target.z, def.spotTolerance ?? DEFAULT_SPOT_TOLERANCE);
@@ -979,6 +983,8 @@ export class Game {
       else this.completeStructure(s);
     }
     this.emit({ type: 'structure', structure: s });
+    // Every seat path (let go, touch, strike, throw caught, hammered home, a ray press) refills the hand the same way.
+    if (heldBefore === item && this.held === null) this.refill(item);
     return true;
   }
 
@@ -1048,12 +1054,8 @@ export class Game {
       return false;
     }
     const m = v.mark;
-    const wasHeld = this.held === item;
     const ok = m.index >= 0 ? this.fillSpot(m.structure.id, m.index, item, { x: m.x, z: m.z }) : this.placeKey(m.structure.id, m.x, m.z, o.hands ?? 1);
-    if (ok) {
-      this.assist.success('place');
-      if (wasHeld) this.refill(item);
-    }
+    if (ok) this.assist.success('place');
     return ok;
   }
 
@@ -1074,6 +1076,9 @@ export class Game {
       found.push({ action: a, at: pos, dist });
       cands.push({ id: String(found.length - 1), dist, aimed: false, valid: true, matchesHeld: true });
     };
+    // Open marks first: a part that fits one is a placement (letting go reaches farther than a touch).
+    const markReach = motion === 'touch' ? ASSIST.touchRadius * 2 : ASSIST.buildArea * this.assist.scale('place');
+    for (const m of openMarks(this.structures)) add({ kind: 'mark', accepts: m.accepts }, m, markReach);
     const pot = { fired: this.flag('potFired'), dry: this.flag('potDry'), water: this.water.potWater };
     for (const s of this.structures) {
       if (s.kind === 'firePit' && s.complete) {
@@ -1101,6 +1106,9 @@ export class Game {
     const at = { x, z };
     let ok = false;
     switch (hit.action) {
+      case 'place':
+        ok = !!held && this.seatNear(held, x, z, { radius: motion === 'touch' ? ASSIST.touchRadius * 2 : ASSIST.buildArea, hands: 1 });
+        break;
       case 'feedFire':
         ok = this.fire.addFuel();
         break;
@@ -1242,6 +1250,7 @@ export class Game {
       this.interactionFailure('place.tooFar', `${Math.round(check.error * 100)} cm off`);
       return false;
     }
+    const heldBefore = this.held;
     let item: ItemId | null = null;
     if (this.held && def.keyAccepts.includes(this.held)) item = this.consumeHeld();
     else {
@@ -1266,6 +1275,7 @@ export class Game {
     this.log.add(`filled ${s.kind}#${s.id} key with ${item}`);
     if (s.spots.every((v) => v !== null)) this.completeStructure(s);
     this.emit({ type: 'structure', structure: s });
+    if (heldBefore === item && this.held === null) this.refill(item);
     return true;
   }
 

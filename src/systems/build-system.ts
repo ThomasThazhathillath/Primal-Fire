@@ -36,6 +36,7 @@ import {
   spotWorldPosition,
 } from '../game/blueprint.js';
 import type { GameEvent } from '../game/game.js';
+import { findBookSpot } from '../game/buildbook.js';
 import { BlueprintGhost, SnapSpot, StructurePart } from '../components/game-components.js';
 import { itemMesh } from '../scene-assets/item-meshes.js';
 import type { ItemId } from '../game/items.js';
@@ -213,11 +214,30 @@ export class BuildSystem extends createSystem({
       this.aimT.fill(-1);
       return;
     }
-    if (!this.steadyAim(this.stable) || !this.ghostKind) return;
+    if (!this.ghostKind) return;
+    // Pointing at no ground (a flat hand, looking ahead): the plan still goes down on the best ground in front of you.
+    if (!this.steadyAim(this.stable)) {
+      this.placeInFront();
+      return;
+    }
     // placeBlueprint explains (toast) when the ground is unsuitable. Parts are
     // set down by hand (InteractionSystem), not filled by pointing.
     this.moveGhostTo(this.stable.x, this.stable.z);
     this.placeGhost();
+  }
+
+  /** Pinching with a key part and no aim on the ground: put the plan on the nearest good ground in front of you. */
+  private placeInFront(): void {
+    const game = getGame(this.world);
+    if (!this.ghostKind) return;
+    this.camera.getWorldPosition(this.head);
+    this.camera.getWorldDirection(this.dir);
+    const spot = findBookSpot(this.ghostKind, this.head.x, this.head.z, this.dir.x, this.dir.z, game.structures);
+    if (!spot) {
+      game.toast('No good ground right in front of you: step to open, dry ground and try again.', 'bad');
+      return;
+    }
+    game.placeBlueprint(this.ghostKind, spot.x, spot.z, spot.rotY);
   }
 
   /** The ground point the aim ray had ~AIM_LOOKBACK s ago (steadier than now). */

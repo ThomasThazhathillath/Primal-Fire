@@ -9,13 +9,17 @@
 
 import { createSystem, Vector3 } from '@iwsdk/core';
 import { Gatherable } from '../components/game-components.js';
-import { nearestCandidate, type GrabCandidate } from '../game/pinch.js';
+import { type Candidate, resolveTarget } from '../game/assist.js';
+import { type GrabCandidate, PINCH_CONFIG } from '../game/pinch.js';
 import { fitsPouch } from '../game/items.js';
 import { groundHeight, RESOURCES } from '../game/world-layout.js';
 import { hands } from './hand-input-system.js';
 import { DRAG_LOOK, ResourceSystem } from './resource-system.js';
 import { mayStart } from '../game/priority.js';
 import { getGame, handBusy, handClaims } from './shared.js';
+
+/** A pinch this close (m) to a thing is touching exactly that thing. */
+const TOUCH_DIST = 0.05;
 
 interface Target extends GrabCandidate {
   spotId?: string;
@@ -67,7 +71,15 @@ export class PinchGrabSystem extends createSystem({}) {
       }
     }
     for (const d of game.drops) list.push({ id: d.item, dropId: d.id, x: d.x, y: groundHeight(d.x, d.z) + 0.1, z: d.z });
-    return nearestCandidate(list, p.x, p.y, p.z);
+    // One place decides: what the fingertips touch, else the nearest valid thing, else whatever the
+    // objective needs when it is about as near, else any other valid one (game/assist.ts).
+    const need = game.objectives.current?.find?.(game) ?? [];
+    const cands: Candidate[] = list.map((c, i) => {
+      const dist = Math.hypot(c.x - p.x, c.y - p.y, c.z - p.z);
+      return { id: String(i), dist, aimed: dist <= TOUCH_DIST, valid: dist <= PINCH_CONFIG.grabRadius, matchesHeld: need.includes(c.id as never) };
+    });
+    const t = resolveTarget(cands);
+    return t ? list[Number(t.id)] : null;
   }
 
   private take(t: Target): boolean {

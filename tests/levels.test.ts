@@ -42,7 +42,9 @@ describe('levels', () => {
     expect(levelStart(3)).toBe(5);
     expect(levelForQuest(0).n).toBe(1);
     expect(levelForQuest(2).name).toBe('Clean Water');
-    expect(levelForQuest(QUESTS.length).n).toBe(3);
+    expect(levelStart(4)).toBe(QUESTS.findIndex((q) => q.title === 'A Place to Call Home'));
+    expect(levelForQuest(levelStart(4) - 1).n).toBe(3); // First Lab still ends Chapter 1
+    expect(levelForQuest(QUESTS.length).n).toBe(4);
   });
 
   it('completes a level with a level-complete event and XP', () => {

@@ -10,6 +10,9 @@ import { CraftGestureSystem } from './systems/craft-gesture-system.js';
 import { BenchSystem } from './systems/bench-system.js';
 import { BuildBookSystem } from './systems/build-book-system.js';
 import { HighlightSystem } from './systems/highlight-system.js';
+import { LashSystem } from './systems/lash-system.js';
+import { RoadmapSystem } from './systems/roadmap-system.js';
+import { ShelterSystem } from './systems/shelter-system.js';
 import { HintFxSystem } from './systems/hint-fx-system.js';
 import { ObjectiveCardSystem } from './systems/objective-card-system.js';
 import { ContactFxSystem } from './systems/contact-fx-system.js';
@@ -85,6 +88,9 @@ World.create(
     .registerSystem(BuildBookSystem)
     .registerSystem(ObjectiveCardSystem)
     .registerSystem(HighlightSystem)
+    .registerSystem(LashSystem)
+    .registerSystem(ShelterSystem)
+    .registerSystem(RoadmapSystem)
     .registerSystem(HintFxSystem)
     .registerSystem(BowSystem)
     .registerSystem(DropSystem)

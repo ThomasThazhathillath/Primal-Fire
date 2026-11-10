@@ -15,6 +15,9 @@ import {
   CAMP_RADIUS,
   checkPlacement,
   DEFAULT_SPOT_TOLERANCE,
+  isSpotLocked,
+  openStage,
+  STAGE_NAMES,
   spotWorldPosition,
   STORAGE_SLOTS,
   type PlacedStructure,
@@ -40,6 +43,7 @@ const GUIDE_CODE_FOR: Partial<Record<GuideFailureCode, string>> = {
 };
 import { ASSIST, needText, openMarks, resolveTarget, snapVerdict, type Candidate } from './assist.js';
 import { Adaptive, type AssistSave } from './adaptive.js';
+import { frameDone, inside as insideShelter, leakingPanels, RAIN_MAX, roofed, ShelterTest, type ShelterTestSave, stageCount } from './shelter.js';
 import { CONTINUOUS, type IntentAction, type IntentTarget, resolveIntent } from './intent.js';
 import { ObjectiveTracker, type ObjectivesSave } from './objectives.js';
 import { QUESTS, type QuestStep } from './quests.js';
@@ -57,7 +61,9 @@ export type FlagId =
   | 'kilnLit'
   | 'charcoalMade'
   | 'waterSafe'
-  | 'finale';
+  | 'finale'
+  | 'shelterTested'
+  | 'shelterRested';
 
 export type ToastKind = 'info' | 'good' | 'bad' | 'note';
 
@@ -75,6 +81,10 @@ export type GameEvent =
   | { type: 'placed'; x: number; y: number; z: number }
   /** A hint level was unlocked (a soft chime). */
   | { type: 'hintGiven'; level: number }
+  /** A shelter construction stage was completed (save point; StructureView animates it). */
+  | { type: 'shelterStage'; stage: number; id: number }
+  /** Lashing progress on a joint (0..1) for the wraps on the joint. */
+  | { type: 'lash'; id: number; index: number; progress: number }
   | { type: 'objectiveDone'; id: string; message: string }
   | { type: 'questComplete'; index: number; title: string; roadmapNode: string | null }
   | { type: 'levelComplete'; level: number; name: string; next: GameLevel | null }
@@ -166,6 +176,14 @@ export class Game {
    * in your hand. Stops with Put away (cancelRefill) or when you walk away from the build. Not saved.
    */
   autoRefill = true;
+  /** The Chapter 2 rain test (shelter.ts): saved with the game. */
+  readonly shelterTest = new ShelterTest();
+  private forcedRain = false;
+  private shelterT = 0;
+  /** 0..1 how far inside the shelter the player is (smoothed by ShelterSystem; darkens the light, muffles the rain). Not saved. */
+  shelterShade = 0;
+  /** Game time a shelter part was last set (the rain waits for the builder to finish). */
+  private lastBuildAt = -99;
   /** Game time a plan (outline) was last placed from a held key part: that pinch must not also let go of the part. */
   planPlacedAt = -10;
   /**
@@ -659,6 +677,10 @@ export class Game {
   tick(dt: number): void {
     this.time += dt;
     this.objectives.tick(dt);
+    if ((this.shelterT += dt) >= 0.25) {
+      this.tickShelter(this.shelterT);
+      this.shelterT = 0;
+    }
     this.fire.tick(dt);
     this.water.tick(dt);
     this.food.tick(dt);
@@ -943,6 +965,15 @@ export class Game {
     if (!s || s.complete || s.spots[index] === undefined || s.spots[index] !== null) return false;
     const def = BLUEPRINTS[s.kind];
     const spot = def.spots[index];
+    if (spot.gesture) {
+      this.toast('Tie this joint by hand: hold your cord at the joint and twist it tight (mouse: scroll the wheel).', 'note');
+      return false;
+    }
+    if (isSpotLocked(s, index)) {
+      const open = openStage(def, s.spots);
+      this.toast(s.keyOpen ? 'Set the first pole on its mark first.' : `Not yet: finish the ${STAGE_NAMES[open] ?? 'earlier part'} first.`, 'bad');
+      return false;
+    }
     const target = spotWorldPosition(s, index);
     const heldBefore = this.held;
     if (at) {
@@ -954,7 +985,10 @@ export class Game {
       }
     }
     let item: ItemId | null = null;
-    if (this.held && spot.accepts.includes(this.held)) {
+    if (spot.tool) {
+      // A tool touched to the mark does the job and is kept (digging a channel segment).
+      item = this.held && spot.accepts.includes(this.held) ? this.held : (spot.accepts.find((id) => this.count(id) > 0) ?? null);
+    } else if (this.held && spot.accepts.includes(this.held)) {
       item = this.consumeHeld();
     } else {
       const order = prefer ? [prefer, ...spot.accepts] : spot.accepts;
@@ -974,6 +1008,8 @@ export class Game {
     s.spotPos ??= def.spots.map(() => null);
     s.spotPos[index] = { x: target.x, z: target.z }; // seated exactly on its mark
     this.log.add(`filled ${s.kind}#${s.id}[${index}] with ${item}`);
+    if (s.kind === 'leanTo') this.shelterProgress(s, index);
+    if (s.kind === 'drainage') this.toast('You dug a stretch of the channel.', 'good');
     if (at) {
       this.fx('seat', 0.6);
       this.emit({ type: 'placed', x: target.x, y: target.y, z: target.z });
@@ -1021,7 +1057,7 @@ export class Game {
       }
       if (s.keyPlaced) continue;
       def.spots.forEach((spot, i) => {
-        if (s.spots[i] !== null || !spot.accepts.includes(item)) return;
+        if (s.spots[i] !== null || !spot.accepts.includes(item) || spot.gesture || isSpotLocked(s, i)) return;
         const p = spotWorldPosition(s, i);
         const d = Math.hypot(p.x - x, p.z - z);
         if (d < bestD) {
@@ -1314,6 +1350,10 @@ export class Game {
       this.toast('The fire pit stays where it is.', 'note');
       return false;
     }
+    if (s.kind === 'leanTo' || s.kind === 'drainage') {
+      this.toast('Poles, lashings and layers stay where you set them.', 'note');
+      return false;
+    }
     if (this.storedCount(s) > 0) {
       this.toast('Empty the storage first.', 'bad');
       return false;
@@ -1375,6 +1415,182 @@ export class Game {
       this.science('shelter.wind.blocked');
     }
     this.checkQuests();
+  }
+
+  // ------------------------------------------------------------ Chapter 2: the shelter
+
+  /** The shelter under construction (or built), if any. */
+  leanTo(): PlacedStructure | null {
+    return this.structures.find((t) => t.kind === 'leanTo') ?? null;
+  }
+
+  /** A stage or milestone of the shelter just happened (called after a part is set). */
+  private shelterProgress(s: PlacedStructure, index: number): void {
+    const def = BLUEPRINTS.leanTo;
+    this.lastBuildAt = this.time;
+    const stage = def.spots[index].stage ?? 0;
+    const c = stageCount(s, stage);
+    if (c.done === c.total && !s.keyOpen) {
+      if (stage === 3) {
+        this.science('shelter.frame.braced');
+        this.toast('The ribs lean in and meet the upright: a triangle. Give the frame a push: it holds.', 'good');
+      }
+      if (stage === 4) {
+        this.science('shelter.load.shared');
+        this.toast('Two cross-supports: the load now has more than one way to reach the ground.', 'note');
+      }
+    }
+    if (frameDone(s) && !this.hasEvent('shelter.frame.built')) {
+      this.science('shelter.frame.built');
+      this.addXp(60);
+      this.toast('The frame is complete! Now the roof: bark, leaves, then grass.', 'good');
+      this.emit({ type: 'shelterStage', stage: 6, id: s.id });
+    } else if (c.done === c.total && stage < 7) this.emit({ type: 'shelterStage', stage, id: s.id });
+    if (stage === 7 && roofed(s) && !this.hasEvent('shelter.roof.covered')) {
+      this.science('shelter.roof.covered');
+      this.addXp(40);
+      this.toast('The roof is on. Will it keep the rain out? We are about to find out.', 'good');
+      this.emit({ type: 'shelterStage', stage: 7, id: s.id });
+    }
+    this.checkQuests();
+  }
+
+  /** The nearest unfinished lashing joint within `reach` m of a point (the hand), or null. */
+  lashTarget(x: number, z: number, y: number, reach = 0.7): { structure: PlacedStructure; index: number; progress: number; x: number; y: number; z: number } | null {
+    const s = this.leanTo();
+    if (!s) return null;
+    const def = BLUEPRINTS.leanTo;
+    let best: { structure: PlacedStructure; index: number; progress: number; x: number; y: number; z: number } | null = null;
+    let bd = reach;
+    def.spots.forEach((sp, i) => {
+      if (sp.gesture !== 'lash' || s.spots[i] !== null || isSpotLocked(s, i)) return;
+      const p = spotWorldPosition(s, i);
+      const d = Math.hypot(p.x - x, p.y - y, p.z - z);
+      if (d < bd) {
+        bd = d;
+        best = { structure: s, index: i, progress: s.work?.[i] ?? 0, x: p.x, y: p.y, z: p.z };
+      }
+    });
+    return best;
+  }
+
+  /**
+   * Tighten the cord on a joint by `amount` (0..1 of the joint): the hands twist it. Needs cord. At 1 the joint is
+   * lashed: the cord is used up, the joint is secured, and the first one teaches why tension holds a frame together.
+   */
+  lashJoint(structureId: number, index: number, amount: number): number {
+    const s = this.structures.find((t) => t.id === structureId);
+    if (!s || s.kind !== 'leanTo') return 0;
+    const spot = BLUEPRINTS.leanTo.spots[index];
+    if (!spot || spot.gesture !== 'lash' || s.spots[index] !== null || isSpotLocked(s, index)) return 0;
+    if (this.count('cord') <= 0 && this.held !== 'cord') {
+      this.toast('You need cord to lash a joint: twist plant fibres into cord at the workbench.', 'bad');
+      return 0;
+    }
+    s.work ??= {};
+    const p = Math.min(1, (s.work[index] ?? 0) + Math.max(0, amount));
+    s.work[index] = p;
+    this.emit({ type: 'lash', id: s.id, index, progress: p });
+    if (p < 1) return p;
+    if (this.held === 'cord') this.consumeHeld();
+    else {
+      this.satchel.set('cord', this.count('cord') - 1);
+      this.emit({ type: 'satchel' });
+    }
+    s.spots[index] = 'cord';
+    const at = spotWorldPosition(s, index);
+    s.spotPos ??= BLUEPRINTS.leanTo.spots.map(() => null);
+    s.spotPos[index] = { x: at.x, z: at.z };
+    this.log.add(`lashed leanTo#${s.id}[${index}]`);
+    this.fx('seat', 1);
+    this.emit({ type: 'placed', x: at.x, y: at.y, z: at.z });
+    this.science('shelter.lashing.tight');
+    this.toast('Tight. The cord is in tension, and that keeps the poles from spreading.', 'good');
+    this.emit({ type: 'structure', structure: s });
+    this.shelterProgress(s, index);
+    return 1;
+  }
+
+  /** Put the drainage plan on the uphill side of the shelter (once), for the rain test. */
+  private ensureDrainage(s: PlacedStructure): PlacedStructure {
+    const have = this.structures.find((t) => t.kind === 'drainage');
+    if (have) return have;
+    const def = BLUEPRINTS.drainage;
+    const d: PlacedStructure = { id: this.nextStructureId++, kind: 'drainage', x: s.x, z: s.z, rotY: s.rotY, key: 'diggingStick', spots: def.spots.map(() => null), complete: false };
+    this.structures.push(d);
+    this.emit({ type: 'structure', structure: d });
+    return d;
+  }
+
+  /** Is the shelter's drainage channel dug? */
+  drained(): boolean {
+    return this.structures.some((t) => t.kind === 'drainage' && t.complete);
+  }
+
+  /** Is a point under the shelter roof? */
+  insideShelter(x: number, z: number): boolean {
+    const s = this.leanTo();
+    return !!s && roofed(s) && insideShelter(s, x, z);
+  }
+
+  /** The rain test and resting, a few times a second (called from tick). */
+  private tickShelter(dt: number): void {
+    const s = this.leanTo();
+    const test = this.shelterTest;
+    if (!s) {
+      if (this.forcedRain) {
+        this.env.forceWeather = null;
+        this.forcedRain = false;
+      }
+      return;
+    }
+    const leaks = leakingPanels(s);
+    const readyForRain = roofed(s) && this.time - this.lastBuildAt > 20;
+    const ev = test.update(dt, { roofed: readyForRain, leaks: leaks.length, drained: this.drained(), inside: this.insideShelter(this.player.x, this.player.z) });
+    if (test.raining && !this.forcedRain) {
+      this.env.forceWeather = 'heavyRain';
+      this.forcedRain = true;
+    } else if (!test.raining && this.forcedRain) {
+      this.env.forceWeather = null;
+      this.forcedRain = false;
+    }
+    if (test.raining && RAIN_MAX - test.rainLeft > 8 && leaks.length < 3) this.science('shelter.roof.sheds');
+    switch (ev) {
+      case 'rainBegan':
+        this.science('shelter.rain.begin');
+        this.ensureDrainage(s);
+        this.toast(leaks.length ? 'Rain! Watch the roof: where does the water get in?' : 'Rain begins to fall. Stay under the roof and watch.', 'note');
+        break;
+      case 'leakSeen':
+        this.science('shelter.leak.found');
+        this.toast('Drip! Water is coming through the thin part of the roof. Add the missing layer there.', 'bad');
+        break;
+      case 'sealed':
+        this.science('shelter.layers.sealed');
+        this.toast('The drips stopped: layers overlapped like tiles keep each drop moving downhill.', 'good');
+        break;
+      case 'drained':
+        this.science('shelter.drain.dug');
+        this.toast('The channel carries the runoff around your shelter.', 'good');
+        break;
+      case 'rested':
+        this.setFlag('shelterRested');
+        this.science('shelter.rested');
+        this.toast('Dry and out of the wind. You could stay here all night.', 'good');
+        break;
+      case 'passed':
+        this.setFlag('shelterTested');
+        this.addXp(80);
+        this.toast('The shelter held. You built that, and now you understand why it works.', 'good');
+        this.emit({ type: 'shelterStage', stage: 8, id: s.id });
+        break;
+      case 'rainEased':
+        this.toast('The shower eases off. It will come back: finish the roof and the channel.', 'note');
+        break;
+      default:
+        break;
+    }
+    if (ev) this.checkQuests();
   }
 
   nearbyWorkbench(): PlacedStructure | null {
@@ -1461,6 +1677,8 @@ export class Game {
   }
 
   checkQuests(): void {
+    // Chapter 2 opens the moment its first quest is the current one.
+    if (this.quest?.title === 'A Place to Call Home') this.science('story.ch2.begin');
     while (this.quest && this.quest.steps.every((s) => s.done(this))) {
       const q = this.quest;
       const index = this.questIndex;
@@ -1575,6 +1793,7 @@ export class Game {
         spotPos: s.spotPos?.map((p) => (p ? { ...p } : null)),
         keyPos: s.keyPos ? { ...s.keyPos } : undefined,
         store: s.store ? { ...s.store } : undefined,
+        work: s.work ? { ...s.work } : undefined,
       })),
       discovered: [...this.discovered],
       flags: [...this.flags],
@@ -1587,6 +1806,7 @@ export class Game {
       objectives: this.objectives.snapshot(),
       story: this.story.snapshot(),
       assist: this.assist.snapshot(),
+      shelterTest: this.shelterTest.snapshot(),
       env: this.env.snapshot(),
     };
   }
@@ -1623,6 +1843,7 @@ export class Game {
     g.held = data.held && data.held in ITEMS ? data.held : null;
     g.objectives.restore(data.objectives);
     g.assist.restore(data.assist);
+    g.shelterTest.restore(data.shelterTest);
     g.story.restore(data.story);
     return g;
   }
@@ -1637,6 +1858,8 @@ export interface SaveData {
   story?: StorySave;
   /** Adaptive assistance strain per channel; absent in older saves (starts at the default). */
   assist?: AssistSave;
+  /** Chapter 2 rain test state; absent in older saves. */
+  shelterTest?: ShelterTestSave;
   env?: EnvironmentSave;
   packUpgrades?: string[];
   drops?: WorldDrop[];

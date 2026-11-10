@@ -51,7 +51,20 @@ function stone(color: number, size: number): Mesh {
   return m;
 }
 
+/** A long, straight, dry pole: slightly tapered, one end splintered, a snapped stub, lying on the ground. */
+function poleMesh(): Object3D {
+  const g = new Group();
+  const shaft = new Mesh(new CylinderGeometry(0.032, 0.048, 1.6, 7), lambert(0x8a6a45));
+  g.add(at(shaft, 0, 0.05, 0, 0, 0, Math.PI / 2));
+  const stub = new Mesh(new CylinderGeometry(0.012, 0.02, 0.14, 5), lambert(0x7a5c3b));
+  g.add(at(stub, 0.3, 0.1, 0.03, 0.9, 0, 0));
+  const cap = new Mesh(new CylinderGeometry(0.048, 0.04, 0.05, 7), lambert(0xc9a86a));
+  g.add(at(cap, -0.8, 0.05, 0, 0, 0, Math.PI / 2));
+  return g;
+}
+
 const builders: Record<ResourceLook, () => Object3D> = {
+  pole: poleMesh,
   grass: () => {
     const g = new Group();
     for (let i = 0; i < 18; i++) {
@@ -227,6 +240,7 @@ const ITEM_LOOK: Partial<Record<ItemId, ResourceLook>> = {
   slab: 'slab',
   forkedStick: 'forkedStick',
   diggingStick: 'diggingStick',
+  pole: 'pole',
 };
 
 const itemCache = new Map<ItemId, Object3D>();

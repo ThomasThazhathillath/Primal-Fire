@@ -5,7 +5,7 @@
 import { QUESTS } from './quests.js';
 
 export interface GameLevel {
-  n: 1 | 2 | 3;
+  n: 1 | 2 | 3 | 4;
   name: string;
   /** Titles of the quests in this level, in order. */
   quests: string[];
@@ -36,6 +36,13 @@ export const GAME_LEVELS: GameLevel[] = [
     quests: ['Make Camp', 'Catch a Fish', 'Cook Your Catch', 'Grow Food'],
     intro: 'Build a camp around your fire, spear fish in the stream, cook them, and grow food of your own.',
     xp: 250,
+  },
+  {
+    n: 4,
+    name: 'The Living Camp',
+    quests: ['A Place to Call Home', 'The Foundation', 'Build the Frame', 'Roof Over Your Head', 'Test Your Engineering'],
+    intro: 'Fire is not enough. Build a real shelter with your hands, one stage at a time, then test it against the rain.',
+    xp: 300,
   },
 ];
 

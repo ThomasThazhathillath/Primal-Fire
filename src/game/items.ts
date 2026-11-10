@@ -6,6 +6,7 @@ export type ItemId =
   | 'dampMoss'
   | 'twigs'
   | 'logs'
+  | 'pole'
   | 'fibers'
   | 'cord'
   | 'spindle'
@@ -98,6 +99,7 @@ export const ITEMS: Record<ItemId, ItemDef> = {
     weight: 3, usedFor: 'Fuel that keeps a fire burning; chop with an axe',
     firstObservation: 'g_dead',
   },
+  pole: { name: 'Long pole', cats: ['fuel', 'craft'], color: 0x8a6a45, weight: 2.2, usedFor: 'Uprights, ridge and ribs of a shelter frame' },
   fibers: { name: 'Plant fibres', cats: ['craft'], color: 0x7a9a42, weight: 0.1, usedFor: 'Twist into cord at your workbench' },
   cord: { name: 'Cord', cats: ['craft'], color: 0xc9b48a, weight: 0.1, usedFor: 'Lashes tools together; strings a bow drill' },
   spindle: { name: 'Straight stick', cats: ['craft'], color: 0xc49a66, weight: 0.4, usedFor: 'The spinning stick of a bow drill; handles and arrows' },
@@ -165,6 +167,7 @@ export const SATCHEL_ORDER: ItemId[] = [
   'dampMoss',
   'twigs',
   'logs',
+  'pole',
   'fibers',
   'cord',
   'spindle',
@@ -246,6 +249,7 @@ export const ITEM_PHYSICS: Record<ItemId, ItemPhysics> = {
   dryGrass: { size: [0.2, 0.08, 0.2], material: 'leaf', surface: 'soft', interaction: 'pouch', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false },
   dampMoss: { size: [0.12, 0.05, 0.12], material: 'leaf', surface: 'soft', interaction: 'pouch', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false },
   twigs: { size: [0.3, 0.06, 0.1], material: 'wood', surface: 'rough', interaction: 'pouch', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: true },
+  pole: { size: [1.6, 0.08, 0.08], material: 'wood', surface: 'rough', interaction: 'twoHand', grips: [{ x: -0.5, y: 0, z: 0 }, { x: 0.5, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false },
   logs: { size: [0.9, 0.18, 0.18], material: 'wood', surface: 'rough', interaction: 'twoHand', grips: [{ x: -0.35, y: 0, z: 0 }, { x: 0.35, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false },
   fibers: { size: [0.3, 0.03, 0.05], material: 'fibre', surface: 'soft', interaction: 'pouch', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false },
   cord: { size: [0.1, 0.03, 0.1], material: 'fibre', surface: 'soft', interaction: 'pouch', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false },

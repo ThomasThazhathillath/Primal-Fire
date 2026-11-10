@@ -31,12 +31,14 @@ import {
   BLUEPRINTS,
   blueprintsForKeyItem,
   checkPlacement,
+  isSpotLocked,
   type BlueprintDef,
   type PlacedStructure,
   spotWorldPosition,
 } from '../game/blueprint.js';
 import type { GameEvent } from '../game/game.js';
 import { findBookSpot } from '../game/buildbook.js';
+import { buildShelter } from '../scene-assets/leanto.js';
 import { BlueprintGhost, SnapSpot, StructurePart } from '../components/game-components.js';
 import { itemMesh } from '../scene-assets/item-meshes.js';
 import type { ItemId } from '../game/items.js';
@@ -50,11 +52,15 @@ const AIM_LOOKBACK = 0.15;
 const HISTORY = 24;
 
 const ghostOk = new MeshBasicMaterial({ color: 0x4dff7a, transparent: true, opacity: 0.55, depthWrite: false, side: DoubleSide });
+/** The ghost of what can go on next: faint, so a roof of ghost layers never hides the real one. */
+const ghostSoft = new MeshBasicMaterial({ color: 0x4dff7a, transparent: true, opacity: 0.2, depthWrite: false });
 const ghostBad = new MeshBasicMaterial({ color: 0xff4a2e, transparent: true, opacity: 0.55, depthWrite: false, side: DoubleSide });
 const spotMat = new MeshBasicMaterial({ color: 0xffc766, transparent: true, opacity: 0.95 });
 /** The soft glow under every open mark, so it reads from a distance. */
 const spotGlowMat = new MeshBasicMaterial({ color: 0xffb547, transparent: true, opacity: 0.32, depthWrite: false, side: DoubleSide });
 const spotGlowGeo = new CircleGeometry(0.17, 18);
+/** Joints that are tied by hand with cord: a cooler ring than the set-down marks. */
+const lashMat = new MeshBasicMaterial({ color: 0x7fe8ff, transparent: true, opacity: 0.95 });
 const ashMat = new MeshBasicMaterial({ color: 0x2b241e });
 const partGeo = new SphereGeometry(0.16, 8, 6);
 const partMat = new MeshBasicMaterial({ visible: false });
@@ -74,6 +80,8 @@ export class BuildSystem extends createSystem({
   private ghostEntity!: Entity;
   private ghostRoot!: Group;
   private ghostKind: BlueprintDef['kind'] | null = null;
+  /** A finished stage of the shelter: its frame settles with a little bounce. */
+  private bounce: { id: number; t: number } | null = null;
   private ghostDisc!: Mesh;
   private views = new Map<number, StructureView>();
   private pointer = new Vector2(0, 0);
@@ -115,6 +123,13 @@ export class BuildSystem extends createSystem({
           this.renderStructure(e.structure);
           this.setGhost(this.ghostFor(getGame(this.world).held));
         }
+        // Lashing a joint: the cord wraps grow with every twist.
+        if (e.type === 'lash') {
+          const st = getGame(this.world).structures.find((t) => t.id === e.id);
+          if (st) this.renderStructure(st);
+        }
+        // A stage was finished: the whole frame settles with a small bounce.
+        if (e.type === 'shelterStage') this.bounce = { id: e.id, t: 0 };
       }),
       // Pointer presses drive the browser; VR uses selectstart (below).
       this.queries.ghostPressed.subscribe('qualify', () => !this.immersive() && this.placeGhost()),
@@ -315,6 +330,11 @@ export class BuildSystem extends createSystem({
     /** World point -> this structure's local frame (inverse of spotWorldPosition). */
     const local = (p: { x: number; z: number }) => ({ x: (p.x - s.x) * c - (p.z - s.z) * n, z: (p.x - s.x) * n + (p.z - s.z) * c });
     const view: StructureView = { root: this.world.createTransformEntity(root), spots: [] };
+    if (s.kind === 'leanTo' || s.kind === 'drainage') {
+      this.renderShelter(s, view, root);
+      this.views.set(s.id, view);
+      return;
+    }
     const key = itemMesh(s.key);
     if ((def.keyLast && !s.keyPlaced) || s.keyOpen) {
       // Not on yet: a faint ghost shows where the slab will rest.
@@ -384,6 +404,55 @@ export class BuildSystem extends createSystem({
     this.views.set(s.id, view);
   }
 
+  /** The Chapter 2 shelter and its channel: what is built so far, a ghost of what can go on next, marks for open spots. */
+  private renderShelter(s: PlacedStructure, view: StructureView, root: Group): void {
+    const def = BLUEPRINTS[s.kind];
+    root.add(buildShelter(s));
+    // A faint ghost of the parts that can go on right now (open, unlocked, set down not tied).
+    // Roof layers: ghost only the layer that goes on next (bark, then leaves, then grass), never all three at once.
+    const ORDER = ['roofBark', 'roofLeaf', 'roofGrass'];
+    let nextLayer = 9;
+    def.spots.forEach((sp, i) => {
+      const k = ORDER.indexOf(sp.role ?? '');
+      if (k >= 0 && s.spots[i] === null && !isSpotLocked(s, i)) nextLayer = Math.min(nextLayer, k);
+    });
+    const open = s.spots.map((v, i) => {
+      if (v !== null || def.spots[i].gesture || isSpotLocked(s, i)) return v;
+      const k = ORDER.indexOf(def.spots[i].role ?? '');
+      if (k >= 0 && k !== nextLayer) return v;
+      return def.spots[i].accepts[0] as ItemId;
+    });
+    if (s.kind === 'leanTo' && (open.some((v, i) => v !== s.spots[i]) || s.keyOpen)) {
+      const ghost = buildShelter({ ...s, spots: open as PlacedStructure['spots'], keyOpen: !s.keyOpen, work: undefined });
+      ghost.name = 'ShelterGhost';
+      ghost.traverse((o) => {
+        if ((o as Mesh).isMesh) (o as Mesh).material = ghostSoft;
+      });
+      root.add(ghost);
+    }
+    // Marks: the key slot of a book plan, every open unlocked spot, and lashing joints (cord, by hand).
+    const ringAt = (x: number, y: number, z: number, index: number, lash: boolean) => {
+      const ring = new Mesh(new TorusGeometry(lash ? 0.12 : 0.1, 0.02, 6, 20), lash ? lashMat : spotMat);
+      const glow = new Mesh(spotGlowGeo, spotGlowMat);
+      ring.add(glow);
+      ring.rotation.x = -Math.PI / 2;
+      const p = spotWorldPosition(s, index);
+      ring.position.set(p.x, Math.max(0.05, p.y), p.z);
+      ring.name = `SnapSpot_${s.id}_${index}`;
+      const e = this.world.createTransformEntity(ring);
+      e.addComponent(SnapSpot, { structureId: s.id, index });
+      e.addComponent(RayInteractable);
+      view.spots.push(e);
+      void x;
+      void y;
+      void z;
+    };
+    def.spots.forEach((sp, i) => {
+      if (s.spots[i] !== null || isSpotLocked(s, i)) return;
+      ringAt(sp.x, sp.y, sp.z, i, sp.gesture === 'lash');
+    });
+  }
+
   /** An invisible press target over a part (the part itself stays in the structure's group). */
   private partProxy(part: Object3D, rotY: number): Mesh {
     const proxy = new Mesh(partGeo, partMat);
@@ -407,6 +476,19 @@ export class BuildSystem extends createSystem({
     if (this.ghostKind) {
       if (hit) this.moveGhostTo(this.origin.x, this.origin.z);
       else this.ghostRoot.visible = false;
+    }
+    // The frame settles after a finished stage.
+    if (this.bounce) {
+      this.bounce.t += delta;
+      const v = this.views.get(this.bounce.id);
+      const k = this.bounce.t / 0.7;
+      if (!v || k >= 1) {
+        if (v?.root.object3D) v.root.object3D.scale.set(1, 1, 1);
+        this.bounce = null;
+      } else if (v.root.object3D) {
+        const y = 1 + Math.sin(k * Math.PI) * Math.exp(-k * 2) * 0.06;
+        v.root.object3D.scale.set(1, y, 1);
+      }
     }
     this.pulse += delta;
     const s = 1 + Math.sin(this.pulse * 4) * 0.2;

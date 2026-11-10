@@ -52,6 +52,8 @@ const AIM_LOOKBACK = 0.15;
 const HISTORY = 24;
 
 const ghostOk = new MeshBasicMaterial({ color: 0x4dff7a, transparent: true, opacity: 0.55, depthWrite: false, side: DoubleSide });
+/** The ghost of what can go on next: faint, so a roof of ghost layers never hides the real one. */
+const ghostSoft = new MeshBasicMaterial({ color: 0x4dff7a, transparent: true, opacity: 0.2, depthWrite: false });
 const ghostBad = new MeshBasicMaterial({ color: 0xff4a2e, transparent: true, opacity: 0.55, depthWrite: false, side: DoubleSide });
 const spotMat = new MeshBasicMaterial({ color: 0xffc766, transparent: true, opacity: 0.95 });
 /** The soft glow under every open mark, so it reads from a distance. */
@@ -407,12 +409,24 @@ export class BuildSystem extends createSystem({
     const def = BLUEPRINTS[s.kind];
     root.add(buildShelter(s));
     // A faint ghost of the parts that can go on right now (open, unlocked, set down not tied).
-    const open = s.spots.map((v, i) => (v === null && !def.spots[i].gesture && !isSpotLocked(s, i) ? (def.spots[i].accepts[0] as ItemId) : v));
+    // Roof layers: ghost only the layer that goes on next (bark, then leaves, then grass), never all three at once.
+    const ORDER = ['roofBark', 'roofLeaf', 'roofGrass'];
+    let nextLayer = 9;
+    def.spots.forEach((sp, i) => {
+      const k = ORDER.indexOf(sp.role ?? '');
+      if (k >= 0 && s.spots[i] === null && !isSpotLocked(s, i)) nextLayer = Math.min(nextLayer, k);
+    });
+    const open = s.spots.map((v, i) => {
+      if (v !== null || def.spots[i].gesture || isSpotLocked(s, i)) return v;
+      const k = ORDER.indexOf(def.spots[i].role ?? '');
+      if (k >= 0 && k !== nextLayer) return v;
+      return def.spots[i].accepts[0] as ItemId;
+    });
     if (s.kind === 'leanTo' && (open.some((v, i) => v !== s.spots[i]) || s.keyOpen)) {
       const ghost = buildShelter({ ...s, spots: open as PlacedStructure['spots'], keyOpen: !s.keyOpen, work: undefined });
       ghost.name = 'ShelterGhost';
       ghost.traverse((o) => {
-        if ((o as Mesh).isMesh) (o as Mesh).material = ghostOk;
+        if ((o as Mesh).isMesh) (o as Mesh).material = ghostSoft;
       });
       root.add(ghost);
     }

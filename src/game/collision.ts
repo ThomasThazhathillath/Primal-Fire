@@ -178,6 +178,8 @@ export class CollisionWorld {
     // Structures move with the game state: refresh pooled proxies each query.
     for (let i = 0; i < this.structures.length; i++) {
       const s = this.structures[i];
+      // The shelter is walked into (its poles are thin): only the solid builds block you.
+      if (s.kind === 'leanTo' || s.kind === 'drainage') continue;
       const sp = (this.structurePool[i] ??= circle(0, 0, 0, 'structure'));
       sp.ax = sp.bx = s.x;
       sp.az = sp.bz = s.z;
@@ -215,6 +217,7 @@ export class CollisionWorld {
     for (const p of this.dynamic.values()) if (this.overlaps(p, x, z, r)) return true;
     const sp = this.structureProxy;
     for (const s of this.structures) {
+      if (s.kind === 'leanTo' || s.kind === 'drainage') continue;
       sp.ax = sp.bx = s.x;
       sp.az = sp.bz = s.z;
       sp.r = BLUEPRINTS[s.kind].radius * 0.8;

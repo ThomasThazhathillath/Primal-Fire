@@ -3,6 +3,7 @@
 
 import { createSystem, type UIKit, type UIKitMLAsset, VisibilityState } from '@iwsdk/core';
 import { HudSystem } from './hud-system.js';
+import { StorySystem } from './story-system.js';
 import { getGame, hidePanel } from './shared.js';
 import { WorldSystem } from './world-system.js';
 
@@ -46,7 +47,10 @@ export class IntroSystem extends createSystem({}) {
     this.world.getSystem(HudSystem)?.show();
     const game = getGame(this.world);
     game.log.add('woke up', 'ok');
-    game.toast(game.time > 0 ? 'Welcome back.' : 'You wake on the forest floor with nothing. Start with what you need for fire.', 'note');
+    const story = this.world.getSystem(StorySystem);
+    if (game.time > 0 || !story) game.toast(game.time > 0 ? 'Welcome back.' : 'You wake on the forest floor with nothing. Start with what you need for fire.', 'note');
+    // A new game: the awakening (dark fade-in and first thoughts), once.
+    story?.awaken();
     game.checkQuests();
   }
 }

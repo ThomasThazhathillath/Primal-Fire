@@ -196,6 +196,8 @@ export class TutorialSystem extends createSystem({}, { tutorial: { type: Types.B
       return;
     }
     for (const id of carry.learned) game.objectives.learn(id as InteractionId);
+    // The opening already told the awakening: survival goes on from the morning after.
+    game.story.markSeen('awake');
     game.log.add(`story carry: learned ${carry.learned.join(',') || 'nothing'}`, 'ok');
     this.lines.push("Morning. Last night's fire is ash, and you are somewhere new.", 'The mast is still there on the horizon. You know how to begin.');
   }

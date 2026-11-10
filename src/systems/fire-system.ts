@@ -45,6 +45,9 @@ const TRANSFER_RADIUS = 0.45;
 
 const emberMat = new MeshBasicMaterial({ color: 0xff6a1a });
 
+/** Seconds the first fire takes to grow from a flicker to full flame. */
+const FIRST_FIRE_GROW = 10;
+
 export class FireSystem extends createSystem({
   pitPressed: { required: [FirePitSpot, Pressed] },
 }) {
@@ -64,6 +67,8 @@ export class FireSystem extends createSystem({
   private lay!: Group;
   private glow!: Mesh;
   private light!: PointLight;
+  /** The first fire grows from ember to full over FIRST_FIRE_GROW seconds (story: the first victory). 1 = full. */
+  private growth = 1;
   private sparks!: Points;
   private sparkPos!: Float32Array;
   private sparkVel = new Float32Array(SPARKS * 3);
@@ -94,6 +99,15 @@ export class FireSystem extends createSystem({
     this.root.name = 'FireFx';
     this.root.visible = false;
     this.world.createTransformEntity(this.root);
+    {
+      const game = getGame(this.world);
+      this.cleanupFuncs.push(
+        game.on((e) => {
+          // Only the very first ignition (the story beat has not been told yet): later fires light as before.
+          if (e.type === 'fire' && e.stage === 'burning' && this.growth >= 1 && !game.story.seen.has('fireLit')) this.growth = 0;
+        }),
+      );
+    }
 
     this.lay = new Group();
     this.root.add(this.lay);
@@ -383,7 +397,10 @@ export class FireSystem extends createSystem({
     // Flames turn to face you around the vertical axis (cheap billboarding).
     this.camera.getWorldPosition(this.eye);
     const yaw = Math.atan2(this.eye.x - this.pitPos.x, this.eye.z - this.pitPos.z);
-    const flameLevel = burning ? intensity : embedded ? 0.25 : 0;
+    if (this.growth < 1) this.growth = Math.min(1, this.growth + delta / FIRST_FIRE_GROW);
+    // Eased: a small tongue of flame, then it takes hold.
+    const grow = this.growth * this.growth * (3 - 2 * this.growth);
+    const flameLevel = burning ? intensity * (0.3 + 0.7 * grow) : embedded ? 0.25 : 0;
     for (let i = 0; i < FLAMES; i++) {
       const f = this.flames[i];
       f.visible = flameLevel > 0;
@@ -398,10 +415,11 @@ export class FireSystem extends createSystem({
     this.glow.visible = glowLevel > 0.02;
     this.glowMat.uniforms.uIntensity.value = glowLevel * (0.55 + 0.08 * Math.sin(this.t * 7.1) + 0.05 * Math.sin(this.t * 13.7));
     // Firelight: layered flicker so it never pulses like a metronome.
-    this.light.intensity = burning ? 2.4 * (1 + 0.5 * getGame(this.world).env.night) * intensity * (0.82 + 0.1 * Math.sin(this.t * 11.3) + 0.06 * Math.sin(this.t * 23.7 + 1.3) + 0.04 * Math.sin(this.t * 37.1)) : embedded ? 0.4 : 0;
+    this.light.intensity = burning ? 2.4 * (1 + 0.5 * getGame(this.world).env.night) * intensity * (0.25 + 0.75 * grow) * (0.82 + 0.1 * Math.sin(this.t * 11.3) + 0.06 * Math.sin(this.t * 23.7 + 1.3) + 0.04 * Math.sin(this.t * 37.1)) : embedded ? 0.4 : 0;
 
     // Smoke: thick while it smoulders, thinner once it burns cleanly.
-    const ownRate = embedded && !burning ? 3 : burning ? 1.4 : heat > 0.3 ? heat * 2 : 0;
+    // The first fire sends up a thicker column while it takes hold.
+    const ownRate = embedded && !burning ? 3 : burning ? 1.4 * (1 + 1.6 * (1 - grow)) : heat > 0.3 ? heat * 2 : 0;
     // Sawing smokes at the drilled board as soon as the spindle turns fast enough.
     const drillRate = this.rigOn ? drillSmokeRate(this.spinRate, heat) : 0;
     const fromRig = drillRate > ownRate;

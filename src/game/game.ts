@@ -37,7 +37,7 @@ const GUIDE_CODE_FOR: Partial<Record<GuideFailureCode, string>> = {
   'knap.badAngle': 'knap.angleTooSteep',
   'cord.sameDirection': 'twist.sameDirection',
 };
-import { ASSIST, openMarks, resolveTarget, snapVerdict, type Candidate } from './assist.js';
+import { ASSIST, needText, openMarks, resolveTarget, snapVerdict, type Candidate } from './assist.js';
 import { Adaptive, type AssistSave } from './adaptive.js';
 import { CONTINUOUS, type IntentAction, type IntentTarget, resolveIntent } from './intent.js';
 import { ObjectiveTracker, type ObjectivesSave } from './objectives.js';
@@ -91,6 +91,8 @@ export type GameEvent =
 
 /** XP needed to reach each level (index = level − 1). */
 export const LEVELS = [0, 100, 250, 450, 700, 1000, 1400, 99999];
+/** While building, refill your hand with the next part only within this distance (m) of the build. */
+export const REFILL_RANGE = 4;
 /** How close (m) you must stand to a workbench to craft at it. */
 export const CRAFT_REACH = 2.5;
 
@@ -158,6 +160,11 @@ export class Game {
   facingYaw = 0;
   /** Per-player assistance: grows with repeated misses, eases with successes, saved (adaptive.ts). */
   readonly assist = new Adaptive();
+  /**
+   * While building: after you place a part, if the build still wants it and your bag has more, the next one appears
+   * in your hand. Stops with Put away (cancelRefill) or when you walk away from the build. Not saved.
+   */
+  autoRefill = true;
   /**
    * The structure the current lesson wants (set by the tutorial): `undefined` = no lesson says anything,
    * `null` = this lesson builds nothing, so no outline may start. Takes precedence over the objective.
@@ -728,6 +735,7 @@ export class Game {
     this.satchel.set(id, this.count(id) - 1);
     this.held = id;
     this.actionProgress = 0;
+    this.autoRefill = true; // taking something out by hand starts a fresh run
     this.log.add(`took out ${id}`);
     this.emit({ type: 'satchel' });
     this.emit({ type: 'held', item: id });
@@ -1040,8 +1048,13 @@ export class Game {
       return false;
     }
     const m = v.mark;
-    this.assist.success('place');
-    return m.index >= 0 ? this.fillSpot(m.structure.id, m.index, item, { x: m.x, z: m.z }) : this.placeKey(m.structure.id, m.x, m.z, o.hands ?? 1);
+    const wasHeld = this.held === item;
+    const ok = m.index >= 0 ? this.fillSpot(m.structure.id, m.index, item, { x: m.x, z: m.z }) : this.placeKey(m.structure.id, m.x, m.z, o.hands ?? 1);
+    if (ok) {
+      this.assist.success('place');
+      if (wasHeld) this.refill(item);
+    }
+    return ok;
   }
 
   /**
@@ -1119,6 +1132,50 @@ export class Game {
     }
     if (ok) this.log.add(`intent ${hit.action} with ${held ?? 'empty hand'}`);
     return ok ? hit.action : null;
+  }
+
+  /**
+   * Put the next `item` in the hand that just placed one, while the build still wants it, the bag has more and you
+   * are still at the build. Big two-hand parts are never refilled (the slab is lifted on purpose).
+   */
+  private refill(item: ItemId): boolean {
+    if (!this.autoRefill || this.held || this.count(item) <= 0 || !fitsPouch(item)) return false;
+    const near = openMarks(this.structures).some((m) => m.accepts.includes(item) && Math.hypot(m.x - this.player.x, m.z - this.player.z) <= REFILL_RANGE);
+    if (!near) return false;
+    const ok = this.takeOut(item);
+    if (ok) this.log.add(`auto-refill ${item}`);
+    return ok;
+  }
+
+  /** Stop refilling (Put away, or the player chose to do something else). Taking an item out by hand starts it again. */
+  cancelRefill(): void {
+    this.autoRefill = false;
+  }
+
+  /**
+   * Fill an open mark from the bag with an empty hand (pinch or tap a glowing mark): takes a matching item from
+   * the bag (or the hand) and seats it there. Says what is missing when the bag has nothing that fits.
+   */
+  fillFromBag(structureId: number, index: number): boolean {
+    const m = openMarks(this.structures).find((k) => k.structure.id === structureId && k.index === index);
+    if (!m) return false;
+    const item = this.held && m.accepts.includes(this.held) ? this.held : (m.accepts.find((i) => this.count(i) > 0) ?? null);
+    if (!item) {
+      this.toast(`This mark needs ${needText(m)}: you have none in your bag.`, 'bad');
+      this.assist.fail('place');
+      return false;
+    }
+    if (m.index < 0) {
+      // The top of a workbench is lifted on with both hands and pressed: bring it to the hand, the player does the rest.
+      if (!m.structure.keyOpen) {
+        if (this.held !== item) this.takeOut(item);
+        this.toast('Lower it onto the supports with both hands.', 'note');
+        return false;
+      }
+    }
+    const ok = m.index >= 0 ? this.fillSpot(structureId, index, item, { x: m.x, z: m.z }) : this.placeKey(structureId, m.x, m.z, 1);
+    if (ok) this.assist.success('place');
+    return ok;
   }
 
   /** A thrown part on the ground (a drop) was caught by an open mark: seat it there, or leave it lying if it will not fit. */

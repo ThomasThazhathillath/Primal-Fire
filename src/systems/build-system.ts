@@ -68,6 +68,7 @@ export class BuildSystem extends createSystem({
   ghostPressed: { required: [BlueprintGhost, Pressed] },
   spots: { required: [SnapSpot] },
   partPressed: { required: [StructurePart, Pressed] },
+  spotPressed: { required: [SnapSpot, Pressed] },
 }) {
   private ghostEntity!: Entity;
   private ghostRoot!: Group;
@@ -117,6 +118,12 @@ export class BuildSystem extends createSystem({
       // Pointer presses drive the browser; VR uses selectstart (below).
       this.queries.ghostPressed.subscribe('qualify', () => !this.immersive() && this.placeGhost()),
       this.queries.partPressed.subscribe('qualify', (e) => this.pressPart(e)),
+      // Pressing (clicking, ray-pinching) a glowing mark fills it from your bag.
+      this.queries.spotPressed.subscribe('qualify', (e) => {
+        const g = getGame(this.world);
+        if (g.held && g.wantsItem(g.held, g.player.x, g.player.z, 6)) return; // a held part is placed by letting go, not by this press
+        g.fillFromBag(e.getValue(SnapSpot, 'structureId') ?? 0, e.getValue(SnapSpot, 'index') ?? 0);
+      }),
     );
     const onSelectStart = (ev: XRInputSourceEvent) => this.onXRSelect(ev.inputSource.handedness);
     const onSessionStart = () => this.renderer.xr.getSession()?.addEventListener('selectstart', onSelectStart);

@@ -8,7 +8,7 @@
 
 import { type Entity, RayInteractable, type UIKitMLAsset, Vector3, type World } from '@iwsdk/core';
 import { RejectLog, rejectLine } from '../game/menu.js';
-import { fitTarget, IconState, TouchTracker, type TipSample, type TouchIcon } from '../game/ui-touch.js';
+import { fitTarget, IconState, TOUCH_CONFIG, TouchTracker, type TipSample, type TouchIcon } from '../game/ui-touch.js';
 import { hands } from './hand-input-system.js';
 import { tapSound } from './ui-fx.js';
 import { getGame, handClaims } from './shared.js';
@@ -29,6 +29,8 @@ interface Target {
 }
 
 const rejectLog = new RejectLog(1500);
+/** The default tap-area scale (ui-touch.ts); adaptive assistance multiplies it. */
+const BASE_TAP_SCALE = TOUCH_CONFIG.radiusScale;
 
 /** Is the element and everything above it displayed (display: none hides a whole row)? */
 function shown(el: Target['el']): boolean {
@@ -186,6 +188,9 @@ export class PanelTouch {
         const id = this.active[tr.rejectIcon].id;
         if (rejectLog.shouldLog(`${this.name}:${id}:${tr.reject}:${h}`, performance.now())) {
           getGame(this.world).log.add(rejectLine(this.name, id, tr.reject, h));
+          // A tap that keeps being refused makes the targets a little bigger (adaptive.ts).
+          getGame(this.world).assist.fail('tap');
+          TOUCH_CONFIG.radiusScale = BASE_TAP_SCALE * getGame(this.world).assist.scale('tap');
         }
       }
       if (hit >= 0 && hit < n) {
@@ -194,6 +199,8 @@ export class PanelTouch {
         if (this.taps.length > 50) this.taps.shift();
         this.taps.push(t.id);
         tapSound();
+        getGame(this.world).assist.success('tap');
+        TOUCH_CONFIG.radiusScale = BASE_TAP_SCALE * getGame(this.world).assist.scale('tap');
         this.flash(t);
         t.tap();
         return; // the handler may have closed the panel

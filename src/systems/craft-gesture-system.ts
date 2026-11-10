@@ -179,7 +179,10 @@ export class CraftGestureSystem extends createSystem({}) {
 
   private resolveKnap(speed: number, edgeDist: number, angle: number, hitDir: Vector3): void {
     const game = getGame(this.world);
-    const r = this.core.strike(speed, edgeDist, angle);
+    // Repeated misses widen the strike edge a little (adaptive.ts); a clean flake eases it back.
+    const r = this.core.strike(speed, edgeDist / game.assist.scale('knap'), angle);
+    if (r.outcome === 'flake') game.assist.success('knap');
+    else if (r.code && r.code !== 'knap.coreSpent') game.assist.fail('knap');
     if (this.vr) pulse(this.renderer.xr.getSession(), 1, r.outcome === 'flake' ? 0.8 : 0.4, 50);
     this.coreObj.getWorldPosition(this.flakeFrom);
     // Hammerstone on flint: a sharp knap with sparks on a good flake, a dull crunch on a crushed edge.

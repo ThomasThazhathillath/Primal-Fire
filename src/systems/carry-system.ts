@@ -283,12 +283,13 @@ export class CarrySystem extends createSystem({}) {
     }
     this.markIdx = -1;
     if (!this.marks.length || this.reachT < 1) return;
-    const i = nearestMarkIndex(this.marks, item, this.target.x, this.target.z, ASSIST.magnetRadius);
+    const mg = game.assist.magnet();
+    const i = nearestMarkIndex(this.marks, item, this.target.x, this.target.z, ASSIST.magnetRadius * mg);
     if (i < 0) return;
     const m = this.marks[i];
     // The slab and other two-hand key parts are lowered with both hands and pass the push test: no magnet or touch there.
     if (m.index < 0 && !m.structure.keyOpen) return;
-    magnetPull(this.pull, MAGNET_LOOK, this.target.x, this.target.z, m.x, m.z);
+    magnetPull(this.pull, MAGNET_LOOK * mg, this.target.x, this.target.z, m.x, m.z, ASSIST, mg);
     this.target.x += this.pull.x;
     this.target.z += this.pull.z;
     this.markIdx = i;

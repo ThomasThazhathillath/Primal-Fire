@@ -38,6 +38,7 @@ const GUIDE_CODE_FOR: Partial<Record<GuideFailureCode, string>> = {
   'cord.sameDirection': 'twist.sameDirection',
 };
 import { ASSIST, openMarks, resolveTarget, snapVerdict, type Candidate } from './assist.js';
+import { Adaptive, type AssistSave } from './adaptive.js';
 import { CONTINUOUS, type IntentAction, type IntentTarget, resolveIntent } from './intent.js';
 import { ObjectiveTracker, type ObjectivesSave } from './objectives.js';
 import { QUESTS, type QuestStep } from './quests.js';
@@ -155,6 +156,8 @@ export class Game {
   readonly player = { x: 0, z: 0 };
   /** Head yaw in radians (0 = towards -Z); set each frame by the UI so directions can say "to your left". Not saved. */
   facingYaw = 0;
+  /** Per-player assistance: grows with repeated misses, eases with successes, saved (adaptive.ts). */
+  readonly assist = new Adaptive();
   /**
    * The structure the current lesson wants (set by the tutorial): `undefined` = no lesson says anything,
    * `null` = this lesson builds nothing, so no outline may start. Takes precedence over the objective.
@@ -1029,12 +1032,15 @@ export class Game {
    */
   seatNear(item: ItemId, x: number, z: number, o: { radius?: number; hands?: number; say?: boolean } = {}): boolean {
     const marks = openMarks(this.structures);
-    const v = snapVerdict(this.structures, marks, item, x, z, o.radius ?? ASSIST.buildArea);
+    const v = snapVerdict(this.structures, marks, item, x, z, (o.radius ?? ASSIST.buildArea) * this.assist.scale('place'));
     if (!v.ok) {
+      // A real attempt that missed (wrong material, or a mark in range of the hint but not of the snap) widens the help.
+      if (o.say && (v.reason === 'wrongMaterial' || v.reason === 'tooFar')) this.assist.fail('place');
       if (o.say && (v.reason === 'wrongMaterial' || v.reason === 'complete')) this.toast(v.message, 'bad');
       return false;
     }
     const m = v.mark;
+    this.assist.success('place');
     return m.index >= 0 ? this.fillSpot(m.structure.id, m.index, item, { x: m.x, z: m.z }) : this.placeKey(m.structure.id, m.x, m.z, o.hands ?? 1);
   }
 
@@ -1508,6 +1514,7 @@ export class Game {
       toolUses: Object.fromEntries(this.toolUses),
       fire: this.fire.snapshot(),
       objectives: this.objectives.snapshot(),
+      assist: this.assist.snapshot(),
       env: this.env.snapshot(),
     };
   }
@@ -1543,6 +1550,7 @@ export class Game {
     if (!data.env) g.env.hourOffset = -(((g.time / g.env.dayLength) * 24) % 24);
     g.held = data.held && data.held in ITEMS ? data.held : null;
     g.objectives.restore(data.objectives);
+    g.assist.restore(data.assist);
     return g;
   }
 }
@@ -1552,6 +1560,8 @@ export interface SaveData {
   fire?: FireSave;
   /** Beginner objectives; absent in older saves (migrated from the rest of the state). */
   objectives?: ObjectivesSave;
+  /** Adaptive assistance strain per channel; absent in older saves (starts at the default). */
+  assist?: AssistSave;
   env?: EnvironmentSave;
   packUpgrades?: string[];
   drops?: WorldDrop[];

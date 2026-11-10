@@ -71,6 +71,8 @@ export class HighlightSystem extends createSystem({
   private tmp = new Vector3();
   private arrow!: Mesh;
   private pool!: Mesh;
+  /** Where the adaptive placement indicator points (the nearest mark the held part fits), when you keep missing. */
+  private assistAt: { x: number; y: number; z: number } | null = null;
   private poolMat!: MeshBasicMaterial;
   private label!: Sprite;
   private labelCtx!: CanvasRenderingContext2D;
@@ -262,6 +264,25 @@ export class HighlightSystem extends createSystem({
         this.want.push({ id: `mark_${m.structure.id}_${m.index}`, kind, x: m.x, y: m.y, z: m.z, priority: highlightPriority(kind, d) });
       }
     }
+    // You keep missing a placement: the mark the held part fits gets a pulsing outline (and, if it goes on, an arrow).
+    this.assistAt = null;
+    const ind = game.assist.indicator();
+    if (game.held && ind >= 1 && this.marks.length) {
+      let best: Mark | null = null;
+      let bd = 6;
+      for (const m of this.marks) {
+        if (!m.accepts.includes(game.held)) continue;
+        const d = Math.hypot(m.x - this.head.x, m.z - this.head.z);
+        if (d < bd) {
+          bd = d;
+          best = m;
+        }
+      }
+      if (best) {
+        this.assistAt = { x: best.x, y: best.y, z: best.z };
+        this.want.push({ id: `assist_${best.structure.id}_${best.index}`, kind: 'exact', x: best.x, y: best.y, z: best.z, priority: highlightPriority('exact', bd) });
+      }
+    }
     for (const p of hintFx.pulse) this.want.push({ id: p.id, kind: 'hint', x: p.x, y: p.y, z: p.z, priority: highlightPriority('hint', Math.hypot(p.x - this.head.x, p.z - this.head.z)) });
     if (hintFx.exact) this.want.push({ id: hintFx.exact.id, kind: 'exact', x: hintFx.exact.x, y: hintFx.exact.y, z: hintFx.exact.z, priority: highlightPriority('exact', 0) });
     pickHighlights(this.want, ASSIST.highlightBudget, this.picked);
@@ -293,7 +314,7 @@ export class HighlightSystem extends createSystem({
       r.visible = true;
     }
     // Arrow over the one exact target.
-    this.arrow.visible = !!hintFx.exact;
+    this.arrow.visible = !!hintFx.exact || (!!this.assistAt && game.assist.indicator() >= 2);
     // The label follows the hovered target only.
     this.label.visible = !!h && this.hasTarget;
   }
@@ -322,8 +343,9 @@ export class HighlightSystem extends createSystem({
       this.pool.scale.setScalar(1 + Math.sin(this.t * 3) * 0.12);
       this.poolMat.opacity = 0.45 + Math.sin(this.t * 3) * 0.2;
     }
-    if (this.arrow.visible && hintFx.exact) {
-      this.arrow.position.set(hintFx.exact.x, Math.max(hintFx.exact.y, groundHeight(hintFx.exact.x, hintFx.exact.z)) + 0.75 + Math.sin(this.t * 4) * 0.1, hintFx.exact.z);
+    const arrowAt = hintFx.exact ?? this.assistAt;
+    if (this.arrow.visible && arrowAt) {
+      this.arrow.position.set(arrowAt.x, Math.max(arrowAt.y, groundHeight(arrowAt.x, arrowAt.z)) + 0.75 + Math.sin(this.t * 4) * 0.1, arrowAt.z);
     }
     if (this.label.visible) this.label.position.set(this.tx, this.ty + 0.55, this.tz);
     for (let i = 0; i < POPS; i++) {

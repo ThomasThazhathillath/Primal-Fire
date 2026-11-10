@@ -1,1 +1,0 @@
-return JSON.stringify({held:g.held, structs:g.structures.length, log:g.log.toString().split(' · ').slice(-5)})

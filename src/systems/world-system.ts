@@ -5,7 +5,12 @@ import { Color, createSystem, Fog, LocomotionSystem, Vector3, VisibilityState } 
 import { Game, type SaveData } from '../game/game.js';
 import { getGame, getUi } from './shared.js';
 
-const SAVE_KEY = 'primal-first-fire.save.v1';
+let SAVE_KEY = 'primal-first-fire.save.v1';
+
+/** Tutorial hook: point loading and saving at another key (the tutorial's own game). Call before loadGame(). */
+export function setSaveKey(key: string): void {
+  SAVE_KEY = key;
+}
 const SAVE_EVERY = 10;
 /** IWSDK's default sliding speed (m/s); scaled by how heavy your pack is. */
 const BASE_SLIDE = 4;

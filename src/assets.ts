@@ -44,4 +44,5 @@ export default defineAssets({
   'guide-panel': uikitml('guide.uikitml', 'Guide Card'),
   'level-panel': uikitml('level.uikitml', 'Level Card'),
   'bench-panel': uikitml('bench.uikitml', 'Workbench Recipes'),
+  'tutorial-panel': uikitml('tutorial.uikitml', 'Tutorial Tracker'),
 });

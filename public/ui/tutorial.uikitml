@@ -1,0 +1,63 @@
+<!--
+  The lesson tracker of "THE FIRST STEPS" (TutorialSystem). Compact: the
+  lesson title, one line from the guide, up to four task rows that tick, one
+  small tip, then Repeat / Skip / Leave and a row of lesson numbers to replay
+  any lesson. The choice row (Tutorial or Skip to survival) and the finish row
+  replace the lesson body when shown. Same field-journal theme as the cards.
+-->
+<style>
+  .t-root { background-color: rgba(62, 40, 22, 0.96); border-radius: 18px; }
+  .t-title { color: #f8eedb; font-size: 28px; font-weight: 700; }
+  .t-lead { color: #f8eedb; font-size: 21px; line-height: 1.25; }
+  .t-muted { color: #d3c4a6; font-size: 17px; line-height: 1.25; }
+  .t-label { color: #ff8a3d; font-size: 14px; font-weight: 700; letter-spacing: 1.5px; }
+  .t-task { color: #f8eedb; font-size: 20px; line-height: 1.2; }
+  .t-ok { color: #86dc97; font-size: 20px; line-height: 1.2; }
+  .t-btn { background-color: rgba(255, 200, 140, 0.13); border-radius: 12px; }
+  .t-go { background-color: #ff8a3d; border-radius: 12px; }
+  .root { flex-direction: column; width: 520px; padding-top: 16px; padding-bottom: 16px; padding-left: 20px; padding-right: 20px; gap: 8px; }
+  .row { flex-direction: row; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .tasks { flex-direction: column; gap: 6px; }
+  .task { width: 480px; }
+  .wide { width: 480px; }
+  .num { width: 38px; height: 38px; }
+  .cele { flex-direction: column; gap: 10px; background-color: #2c6a3d; border-radius: 12px; padding: 14px; display: none; }
+  .celetext { color: #ffffff; font-size: 22px; font-weight: 700; line-height: 1.25; width: 440px; }
+</style>
+<Panel id="tut-root" class="root t-root">
+  <div id="tut-label" class="t-label">THE FIRST STEPS - LESSON 1 OF 11</div>
+  <div id="tut-title" class="t-title">Your hands</div>
+  <div id="tut-body" class="tasks">
+    <div id="tut-say" class="wide t-lead">-</div>
+    <div id="tut-task-0" class="task t-task">-</div>
+    <div id="tut-task-1" class="task t-task">-</div>
+    <div id="tut-task-2" class="task t-task">-</div>
+    <div id="tut-task-3" class="task t-task">-</div>
+    <div id="tut-tip" class="wide t-muted">-</div>
+    <div class="row">
+      <Button id="tut-repeat" class="t-btn" size="sm" variant="secondary"><ButtonLabel>Repeat</ButtonLabel></Button>
+      <Button id="tut-skip" class="t-btn" size="sm" variant="secondary"><ButtonLabel>Skip lesson</ButtonLabel></Button>
+      <Button id="tut-leave" class="t-btn" size="sm" variant="secondary"><ButtonLabel>Leave tutorial</ButtonLabel></Button>
+    </div>
+    <div class="row">
+      <Button id="tut-l0" class="num t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-l0-t">1</ButtonLabel></Button>
+      <Button id="tut-l1" class="num t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-l1-t">2</ButtonLabel></Button>
+      <Button id="tut-l2" class="num t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-l2-t">3</ButtonLabel></Button>
+      <Button id="tut-l3" class="num t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-l3-t">4</ButtonLabel></Button>
+      <Button id="tut-l4" class="num t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-l4-t">5</ButtonLabel></Button>
+      <Button id="tut-l5" class="num t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-l5-t">6</ButtonLabel></Button>
+      <Button id="tut-l6" class="num t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-l6-t">7</ButtonLabel></Button>
+      <Button id="tut-l7" class="num t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-l7-t">8</ButtonLabel></Button>
+      <Button id="tut-l8" class="num t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-l8-t">9</ButtonLabel></Button>
+      <Button id="tut-l9" class="num t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-l9-t">10</ButtonLabel></Button>
+      <Button id="tut-l10" class="num t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-l10-t">11</ButtonLabel></Button>
+    </div>
+  </div>
+  <div id="tut-cele" class="cele">
+    <div id="tut-cele-text" class="celetext">You can survive out here.</div>
+    <div class="row">
+      <Button id="tut-start" class="t-go" size="sm"><ButtonLabel id="tut-start-t">Start survival</ButtonLabel></Button>
+      <Button id="tut-again" class="t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-again-t">Stay and practise</ButtonLabel></Button>
+    </div>
+  </div>
+</Panel>

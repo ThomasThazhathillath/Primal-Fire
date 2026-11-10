@@ -24,6 +24,10 @@
     <ButtonIcon><RectangleGoggles></RectangleGoggles></ButtonIcon>
     <ButtonLabel>Enter VR</ButtonLabel>
   </Button>
+  <Button id="tutorial-button" class="button">
+    <ButtonIcon><GraduationCap></GraduationCap></ButtonIcon>
+    <ButtonLabel id="tutorial-label">Learn the basics</ButtonLabel>
+  </Button>
   <Button id="begin-button" class="button">
     <ButtonIcon><Sunrise></Sunrise></ButtonIcon>
     <ButtonLabel id="begin-label">Wake up</ButtonLabel>

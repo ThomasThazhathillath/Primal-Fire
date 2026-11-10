@@ -38,7 +38,18 @@ import { PerfSystem } from './systems/perf-system.js';
 import { IntroSystem } from './systems/intro-system.js';
 import { ResourceSystem } from './systems/resource-system.js';
 import { SatchelSystem } from './systems/satchel-system.js';
-import { loadGame, WorldSystem } from './systems/world-system.js';
+import { loadGame, setSaveKey, WorldSystem } from './systems/world-system.js';
+import { TutorialSystem } from './systems/tutorial-system.js';
+import { currentMode, TUTORIAL_SAVE_KEY } from './game/tutorial-mode.js';
+import { tutorialSpots } from './game/tutorial-layout.js';
+import { RESOURCES } from './game/world-layout.js';
+
+// THE FIRST STEPS: the tutorial runs its own Game under its own save key, so the survival save is never read or written.
+const mode = currentMode();
+if (mode === 'tutorial') {
+  setSaveKey(TUTORIAL_SAVE_KEY);
+  RESOURCES.push(...tutorialSpots());
+}
 
 World.create(
   document.getElementById('scene-container') as HTMLDivElement,
@@ -81,7 +92,8 @@ World.create(
     .registerSystem(AudioSystem)
     .registerSystem(AmbienceSystem)
     .registerSystem(PerfSystem)
-    .registerSystem(HintPanelSystem);
+    .registerSystem(HintPanelSystem)
+    .registerSystem(TutorialSystem, { configData: { tutorial: mode === 'tutorial' } });
   installDebugHooks(world);
   streamPlaytestLog(world);
 });

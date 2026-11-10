@@ -65,6 +65,8 @@ export class HudSystem extends createSystem({
   private toastTimer = 0;
   private beacon!: Mesh;
   private beaconTimer = 0;
+  private beaconHeld = false;
+  private beaconT = 0;
   private tipTarget: Entity | null = null;
   private tmp = new Vector3();
   private ready = false;
@@ -137,6 +139,19 @@ export class HudSystem extends createSystem({
     });
     const ui = getUi(this.world);
     ui.showHint = () => this.showHint();
+    // A hint-driven pillar stays until it is cleared (not on the old 45 s timer), tall and gently pulsing.
+    ui.setBeacon = (at) => {
+      this.beaconHeld = !!at;
+      if (at) {
+        this.beacon.position.set(at.x, 30, at.z);
+        this.beacon.scale.set(1, 2, 1);
+        this.beacon.visible = true;
+        this.beaconTimer = 0;
+      } else {
+        this.beacon.visible = false;
+        this.beacon.scale.set(1, 1, 1);
+      }
+    };
     ui.openNotebook = () => this.openNotebook();
     ui.notebookOpen = () => this.card.visible;
     // The quest icon now opens the objective card (ObjectiveCardSystem); this strip keeps XP and toasts.
@@ -430,6 +445,10 @@ export class HudSystem extends createSystem({
       this.hud.requireElementById<UIKit.Text>('toast').setProperties({ text: ' ' });
     }
     if (this.beaconTimer > 0 && (this.beaconTimer -= delta) <= 0) this.beacon.visible = false;
+    if (this.beacon.visible) {
+      this.beaconT += delta;
+      (this.beacon.material as MeshBasicMaterial).opacity = 0.3 + 0.14 * Math.sin(this.beaconT * 2.4);
+    }
     if (this.cardPop?.busy) this.cardPop.update(delta);
     if (this.card.visible && this.vrNow) this.cardTouch.update(delta);
     this.updateTip();

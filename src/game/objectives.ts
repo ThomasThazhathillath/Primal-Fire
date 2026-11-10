@@ -663,6 +663,7 @@ export class ObjectiveTracker {
   /** The player closed the card (kept so a reload does not reopen it). */
   closed = false;
   private celebrate: { id: string; left: number } | null = null;
+  private fxOff: string | null = null;
   private feedback: { text: string; left: number } | null = null;
 
   constructor(
@@ -810,7 +811,19 @@ export class ObjectiveTracker {
   unlockHint(id: string): number {
     const level = Math.min(4, this.hintLevel(id) + 1);
     this.hints[id] = level;
+    this.fxOff = null; // a new level turns its effects back on
     return level;
+  }
+
+  /** The hint level whose world effects (pulse, beacon, marker) should be showing now: 0 once dismissed or for another objective. */
+  hintFxLevel(): number {
+    const o = this.current;
+    return o && this.fxOff !== o.id ? this.hintLevel(o.id) : 0;
+  }
+
+  /** Switch the current objective's hint effects off (the level stays unlocked). Completing the objective also ends them. */
+  dismissHintFx(): void {
+    this.fxOff = this.current?.id ?? null;
   }
 
   // ----------------------------------------------------------- save / load

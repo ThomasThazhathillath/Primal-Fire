@@ -6,7 +6,8 @@
 // or unmutes thoughts (saved). Not used in the opening (it has its own story).
 
 import {
-  AdditiveBlending,
+  NormalBlending,
+  PlaneGeometry,
   BackSide,
   CanvasTexture,
   CylinderGeometry,
@@ -26,6 +27,8 @@ import {
 import { ACTS, CLUES, MAST_TOP, type StoryEvent } from '../game/story.js';
 import { mulberry32 } from '../game/rng.js';
 import { groundHeight } from '../game/world-layout.js';
+import { START_HOUR } from '../game/environment.js';
+import { hasCarry } from '../game/tutorial-mode.js';
 import { getGame, getUi } from './shared.js';
 
 const POLL_SECONDS = 0.25;
@@ -37,12 +40,25 @@ const FADE_SECONDS = 3.5;
 const GUIDANCE_HOLD = 3;
 /** More waiting lines than this and the older ones are dropped. */
 const MAX_WAITING = 4;
+/** How fast the story nudges the clock (hours per second): an hour in under a minute. */
+const CLOCK_RATE = 0.02;
+/** Thought line canvas (px) and distance ahead (m). */
+const LINE_W = 1024;
+const LINE_H = 240;
+const LINE_DIST = 1.1;
 
 export class StorySystem extends createSystem({}, { tutorial: { type: Types.Boolean, default: false } }) {
   private lines: string[] = [];
   private lineTimer = 0;
   private poll = 0;
   private fade: Mesh | null = null;
+  private line: Mesh | null = null;
+  private lineMat: MeshBasicMaterial | null = null;
+  private lineCtx: CanvasRenderingContext2D | null = null;
+  private lineTex: CanvasTexture | null = null;
+  private lineAlpha = 0;
+  private lineYaw = 0;
+  private lineDir = new Vector3();
   private fadeT = -1;
   private campMarker: Group | null = null;
   private glint: Sprite | null = null;
@@ -74,6 +90,7 @@ export class StorySystem extends createSystem({}, { tutorial: { type: Types.Bool
         }
       }),
     );
+    this.buildLine();
     this.buildClues();
     this.buildGlint();
   }
@@ -82,6 +99,8 @@ export class StorySystem extends createSystem({}, { tutorial: { type: Types.Bool
   awaken(): void {
     if (this.off) return;
     const game = getGame(this.world);
+    // Straight from the guided opening: it already told the awakening (TutorialSystem says the morning lines).
+    if (hasCarry()) game.story.markSeen('awake');
     if (game.story.seen.has('awake')) return;
     if (game.time < 5) this.startFade();
     game.story.wake();
@@ -95,9 +114,6 @@ export class StorySystem extends createSystem({}, { tutorial: { type: Types.Bool
       this.lineTimer = 0;
       if (!this.showingThought) return;
       this.showingThought = false;
-      this.speaking = true;
-      game.toast(' ', 'info');
-      this.speaking = false;
       game.log.add('story: thoughts skipped');
       return;
     }
@@ -125,13 +141,101 @@ export class StorySystem extends createSystem({}, { tutorial: { type: Types.Bool
     if (this.lineTimer > 0) this.lineTimer -= delta;
     else if (this.lines.length) {
       this.lineTimer = LINE_GAP;
-      this.speaking = true;
       this.showingThought = true;
-      game.toast(this.lines.shift()!, 'note');
-      this.speaking = false;
+      const text = this.lines.shift()!;
+      this.drawLine(text);
+      game.log.add(`thought: ${text}`);
     }
+    if (this.lineTimer <= 0) this.showingThought = false;
+    this.updateLine(delta);
+    this.updateClock(delta);
     this.updateFade(delta);
     this.updateGlint();
+  }
+
+  // ------------------------------------------------------------ the thought line (its own, always visible)
+
+  /** A small two-line text strip, a little below eye level ~1.3 m ahead; drawn only when the text changes. */
+  private buildLine(): void {
+    const c = document.createElement('canvas');
+    c.width = LINE_W;
+    c.height = LINE_H;
+    this.lineCtx = c.getContext('2d');
+    this.lineTex = new CanvasTexture(c);
+    this.lineMat = new MeshBasicMaterial({ map: this.lineTex, transparent: true, depthTest: false, depthWrite: false, opacity: 0 });
+    this.line = new Mesh(new PlaneGeometry(0.8, (0.8 * LINE_H) / LINE_W), this.lineMat);
+    this.line.renderOrder = 9000;
+    this.line.frustumCulled = false;
+    this.line.visible = false;
+    this.world.createTransformEntity(this.line);
+  }
+
+  private drawLine(text: string): void {
+    const ctx = this.lineCtx;
+    if (!ctx || !this.lineTex) return;
+    const W = LINE_W;
+    const H = LINE_H;
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = 'rgba(14,11,8,0.8)';
+    ctx.beginPath();
+    ctx.roundRect(6, 6, W - 12, H - 12, 36);
+    ctx.fill();
+    ctx.fillStyle = '#f6ecda';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    // Word-wrap to at most three lines, shrinking the type for a long act line.
+    let size = 50;
+    let rows: string[] = [];
+    for (; size >= 30; size -= 4) {
+      ctx.font = `italic ${size}px Georgia, "Times New Roman", serif`;
+      rows = [];
+      let cur = '';
+      for (const w of text.split(' ')) {
+        const t = cur ? `${cur} ${w}` : w;
+        if (ctx.measureText(t).width > W - 80 && cur) {
+          rows.push(cur);
+          cur = w;
+        } else cur = t;
+      }
+      rows.push(cur);
+      if (rows.length <= 3) break;
+    }
+    const lh = size * 1.22;
+    for (let r = 0; r < rows.length; r++) ctx.fillText(rows[r], W / 2, H / 2 + (r - (rows.length - 1) / 2) * lh);
+    this.lineTex.needsUpdate = true;
+  }
+
+  /** Follows the head lazily (it never sticks to the eyes), fades in and out. */
+  private updateLine(delta: number): void {
+    const line = this.line;
+    const mat = this.lineMat;
+    if (!line || !mat) return;
+    const target = this.showingThought ? 1 : 0;
+    this.lineAlpha += Math.sign(target - this.lineAlpha) * Math.min(Math.abs(target - this.lineAlpha), delta * 3);
+    mat.opacity = this.lineAlpha;
+    line.visible = this.lineAlpha > 0.01;
+    if (!line.visible) return;
+    this.camera.getWorldPosition(this.camPos);
+    this.camera.getWorldDirection(this.lineDir);
+    const yaw = Math.atan2(this.lineDir.x, this.lineDir.z);
+    let d = yaw - this.lineYaw;
+    d = Math.atan2(Math.sin(d), Math.cos(d));
+    // Snap on first show, then drift after the head.
+    this.lineYaw = this.lineAlpha < 0.05 ? yaw : this.lineYaw + d * Math.min(1, delta * 2.5);
+    line.position.set(this.camPos.x + Math.sin(this.lineYaw) * LINE_DIST, this.camPos.y - 0.27, this.camPos.z + Math.cos(this.lineYaw) * LINE_DIST);
+    line.rotation.set(-0.22, this.lineYaw + Math.PI, 0, 'YXZ');
+  }
+
+  // ------------------------------------------------------------ the evening (gradual, never a sudden night)
+
+  /** The First Fire act eases the clock towards dusk, the camp towards evening; only ever forwards. */
+  private updateClock(delta: number): void {
+    const game = getGame(this.world);
+    const s = game.story;
+    const target = s.seen.has('camp') ? 19 : s.seen.has('fireIntro') ? 17.5 : 0;
+    if (!target || game.env.day > 0) return;
+    const hour = START_HOUR + game.env.hourOffset + (game.time / game.env.dayLength) * 24;
+    if (hour < target) game.env.hourOffset += Math.min(target - hour, CLOCK_RATE * delta);
   }
 
   // ------------------------------------------------------------ awakening
@@ -253,10 +357,33 @@ export class StorySystem extends createSystem({}, { tutorial: { type: Types.Bool
     tie.position.set(0.0, 1.35, 0.03);
     g.add(tie);
     // Offset from the midpoint so it never sits inside the fire or the bench.
-    g.position.set(x + 1.2, y, z + 0.6);
+    g.position.set(x, y, z);
+    // Never inside the fire or the bench: step out from the midpoint, sideways to the fire-bench line.
+    this.offsetFromCamp(g, x, z);
+    g.position.y = groundHeight(g.position.x, g.position.z);
     this.campMarker = g;
     this.world.createTransformEntity(g);
     getGame(this.world).log.add(`story: camp marker at ${x.toFixed(1)},${z.toFixed(1)}`, 'ok');
+  }
+
+  /** 1.8 m out from the camp midpoint, at right angles to the fire-bench line, on the side nearer the player. */
+  private offsetFromCamp(g: Group, x: number, z: number): void {
+    const game = getGame(this.world);
+    const pit = game.structures.find((t) => t.kind === 'firePit' && t.complete);
+    let nx = 1;
+    let nz = 0;
+    if (pit) {
+      const dx = pit.x - x;
+      const dz = pit.z - z;
+      const l = Math.hypot(dx, dz) || 1;
+      nx = -dz / l;
+      nz = dx / l;
+    }
+    if ((game.player.x - x) * nx + (game.player.z - z) * nz < 0) {
+      nx = -nx;
+      nz = -nz;
+    }
+    g.position.set(x + nx * 1.8, 0, z + nz * 1.8);
   }
 
   // ------------------------------------------------------------ the mast glint (ruins teaser)
@@ -273,9 +400,9 @@ export class StorySystem extends createSystem({}, { tutorial: { type: Types.Bool
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, 64, 64);
     }
-    this.glintMat = new SpriteMaterial({ map: new CanvasTexture(c), blending: AdditiveBlending, transparent: true, depthWrite: false, opacity: 0 });
+    this.glintMat = new SpriteMaterial({ map: new CanvasTexture(c), blending: NormalBlending, transparent: true, depthWrite: false, opacity: 0 });
     this.glint = new Sprite(this.glintMat);
-    this.glint.scale.setScalar(1.6);
+    this.glint.scale.setScalar(2.6);
     this.glint.position.set(MAST_TOP.x, MAST_TOP.y, MAST_TOP.z);
     this.glint.visible = false;
     this.world.createTransformEntity(this.glint);
@@ -290,6 +417,8 @@ export class StorySystem extends createSystem({}, { tutorial: { type: Types.Bool
     if (!on) return;
     const night = getGame(this.world).env.night;
     const pulse = Math.max(0, Math.sin(this.t * 0.9)) ** 6;
-    this.glintMat.opacity = (0.25 + 0.75 * pulse) * (0.45 + 0.55 * night);
+    // By day a bright flash (a reflection) must read against the sky; by night a softer light.
+    this.glintMat.opacity = Math.min(1, (0.35 + 0.65 * pulse) * (0.85 + 0.15 * night));
+    this.glint.scale.setScalar(2.2 + 1.4 * pulse);
   }
 }

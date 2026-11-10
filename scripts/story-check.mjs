@@ -26,6 +26,17 @@ export default async function run({ page, workspaceRoot }) {
   const seen = () => ev(() => [...window.__primal.game.story.seen]);
   if (stage === 'reload') return { seen: await seen(), camp: await ev(() => window.__primal.game.story.camp), notes: await ev(() => Object.fromEntries(window.__primal.game.story.notes)) };
 
+  if (stage === 'line') {
+    // The thought line: begin, wait for the first thought, screenshot (NAME), report what it shows.
+    await ev(() => window.__primal.begin());
+    await wait(Number(process.env.WAIT ?? 5200));
+    await shot(process.env.NAME ?? '09-thought-line');
+    return ev(() => ({ seen: [...window.__primal.game.story.seen], thoughts: window.__primal.game.log.toString().split('\n').filter((l) => /thought:|story/.test(l)), hour: window.__primal.game.env.hour }));
+  }
+  if (stage === 'carry') {
+    await ev(() => localStorage.setItem('primal-first-fire.carry.v1', JSON.stringify({ learned: ['grab'] })));
+    return { carry: true };
+  }
   const out = { steps: [] };
   const step = async (name) => out.steps.push({ name, seen: await seen(), toastLog: await ev(() => window.__primal.game.log.toString().split('\n').filter((l) => /story|toast/.test(l)).slice(-4)) });
 

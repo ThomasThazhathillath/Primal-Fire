@@ -284,7 +284,9 @@ export class HudSystem extends createSystem({
     const game = getGame(this.world);
     const o = OBSERVATIONS[id];
     const set = (el: string, t: string) => this.card.requireElementById<UIKit.Text>(el).setProperties({ text: uiText(t) });
-    set('card-eyebrow', this.browsing ? `LAB NOTEBOOK ${this.notebookIndex + 1} / ${game.notebook.length}` : 'NEW OBSERVATION');
+    // An optional short context line (where / why), never a diary: Observation, Principle, Real-world limit stay as they are.
+    const where = game.story.notes.get(id);
+    set('card-eyebrow', (this.browsing ? `LAB NOTEBOOK ${this.notebookIndex + 1} / ${game.notebook.length}` : 'NEW OBSERVATION') + (where ? ` - ${where}` : ''));
     set('card-title', o.title);
     set('card-obs', o.obs);
     set('card-pri', o.pri);

@@ -36,6 +36,7 @@ export class DesktopControlsSystem extends createSystem({}) {
         ui.toggleSatchel?.();
       } else if (e.code === 'KeyH') ui.showHint?.();
       else if (e.code === 'KeyN') ui.openNotebook?.();
+      else if (e.code === 'KeyT') ui.toggleStory?.();
       else if (e.code === 'KeyR') {
         getGame(this.world).cancelRefill();
         getGame(this.world).stow();

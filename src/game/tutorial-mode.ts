@@ -100,6 +100,11 @@ export function saveCarry(carry: StoryCarry, store: KeyStore | null = browserSto
   safeSet(store, CARRY_KEY, JSON.stringify({ learned: carry.learned.filter((x) => typeof x === 'string') }));
 }
 
+/** Is a carry waiting (without taking it)? The awakening must not replay after the opening. */
+export function hasCarry(store: KeyStore | null = browserStore()): boolean {
+  return safeGet(store, CARRY_KEY) !== null;
+}
+
 /** Read and remove the carry (it applies once, to a fresh survival game). */
 export function takeCarry(store: KeyStore | null = browserStore()): StoryCarry | null {
   const raw = safeGet(store, CARRY_KEY);

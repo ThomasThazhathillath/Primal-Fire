@@ -1,6 +1,7 @@
 // Game state and rules, independent of rendering and input. IWSDK systems
 // call these actions and react to the events; tests drive them directly.
 
+import { type StorySave, StoryTracker } from './story.js';
 import { Environment, type EnvironmentSave } from './environment.js';
 import { actionFor } from './actions.js';
 import { BENCH_BY_ID, BenchSession, canStart, missingText, type BenchMotion } from './bench.js';
@@ -190,6 +191,8 @@ export class Game {
   readonly fire = new FireState(this);
   /** Beginner objectives: one at a time, over the existing quests (objectives.ts). */
   readonly objectives: ObjectiveTracker = new ObjectiveTracker(this, (e) => this.emit(e));
+  /** Chapter 1 story beats: once each, saved (story.ts). */
+  readonly story: StoryTracker = new StoryTracker(this);
   /** Level 2: pot, charcoal and water purification (water.ts). */
   readonly water = new WaterState(this);
   /** Level 3: fishing, cooking and farming (food.ts). */
@@ -229,6 +232,7 @@ export class Game {
 
   private emit(e: GameEvent): void {
     this.objectives?.observe(e);
+    this.story?.observe(e);
     for (const l of this.listeners) l(e);
   }
 
@@ -1581,6 +1585,7 @@ export class Game {
       toolUses: Object.fromEntries(this.toolUses),
       fire: this.fire.snapshot(),
       objectives: this.objectives.snapshot(),
+      story: this.story.snapshot(),
       assist: this.assist.snapshot(),
       env: this.env.snapshot(),
     };
@@ -1618,6 +1623,7 @@ export class Game {
     g.held = data.held && data.held in ITEMS ? data.held : null;
     g.objectives.restore(data.objectives);
     g.assist.restore(data.assist);
+    g.story.restore(data.story);
     return g;
   }
 }
@@ -1627,6 +1633,8 @@ export interface SaveData {
   fire?: FireSave;
   /** Beginner objectives; absent in older saves (migrated from the rest of the state). */
   objectives?: ObjectivesSave;
+  /** Chapter 1 story; absent in older saves (beats already past are marked seen, story.ts). */
+  story?: StorySave;
   /** Adaptive assistance strain per channel; absent in older saves (starts at the default). */
   assist?: AssistSave;
   env?: EnvironmentSave;

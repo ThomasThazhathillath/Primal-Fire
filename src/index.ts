@@ -42,6 +42,7 @@ import { ResourceSystem } from './systems/resource-system.js';
 import { SatchelSystem } from './systems/satchel-system.js';
 import { loadGame, setSaveKey, WorldSystem } from './systems/world-system.js';
 import { TutorialSystem } from './systems/tutorial-system.js';
+import { StorySystem } from './systems/story-system.js';
 import { currentMode, TUTORIAL_SAVE_KEY } from './game/tutorial-mode.js';
 import { tutorialSpots } from './game/tutorial-layout.js';
 import { RESOURCES } from './game/world-layout.js';
@@ -97,7 +98,8 @@ World.create(
     .registerSystem(AmbienceSystem)
     .registerSystem(PerfSystem)
     .registerSystem(HintPanelSystem)
-    .registerSystem(TutorialSystem, { configData: { tutorial: mode === 'tutorial' } });
+    .registerSystem(TutorialSystem, { configData: { tutorial: mode === 'tutorial' } })
+    .registerSystem(StorySystem, { configData: { tutorial: mode === 'tutorial' } });
   installDebugHooks(world);
   streamPlaytestLog(world);
 });

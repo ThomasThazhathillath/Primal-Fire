@@ -20,6 +20,7 @@ import {
   Vector3,
 } from '@iwsdk/core';
 import type { GameEvent } from '../game/game.js';
+import { ASSIST, catchesThrownAt, type Mark, openMarks } from '../game/assist.js';
 import { bounceOff, stepBody, type Body } from '../game/carry.js';
 import { nudgeOut } from '../game/collision.js';
 import { ITEM_PHYSICS, type ItemId, type Material } from '../game/items.js';
@@ -50,12 +51,16 @@ export class DropSystem extends createSystem({
   private views = new Map<number, Entity>();
   private falling: Falling[] = [];
   private head = new Vector3();
+  /** Open marks of unfinished builds; rebuilt only when a structure changes. */
+  private marks: Mark[] = [];
+  private marksDirty = true;
 
   init(): void {
     const game = getGame(this.world);
     this.cleanupFuncs.push(
       game.on((e: GameEvent) => {
         if (e.type === 'drops') this.sync(true);
+        if (e.type === 'structure') this.marksDirty = true;
       }),
       this.queries.pressed.subscribe('qualify', (e) => {
         if (performance.now() / 1000 - handClaims.grabAt < 0.3) return;
@@ -132,6 +137,18 @@ export class DropSystem extends createSystem({
       const b = f.body;
       const gy = groundHeight(b.pos.x, b.pos.z);
       const ev = stepBody(b, f.item, dt, gy);
+      // A gentle throw that enters the radius of an open mark that wants it is caught and seated there.
+      if (!b.settled) {
+        if (this.marksDirty) {
+          this.marksDirty = false;
+          openMarks(game.structures, this.marks);
+        }
+        const m = this.marks.length ? catchesThrownAt(this.marks, f.item, b.pos.x, b.pos.y, b.pos.z, Math.hypot(b.vel.x, b.vel.y, b.vel.z)) : null;
+        if (m && game.catchDrop(f.dropId, m.x, m.z)) {
+          this.falling.splice(i, 1);
+          continue;
+        }
+      }
       // Flying into a trunk, rock or structure: stop going in and bounce off it.
       if (!b.settled && b.pos.y < 2.5) {
         const sz = ITEM_PHYSICS[f.item].size;

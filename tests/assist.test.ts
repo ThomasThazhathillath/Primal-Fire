@@ -198,3 +198,39 @@ describe('contextual messages', () => {
     expect(m.say(30, 'stone', 'Stone collected.')).toBe(true);
   });
 });
+
+describe('placement through the game rules', () => {
+  it('seatNear seats a held stone on the nearest mark and says why when it is wrong', () => {
+    const g = new Game();
+    g.addItem('dryStone', 5);
+    g.addItem('twigs');
+    const s = g.placeFromBook('firePit', 0, -1).structure!;
+    const m = openMarks(g.structures)[0];
+    const msgs: string[] = [];
+    g.on((e) => e.type === 'toast' && msgs.push(e.text));
+    g.takeOut('twigs');
+    expect(g.seatNear('twigs', m.x, m.z, { say: true })).toBe(false);
+    expect(msgs.join(' ')).toMatch(/needs .*stone/);
+    g.stow();
+    g.takeOut('dryStone');
+    const before = s.spots.filter((v) => v !== null).length;
+    expect(g.seatNear('dryStone', m.x + 0.6, m.z, { say: true })).toBe(true);
+    expect(s.spots.filter((v) => v !== null).length + (s.keyOpen ? 0 : 0)).toBeGreaterThanOrEqual(before);
+    expect(openMarks(g.structures).length).toBeLessThan(4);
+  });
+  it('a thrown stone that lands in the radius is caught; one far away stays on the ground', () => {
+    const g = new Game();
+    g.addItem('dryStone', 6);
+    const s = g.placeFromBook('firePit', 0, -1).structure!;
+    const m = openMarks(g.structures)[0];
+    const openBefore = openMarks(g.structures).length;
+    const near = g.dropItem('dryStone', m.x, m.z)!;
+    const far = g.dropItem('dryStone', m.x + 6, m.z)!;
+    expect(g.catchDrop(far.id, m.x + 6, m.z)).toBe(false);
+    expect(g.drops.some((d) => d.id === far.id)).toBe(true);
+    expect(g.catchDrop(near.id, m.x, m.z)).toBe(true);
+    expect(g.drops.some((d) => d.id === near.id)).toBe(false);
+    expect(openMarks(g.structures).length).toBe(openBefore - 1);
+    expect(s.complete).toBe(false);
+  });
+});

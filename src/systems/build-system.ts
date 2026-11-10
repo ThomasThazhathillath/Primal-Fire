@@ -48,9 +48,12 @@ const MAX_PLACE_DISTANCE = 6;
 const AIM_LOOKBACK = 0.15;
 const HISTORY = 24;
 
-const ghostOk = new MeshBasicMaterial({ color: 0x7fd37f, transparent: true, opacity: 0.35, depthWrite: false, side: DoubleSide });
-const ghostBad = new MeshBasicMaterial({ color: 0xff8a6a, transparent: true, opacity: 0.35, depthWrite: false, side: DoubleSide });
-const spotMat = new MeshBasicMaterial({ color: 0xffb547, transparent: true, opacity: 0.85 });
+const ghostOk = new MeshBasicMaterial({ color: 0x4dff7a, transparent: true, opacity: 0.55, depthWrite: false, side: DoubleSide });
+const ghostBad = new MeshBasicMaterial({ color: 0xff4a2e, transparent: true, opacity: 0.55, depthWrite: false, side: DoubleSide });
+const spotMat = new MeshBasicMaterial({ color: 0xffc766, transparent: true, opacity: 0.95 });
+/** The soft glow under every open mark, so it reads from a distance. */
+const spotGlowMat = new MeshBasicMaterial({ color: 0xffb547, transparent: true, opacity: 0.32, depthWrite: false, side: DoubleSide });
+const spotGlowGeo = new CircleGeometry(0.17, 18);
 const ashMat = new MeshBasicMaterial({ color: 0x2b241e });
 const partGeo = new SphereGeometry(0.16, 8, 6);
 const partMat = new MeshBasicMaterial({ visible: false });
@@ -337,7 +340,9 @@ export class BuildSystem extends createSystem({
         }
         return;
       }
-      const ring = new Mesh(new TorusGeometry(0.08, 0.015, 6, 20), spotMat);
+      const ring = new Mesh(new TorusGeometry(0.1, 0.02, 6, 20), spotMat);
+      const glow = new Mesh(spotGlowGeo, spotGlowMat);
+      ring.add(glow);
       ring.rotation.x = -Math.PI / 2;
       const p = spotWorldPosition(s, i);
       ring.position.set(p.x, Math.max(0.05, p.y), p.z);
@@ -375,7 +380,7 @@ export class BuildSystem extends createSystem({
       else this.ghostRoot.visible = false;
     }
     this.pulse += delta;
-    const s = 1 + Math.sin(this.pulse * 4) * 0.15;
+    const s = 1 + Math.sin(this.pulse * 4) * 0.2;
     for (const e of this.queries.spots.entities) e.object3D?.scale.setScalar(s);
   }
 }

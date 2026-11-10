@@ -21,7 +21,7 @@ import { itemMesh } from '../scene-assets/item-meshes.js';
 import { hands } from './hand-input-system.js';
 import { releaseKind, restHeight } from '../game/pinch.js';
 import { groundHeight } from '../game/world-layout.js';
-import { spotWorldPosition } from '../game/blueprint.js';
+import { ASSIST, magnetPull, type Mark, nearestMarkIndex, openMarks, placementIntent, scan } from '../game/assist.js';
 import { getGame, getUi, handClaims, hipPosition, pendingRelease, pickupFrom } from './shared.js';
 import { SWING_TOOLS } from '../game/interact.js';
 import { actionFor } from '../game/actions.js';
@@ -35,8 +35,8 @@ const REACH_TIME = 0.25;
 /** Held tools that only Put away / Drop lets go of (see the release loop). */
 const STICKY: readonly ItemId[] = ['bowDrill', 'flake', 'knife', 'flint', 'diggingStick', 'pot'];
 
-/** A part let go within this distance (m) of a build that wants it seats on its nearest free mark. */
-const NEAR_BUILD = 3;
+/** The magnet is computed as a short look-ahead (s) so the held part visibly leans toward its mark. */
+const MAGNET_LOOK = 0.25;
 
 export class CarrySystem extends createSystem({}) {
   private root = new Group();
@@ -44,6 +44,11 @@ export class CarrySystem extends createSystem({}) {
   private hadTwo = false;
   private obj: Object3D | null = null;
   private item: ItemId | null = null;
+  /** Open marks of every unfinished build, rebuilt only when a structure changes (never per frame). */
+  private marks: Mark[] = [];
+  private marksDirty = true;
+  private pull = { x: 0, z: 0 };
+  private markIdx = -1;
   private pos = new Vector3();
   private vel = new Vector3();
   private target = new Vector3();
@@ -89,6 +94,7 @@ export class CarrySystem extends createSystem({}) {
     this.cleanupFuncs.push(
       game.on((e: GameEvent) => {
         if (e.type === 'held') this.show(e.item);
+        if (e.type === 'structure' || e.type === 'held') this.marksDirty = true;
       }),
     );
     if (game.held) this.show(game.held);
@@ -217,19 +223,11 @@ export class CarrySystem extends createSystem({}) {
       this.tmp2.y += 1.5 * k;
     }
     const p = this.obj.position;
-    // Lowered onto a construction mark: it seats there (snap marks still apply), else it is just set down below.
-    if (this.immersive() && !throwIt) {
-      // Let go anywhere near a build that wants it: it seats on the nearest free mark.
-      const t = game.placementTarget(item, p.x, p.z, 0.5) ?? game.placementTarget(item, p.x, p.z, NEAR_BUILD);
-      if (t && game.held === item) {
-        // Brought near a build point and let go: it snaps onto the mark (no fine positioning).
-        const mark = spotWorldPosition(t.structure, t.index);
-        const seated =
-          t.index >= 0
-            ? game.fillSpot(t.structure.id, t.index, undefined, { x: mark.x, z: mark.z })
-            : game.placeKey(t.structure.id, mark.x, mark.z, this.grip.count >= 2 || this.hadTwo || carryRules.easy ? 2 : 1);
-        if (seated) return;
-      }
+    // Let go anywhere near a build that wants it: it seats on the nearest correct free mark (no fine positioning).
+    // A wrong material or a finished build says why. Works in VR and on the desktop (E / click release).
+    if (!throwIt && game.held === item) {
+      const hands = this.grip.count >= 2 || this.hadTwo || carryRules.easy ? 2 : 1;
+      if (game.seatNear(item, p.x, p.z, { radius: ASSIST.buildArea, hands, say: true })) return;
     }
     const sz = ITEM_PHYSICS[item].size;
     const half = Math.min(sz[0], sz[1], sz[2]) / 2;
@@ -247,12 +245,53 @@ export class CarrySystem extends createSystem({}) {
     game.dropItem(item, this.obj.position.x, this.obj.position.z);
   }
 
+  /** After the part moved this frame: touching its mark (or striking it) with the held part seats it. */
+  private touch(dt: number, prevY: number): void {
+    if (this.markIdx < 0) return;
+    const game = getGame(this.world);
+    const item = this.item!;
+    const m = this.marks[this.markIdx];
+    const p = this.obj!.position;
+    const dy = Math.abs(p.y - m.y);
+    const down = dt > 0 ? Math.max(0, (prevY - p.y) / dt) : 0;
+    const d = Math.hypot(p.x - m.x, p.z - m.z);
+    const handSpeed = this.immersive() ? hands[this.hold].motion.speed : 0;
+    const intent = dy < 0.4 ? placementIntent({ distance: d, speed: handSpeed, downSpeed: down, thrown: false, letGo: false }) : null;
+    if (intent === 'touch' || intent === 'strike') {
+      game.log.add(`${intent} placement of ${item}`);
+      game.seatNear(item, m.x, m.z, { radius: ASSIST.touchRadius * 2, hands: 1 });
+    }
+  }
+
+  /** A held correct part leans toward its open mark. */
+  private assist(dt: number): void {
+    const game = getGame(this.world);
+    const item = this.item!;
+    if (this.marksDirty) {
+      this.marksDirty = false;
+      openMarks(game.structures, this.marks);
+    }
+    this.markIdx = -1;
+    if (!this.marks.length || this.reachT < 1) return;
+    const i = nearestMarkIndex(this.marks, item, this.target.x, this.target.z, ASSIST.magnetRadius);
+    if (i < 0) return;
+    const m = this.marks[i];
+    // The slab and other two-hand key parts are lowered with both hands and pass the push test: no magnet or touch there.
+    if (m.index < 0 && !m.structure.keyOpen) return;
+    magnetPull(this.pull, MAGNET_LOOK, this.target.x, this.target.z, m.x, m.z);
+    this.target.x += this.pull.x;
+    this.target.z += this.pull.z;
+    this.markIdx = i;
+  }
+
   update(delta: number): void {
     const dt = Math.min(delta, 0.05);
     this.clock += dt;
     this.dtNow = dt;
     if (!this.obj || !this.item) return;
     const nHands = this.computeTarget();
+    this.assist(dt);
+    let prevY = this.obj.position.y;
     if (this.reachT < 1) {
       // The pickup: a short reach from where it was to the hand.
       this.reachT = Math.min(1, this.reachT + dt / REACH_TIME);
@@ -261,11 +300,14 @@ export class CarrySystem extends createSystem({}) {
       this.obj.position.y += Math.sin(t * Math.PI) * 0.08;
       if (this.reachT >= 1) this.pos.copy(this.target);
     } else {
+      prevY = this.obj.position.y;
       springStep(this.pos, this.vel, this.target, followStiffness(ITEMS[this.item].weight, nHands), dt);
       this.obj.position.copy(this.pos);
     }
     // Rotation follows too, slower for heavy things.
     this.obj.quaternion.slerp(this.targetQ, Math.min(1, dt * (30 / (1 + ITEMS[this.item].weight))));
+    this.touch(dt, prevY);
+    if (!this.obj || !this.item) return;
     this.tracker.push(this.obj.position, this.clock);
     const q = this.obj.quaternion;
     handClaims.heldPos.copy(this.obj.position);

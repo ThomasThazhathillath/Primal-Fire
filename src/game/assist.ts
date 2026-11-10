@@ -90,6 +90,26 @@ export function nearestMark(marks: readonly Mark[], item: ItemId, x: number, z: 
   return best;
 }
 
+/** Result slot for `nearestMarkIndex` (so per-frame code allocates nothing). */
+export const scan = { d: 0 };
+
+/** Index in `marks` of the nearest open mark accepting `item` within `radius`, or -1; distance in `scan.d`. No allocation. */
+export function nearestMarkIndex(marks: readonly Mark[], item: ItemId, x: number, z: number, radius: number): number {
+  let best = -1;
+  let bestD = radius;
+  for (let i = 0; i < marks.length; i++) {
+    const m = marks[i];
+    if (!m.accepts.includes(item)) continue;
+    const d = Math.hypot(m.x - x, m.z - z);
+    if (d <= bestD) {
+      bestD = d;
+      best = i;
+    }
+  }
+  scan.d = bestD;
+  return best;
+}
+
 // -------------------------------------------------------------- snapping
 
 export type SnapReason = 'wrongMaterial' | 'tooFar' | 'complete' | 'none';
@@ -156,6 +176,19 @@ export function catchesThrown(marks: readonly Mark[], item: ItemId, x: number, z
   if (speed > cfg.catchMaxSpeed) return null;
   const hit = nearestMark(marks, item, x, z, cfg.catchRadius);
   return hit ? hit.mark : null;
+}
+
+/**
+ * Same as `catchesThrown`, for a body in flight with a height: also within 0.6 m of the mark's height, and the part
+ * must be something a mark can take on its own (a spot, or the open key slot; never a two-hand slab on its supports).
+ */
+export function catchesThrownAt(marks: readonly Mark[], item: ItemId, x: number, y: number, z: number, speed: number, cfg = ASSIST): Mark | null {
+  const i = nearestMarkIndex(marks, item, x, z, cfg.catchRadius);
+  if (i < 0 || speed > cfg.catchMaxSpeed) return null;
+  const m = marks[i];
+  if (Math.abs(y - m.y) > 0.6) return null;
+  if (m.index < 0 && !m.structure.keyOpen) return null;
+  return m;
 }
 
 // ---------------------------------------------------------- placement intent

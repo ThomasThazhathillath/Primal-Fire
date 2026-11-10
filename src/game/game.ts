@@ -37,6 +37,7 @@ const GUIDE_CODE_FOR: Partial<Record<GuideFailureCode, string>> = {
   'knap.badAngle': 'knap.angleTooSteep',
   'cord.sameDirection': 'twist.sameDirection',
 };
+import { ASSIST, openMarks, snapVerdict } from './assist.js';
 import { ObjectiveTracker, type ObjectivesSave } from './objectives.js';
 import { QUESTS, type QuestStep } from './quests.js';
 import { LANDMARKS, type Landmark } from './world-layout.js';
@@ -67,6 +68,10 @@ export type GameEvent =
   | { type: 'structure'; structure: PlacedStructure }
   | { type: 'quest'; index: number }
   | { type: 'objective'; id: string | null }
+  /** A part was seated on its mark (for the confirmation pop and sound). */
+  | { type: 'placed'; x: number; y: number; z: number }
+  /** A hint level was unlocked (a soft chime). */
+  | { type: 'hintGiven'; level: number }
   | { type: 'objectiveDone'; id: string; message: string }
   | { type: 'questComplete'; index: number; title: string; roadmapNode: string | null }
   | { type: 'levelComplete'; level: number; name: string; next: GameLevel | null }
@@ -940,6 +945,7 @@ export class Game {
     this.log.add(`filled ${s.kind}#${s.id}[${index}] with ${item}`);
     if (at) {
       this.fx('seat', 0.6);
+      this.emit({ type: 'placed', x: target.x, y: target.y, z: target.z });
       this.lastSeatAt = this.time;
       this.contact(ITEM_PHYSICS[item].material, def.keyLast ? 'stone' : 'soil', at.x, 0.05, at.z, 1.5);
     }
@@ -994,6 +1000,38 @@ export class Game {
     return best;
   }
 
+  /**
+   * Place `item` (held, or in the bag) on the nearest correct open mark within `radius` of (x, z): the one
+   * way every gesture (letting go, dropping, touching, a gentle throw, a strike) seats a part. A wrong
+   * material or a finished build says why (`say`); otherwise nothing is said. Returns whether it seated.
+   */
+  seatNear(item: ItemId, x: number, z: number, o: { radius?: number; hands?: number; say?: boolean } = {}): boolean {
+    const marks = openMarks(this.structures);
+    const v = snapVerdict(this.structures, marks, item, x, z, o.radius ?? ASSIST.buildArea);
+    if (!v.ok) {
+      if (o.say && (v.reason === 'wrongMaterial' || v.reason === 'complete')) this.toast(v.message, 'bad');
+      return false;
+    }
+    const m = v.mark;
+    return m.index >= 0 ? this.fillSpot(m.structure.id, m.index, item, { x: m.x, z: m.z }) : this.placeKey(m.structure.id, m.x, m.z, o.hands ?? 1);
+  }
+
+  /** A thrown part on the ground (a drop) was caught by an open mark: seat it there, or leave it lying if it will not fit. */
+  catchDrop(dropId: number, x: number, z: number): boolean {
+    const i = this.drops.findIndex((d) => d.id === dropId);
+    if (i < 0) return false;
+    const [d] = this.drops.splice(i, 1);
+    this.addItem(d.item);
+    if (this.seatNear(d.item, x, z, { radius: ASSIST.catchRadius, hands: 2 })) {
+      this.emit({ type: 'drops' });
+      return true;
+    }
+    this.satchel.set(d.item, this.count(d.item) - 1);
+    this.drops.splice(i, 0, d);
+    this.emit({ type: 'satchel' });
+    return false;
+  }
+
   /** An unfinished structure within `radius` m still wants `item` (a spot or its key part). */
   wantsItem(item: ItemId, x: number, z: number, radius = 6): boolean {
     return this.placementTarget(item, x, z, radius) !== null;
@@ -1023,6 +1061,7 @@ export class Game {
     s.keyPlaced = true;
     s.keyPos = { x, z };
     this.fx('seat', 1);
+    this.emit({ type: 'placed', x, y: 0.36, z });
     this.lastSeatAt = this.time;
     this.contact(ITEM_PHYSICS[s.key].material, 'stone', x, 0.36, z, 2);
     this.log.add(`set ${s.key} on ${s.kind}#${s.id} at ${x.toFixed(2)},${z.toFixed(2)}`);
@@ -1059,6 +1098,7 @@ export class Game {
     s.keyOpen = false;
     s.keyPos = { x: target.x, z: target.z };
     this.fx('seat', 0.6);
+    this.emit({ type: 'placed', x: target.x, y: target.y, z: target.z });
     this.lastSeatAt = this.time;
     this.contact(ITEM_PHYSICS[item].material, 'soil', target.x, 0.05, target.z, 1.5);
     this.log.add(`filled ${s.kind}#${s.id} key with ${item}`);

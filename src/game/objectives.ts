@@ -10,11 +10,12 @@
 // celebration (CELEBRATE_SECONDS) before the next objective takes its place.
 // Part B (the image hint panel) reads `hint` and `hintLevel`.
 
+import { MessageGate, openMarks } from './assist.js';
 import { BENCH_RECIPES } from './bench.js';
 import { BLUEPRINTS, type StructureKind } from './blueprint.js';
 import { whereIs, whereLandmark } from './directions.js';
 import type { Game, GameEvent } from './game.js';
-import type { ItemId } from './items.js';
+import { ITEMS, type ItemId } from './items.js';
 import { QUESTS } from './quests.js';
 
 /** Seconds the finished objective stays on the card before the next one appears. */
@@ -94,9 +95,40 @@ const workbenchStage = (g: Game): 0 | 1 | 2 | 3 => {
 
 /** Where the nearest thing this objective needs is, or the landmark it asks you to reach. */
 function whereFor(o: Objective, g: Game): string | null {
+  if (o.structure) return materialsLine(o.structure, g);
   if (o.place) return whereLandmark(o.place, g.player, g.facingYaw);
   const items = o.find?.(g);
   return items && items.length ? whereIs(items, g.player, g.facingYaw) : null;
+}
+
+/** Parts of a structure the player has: already placed, in the bag, or in hand. */
+function haveParts(g: Game, kind: StructureKind, ids: readonly ItemId[]): number {
+  let n = 0;
+  for (const s of g.structures) if (s.kind === kind) n += s.spots.filter((v) => v !== null && ids.includes(v)).length;
+  for (const id of ids) n += g.count(id) + (g.held === id ? 1 : 0);
+  return n;
+}
+
+/** "Stones 2/3, flat stone 1/1" for the structure being built, until it is finished (null once done or when it has no counted parts). */
+export function materialsLine(kind: StructureKind, g: Game): string | null {
+  if (g.hasStructure(kind)) return null;
+  if (kind === 'workbench') {
+    const stones = Math.min(3, haveParts(g, 'workbench', ['dryStone', 'wetStone']));
+    const slab = g.structures.some((s) => s.kind === 'workbench' && s.keyPlaced) ? 1 : Math.min(1, g.count('slab') + (g.held === 'slab' ? 1 : 0));
+    return `Stones ${stones}/3, flat stone ${slab}/1`;
+  }
+  if (kind === 'firePit') return `Stones ${Math.min(4, haveParts(g, 'firePit', ['dryStone']))}/4`;
+  return null;
+}
+
+/** The note once the parts are all in hand: you can start building now. */
+export function readyToBuild(g: Game): string | null {
+  const o = g.objectives.current;
+  if (!o?.structure || g.hasStructure(o.structure) || g.structures.some((s) => s.kind === o.structure)) return null;
+  const line = materialsLine(o.structure, g);
+  if (!line) return null;
+  const ok = o.structure === 'workbench' ? /Stones 3\/3, flat stone 1\/1/.test(line) : /Stones 4\/4/.test(line);
+  return ok ? `You have everything. Ready to build: tap the grid icon, then the hammer, then ${BLUEPRINTS[o.structure].name}.` : null;
 }
 
 /**
@@ -631,6 +663,8 @@ export interface ObjectiveView {
   where: string | null;
   /** "You have everything for X: go to your workbench and tap X." once a recipe's parts are all in the bag. */
   next: string | null;
+  /** A short contextual message ("Stone collected...", "This stone fits here..."); gone after a few seconds. */
+  message: string | null;
   /** Why the last build attempt failed. */
   feedback: string | null;
   /** The just-finished objective's message while it is celebrated. */
@@ -663,6 +697,10 @@ export class ObjectiveTracker {
   /** The player closed the card (kept so a reload does not reopen it). */
   closed = false;
   private celebrate: { id: string; left: number } | null = null;
+  private fxOff: string | null = null;
+  /** Short, auto-dismissing contextual messages (assist.ts MessageGate): one at a time, not repeated soon. */
+  readonly gate = new MessageGate();
+  private ctxT = 0;
   private feedback: { text: string; left: number } | null = null;
 
   constructor(
@@ -696,6 +734,7 @@ export class ObjectiveTracker {
   observe(e: GameEvent): void {
     switch (e.type) {
       case 'gather':
+        if (e.item === 'dryStone' || e.item === 'wetStone') this.gate.say(this.game.time, 'stoneGot', 'Stone collected. You can use it to build structures.');
         this.learned.add('grab');
         if (e.tool) this.learned.add('tool');
         break;
@@ -713,7 +752,11 @@ export class ObjectiveTracker {
         if (e.stage !== 'cold') this.learned.add('fire');
         break;
       case 'toast':
-        if (e.kind === 'bad' && this.current?.explains) this.feedback = { text: e.text, left: FEEDBACK_SECONDS };
+        // Why something failed is always worth a line on the card (in VR the old status strip is hidden).
+        if (e.kind === 'bad') {
+          this.feedback = { text: e.text, left: FEEDBACK_SECONDS };
+          this.gate.clear();
+        }
         break;
     }
   }
@@ -752,11 +795,42 @@ export class ObjectiveTracker {
 
   tick(dt: number): void {
     if (this.feedback && (this.feedback.left -= dt) <= 0) this.feedback = null;
+    this.gate.tick(dt);
+    if ((this.ctxT -= dt) <= 0) {
+      this.ctxT = 0.5;
+      this.context();
+    }
     if (this.celebrate && (this.celebrate.left -= dt) <= 0) {
       this.celebrate = null;
       this.emit({ type: 'objective', id: this.current?.id ?? null });
     }
     this.update();
+  }
+
+  /** Contextual messages from where you are and what you hold (at most one, each only now and then). */
+  private context(): void {
+    const g = this.game;
+    const held = g.held;
+    const px = g.player.x;
+    const pz = g.player.z;
+    if (held === 'slab' && !g.structures.some((s) => s.kind === 'workbench')) {
+      this.gate.say(g.time, 'slabHeld', 'Find suitable ground to start building.');
+    }
+    // Near an unfinished build: what it still needs; with a fitting part in hand: where it goes.
+    for (const m of openMarks(g.structures)) {
+      const d = Math.hypot(m.x - px, m.z - pz);
+      if (d > 4) continue;
+      if (held && m.accepts.includes(held) && d < 2.5) {
+        this.gate.say(g.time, `fits_${m.structure.id}`, `This ${ITEMS[held].name.toLowerCase()} fits here. Release or move it into position.`);
+        return;
+      }
+      const s = m.structure;
+      const open = BLUEPRINTS[s.kind].spots.filter((_, i) => s.spots[i] === null).length;
+      if (open > 0 && !held) {
+        this.gate.say(g.time, `needs_${s.id}`, `Your ${BLUEPRINTS[s.kind].name.toLowerCase()} needs ${open} more ${open === 1 ? 'part' : 'parts'}.`);
+        return;
+      }
+    }
   }
 
   /** What the card shows now, or null once the tutorial is over. */
@@ -774,6 +848,7 @@ export class ObjectiveTracker {
         tip: null,
         where: null,
         next: null,
+        message: null,
         feedback: null,
         celebrating: { title: o.title, message: o.doneMessage },
         step: OBJECTIVES.indexOf(o) + 1,
@@ -791,7 +866,8 @@ export class ObjectiveTracker {
       substeps: o.substeps ? o.substeps(g) : [],
       tip: o.howTo?.(g) ?? (o.teach && !this.learned.has(o.teach) ? TEACH[o.teach] : null),
       where: whereFor(o, g),
-      next: nextStepLine(g),
+      next: nextStepLine(g) ?? readyToBuild(g),
+      message: this.gate.left > 0 ? this.gate.text : null,
       feedback: this.feedback?.text ?? null,
       celebrating: null,
       step: this.index + 1,
@@ -810,7 +886,20 @@ export class ObjectiveTracker {
   unlockHint(id: string): number {
     const level = Math.min(4, this.hintLevel(id) + 1);
     this.hints[id] = level;
+    this.fxOff = null; // a new level turns its effects back on
+    this.emit({ type: 'hintGiven', level });
     return level;
+  }
+
+  /** The hint level whose world effects (pulse, beacon, marker) should be showing now: 0 once dismissed or for another objective. */
+  hintFxLevel(): number {
+    const o = this.current;
+    return o && this.fxOff !== o.id ? this.hintLevel(o.id) : 0;
+  }
+
+  /** Switch the current objective's hint effects off (the level stays unlocked). Completing the objective also ends them. */
+  dismissHintFx(): void {
+    this.fxOff = this.current?.id ?? null;
   }
 
   // ----------------------------------------------------------- save / load
@@ -881,6 +970,7 @@ export function questView(g: Game): ObjectiveView | null {
     tip: null,
     where: null,
     next: nextStepLine(g),
+    message: null,
     feedback: null,
     celebrating: null,
     step: idx + 1,

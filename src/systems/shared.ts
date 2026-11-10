@@ -23,6 +23,8 @@ export interface UiHooks {
   toggleBook(): void;
   openNotebook(): void;
   showHint(): void;
+  /** Put the sky light pillar over a world point (null clears it). The hint level-3 effect. */
+  setBeacon(at: { x: number; z: number } | null): void;
   /** Open the image-hint panel for an objective (part B); the card's hint icon calls it. */
   openHint(objectiveId: string): void;
   /** True while the hint panel is open; the objective card hides meanwhile so the two never overlap. */
@@ -232,6 +234,15 @@ export class StaticAnchor {
  * Who is using a pinch right now, so the hand actions do not trip over each
  * other (priority: held object > UI tap > grab > movement).
  */
+/**
+ * Hint effects other systems want drawn, written by HintFxSystem and drawn by HighlightSystem so every
+ * highlight shares one budget: pulsing nearby resources (level 2) and the one exact target (level 4).
+ */
+export const hintFx = {
+  pulse: [] as Array<{ id: string; x: number; y: number; z: number }>,
+  exact: null as { id: string; x: number; y: number; z: number } | null,
+};
+
 export const handClaims = {
   /** Fingertip is on / just tapped a UI icon: that pinch or poke is not a grab. */
   uiNear: [false, false],

@@ -9,6 +9,8 @@ import { AudioSystem } from './systems/audio-system.js';
 import { CraftGestureSystem } from './systems/craft-gesture-system.js';
 import { BenchSystem } from './systems/bench-system.js';
 import { BuildBookSystem } from './systems/build-book-system.js';
+import { HighlightSystem } from './systems/highlight-system.js';
+import { HintFxSystem } from './systems/hint-fx-system.js';
 import { ObjectiveCardSystem } from './systems/objective-card-system.js';
 import { ContactFxSystem } from './systems/contact-fx-system.js';
 import { CarrySystem } from './systems/carry-system.js';
@@ -76,6 +78,8 @@ World.create(
     .registerSystem(BenchSystem)
     .registerSystem(BuildBookSystem)
     .registerSystem(ObjectiveCardSystem)
+    .registerSystem(HighlightSystem)
+    .registerSystem(HintFxSystem)
     .registerSystem(BowSystem)
     .registerSystem(DropSystem)
     .registerSystem(CarrySystem)

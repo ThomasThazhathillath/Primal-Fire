@@ -173,6 +173,17 @@ export class ResourceSystem extends createSystem({
     return best;
   }
 
+  /** Every spot with charges left that offers one of `items` (allocates: call a few times a second at most). */
+  liveSpots(items: readonly ItemId[]): Array<{ id: string; x: number; z: number; item: ItemId }> {
+    const out: Array<{ id: string; x: number; z: number; item: ItemId }> = [];
+    for (const e of this.queries.spots.entities) {
+      if ((e.getValue(Gatherable, 'charges') ?? 0) <= 0) continue;
+      const spot = this.bySpot.get(e.getValue(Gatherable, 'spotId') ?? '');
+      if (spot && items.includes(spot.itemId)) out.push({ id: spot.id, x: spot.x, z: spot.z, item: spot.itemId });
+    }
+    return out;
+  }
+
   /** Distance from the head to a spot, on the ground plane. */
   distanceTo(spot: ResourceSpot): number {
     this.camera.getWorldPosition(this.head);

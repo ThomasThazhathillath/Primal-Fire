@@ -282,3 +282,15 @@ export const menu = new MenuStack();
 /** Where an open fingertip panel hangs (m): in comfortable seated reach, a little below the eyes, facing you. */
 export const PANEL_DISTANCE = 0.45;
 export const PANEL_DOWN = 0.1;
+
+// ---------------------------------------------------------------- gaze selection of UI
+/** Something that can run a UI element chosen by gaze + pinch (a PanelTouch panel, the objective card). */
+export interface GazeUiOwner {
+  /** Run element `id` (an index the owner gave in collectGaze) as its fingertip tap does. */
+  gazeActivate(id: number): void;
+  /** Light (or clear) the gaze highlight on element `id`. */
+  gazeHover(id: number, on: boolean): void;
+}
+export type GazeUiAdd = (prefix: string, key: string, x: number, y: number, z: number, r: number, owner: GazeUiOwner, id: number) => void;
+/** Every on-screen panel that can offer UI elements as gaze targets (registered once at creation). */
+export const gazeUi: Array<{ collectGaze(add: GazeUiAdd): void }> = [];

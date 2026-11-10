@@ -41,6 +41,8 @@ export function clearSave(): void {
   }
 }
 
+import { pickFrameRate } from '../game/perf-stats.js';
+
 export class WorldSystem extends createSystem({}) {
   /** Game time only runs once you have woken up, and pauses on blur. */
   started = false;
@@ -59,7 +61,11 @@ export class WorldSystem extends createSystem({}) {
         this.paused = v === VisibilityState.VisibleBlurred || v === VisibilityState.Hidden;
         if (v === VisibilityState.Visible) {
           try {
-            this.world.session?.updateTargetFrameRate?.(72);
+            // 90 Hz where the runtime offers it (docs/GAZE_PINCH_90FPS_SPEC.md); otherwise the runtime default.
+            const session = this.world.session as (XRSession & { supportedFrameRates?: Float32Array; updateTargetFrameRate?(r: number): Promise<void> }) | undefined;
+            const rate = pickFrameRate(session?.supportedFrameRates);
+            if (rate) session?.updateTargetFrameRate?.(rate)?.catch(() => undefined);
+            // Fixed foveation: full detail in the middle of the view, cheaper at the edges.
             this.renderer.xr.setFoveation(1);
           } catch {
             // Not every browser supports these.

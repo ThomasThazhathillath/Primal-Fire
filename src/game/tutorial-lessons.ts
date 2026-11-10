@@ -9,9 +9,11 @@
 import type { Game, GameEvent } from './game.js';
 import { fitsPouch, type ItemId } from './items.js';
 import type { StructureKind } from './blueprint.js';
+import { gazeStats } from './gaze.js';
 
 export type LessonId =
   | 'hands'
+  | 'look'
   | 'gather'
   | 'satchel'
   | 'move'
@@ -73,6 +75,8 @@ export interface Lesson {
   builds?: StructureKind;
   /** Prepare the tutorial Game so the lesson can always be finished. */
   setup?(g: Game): void;
+  /** Tidy up when the lesson is done or skipped (e.g. a practice outline). */
+  teardown?(g: Game): void;
 }
 
 const has = (g: Game, id: ItemId) => g.count(id) + (g.held === id ? 1 : 0);
@@ -100,6 +104,22 @@ function clearKind(g: Game, kind: string): void {
   }
 }
 
+/** A fire-pit outline a few steps ahead, so the lesson has a mark to look at (kept if one is already there). */
+function lookLessonOutline(g: Game): void {
+  if (g.structures.some((s) => s.kind === 'firePit' && !s.complete)) return;
+  const fx = -Math.sin(g.facingYaw);
+  const fz = -Math.cos(g.facingYaw);
+  for (const [f, side] of [[2.6, 0], [2.6, 1.4], [2.6, -1.4], [3.4, 0], [-2.6, 0]]) {
+    const x = g.player.x + fx * f + fz * side;
+    const z = g.player.z + fz * f - fx * side;
+    if (g.placeBlueprint('firePit', x, z, 0, true).ok) return;
+  }
+}
+
+/** Marks of the practice fire pit already filled when the look lesson began. */
+let lookBase = 0;
+const filledPitMarks = (g: Game): number => g.structures.reduce((n, s) => n + (s.kind === 'firePit' ? s.spots.filter((x) => x).length : 0), 0);
+
 export const LESSONS: Lesson[] = [
   {
     id: 'hands',
@@ -111,6 +131,30 @@ export const LESSONS: Lesson[] = [
     tasks: [
       { text: 'Pinch something within reach to pick it up', done: (c) => c.pickups >= 1 },
       { text: 'Pick up one more thing (anything)', done: (c) => c.pickups >= 2 },
+    ],
+  },
+  // LOOK AND PINCH (docs/GAZE_PINCH_90FPS_SPEC.md): far things by gaze. Kept as one self-contained block.
+  {
+    id: 'look',
+    builds: 'firePit',
+    title: 'Look and pinch',
+    say: 'Look at a glowing stone. Pinch.',
+    science: 'Your eyes move before your hand: you aim where you look.',
+    tip: 'No need to reach: look, then pinch either hand. Desktop: hover and click.',
+    setup: (g) => {
+      freeHands(g);
+      ensure(g, { dryStone: 2 });
+      gazeStats.reset();
+      lookLessonOutline(g);
+      lookBase = filledPitMarks(g);
+    },
+    // The practice outline goes (its stones come back); the fire lesson builds the real pit.
+    teardown: (g) => clearKind(g, 'firePit'),
+    tasks: [
+      { text: 'Look at a stone and pinch', done: () => gazeStats.picks >= 1 },
+      { text: 'Move your hand, then open it', done: () => gazeStats.releases >= 1 },
+      // A quick pinch that picks the stone and lets go over the outline seats it through the release path (not gazeStats.placed): that counts too.
+      { text: 'Look at a mark and pinch', done: (_c, g) => gazeStats.placed >= 1 || filledPitMarks(g) > lookBase },
     ],
   },
   {
@@ -522,6 +566,7 @@ export class TutorialRunner {
     this.emit({ type: 'lessonDone', index });
     const l = LESSONS[index];
     if (l.note && !this.game.notebook.includes(l.note)) this.game.observe(l.note);
+    l.teardown?.(this.game);
     this.emit({ type: 'science', index, text: l.science });
     if (index === LESSONS.length - 1) {
       if (!this.finished || !wasDone) {
@@ -564,6 +609,7 @@ export const CLOSING: string[] = [
 /** The hour each step plays at: early afternoon at waking, dusk by the fire, night falling at the end. */
 export const STEP_HOURS: Record<LessonId, number> = {
   hands: 13,
+  look: 13.2,
   gather: 13.5,
   satchel: 14,
   move: 14.5,

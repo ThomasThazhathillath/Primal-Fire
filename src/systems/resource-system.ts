@@ -274,7 +274,7 @@ export class ResourceSystem extends createSystem({
       const hand = this.pendingPinch;
       this.pendingPinch = -1;
       // The ray's own press already gathered (or something else took the pinch): nothing to assist.
-      if (performance.now() - this.lastGather > 150 && !getGame(this.world).held) {
+      if (performance.now() - this.lastGather > 150 && !getGame(this.world).held && performance.now() / 1000 - handClaims.grabAt > 0.3) {
         const a = this.aim[hand];
         if (a.n > 0) {
           const k = (a.i - Math.min(AIM_LOOKBACK, a.n) + AIM_HISTORY) % AIM_HISTORY;

@@ -65,8 +65,8 @@ export interface Lesson {
   /** Optional extra tip, shown smaller (e.g. desktop keys). */
   tip: string;
   tasks: Task[];
-  /** Structures this lesson lets you start (absent = none; 'all' = any). Keeps stray outlines out of other lessons. */
-  builds?: StructureKind[] | 'all';
+  /** The one structure this lesson lets you start (absent = none). Keeps stray outlines out of other lessons. */
+  builds?: StructureKind;
   /** Prepare the tutorial Game so the lesson can always be finished. */
   setup?(g: Game): void;
 }
@@ -161,7 +161,7 @@ export const LESSONS: Lesson[] = [
   },
   {
     id: 'build',
-    builds: ['workbench'],
+    builds: 'workbench',
     title: '6. Build a workbench',
     say: 'Hold the stone slab over open ground. A ghost shows where it goes.',
     tip: 'Red ghost = bad ground. Fill each glowing spot with a stone leg, then lay the slab on top.',
@@ -177,7 +177,7 @@ export const LESSONS: Lesson[] = [
   },
   {
     id: 'craft',
-    builds: ['workbench'],
+    builds: 'workbench',
     title: '7. Crafting',
     say: 'Stand at the workbench. Its card shows what you can make.',
     tip: 'Twist fibres into cord with both hands. Then bind spindle, board, branch and cord.',
@@ -193,7 +193,7 @@ export const LESSONS: Lesson[] = [
   },
   {
     id: 'fire',
-    builds: ['firePit'],
+    builds: 'firePit',
     title: '8. Fire',
     say: 'Ring of stones, then tinder, twigs, logs. Drill an ember. Fan it.',
     tip: 'Try damp moss, or logs first, to see what goes wrong. Fan with an open palm.',
@@ -229,7 +229,7 @@ export const LESSONS: Lesson[] = [
   },
   {
     id: 'final',
-    builds: 'all',
+    builds: 'firePit',
     title: '11. On your own',
     say: 'No steps this time. Show what you learned.',
     tip: 'Stuck? The goal card has hints.',
@@ -241,7 +241,7 @@ export const LESSONS: Lesson[] = [
     tasks: [
       { text: 'Gather fibres yourself', done: (c) => c.gathered.has('fibers') },
       { text: 'Take something out of the satchel', done: (c) => c.tookOut >= 1 },
-      { text: 'Build any structure', done: (c) => c.newStructures.size > 0 },
+      { text: 'Build a fire pit of your own', done: (c) => [...c.newStructures].some((k) => k.startsWith('firePit')) },
       { text: 'Craft cord', done: (c) => c.cordMade },
     ],
   },
@@ -326,7 +326,7 @@ export class TutorialRunner {
   }
 
   dispose(): void {
-    this.game.buildFilter = null;
+    this.game.lessonStructure = undefined;
     this.off();
     this.listeners.clear();
   }
@@ -353,7 +353,7 @@ export class TutorialRunner {
     this.current = Math.max(0, Math.min(LESSONS.length - 1, index));
     const g = this.game;
     const builds = LESSONS[this.current].builds;
-    g.buildFilter = this.finished || builds === 'all' ? null : (k) => !!builds && builds.includes(k);
+    g.lessonStructure = this.finished ? undefined : (builds ?? null);
     if (runSetup) LESSONS[this.current].setup?.(g);
     this.ctx = freshCtx();
     this.ticks = LESSONS[this.current].tasks.map(() => false);
@@ -380,7 +380,7 @@ export class TutorialRunner {
   skipAll(): void {
     for (const id of LESSON_IDS) this.done.add(id);
     this.finished = true;
-    this.game.buildFilter = null;
+    this.game.lessonStructure = undefined;
     this.emit({ type: 'finished' });
   }
 
@@ -502,7 +502,7 @@ export class TutorialRunner {
     if (index === LESSONS.length - 1) {
       if (!this.finished || !wasDone) {
         this.finished = true;
-        this.game.buildFilter = null;
+        this.game.lessonStructure = undefined;
         this.emit({ type: 'finished' });
       }
       return;

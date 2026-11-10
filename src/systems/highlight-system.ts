@@ -102,7 +102,7 @@ export class HighlightSystem extends createSystem({
       this.world.createTransformEntity(p);
       this.pops.push(p);
     }
-    this.arrow = new Mesh(new ConeGeometry(0.07, 0.18, 8), arrowMat);
+    this.arrow = new Mesh(new ConeGeometry(0.1, 0.28, 8), arrowMat);
     this.arrow.rotation.x = Math.PI; // points down at the target
     this.arrow.visible = false;
     this.arrow.renderOrder = 22;
@@ -295,7 +295,7 @@ export class HighlightSystem extends createSystem({
     MATS.exact.opacity = 0.7 + Math.sin(this.t * 7) * 0.25;
     for (let i = 0; i < RING_POOL; i++) if (this.rings[i].visible) this.rings[i].scale.setScalar(this.slotKind[i] === 'blocked' ? 0.8 : s * (this.slotKind[i] === 'target' ? 1.25 : 1));
     if (this.arrow.visible && hintFx.exact) {
-      this.arrow.position.set(hintFx.exact.x, Math.max(hintFx.exact.y, groundHeight(hintFx.exact.x, hintFx.exact.z)) + 0.55 + Math.sin(this.t * 4) * 0.08, hintFx.exact.z);
+      this.arrow.position.set(hintFx.exact.x, Math.max(hintFx.exact.y, groundHeight(hintFx.exact.x, hintFx.exact.z)) + 0.75 + Math.sin(this.t * 4) * 0.1, hintFx.exact.z);
     }
     if (this.label.visible) this.label.position.set(this.tx, this.ty + 0.55, this.tz);
     for (let i = 0; i < POPS; i++) {

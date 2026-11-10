@@ -106,3 +106,26 @@ describe('hint chime and unsticking', () => {
     expect(releaseStuck(things, (x, z) => ({ x, z }))).toBe(0);
   });
 });
+
+describe('only the wanted structure may start an outline', () => {
+  it('nothing during objectives that build nothing; the objective structure when it builds; the lesson overrides both', () => {
+    const g = new Game();
+    expect(g.wantedStructure()).toBeNull(); // first stone: no outline may start
+    for (let i = 0; i < 4; i++) g.gather('dryStone');
+    g.gather('slab');
+    g.tick(3);
+    expect(g.objectives.current!.id).toBe('workbench');
+    expect(g.wantedStructure()).toBe('workbench');
+    g.lessonStructure = 'firePit';
+    expect(g.wantedStructure()).toBe('firePit');
+    g.lessonStructure = null;
+    expect(g.wantedStructure()).toBeNull();
+    g.lessonStructure = undefined;
+    expect(g.wantedStructure()).toBe('workbench');
+  });
+  it('once the beginner objectives are over any structure may start', () => {
+    const g = new Game();
+    g.objectives.done = true;
+    expect(g.wantedStructure()).toBeUndefined();
+  });
+});

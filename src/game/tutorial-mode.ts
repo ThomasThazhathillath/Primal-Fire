@@ -87,3 +87,28 @@ export function loadProgressRaw(store: KeyStore | null = browserStore()): string
 export function saveProgressRaw(raw: string, store: KeyStore | null = browserStore()): void {
   safeSet(store, TUTORIAL_PROGRESS_KEY, raw);
 }
+
+/** What finishing the opening carries into survival: the controls you learned, never items or progress. */
+export const CARRY_KEY = 'primal-first-fire.carry.v1';
+
+export interface StoryCarry {
+  /** Interaction ids the objective card no longer needs to explain (ObjectiveTracker.learn). */
+  learned: string[];
+}
+
+export function saveCarry(carry: StoryCarry, store: KeyStore | null = browserStore()): void {
+  safeSet(store, CARRY_KEY, JSON.stringify({ learned: carry.learned.filter((x) => typeof x === 'string') }));
+}
+
+/** Read and remove the carry (it applies once, to a fresh survival game). */
+export function takeCarry(store: KeyStore | null = browserStore()): StoryCarry | null {
+  const raw = safeGet(store, CARRY_KEY);
+  if (raw === null) return null;
+  safeSet(store, CARRY_KEY, null);
+  try {
+    const c = JSON.parse(raw) as StoryCarry;
+    return Array.isArray(c?.learned) ? { learned: c.learned.filter((x) => typeof x === 'string') } : null;
+  } catch {
+    return null;
+  }
+}

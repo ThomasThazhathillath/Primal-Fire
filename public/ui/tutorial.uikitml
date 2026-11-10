@@ -1,8 +1,8 @@
 <!--
-  The lesson tracker of "THE FIRST STEPS" (TutorialSystem). Compact: the
-  lesson title, one line from the guide, up to four task rows that tick, one
-  small tip, then Repeat / Skip / Leave and a row of lesson numbers to replay
-  any lesson. The choice row (Tutorial or Skip to survival) and the finish row
+  The story card of "THE FIRST STEPS" (TutorialSystem). Compact: time of
+  day, the step title and the next thing to do. Opened from the Story icon it
+  also shows every task, a tip, Do again / Skip this / Skip to survival and a
+  row of step numbers to replay any step. The choice row (Tutorial or Skip to survival) and the finish row
   replace the lesson body when shown. Same field-journal theme as the cards.
 -->
 <style>
@@ -25,8 +25,8 @@
   .celetext { color: #ffffff; font-size: 22px; font-weight: 700; line-height: 1.25; width: 440px; }
 </style>
 <Panel id="tut-root" class="root t-root">
-  <div id="tut-label" class="t-label">THE FIRST STEPS - LESSON 1 OF 11</div>
-  <div id="tut-title" class="t-title">Your hands</div>
+  <div id="tut-label" class="t-label">DAY 1 - AFTERNOON</div>
+  <div id="tut-title" class="t-title">Waking</div>
   <div id="tut-body" class="tasks">
     <div id="tut-say" class="wide t-lead">-</div>
     <div id="tut-task-0" class="task t-task">-</div>
@@ -34,12 +34,12 @@
     <div id="tut-task-2" class="task t-task">-</div>
     <div id="tut-task-3" class="task t-task">-</div>
     <div id="tut-tip" class="wide t-muted">-</div>
-    <div class="row">
-      <Button id="tut-repeat" class="t-btn" size="sm" variant="secondary"><ButtonLabel>Repeat</ButtonLabel></Button>
-      <Button id="tut-skip" class="t-btn" size="sm" variant="secondary"><ButtonLabel>Skip lesson</ButtonLabel></Button>
-      <Button id="tut-leave" class="t-btn" size="sm" variant="secondary"><ButtonLabel>Leave tutorial</ButtonLabel></Button>
+    <div id="tut-ctrl" class="row">
+      <Button id="tut-repeat" class="t-btn" size="sm" variant="secondary"><ButtonLabel>Do again</ButtonLabel></Button>
+      <Button id="tut-skip" class="t-btn" size="sm" variant="secondary"><ButtonLabel>Skip this</ButtonLabel></Button>
+      <Button id="tut-leave" class="t-btn" size="sm" variant="secondary"><ButtonLabel>Skip to survival</ButtonLabel></Button>
     </div>
-    <div class="row">
+    <div id="tut-nums" class="row">
       <Button id="tut-l0" class="num t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-l0-t">1</ButtonLabel></Button>
       <Button id="tut-l1" class="num t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-l1-t">2</ButtonLabel></Button>
       <Button id="tut-l2" class="num t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-l2-t">3</ButtonLabel></Button>

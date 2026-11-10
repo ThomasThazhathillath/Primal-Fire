@@ -4,7 +4,7 @@ import { LAY_NEEDS } from '../src/game/fire.js';
 import { Game } from '../src/game/game.js';
 import { setEasyCarry } from '../src/game/items.js';
 import { campItems, tutorialSpots } from '../src/game/tutorial-layout.js';
-import { LESSONS, TutorialRunner, type LessonId } from '../src/game/tutorial-lessons.js';
+import { LESSONS, storyHour, TutorialRunner, type LessonId } from '../src/game/tutorial-lessons.js';
 import {
   chooseSurvival,
   chooseTutorial,
@@ -15,6 +15,9 @@ import {
   TUTORIAL_PROGRESS_KEY,
   TUTORIAL_SAVE_KEY,
   saveProgressRaw,
+  saveCarry,
+  takeCarry,
+  CARRY_KEY,
   type KeyStore,
 } from '../src/game/tutorial-mode.js';
 
@@ -310,5 +313,43 @@ describe('tutorial and survival saves stay separate', () => {
     r.begin(LESSONS.findIndex((l) => l.id === 'fire'));
     expect(survival.count('bowDrill')).toBe(0);
     expect(survival.count('dryStone')).toBe(2);
+  });
+});
+
+describe('the opening as a story', () => {
+  it('no step title or line reads like a training course', () => {
+    for (const l of LESSONS) {
+      for (const t of [l.title, l.say, l.science, ...l.tasks.map((x) => x.text)]) {
+        expect(t, t).not.toMatch(/lesson|tutorial|training|\bpractice\b/i);
+      }
+      expect(l.title).not.toMatch(/^\d/);
+      expect(l.science.length).toBeGreaterThan(10);
+    }
+  });
+
+  it('a science line follows each step, and its notebook entry is recorded', () => {
+    const g = new Game();
+    const r = new TutorialRunner(g);
+    const said: string[] = [];
+    r.on((e) => e.type === 'science' && said.push(e.text));
+    r.begin(LESSONS.findIndex((l) => l.id === 'gather'));
+    playLesson(r, g);
+    expect(said).toEqual([LESSONS[1].science]);
+    expect(g.notebook).toContain('g_dead');
+  });
+
+  it('the clock runs from early afternoon to dusk across the opening', () => {
+    expect(storyHour(0)).toBeCloseTo(13);
+    expect(storyHour(LESSONS.length)).toBeCloseTo(18.5);
+    expect(storyHour(5)).toBeGreaterThan(storyHour(4));
+  });
+
+  it('only learned controls carry into survival, once', () => {
+    const s = store();
+    saveCarry({ learned: ['grab', 'build', 7 as unknown as string] }, s);
+    expect(JSON.parse(s.getItem(CARRY_KEY)!)).toEqual({ learned: ['grab', 'build'] });
+    expect(takeCarry(s)).toEqual({ learned: ['grab', 'build'] });
+    expect(takeCarry(s)).toBeNull();
+    expect(s.getItem(SURVIVAL_SAVE_KEY)).toBeNull();
   });
 });

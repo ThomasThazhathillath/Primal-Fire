@@ -47,4 +47,5 @@
   <div id="slot-13" class="slot"><Button class="t-btn" id="ic-restart" size="sm" variant="secondary"><ButtonIcon><ListRestart></ListRestart></ButtonIcon></Button><div id="lbl-13" class="lbl t-small">Restart</div></div>
   <div id="slot-14" class="slot"><Button class="t-btn" id="ic-menu" size="sm" variant="secondary"><ButtonIcon><LayoutGrid></LayoutGrid></ButtonIcon></Button><div id="lbl-14" class="lbl t-small">Menu</div></div>
   <div id="slot-15" class="slot"><Button class="t-btn" id="ic-bench" size="sm" variant="secondary"><ButtonIcon><Wrench></Wrench></ButtonIcon></Button><div id="lbl-15" class="lbl t-small">Bench</div></div>
+  <div id="slot-16" class="slot"><Button class="t-btn" id="ic-story" size="sm" variant="secondary"><ButtonIcon><Compass></Compass></ButtonIcon></Button><div id="lbl-16" class="lbl t-small">Story</div></div>
 </Panel>

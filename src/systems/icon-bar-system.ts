@@ -61,6 +61,8 @@ const DEFS: Def[] = [
   { id: 'menu', show: (s) => s.vr, run: () => menu.toggleGrid() },
   // Only at a finished workbench: opens its recipe panel (no more poking the 3D bench).
   { id: 'bench', show: (s) => s.benchNear, run: (s) => getUi(s.world).openNearestBench?.() },
+  // Only during the guided opening: the story card's steps, Do again / Skip (TutorialSystem).
+  { id: 'story', show: (s) => !!getUi(s.world).toggleStory, run: (s) => getUi(s.world).toggleStory?.() },
 ];
 
 /** Icons that act and fold the grid (the rest open a panel, which folds it itself). */

@@ -41,6 +41,8 @@ export interface UiHooks {
   snapTurn(deg: number): void;
   /** Write the save now (before a reload). */
   saveNow(): void;
+  /** Guided opening only: open or fold the story card's steps and replay / skip controls. */
+  toggleStory?(): void;
 }
 
 export function getGame(world: World): Game {

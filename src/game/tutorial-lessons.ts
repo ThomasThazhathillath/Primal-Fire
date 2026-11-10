@@ -64,6 +64,10 @@ export interface Lesson {
   say: string;
   /** Optional extra tip, shown smaller (e.g. desktop keys). */
   tip: string;
+  /** The science behind what you just did: said after the step is done. */
+  science: string;
+  /** Notebook entry recorded with it (if not already noted). */
+  note?: string;
   tasks: Task[];
   /** The one structure this lesson lets you start (absent = none). Keeps stray outlines out of other lessons. */
   builds?: StructureKind;
@@ -100,18 +104,21 @@ export const LESSONS: Lesson[] = [
   {
     id: 'hands',
     setup: freeHands,
-    title: '1. Your hands',
-    say: 'Things you can use glow softly when your hand is near.',
+    title: 'Waking',
+    say: 'You wake on cold ground with nothing. Things within reach glow softly.',
+    science: 'An opposable thumb lets a hand grip what no paw can: your first tool.',
     tip: 'Pinch thumb and finger together to grab. Open your hand to let go. Desktop: click.',
     tasks: [
-      { text: 'Pinch a stone or the slab to pick it up', done: (c) => c.pickups >= 1 },
+      { text: 'Pinch something within reach to pick it up', done: (c) => c.pickups >= 1 },
       { text: 'Pick up one more thing (anything)', done: (c) => c.pickups >= 2 },
     ],
   },
   {
     id: 'gather',
-    title: '2. Gathering',
-    say: 'Point at a plant or stone and pinch. It flies into your satchel.',
+    title: 'What the clearing offers',
+    say: 'Dusk will come. Fire needs tinder, kindling and stones. Point and pinch to gather.',
+    science: 'Dry, dead wood snaps cleanly: no water left inside to fight the flame.',
+    note: 'g_dead',
     tip: 'You can reach about two steps away. Desktop: aim and click.',
     tasks: [
       { text: 'Gather dry grass', done: (c) => c.gathered.has('dryGrass') },
@@ -122,23 +129,25 @@ export const LESSONS: Lesson[] = [
   },
   {
     id: 'satchel',
-    title: '3. Your satchel',
-    say: 'The pouch hangs at your right hip. Everything you gather is in there.',
+    title: 'The pouch at your hip',
+    say: 'Everything you gather goes into the pouch at your right hip.',
+    science: 'Carry only what you need: every extra stone is weight you pay for in effort.',
     tip: 'Reach down to the pouch, or tap Menu > Bag. Desktop: Tab.',
     setup: (g) => {
       freeHands(g);
       ensure(g, { dryStone: 1 });
     },
     tasks: [
-      { text: 'Take a stone out of the satchel', done: (c) => c.tookOut >= 1 },
-      { text: 'Put it back in the satchel', done: (c) => c.putBack >= 1 },
+      { text: 'Take a stone out of the pouch', done: (c) => c.tookOut >= 1 },
+      { text: 'Put it back', done: (c) => c.putBack >= 1 },
     ],
   },
   {
     id: 'move',
-    title: '4. Moving',
-    say: 'Pinch and hold, aim at the ground, let go to jump there.',
-    tip: 'Flick your thumb sideways to turn. Desktop: WASD to walk, Q / E to turn.',
+    title: 'Bearings',
+    say: 'Far off, a rusted mast leans over old ruins. Not yet. Get your bearings first.',
+    science: 'The sun sinks in the west; its height above the trees tells you how long until dark.',
+    tip: 'Pinch and hold, aim at the ground, let go to move there. Flick your thumb sideways to turn. Desktop: WASD to walk, Q / E to turn.',
     tasks: [
       { text: 'Move to a new spot', done: (c) => c.moved >= 1.2 },
       { text: 'Turn to face another way', done: (c) => c.turned >= 0.7 },
@@ -146,47 +155,52 @@ export const LESSONS: Lesson[] = [
   },
   {
     id: 'place',
-    title: '5. Hold, place, throw',
-    say: 'Big things stay in your hand. Set them down, or toss them.',
+    title: 'Hands full',
+    say: 'Big things stay in your hands. Set them down, or toss them aside.',
+    science: 'A thrown stone keeps moving until the ground stops it: momentum.',
     tip: 'Open your hand low to place. Fling and open to throw. Desktop: G drops, Shift+G throws.',
     setup: (g) => {
       freeHands(g);
       ensure(g, { dryStone: 2, logs: 1 });
     },
     tasks: [
-      { text: 'Take a log or the slab out of the satchel to hold it', done: (c) => c.heldKinds.has('logs') || c.heldKinds.has('slab') },
+      { text: 'Hold a log or the stone slab', done: (c) => c.heldKinds.has('logs') || c.heldKinds.has('slab') },
       { text: 'Set something down on the ground', done: (c) => c.drops >= 1 },
-      { text: 'Throw something (or set down a second)', done: (c) => c.drops >= 2 },
+      { text: 'Toss something (or set down another)', done: (c) => c.drops >= 2 },
     ],
   },
   {
     id: 'build',
     builds: 'workbench',
-    title: '6. Build a workbench',
-    say: 'Hold the stone slab over open ground. A ghost shows where it goes.',
-    tip: 'Red ghost = bad ground. Fill each glowing spot with a stone leg, then lay the slab on top.',
+    title: 'A steady surface',
+    say: 'Every machine is gone. The science is not. To make anything, you need a steady work surface.',
+    tip: 'Hold the slab over open ground; a red outline means bad ground. Take a stone and set it on each glowing mark.',
+    science: 'Three legs always touch the ground together: a tripod never wobbles.',
+    note: 'b_tripod',
     setup: (g) => {
       clearKind(g, 'workbench');
       ensure(g, { dryStone: 3 });
     },
     tasks: [
-      { text: 'Pick up the slab and place the plan', done: (c, g) => c.newStructures.size > 0 || g.structures.some((s) => s.kind === 'workbench') },
-      { text: 'Set three stone legs in the glowing spots', done: (c, g) => g.structures.some((s) => s.kind === 'workbench' && s.spots.every((v) => v !== null)) },
-      { text: 'Lay the slab on top to finish', done: (c, g) => g.structures.some((s) => s.kind === 'workbench' && s.complete) },
+      { text: 'Hold the stone slab over open ground and place the plan', done: (c, g) => c.newStructures.size > 0 || g.structures.some((s) => s.kind === 'workbench') },
+      { text: 'Set a stone on each glowing mark', done: (c, g) => g.structures.some((s) => s.kind === 'workbench' && s.spots.every((v) => v !== null)) },
+      { text: 'Lay the slab on top', done: (c, g) => g.structures.some((s) => s.kind === 'workbench' && s.complete) },
     ],
   },
   {
     id: 'craft',
     builds: 'workbench',
-    title: '7. Crafting',
-    say: 'Stand at the workbench. Its card shows what you can make.',
+    title: 'Cord',
+    say: 'Fire needs a bow drill, and a bow drill needs cord. Stand at the bench.',
+    science: 'Twisted fibres squeeze each other: friction locks them into one strong cord.',
+    note: 'g_cord',
     tip: 'Twist fibres into cord with both hands. Then bind spindle, board, branch and cord.',
     setup: (g) => {
       if (!g.structures.some((s) => s.kind === 'workbench' && s.complete)) ensure(g, { dryStone: 3 });
       ensure(g, { fibers: 3, spindle: 1, board: 1, greenBranch: 1 });
     },
     tasks: [
-      { text: 'Have a finished workbench', done: (c, g) => g.structures.some((s) => s.kind === 'workbench' && s.complete) },
+      { text: 'Stand at your workbench', done: (c, g) => g.structures.some((s) => s.kind === 'workbench' && s.complete) },
       { text: 'Twist three fibres into cord', done: (c) => c.cordMade },
       { text: 'Make the bow drill', done: (c) => c.drillMade },
     ],
@@ -194,8 +208,10 @@ export const LESSONS: Lesson[] = [
   {
     id: 'fire',
     builds: 'firePit',
-    title: '8. Fire',
-    say: 'Ring of stones, then tinder, twigs, logs. Drill an ember. Fan it.',
+    title: 'Fire before nightfall',
+    say: 'The light is going. A ring of stones, then tinder, twigs, logs. Then make an ember.',
+    science: 'Fire needs heat, fuel and air. Take any one away and it dies.',
+    note: 'f_success',
     tip: 'Try damp moss, or logs first, to see what goes wrong. Fan with an open palm.',
     setup: (g) => {
       ensure(g, { dryStone: 4, dryGrass: 2, twigs: 3, logs: 2, dampMoss: 1 });
@@ -209,18 +225,20 @@ export const LESSONS: Lesson[] = [
   },
   {
     id: 'hints',
-    title: '9. Hints and goals',
-    say: 'The card at the top is your goal. Hints are optional.',
+    title: 'When you are stuck',
+    say: 'The card above shows what to do next. It can give hints, if you want them.',
+    science: 'Every discovery starts the same way: a question, then a test.',
     tip: 'Tap the bulb on the card for a hint. Tap "More help" for a clearer one.',
     tasks: [
-      { text: 'Open a hint on the goal card', done: (c) => c.hintLevel >= 1 },
+      { text: 'Ask the card for a hint', done: (c) => c.hintLevel >= 1 },
       { text: 'Ask for more help', done: (c) => c.hintLevel >= 2 },
     ],
   },
   {
     id: 'notebook',
-    title: '10. Lab notebook',
-    say: 'What you notice becomes science: Observation, Principle, Real limit.',
+    title: 'What you have learned',
+    say: 'Everything you notice is written down: what you saw, why, and where it stops working.',
+    science: 'Observation, principle, real-world limit: the steps every scientist uses.',
     tip: 'Menu > Notebook. Desktop: N. New discoveries open new goals.',
     setup: (g) => {
       if (g.notebook.length === 0) g.observe('g_cord');
@@ -230,8 +248,9 @@ export const LESSONS: Lesson[] = [
   {
     id: 'final',
     builds: 'firePit',
-    title: '11. On your own',
-    say: 'No steps this time. Show what you learned.',
+    title: 'Night is coming',
+    say: 'The last light is going. Show what you know.',
+    science: 'You made fire from wood, stone and understanding. That is all you will ever have out here.',
     tip: 'Stuck? The goal card has hints.',
     setup: (g) => {
       // Fresh start for the challenge: use what is in the camp.
@@ -239,8 +258,8 @@ export const LESSONS: Lesson[] = [
       clearKind(g, 'storage');
     },
     tasks: [
-      { text: 'Gather fibres yourself', done: (c) => c.gathered.has('fibers') },
-      { text: 'Take something out of the satchel', done: (c) => c.tookOut >= 1 },
+      { text: 'Gather fibres', done: (c) => c.gathered.has('fibers') },
+      { text: 'Take something out of the pouch', done: (c) => c.tookOut >= 1 },
       { text: 'Build a fire pit of your own', done: (c) => [...c.newStructures].some((k) => k.startsWith('firePit')) },
       { text: 'Craft cord', done: (c) => c.cordMade },
     ],
@@ -284,6 +303,8 @@ export type TutorialEvent =
   | { type: 'lesson'; index: number }
   | { type: 'task'; index: number; task: number }
   | { type: 'lessonDone'; index: number }
+  /** The science line after a step is done (its notebook entry, if any, is already recorded). */
+  | { type: 'science'; index: number; text: string }
   | { type: 'finished' };
 
 /**
@@ -499,6 +520,9 @@ export class TutorialRunner {
     this.done.add(this.lesson.id);
     this.ticks = this.ticks.map(() => true);
     this.emit({ type: 'lessonDone', index });
+    const l = LESSONS[index];
+    if (l.note && !this.game.notebook.includes(l.note)) this.game.observe(l.note);
+    this.emit({ type: 'science', index, text: l.science });
     if (index === LESSONS.length - 1) {
       if (!this.finished || !wasDone) {
         this.finished = true;
@@ -522,4 +546,22 @@ export class TutorialRunner {
   nextTask(): number {
     return this.ticks.indexOf(false);
   }
+}
+
+/** Opening narration, a line or two per beat, before the first step. */
+export const OPENING: string[] = [
+  'You wake on the forest floor. Cold. Nothing in your hands.',
+  'Through the trees, a rusted mast leans over ruins on the horizon.',
+  'Every machine is gone. The science is not.',
+];
+
+/** The closing lines when the last step is done; survival carries the story on from here. */
+export const CLOSING: string[] = [
+  'Darkness settles. Your fire holds it back.',
+  'Out past the trees, the rusted mast catches the last of the light.',
+];
+
+/** Hour of the first day after `stepsDone` of the opening: early afternoon to dusk. */
+export function storyHour(stepsDone: number): number {
+  return 13 + (Math.max(0, Math.min(LESSONS.length, stepsDone)) / LESSONS.length) * 5.5;
 }

@@ -182,15 +182,72 @@ describe('THE FIRST STEPS tutorial', () => {
     expect(r.done.size).toBe(LESSONS.length);
   });
 
-  it('tasks tick in order and never un-tick', () => {
+  it('a second stone counts as the second pickup', () => {
     const g = new Game();
     const r = new TutorialRunner(g);
-    g.gather('slab');
-    expect(r.ticks).toEqual([true, false, false]);
-    g.gather('slab');
-    expect(r.ticks).toEqual([true, false, false]); // the same thing twice is not a second thing
+    g.gather('dryStone');
+    g.gather('dryStone');
+    at(r, 'gather');
+  });
+
+  it('outside building lessons no blueprint can be started; inside, only the lesson structure', () => {
+    const g = new Game();
+    const r = new TutorialRunner(g);
+    r.begin(LESSONS.findIndex((l) => l.id === 'place'));
+    g.takeOut('dryStone');
+    expect(g.placeBlueprint('firePit', 1, 1).ok).toBe(false);
+    expect(g.structures.length).toBe(0);
+    r.begin(LESSONS.findIndex((l) => l.id === 'build'));
+    g.takeOut('dryStone');
+    expect(g.placeBlueprint('firePit', 1, 1).ok).toBe(false);
+    r.begin(LESSONS.findIndex((l) => l.id === 'fire'));
+    if (g.held !== 'dryStone') g.takeOut('dryStone');
+    expect(g.placeBlueprint('firePit', 1, 1).ok).toBe(true);
+    r.skipAll();
+    expect(g.allowsBuild('storage')).toBe(true);
+  });
+
+  it('the final challenge needs a finished structure, not just an outline', () => {
+    const g = new Game();
+    const r = new TutorialRunner(g);
+    r.begin(LESSONS.findIndex((l) => l.id === 'final'));
+    g.addItem('dryStone', 4);
+    g.takeOut('dryStone');
+    const pit = g.placeBlueprint('firePit', -2, 1).structure!;
+    r.poll(ui);
+    expect(r.ticks[2]).toBe(false);
+    pit.spots.forEach((_, i) => g.fillSpot(pit.id, i));
+    r.poll(ui);
+    expect(r.ticks[2]).toBe(true);
+  });
+
+  it('tasks tick any order and never un-tick', () => {
+    const g = new Game();
+    const r = new TutorialRunner(g);
+    r.skipLesson();
+    at(r, 'gather');
+    g.gather('fibers');
+    g.gather('dryStone');
+    expect(r.ticks).toEqual([false, false, true, true]); // any order: each ticks the moment it is gathered
     g.gather('twigs');
-    expect(r.lesson.id).toBe('gather');
+    expect(r.ticks).toEqual([false, true, true, true]);
+    g.gather('dryGrass');
+    at(r, 'satchel');
+  });
+
+  it('a reload mid-lesson keeps the half-built work (setup does not run again)', () => {
+    const g = new Game();
+    const r = new TutorialRunner(g);
+    r.begin(LESSONS.findIndex((l) => l.id === 'build'));
+    g.gather('slab');
+    if (g.held !== 'slab') g.takeOut('slab');
+    g.placeBlueprint('workbench', -1, -1.5);
+    r.poll(ui);
+    const g2 = Game.restore(JSON.parse(JSON.stringify(g.snapshot())));
+    const r2 = new TutorialRunner(g2, JSON.parse(JSON.stringify(r.snapshot())));
+    at(r2, 'build');
+    expect(g2.structures.length).toBe(1);
+    expect(r2.ticks[0]).toBe(true); // the plan tick is kept
   });
 
   it('progress survives a reload', () => {

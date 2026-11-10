@@ -23,7 +23,7 @@ const CAMP: CampSpot[] = [
   { look: 'fibrePlant', item: 'fibers', label: 'A tall plant with long, stringy stems', x: 1.25, z: -0.75 },
   { look: 'fibrePlant', item: 'fibers', label: 'A tall plant with long, stringy stems', x: 1.45, z: -0.2 },
   { look: 'mossRock', item: 'dampMoss', label: 'A shaded rock furred with soft green moss', x: -1.25, z: -0.75 },
-  { look: 'fallenLog', item: 'logs', label: 'A fallen, long-dead trunk', x: -1.5, z: -0.15 },
+  { look: 'fallenLog', item: 'logs', label: 'A fallen, long-dead trunk', x: -2.0, z: 0.45 },
   { look: 'slab', item: 'slab', label: 'A flat slab of stone', x: 0, z: -1.9 },
   { look: 'straightStick', item: 'spindle', label: 'A perfectly straight, dry stick', x: 1.05, z: -1.7 },
   { look: 'board', item: 'board', label: 'A flat slab of wood split off by lightning', x: -1.05, z: -1.7 },

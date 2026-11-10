@@ -190,6 +190,13 @@ export class Game {
   private listeners = new Set<(e: GameEvent) => void>();
   private nextStructureId = 1;
 
+  /** Tutorial hook: which structures may be started right now (null = all). Not saved. */
+  buildFilter: ((kind: StructureKind) => boolean) | null = null;
+
+  allowsBuild(kind: StructureKind): boolean {
+    return !this.buildFilter || this.buildFilter(kind);
+  }
+
   constructor() {
     this.log = new EventLog(
       () =>
@@ -813,6 +820,7 @@ export class Game {
     fromBook = false,
   ): PlacementResult & { structure?: PlacedStructure } {
     const def = BLUEPRINTS[kind];
+    if (!this.allowsBuild(kind)) return { ok: false, reason: 'structure', message: `Not now - this lesson is not about the ${def.name.toLowerCase()}.` };
     if (!fromBook && (!this.held || !def.keyAccepts.includes(this.held))) {
       return { ok: false, reason: 'structure', message: `You need ${def.keyAccepts.map(itemName).join(' or ')} in hand.` };
     }

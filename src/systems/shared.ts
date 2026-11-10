@@ -246,6 +246,8 @@ export const hintFx = {
 export const handClaims = {
   /** Fingertip is on / just tapped a UI icon: that pinch or poke is not a grab. */
   uiNear: [false, false],
+  /** When (s) a fingertip was last near a panel; uiNear is recomputed from it each frame (HandInputSystem). */
+  uiNearAt: [-10, -10],
   uiTapAt: [-10, -10],
   /** This hand's current pinch grabbed (or is holding) something: it must not start a teleport. */
   grabbing: [false, false],

@@ -8,6 +8,7 @@
 
 import type { Game, GameEvent } from './game.js';
 import { fitsPouch, type ItemId } from './items.js';
+import type { StructureKind } from './blueprint.js';
 
 export type LessonId =
   | 'hands'
@@ -25,6 +26,8 @@ export type LessonId =
 /** What the runner has seen since the current lesson started. */
 export interface LessonCtx {
   picks: number;
+  /** Every pickup: gathered from the world or lifted off the ground (not taken out of the satchel). */
+  pickups: number;
   puts: number;
   heldKinds: Set<ItemId>;
   gathered: Set<ItemId>;
@@ -62,12 +65,11 @@ export interface Lesson {
   /** Optional extra tip, shown smaller (e.g. desktop keys). */
   tip: string;
   tasks: Task[];
+  /** Structures this lesson lets you start (absent = none; 'all' = any). Keeps stray outlines out of other lessons. */
+  builds?: StructureKind[] | 'all';
   /** Prepare the tutorial Game so the lesson can always be finished. */
   setup?(g: Game): void;
 }
-
-/** Different things picked up: lifted into the hand, or pinched straight into the satchel. */
-const picked = (c: LessonCtx) => new Set([...c.heldKinds, ...c.gathered]).size;
 
 const has = (g: Game, id: ItemId) => g.count(id) + (g.held === id ? 1 : 0);
 
@@ -102,9 +104,8 @@ export const LESSONS: Lesson[] = [
     say: 'Things you can use glow softly when your hand is near.',
     tip: 'Pinch thumb and finger together to grab. Open your hand to let go. Desktop: click.',
     tasks: [
-      { text: 'Pinch the stone slab or a stone to pick it up', done: (c) => picked(c) >= 1 },
-      { text: 'Pick up a second, different thing', done: (c) => picked(c) >= 2 },
-      { text: 'Open your hand: small things fly to your satchel', done: (c) => picked(c) >= 2 },
+      { text: 'Pinch a stone or the slab to pick it up', done: (c) => c.pickups >= 1 },
+      { text: 'Pick up one more thing (anything)', done: (c) => c.pickups >= 2 },
     ],
   },
   {
@@ -160,6 +161,7 @@ export const LESSONS: Lesson[] = [
   },
   {
     id: 'build',
+    builds: ['workbench'],
     title: '6. Build a workbench',
     say: 'Hold the stone slab over open ground. A ghost shows where it goes.',
     tip: 'Red ghost = bad ground. Fill each glowing spot with a stone leg, then lay the slab on top.',
@@ -175,6 +177,7 @@ export const LESSONS: Lesson[] = [
   },
   {
     id: 'craft',
+    builds: ['workbench'],
     title: '7. Crafting',
     say: 'Stand at the workbench. Its card shows what you can make.',
     tip: 'Twist fibres into cord with both hands. Then bind spindle, board, branch and cord.',
@@ -190,6 +193,7 @@ export const LESSONS: Lesson[] = [
   },
   {
     id: 'fire',
+    builds: ['firePit'],
     title: '8. Fire',
     say: 'Ring of stones, then tinder, twigs, logs. Drill an ember. Fan it.',
     tip: 'Try damp moss, or logs first, to see what goes wrong. Fan with an open palm.',
@@ -225,6 +229,7 @@ export const LESSONS: Lesson[] = [
   },
   {
     id: 'final',
+    builds: 'all',
     title: '11. On your own',
     say: 'No steps this time. Show what you learned.',
     tip: 'Stuck? The goal card has hints.',
@@ -248,11 +253,14 @@ export interface TutorialSave {
   done: LessonId[];
   current: number;
   finished: boolean;
+  /** Ticked tasks of the open lesson (kept across a reload). */
+  ticks?: boolean[];
 }
 
 function freshCtx(): LessonCtx {
   return {
     picks: 0,
+    pickups: 0,
     puts: 0,
     heldKinds: new Set(),
     gathered: new Set(),
@@ -312,10 +320,13 @@ export class TutorialRunner {
       this.finished = !!save.finished;
     }
     this.off = game.on((e) => this.onEvent(e));
-    this.begin(this.current, true);
+    // A restored lesson keeps the saved world as it is: its setup ran when the lesson first opened.
+    this.begin(this.current, true, !save);
+    if (save?.ticks && save.ticks.length === this.ticks.length) this.ticks = save.ticks.map(Boolean);
   }
 
   dispose(): void {
+    this.game.buildFilter = null;
     this.off();
     this.listeners.clear();
   }
@@ -334,14 +345,16 @@ export class TutorialRunner {
   }
 
   snapshot(): TutorialSave {
-    return { done: [...this.done], current: this.current, finished: this.finished };
+    return { done: [...this.done], current: this.current, finished: this.finished, ticks: [...this.ticks] };
   }
 
   /** Open lesson `index` (replay or jump). Runs its setup, clears what was seen. */
-  begin(index: number, quiet = false): void {
+  begin(index: number, quiet = false, runSetup = true): void {
     this.current = Math.max(0, Math.min(LESSONS.length - 1, index));
     const g = this.game;
-    LESSONS[this.current].setup?.(g);
+    const builds = LESSONS[this.current].builds;
+    g.buildFilter = this.finished || builds === 'all' ? null : (k) => !!builds && builds.includes(k);
+    if (runSetup) LESSONS[this.current].setup?.(g);
     this.ctx = freshCtx();
     this.ticks = LESSONS[this.current].tasks.map(() => false);
     this.startX = g.player.x;
@@ -367,6 +380,7 @@ export class TutorialRunner {
   skipAll(): void {
     for (const id of LESSON_IDS) this.done.add(id);
     this.finished = true;
+    this.game.buildFilter = null;
     this.emit({ type: 'finished' });
   }
 
@@ -400,13 +414,19 @@ export class TutorialRunner {
         break;
       case 'gather':
         c.gathered.add(e.item);
+        c.pickups++;
         break;
       case 'drops':
         if (g.drops.length > this.dropCount) c.drops += g.drops.length - this.dropCount;
+        else if (g.drops.length < this.dropCount) c.pickups += this.dropCount - g.drops.length; // picked back up off the ground
         this.dropCount = g.drops.length;
         break;
       case 'structure':
-        c.newStructures.add(`${e.structure.kind}#${e.structure.id}`);
+        // Only a finished build counts (an outline is just the plan).
+        if (e.structure.complete && !this.knownComplete.has(e.structure.id)) {
+          this.knownComplete.add(e.structure.id);
+          c.newStructures.add(`${e.structure.kind}#${e.structure.id}`);
+        }
         break;
       case 'interaction':
         c.failures++;
@@ -464,12 +484,11 @@ export class TutorialRunner {
     const tasks = this.lesson.tasks;
     for (let i = 0; i < tasks.length; i++) {
       if (this.ticks[i]) continue;
-      // Tasks are ticked in order, so the card always shows one clear next step.
-      if (i > 0 && !this.ticks[i - 1]) break;
+      // Any order: a task ticks the moment it is done (the card still marks the first open one as next).
       if (tasks[i].done(this.ctx, this.game)) {
         this.ticks[i] = true;
         this.emit({ type: 'task', index: this.current, task: i });
-      } else break;
+      }
     }
     if (this.ticks.every(Boolean)) this.complete();
   }
@@ -483,6 +502,7 @@ export class TutorialRunner {
     if (index === LESSONS.length - 1) {
       if (!this.finished || !wasDone) {
         this.finished = true;
+        this.game.buildFilter = null;
         this.emit({ type: 'finished' });
       }
       return;

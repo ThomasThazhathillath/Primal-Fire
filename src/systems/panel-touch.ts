@@ -178,7 +178,10 @@ export class PanelTouch {
       const hit = tr.update(dt, this.icons, s);
       for (let i = 0; i < n; i++) if (tr.states[i] > merged[i]) merged[i] = tr.states[i];
       // Around the panel a pinch is never a grab or a teleport.
-      handClaims.uiNear[h] = handClaims.uiNear[h] || tr.hoverIcon >= 0 || (s.tracked && this.inZone(s));
+      if (tr.hoverIcon >= 0 || (s.tracked && this.inZone(s))) {
+        handClaims.uiNear[h] = true;
+        handClaims.uiNearAt[h] = performance.now() / 1000;
+      }
       if (tr.reject && tr.rejectIcon >= 0 && tr.rejectIcon < n) {
         const id = this.active[tr.rejectIcon].id;
         if (rejectLog.shouldLog(`${this.name}:${id}:${tr.reject}:${h}`, performance.now())) {

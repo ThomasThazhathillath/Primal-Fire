@@ -7,6 +7,7 @@
 
 import { HandMotion } from '../game/handmotion.js';
 import { handSqueeze, PinchDetector } from '../game/pinch.js';
+import { handClaims } from './shared.js';
 import { createSystem, type Object3D, Quaternion, Vector3, VisibilityState } from '@iwsdk/core';
 
 export interface HandFrame {
@@ -266,6 +267,10 @@ export class HandInputSystem extends createSystem({}) {
   private clock = 0;
 
   update(delta: number): void {
+    // A hand counts as near UI only while a panel saw it there in the last few frames (it used to latch forever,
+    // blocking every pinch grab and teleport after the first panel use).
+    const nowS = performance.now() / 1000;
+    for (let h = 0; h < 2; h++) handClaims.uiNear[h] = nowS - handClaims.uiNearAt[h] < 0.1;
     const dt = Math.max(delta, 1e-4);
     this.clock += dt;
     this.attach();

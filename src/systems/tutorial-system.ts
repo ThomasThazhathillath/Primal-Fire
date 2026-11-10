@@ -13,7 +13,7 @@ import { createSystem, type Entity, RayInteractable, Types, type UIKit, type UIK
 import { LESSONS, TutorialRunner, type TutorialSave } from '../game/tutorial-lessons.js';
 import { choiceMade, chooseSurvival, loadProgressRaw, reloadInto, saveProgressRaw } from '../game/tutorial-mode.js';
 import { PanelTouch } from './panel-touch.js';
-import { getGame, getUi, hidePanel, StaticAnchor, uiText } from './shared.js';
+import { getGame, getUi, hidePanel, menu, StaticAnchor, uiText } from './shared.js';
 import { clearSave, WorldSystem } from './world-system.js';
 
 const PANEL_SCALE = 0.045;
@@ -26,7 +26,8 @@ export class TutorialSystem extends createSystem({}, { tutorial: { type: Types.B
   private panel: UIKitMLAsset | null = null;
   private entity: Entity | null = null;
   private touch: PanelTouch | null = null;
-  private anchor = new StaticAnchor(0.62, -0.4, 0.02, 1.0, 1.2);
+  /** Up and to the left, above the working space of the hands (an accidental brush must not change lessons). */
+  private anchor = new StaticAnchor(0.6, -0.42, -0.08, 1.0, 1.2);
   private runner: TutorialRunner | null = null;
   private mode: CardMode = 'hidden';
   private vr = false;
@@ -52,6 +53,8 @@ export class TutorialSystem extends createSystem({}, { tutorial: { type: Types.B
     for (let i = 0; i < LESSONS.length; i++) this.els[`l${i}`] = panel.getElementById<UIKit.Text>(`tut-l${i}`);
 
     this.touch = new PanelTouch(this.world, panel, PANEL_SCALE, 'tutorial');
+    // The card stays up while both hands work nearby: only a deliberate pointing finger taps it (as at the bench).
+    this.touch.setRequirePoint(true);
     const wire = (id: string, fn: () => void) => {
       const el = panel.getElementById(id);
       if (!el) return;
@@ -120,7 +123,10 @@ export class TutorialSystem extends createSystem({}, { tutorial: { type: Types.B
         this.dirty = true;
         if (e.type === 'task') game.toast(`Done: ${LESSONS[e.index].tasks[e.task].text}.`, 'good');
         if (e.type === 'lessonDone') game.log.add(`tutorial lesson ${LESSONS[e.index].id} done`, 'ok');
-        if (e.type === 'lesson') game.toast(LESSONS[e.index].say, 'note');
+        if (e.type === 'lesson') {
+          game.toast(LESSONS[e.index].say, 'note');
+          this.mode = 'lesson'; // a replay after finishing shows the lesson again
+        }
         if (e.type === 'finished') {
           game.toast('THE FIRST STEPS complete. You are ready to survive.', 'good');
           this.mode = 'finished';
@@ -223,24 +229,35 @@ export class TutorialSystem extends createSystem({}, { tutorial: { type: Types.B
       }
     }
     if (this.mode === 'hidden') return;
+    // Another panel (bag, bench, notebook, hint) is open: step aside so the two never overlap.
+    const ui = getUi(this.world);
+    if (menu.current !== null || (ui.notebookOpen?.() ?? false) || (ui.hintOpen?.() ?? false)) {
+      if (panel.visible) hidePanel(panel);
+      this.pollRunner(delta);
+      return;
+    }
     if (!panel.visible) {
       panel.visible = true;
       this.anchor.reset();
       this.dirty = true;
     }
     this.anchor.update(panel, this.camera);
-    if ((this.poll += delta) >= POLL_SECONDS && this.runner) {
-      this.poll = 0;
-      const game = getGame(this.world);
-      const ui = getUi(this.world);
-      const cur = game.objectives.current;
-      this.runner.poll({ hintLevel: cur ? game.objectives.hintLevel(cur.id) : 0, notebookOpen: ui.notebookOpen?.() ?? false });
-    }
+    this.pollRunner(delta);
     if (this.dirty) {
       this.dirty = false;
       this.render();
     }
     if (this.vr) this.touch?.update(delta);
+  }
+
+  /** The lessons keep watching while the card is hidden (a hint or the notebook is what some lessons are about). */
+  private pollRunner(delta: number): void {
+    if ((this.poll += delta) < POLL_SECONDS || !this.runner) return;
+    this.poll = 0;
+    const game = getGame(this.world);
+    const ui = getUi(this.world);
+    const cur = game.objectives.current;
+    this.runner.poll({ hintLevel: cur ? game.objectives.hintLevel(cur.id) : 0, notebookOpen: ui.notebookOpen?.() ?? false });
   }
 
   private installDebug(): void {

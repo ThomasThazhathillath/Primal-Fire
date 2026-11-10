@@ -17,7 +17,7 @@
     <div class="eyebrow">CHAPTER 1</div>
     <div class="heading">PRIMAL: First Fire</div>
     <div class="body">You wake on the forest floor with nothing. Every machine is gone. The science isn't.</div>
-    <div class="how">Point and pinch to gather. Your satchel hangs at your hip. Take out a stone and point at open ground to build.</div>
+    <div class="how">Point and pinch to gather: it goes into the pouch at your hip. To build, pinch an empty glowing mark - a stone from the pouch fills it, and the next one comes to your hand.</div>
     <div class="how">Stuck? Ask for a hint - ask again for a clearer one.</div>
   </div>
   <Button id="xr-button" class="button">

@@ -174,7 +174,7 @@ export const LESSONS: Lesson[] = [
     builds: 'workbench',
     title: 'A steady surface',
     say: 'Every machine is gone. The science is not. To make anything, you need a steady work surface.',
-    tip: 'Hold the slab over open ground; a red outline means bad ground. Take a stone and set it on each glowing mark.',
+    tip: 'Hold the slab over open ground; a red outline means bad ground. Then pinch an empty glowing mark: a stone from your pouch fills it, and the next one comes to your hand.',
     science: 'Three legs always touch the ground together: a tripod never wobbles.',
     note: 'b_tripod',
     setup: (g) => {
@@ -183,7 +183,7 @@ export const LESSONS: Lesson[] = [
     },
     tasks: [
       { text: 'Hold the stone slab over open ground and place the plan', done: (c, g) => c.newStructures.size > 0 || g.structures.some((s) => s.kind === 'workbench') },
-      { text: 'Set a stone on each glowing mark', done: (c, g) => g.structures.some((s) => s.kind === 'workbench' && s.spots.every((v) => v !== null)) },
+      { text: 'Fill each glowing mark with a stone', done: (c, g) => g.structures.some((s) => s.kind === 'workbench' && s.spots.every((v) => v !== null)) },
       { text: 'Lay the slab on top', done: (c, g) => g.structures.some((s) => s.kind === 'workbench' && s.complete) },
     ],
   },
@@ -561,7 +561,24 @@ export const CLOSING: string[] = [
   'Out past the trees, the rusted mast catches the last of the light.',
 ];
 
-/** Hour of the first day after `stepsDone` of the opening: early afternoon to dusk. */
-export function storyHour(stepsDone: number): number {
-  return 13 + (Math.max(0, Math.min(LESSONS.length, stepsDone)) / LESSONS.length) * 5.5;
+/** The hour each step plays at: early afternoon at waking, dusk by the fire, night falling at the end. */
+export const STEP_HOURS: Record<LessonId, number> = {
+  hands: 13,
+  gather: 13.5,
+  satchel: 14,
+  move: 14.5,
+  place: 15,
+  build: 15.5,
+  craft: 16.5,
+  fire: 18.2,
+  hints: 18.6,
+  notebook: 18.9,
+  final: 19.2,
+};
+/** After the last step: night. */
+export const NIGHT_HOUR = 19.8;
+
+/** Hour of the first day for the open step (or night once the opening is finished). */
+export function storyHour(step: LessonId | null): number {
+  return step === null ? NIGHT_HOUR : STEP_HOURS[step];
 }

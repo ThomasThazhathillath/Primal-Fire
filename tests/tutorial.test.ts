@@ -339,9 +339,10 @@ describe('the opening as a story', () => {
   });
 
   it('the clock runs from early afternoon to dusk across the opening', () => {
-    expect(storyHour(0)).toBeCloseTo(13);
-    expect(storyHour(LESSONS.length)).toBeCloseTo(18.5);
-    expect(storyHour(5)).toBeGreaterThan(storyHour(4));
+    expect(storyHour('hands')).toBeCloseTo(13);
+    expect(storyHour('fire')).toBeGreaterThanOrEqual(18); // dusk by the fire
+    expect(storyHour(null)).toBeGreaterThan(storyHour('final'));
+    for (let i = 1; i < LESSONS.length; i++) expect(storyHour(LESSONS[i].id)).toBeGreaterThan(storyHour(LESSONS[i - 1].id));
   });
 
   it('only learned controls carry into survival, once', () => {

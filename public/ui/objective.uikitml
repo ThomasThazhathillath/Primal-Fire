@@ -26,7 +26,7 @@
   .t-fill { background-color: #ff8a3d; border-radius: 4px; }
 .theme-end { display: flex; }
   .root { flex-direction: column; width: 520px; height: 330px; padding-top: 16px; padding-bottom: 14px; padding-left: 20px; padding-right: 16px; gap: 6px; justify-content: flex-start; }
-  .head { flex-direction: row; align-items: center; justify-content: space-between; height: 56px; flex-shrink: 0; }
+  .head { flex-direction: row; align-items: center; justify-content: space-between; min-height: 56px; flex-shrink: 0; }
   .titlebox { flex-direction: column; width: 380px; }
   .btns { flex-direction: row; gap: 8px; }
   .body { flex-direction: column; gap: 8px; flex-shrink: 0; }

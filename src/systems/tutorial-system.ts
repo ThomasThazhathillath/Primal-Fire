@@ -175,7 +175,11 @@ export class TutorialSystem extends createSystem({}, { tutorial: { type: Types.B
     // Only the opening page can leave: clearSave() below must never run against the survival save.
     if (!this.config.tutorial.peek() || !this.runner) return;
     this.saveProgress();
-    if (carry) saveCarry({ learned: getGame(this.world).objectives.snapshot().learned });
+    if (carry) {
+      const learned = getGame(this.world).objectives.snapshot().learned;
+      saveCarry({ learned });
+      getGame(this.world).log.add(`story carry saved: ${learned.join(',') || 'nothing'}`, 'ok');
+    }
     // In the opening the save key is its own: this drops its game and blocks the pagehide save.
     clearSave();
     reloadInto('survival');
@@ -186,7 +190,11 @@ export class TutorialSystem extends createSystem({}, { tutorial: { type: Types.B
     const carry = takeCarry();
     if (!carry) return;
     const game = getGame(this.world);
-    if (game.time > 5 || game.structures.length > 0) return; // an existing survival game keeps its own state
+    if (game.time > 5 || game.structures.length > 0) {
+      // An existing survival game keeps its own state.
+      game.log.add(`story carry ignored: survival game already under way (${game.time.toFixed(0)}s)`);
+      return;
+    }
     for (const id of carry.learned) game.objectives.learn(id as InteractionId);
     game.log.add(`story carry: learned ${carry.learned.join(',') || 'nothing'}`, 'ok');
     this.lines.push("Morning. Last night's fire is ash, and you are somewhere new.", 'The mast is still there on the horizon. You know how to begin.');
@@ -316,7 +324,7 @@ export class TutorialSystem extends createSystem({}, { tutorial: { type: Types.B
     const r = this.runner;
     if (!r) return;
     const g = getGame(this.world);
-    const target = storyHour(r.finished ? LESSONS.length : r.done.size);
+    const target = storyHour(r.finished && r.done.size === LESSONS.length && this.mode === 'finished' ? null : r.lesson.id);
     if (this.skyHour < 0) this.skyHour = target;
     const d = target - this.skyHour;
     if (Math.abs(d) > 1e-3) this.skyHour += Math.sign(d) * Math.min(Math.abs(d), SKY_RATE * delta);

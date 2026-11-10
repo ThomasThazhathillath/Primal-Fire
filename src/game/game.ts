@@ -70,6 +70,8 @@ export type GameEvent =
   | { type: 'objective'; id: string | null }
   /** A part was seated on its mark (for the confirmation pop and sound). */
   | { type: 'placed'; x: number; y: number; z: number }
+  /** A hint level was unlocked (a soft chime). */
+  | { type: 'hintGiven'; level: number }
   | { type: 'objectiveDone'; id: string; message: string }
   | { type: 'questComplete'; index: number; title: string; roadmapNode: string | null }
   | { type: 'levelComplete'; level: number; name: string; next: GameLevel | null }

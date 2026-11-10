@@ -20,7 +20,7 @@ import {
   Vector3,
 } from '@iwsdk/core';
 import type { GameEvent } from '../game/game.js';
-import { ASSIST, catchesThrownAt, type Mark, openMarks } from '../game/assist.js';
+import { catchesThrownAt, type Mark, openMarks, releaseStuck } from '../game/assist.js';
 import { bounceOff, stepBody, type Body } from '../game/carry.js';
 import { nudgeOut } from '../game/collision.js';
 import { ITEM_PHYSICS, type ItemId, type Material } from '../game/items.js';
@@ -54,6 +54,7 @@ export class DropSystem extends createSystem({
   /** Open marks of unfinished builds; rebuilt only when a structure changes. */
   private marks: Mark[] = [];
   private marksDirty = true;
+  private unstickT = 2;
 
   init(): void {
     const game = getGame(this.world);
@@ -132,6 +133,17 @@ export class DropSystem extends createSystem({
   update(delta: number): void {
     const dt = Math.min(delta, 0.05);
     const game = getGame(this.world);
+    // Every couple of seconds: nothing lying on the ground stays inside a tree, rock or a build placed over it.
+    if ((this.unstickT -= dt) <= 0) {
+      this.unstickT = 2;
+      const resting = game.drops.filter((d) => !this.falling.some((f) => f.dropId === d.id));
+      if (resting.length && releaseStuck(resting, (x, z) => nudgeOut(x, z, 0.15)) > 0) {
+        for (const d of resting) {
+          const v = this.views.get(d.id)?.object3D;
+          if (v) v.position.set(d.x, groundHeight(d.x, d.z), d.z);
+        }
+      }
+    }
     for (let i = this.falling.length - 1; i >= 0; i--) {
       const f = this.falling[i];
       const b = f.body;

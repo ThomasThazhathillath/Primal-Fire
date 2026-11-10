@@ -379,3 +379,23 @@ export class MessageGate {
     this.text = '';
   }
 }
+
+// -------------------------------------------------------------- unsticking
+
+/**
+ * Move anything resting inside a tree, rock or structure back out (a build can be placed over a stone that
+ * lay there; a throw can come to rest against a trunk). `nudge` gives the nearest free point. Returns how
+ * many moved, so nothing is ever permanently stuck. Mutates the items.
+ */
+export function releaseStuck(items: Array<{ x: number; z: number }>, nudge: (x: number, z: number) => { x: number; z: number }, minMove = 0.02): number {
+  let moved = 0;
+  for (const it of items) {
+    const p = nudge(it.x, it.z);
+    if (Math.hypot(p.x - it.x, p.z - it.z) > minMove) {
+      it.x = p.x;
+      it.z = p.z;
+      moved++;
+    }
+  }
+  return moved;
+}

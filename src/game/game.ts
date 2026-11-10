@@ -180,6 +180,8 @@ export class Game {
   readonly shelterTest = new ShelterTest();
   private forcedRain = false;
   private shelterT = 0;
+  /** Game time a shelter part was last set (the rain waits for the builder to finish). */
+  private lastBuildAt = -99;
   /** Game time a plan (outline) was last placed from a held key part: that pinch must not also let go of the part. */
   planPlacedAt = -10;
   /**
@@ -1423,6 +1425,7 @@ export class Game {
   /** A stage or milestone of the shelter just happened (called after a part is set). */
   private shelterProgress(s: PlacedStructure, index: number): void {
     const def = BLUEPRINTS.leanTo;
+    this.lastBuildAt = this.time;
     const stage = def.spots[index].stage ?? 0;
     const c = stageCount(s, stage);
     if (c.done === c.total && !s.keyOpen) {
@@ -1540,7 +1543,7 @@ export class Game {
       return;
     }
     const leaks = leakingPanels(s);
-    const readyForRain = roofed(s) && this.time - this.lastSeatAt > 20;
+    const readyForRain = roofed(s) && this.time - this.lastBuildAt > 20;
     const ev = test.update(dt, { roofed: readyForRain, leaks: leaks.length, drained: this.drained(), inside: this.insideShelter(this.player.x, this.player.z) });
     if (test.raining && !this.forcedRain) {
       this.env.forceWeather = 'heavyRain';

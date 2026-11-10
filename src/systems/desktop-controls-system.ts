@@ -36,7 +36,10 @@ export class DesktopControlsSystem extends createSystem({}) {
         ui.toggleSatchel?.();
       } else if (e.code === 'KeyH') ui.showHint?.();
       else if (e.code === 'KeyN') ui.openNotebook?.();
-      else if (e.code === 'KeyR') getGame(this.world).stow();
+      else if (e.code === 'KeyR') {
+        getGame(this.world).cancelRefill();
+        getGame(this.world).stow();
+      }
     };
     const onKeyUp = (e: KeyboardEvent) => this.keys.delete(e.code);
     const onDown = (e: PointerEvent) => {

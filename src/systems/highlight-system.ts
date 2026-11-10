@@ -12,6 +12,7 @@
 import {
   AdditiveBlending,
   CanvasTexture,
+  CircleGeometry,
   ConeGeometry,
   createSystem,
   DoubleSide,
@@ -69,6 +70,10 @@ export class HighlightSystem extends createSystem({
   private head = new Vector3();
   private tmp = new Vector3();
   private arrow!: Mesh;
+  private pool!: Mesh;
+  /** Where the adaptive placement indicator points (the nearest mark the held part fits), when you keep missing. */
+  private assistAt: { x: number; y: number; z: number } | null = null;
+  private poolMat!: MeshBasicMaterial;
   private label!: Sprite;
   private labelCtx!: CanvasRenderingContext2D;
   private labelTex!: CanvasTexture;
@@ -102,6 +107,23 @@ export class HighlightSystem extends createSystem({
       this.world.createTransformEntity(p);
       this.pops.push(p);
     }
+    // The ground glow under the sky pillar: one soft radial pool.
+    const gc = document.createElement('canvas');
+    gc.width = gc.height = 128;
+    const gx = gc.getContext('2d')!;
+    const grad = gx.createRadialGradient(64, 64, 4, 64, 64, 62);
+    grad.addColorStop(0, 'rgba(255,255,255,0.95)');
+    grad.addColorStop(0.45, 'rgba(255,255,255,0.4)');
+    grad.addColorStop(1, 'rgba(255,255,255,0)');
+    gx.fillStyle = grad;
+    gx.fillRect(0, 0, 128, 128);
+    this.poolMat = new MeshBasicMaterial({ map: new CanvasTexture(gc), color: 0x9dffd0, transparent: true, opacity: 0.6, depthWrite: false, depthTest: false, blending: AdditiveBlending });
+    this.pool = new Mesh(new CircleGeometry(0.9, 24), this.poolMat);
+    this.pool.rotation.x = -Math.PI / 2;
+    this.pool.visible = false;
+    this.pool.renderOrder = 19;
+    this.pool.frustumCulled = false;
+    this.world.createTransformEntity(this.pool);
     this.arrow = new Mesh(new ConeGeometry(0.1, 0.28, 8), arrowMat);
     this.arrow.rotation.x = Math.PI; // points down at the target
     this.arrow.visible = false;
@@ -242,6 +264,25 @@ export class HighlightSystem extends createSystem({
         this.want.push({ id: `mark_${m.structure.id}_${m.index}`, kind, x: m.x, y: m.y, z: m.z, priority: highlightPriority(kind, d) });
       }
     }
+    // You keep missing a placement: the mark the held part fits gets a pulsing outline (and, if it goes on, an arrow).
+    this.assistAt = null;
+    const ind = game.assist.indicator();
+    if (game.held && ind >= 1 && this.marks.length) {
+      let best: Mark | null = null;
+      let bd = 6;
+      for (const m of this.marks) {
+        if (!m.accepts.includes(game.held)) continue;
+        const d = Math.hypot(m.x - this.head.x, m.z - this.head.z);
+        if (d < bd) {
+          bd = d;
+          best = m;
+        }
+      }
+      if (best) {
+        this.assistAt = { x: best.x, y: best.y, z: best.z };
+        this.want.push({ id: `assist_${best.structure.id}_${best.index}`, kind: 'exact', x: best.x, y: best.y, z: best.z, priority: highlightPriority('exact', bd) });
+      }
+    }
     for (const p of hintFx.pulse) this.want.push({ id: p.id, kind: 'hint', x: p.x, y: p.y, z: p.z, priority: highlightPriority('hint', Math.hypot(p.x - this.head.x, p.z - this.head.z)) });
     if (hintFx.exact) this.want.push({ id: hintFx.exact.id, kind: 'exact', x: hintFx.exact.x, y: hintFx.exact.y, z: hintFx.exact.z, priority: highlightPriority('exact', 0) });
     pickHighlights(this.want, ASSIST.highlightBudget, this.picked);
@@ -273,7 +314,7 @@ export class HighlightSystem extends createSystem({
       r.visible = true;
     }
     // Arrow over the one exact target.
-    this.arrow.visible = !!hintFx.exact;
+    this.arrow.visible = !!hintFx.exact || (!!this.assistAt && game.assist.indicator() >= 2);
     // The label follows the hovered target only.
     this.label.visible = !!h && this.hasTarget;
   }
@@ -294,8 +335,17 @@ export class HighlightSystem extends createSystem({
     MATS.hint.opacity = 0.45 + Math.sin(this.t * 4) * 0.35;
     MATS.exact.opacity = 0.7 + Math.sin(this.t * 7) * 0.25;
     for (let i = 0; i < RING_POOL; i++) if (this.rings[i].visible) this.rings[i].scale.setScalar(this.slotKind[i] === 'blocked' ? 0.8 : s * (this.slotKind[i] === 'target' ? 1.25 : 1));
-    if (this.arrow.visible && hintFx.exact) {
-      this.arrow.position.set(hintFx.exact.x, Math.max(hintFx.exact.y, groundHeight(hintFx.exact.x, hintFx.exact.z)) + 0.75 + Math.sin(this.t * 4) * 0.1, hintFx.exact.z);
+    // The ground pool pulses under the pillar and goes with it.
+    const gl = hintFx.glow;
+    this.pool.visible = !!gl;
+    if (gl) {
+      this.pool.position.set(gl.x, Math.max(gl.y, groundHeight(gl.x, gl.z)) + 0.03, gl.z);
+      this.pool.scale.setScalar(1 + Math.sin(this.t * 3) * 0.12);
+      this.poolMat.opacity = 0.45 + Math.sin(this.t * 3) * 0.2;
+    }
+    const arrowAt = hintFx.exact ?? this.assistAt;
+    if (this.arrow.visible && arrowAt) {
+      this.arrow.position.set(arrowAt.x, Math.max(arrowAt.y, groundHeight(arrowAt.x, arrowAt.z)) + 0.75 + Math.sin(this.t * 4) * 0.1, arrowAt.z);
     }
     if (this.label.visible) this.label.position.set(this.tx, this.ty + 0.55, this.tz);
     for (let i = 0; i < POPS; i++) {

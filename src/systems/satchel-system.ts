@@ -167,7 +167,10 @@ export class SatchelSystem extends createSystem({
       el.addEventListener('click', fn);
       this.cleanupFuncs.push(() => el.removeEventListener('click', fn));
     };
-    wire('stow-button', () => game.stow());
+    wire('stow-button', () => {
+      game.cancelRefill();
+      game.stow();
+    });
     wire('satchel-close', () => menu.back());
 
     getUi(this.world).toggleSatchel = () => this.toggle();

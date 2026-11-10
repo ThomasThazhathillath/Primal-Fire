@@ -37,7 +37,9 @@ const GUIDE_CODE_FOR: Partial<Record<GuideFailureCode, string>> = {
   'knap.badAngle': 'knap.angleTooSteep',
   'cord.sameDirection': 'twist.sameDirection',
 };
-import { ASSIST, openMarks, snapVerdict } from './assist.js';
+import { ASSIST, needText, openMarks, resolveTarget, snapVerdict, type Candidate } from './assist.js';
+import { Adaptive, type AssistSave } from './adaptive.js';
+import { CONTINUOUS, type IntentAction, type IntentTarget, resolveIntent } from './intent.js';
 import { ObjectiveTracker, type ObjectivesSave } from './objectives.js';
 import { QUESTS, type QuestStep } from './quests.js';
 import { LANDMARKS, type Landmark } from './world-layout.js';
@@ -89,6 +91,8 @@ export type GameEvent =
 
 /** XP needed to reach each level (index = level − 1). */
 export const LEVELS = [0, 100, 250, 450, 700, 1000, 1400, 99999];
+/** While building, refill your hand with the next part only within this distance (m) of the build. */
+export const REFILL_RANGE = 4;
 /** How close (m) you must stand to a workbench to craft at it. */
 export const CRAFT_REACH = 2.5;
 
@@ -154,6 +158,13 @@ export class Game {
   readonly player = { x: 0, z: 0 };
   /** Head yaw in radians (0 = towards -Z); set each frame by the UI so directions can say "to your left". Not saved. */
   facingYaw = 0;
+  /** Per-player assistance: grows with repeated misses, eases with successes, saved (adaptive.ts). */
+  readonly assist = new Adaptive();
+  /**
+   * While building: after you place a part, if the build still wants it and your bag has more, the next one appears
+   * in your hand. Stops with Put away (cancelRefill) or when you walk away from the build. Not saved.
+   */
+  autoRefill = true;
   /**
    * The structure the current lesson wants (set by the tutorial): `undefined` = no lesson says anything,
    * `null` = this lesson builds nothing, so no outline may start. Takes precedence over the objective.
@@ -724,6 +735,7 @@ export class Game {
     this.satchel.set(id, this.count(id) - 1);
     this.held = id;
     this.actionProgress = 0;
+    this.autoRefill = true; // taking something out by hand starts a fresh run
     this.log.add(`took out ${id}`);
     this.emit({ type: 'satchel' });
     this.emit({ type: 'held', item: id });
@@ -1028,13 +1040,142 @@ export class Game {
    */
   seatNear(item: ItemId, x: number, z: number, o: { radius?: number; hands?: number; say?: boolean } = {}): boolean {
     const marks = openMarks(this.structures);
-    const v = snapVerdict(this.structures, marks, item, x, z, o.radius ?? ASSIST.buildArea);
+    const v = snapVerdict(this.structures, marks, item, x, z, (o.radius ?? ASSIST.buildArea) * this.assist.scale('place'));
     if (!v.ok) {
+      // A real attempt that missed (wrong material, or a mark in range of the hint but not of the snap) widens the help.
+      if (o.say && (v.reason === 'wrongMaterial' || v.reason === 'tooFar')) this.assist.fail('place');
       if (o.say && (v.reason === 'wrongMaterial' || v.reason === 'complete')) this.toast(v.message, 'bad');
       return false;
     }
     const m = v.mark;
-    return m.index >= 0 ? this.fillSpot(m.structure.id, m.index, item, { x: m.x, z: m.z }) : this.placeKey(m.structure.id, m.x, m.z, o.hands ?? 1);
+    const wasHeld = this.held === item;
+    const ok = m.index >= 0 ? this.fillSpot(m.structure.id, m.index, item, { x: m.x, z: m.z }) : this.placeKey(m.structure.id, m.x, m.z, o.hands ?? 1);
+    if (ok) {
+      this.assist.success('place');
+      if (wasHeld) this.refill(item);
+    }
+    return ok;
+  }
+
+  /**
+   * The ONE action holding `held` (null = empty hand) at (x, z) would do, from what is near: the fire pit, the
+   * stream, a filter, a charcoal mound, a plot, or the ground. Targets are ranked by distance and the table in
+   * intent.ts decides; an unrelated target never fires. Placement on marks is separate (`seatNear`).
+   */
+  intentAt(held: ItemId | null, x: number, z: number, motion: 'touch' | 'release' = 'release'): { action: IntentAction; at: { x: number; z: number }; dist: number } | null {
+    const at = { x, z };
+    const found: Array<{ action: IntentAction; at: { x: number; z: number }; dist: number }> = [];
+    const cands: Candidate[] = [];
+    const add = (t: IntentTarget, pos: { x: number; z: number }, reach: number) => {
+      const dist = Math.hypot(pos.x - x, pos.z - z);
+      if (dist > reach) return;
+      const a = resolveIntent(held, t);
+      if (!a) return;
+      found.push({ action: a, at: pos, dist });
+      cands.push({ id: String(found.length - 1), dist, aimed: false, valid: true, matchesHeld: true });
+    };
+    const pot = { fired: this.flag('potFired'), dry: this.flag('potDry'), water: this.water.potWater };
+    for (const s of this.structures) {
+      if (s.kind === 'firePit' && s.complete) {
+        const f = this.fire;
+        add({ kind: 'firePit', fire: { burning: f.stage === 'burning', embedded: f.embedded, layBuilt: f.layBuilt, stage: f.stage, carrying: f.carrying }, pot }, s, 0.75);
+      }
+    }
+    if (this.water.atStream(at)) add({ kind: 'stream', pot }, at, 0);
+    const filter = this.water.filterNear(at);
+    if (filter) add({ kind: 'filter', pot }, filter, 1.2);
+    const m = this.water.mound;
+    if (m) add({ kind: 'mound', mound: { sealed: m.sealed, burning: m.burn >= 0, fireLit: this.fire.stage === 'burning' } }, m, 1.2);
+    const plot = this.food.plotNear(at);
+    if (plot) add({ kind: 'plot', plot: { hasCrop: !!plot.crop, ripe: !!plot.crop && plot.growth >= 1, moist: plot.moist > 0 }, pot }, plot, 1.2);
+    // Digging needs a deliberate set-down, never just carrying the stick over the ground.
+    if (!plot && !m && motion === 'release') add({ kind: 'ground', canDig: this.food.canDig(at), canMound: this.count('logs') >= 2 }, at, 0);
+    const t = resolveTarget(cands);
+    return t ? found[Number(t.id)] : null;
+  }
+
+  /** Do what `intentAt` found (one-shot actions only: sawing, knapping, cutting and cooking run in their own systems). */
+  runIntent(held: ItemId | null, x: number, z: number, motion: 'touch' | 'release' = 'release'): IntentAction | null {
+    const hit = this.intentAt(held, x, z, motion);
+    if (!hit || CONTINUOUS.has(hit.action)) return null;
+    const at = { x, z };
+    let ok = false;
+    switch (hit.action) {
+      case 'feedFire':
+        ok = this.fire.addFuel();
+        break;
+      case 'carryEmber':
+        ok = this.fire.transferEmber();
+        break;
+      case 'firePot':
+      case 'boilPot':
+      case 'fillPot':
+      case 'pourFilter':
+      case 'sealMound':
+      case 'lightMound':
+      case 'openMound':
+      case 'digMound': {
+        const id = ({ firePot: 'firePot', boilPot: 'boil', fillPot: 'fillPot', pourFilter: 'pourFilter', sealMound: 'sealMound', lightMound: 'lightMound', openMound: 'openMound', digMound: 'digMound' } as const)[hit.action];
+        ok = this.water.perform(id, at);
+        break;
+      }
+      case 'plant':
+      case 'waterPlot':
+      case 'harvest':
+      case 'digPlot': {
+        const a = this.food.available(at, held);
+        ok = !!a && this.food.perform(a);
+        break;
+      }
+      default:
+        break;
+    }
+    if (ok) this.log.add(`intent ${hit.action} with ${held ?? 'empty hand'}`);
+    return ok ? hit.action : null;
+  }
+
+  /**
+   * Put the next `item` in the hand that just placed one, while the build still wants it, the bag has more and you
+   * are still at the build. Big two-hand parts are never refilled (the slab is lifted on purpose).
+   */
+  private refill(item: ItemId): boolean {
+    if (!this.autoRefill || this.held || this.count(item) <= 0 || !fitsPouch(item)) return false;
+    const near = openMarks(this.structures).some((m) => m.accepts.includes(item) && Math.hypot(m.x - this.player.x, m.z - this.player.z) <= REFILL_RANGE);
+    if (!near) return false;
+    const ok = this.takeOut(item);
+    if (ok) this.log.add(`auto-refill ${item}`);
+    return ok;
+  }
+
+  /** Stop refilling (Put away, or the player chose to do something else). Taking an item out by hand starts it again. */
+  cancelRefill(): void {
+    this.autoRefill = false;
+  }
+
+  /**
+   * Fill an open mark from the bag with an empty hand (pinch or tap a glowing mark): takes a matching item from
+   * the bag (or the hand) and seats it there. Says what is missing when the bag has nothing that fits.
+   */
+  fillFromBag(structureId: number, index: number): boolean {
+    const m = openMarks(this.structures).find((k) => k.structure.id === structureId && k.index === index);
+    if (!m) return false;
+    const item = this.held && m.accepts.includes(this.held) ? this.held : (m.accepts.find((i) => this.count(i) > 0) ?? null);
+    if (!item) {
+      this.toast(`This mark needs ${needText(m)}: you have none in your bag.`, 'bad');
+      this.assist.fail('place');
+      return false;
+    }
+    if (m.index < 0) {
+      // The top of a workbench is lifted on with both hands and pressed: bring it to the hand, the player does the rest.
+      if (!m.structure.keyOpen) {
+        if (this.held !== item) this.takeOut(item);
+        this.toast('Lower it onto the supports with both hands.', 'note');
+        return false;
+      }
+    }
+    const ok = m.index >= 0 ? this.fillSpot(structureId, index, item, { x: m.x, z: m.z }) : this.placeKey(structureId, m.x, m.z, 1);
+    if (ok) this.assist.success('place');
+    return ok;
   }
 
   /** A thrown part on the ground (a drop) was caught by an open mark: seat it there, or leave it lying if it will not fit. */
@@ -1430,6 +1571,7 @@ export class Game {
       toolUses: Object.fromEntries(this.toolUses),
       fire: this.fire.snapshot(),
       objectives: this.objectives.snapshot(),
+      assist: this.assist.snapshot(),
       env: this.env.snapshot(),
     };
   }
@@ -1465,6 +1607,7 @@ export class Game {
     if (!data.env) g.env.hourOffset = -(((g.time / g.env.dayLength) * 24) % 24);
     g.held = data.held && data.held in ITEMS ? data.held : null;
     g.objectives.restore(data.objectives);
+    g.assist.restore(data.assist);
     return g;
   }
 }
@@ -1474,6 +1617,8 @@ export interface SaveData {
   fire?: FireSave;
   /** Beginner objectives; absent in older saves (migrated from the rest of the state). */
   objectives?: ObjectivesSave;
+  /** Adaptive assistance strain per channel; absent in older saves (starts at the default). */
+  assist?: AssistSave;
   env?: EnvironmentSave;
   packUpgrades?: string[];
   drops?: WorldDrop[];

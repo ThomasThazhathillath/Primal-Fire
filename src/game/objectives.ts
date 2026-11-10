@@ -28,7 +28,7 @@ export type InteractionId = 'grab' | 'place' | 'build' | 'bench' | 'tool' | 'fir
 
 export const TEACH: Record<InteractionId, string> = {
   grab: 'HOW TO PICK UP: 1. Reach your hand to the stone until your fingers are almost touching it. 2. Press your thumb and index fingertips firmly together (a pinch) and hold them shut. 3. It goes into your satchel.',
-  place: 'HOW TO PLACE: 1. Tap the bag icon and tap the stone to take it in your hand. 2. Keep your thumb and finger pinched shut while you carry it. 3. Hold it over a glowing mark and spread your fingers wide open. It snaps onto the mark.',
+  place: 'HOW TO PLACE: 1. Tap the bag icon and tap the stone to take it in your hand. 2. Carry it over a glowing mark: it is drawn in, and letting go or touching the mark seats it. 3. The next stone appears in your hand by itself. Or, with an empty hand, just pinch or tap a glowing mark: it takes a stone from your bag. Put away stops it.',
   build: 'Open the hammer icon in the bottom bar to place an outline, then fill each mark.',
   bench: 'Poke the finished workbench with a finger to see what you can make.',
   tool: 'Pinch a tool to hold it, then swing it. Strike with the edge, not the flat.',
@@ -433,7 +433,7 @@ export const OBJECTIVES: Objective[] = [
     teach: 'build',
     explains: true,
     howTo: () =>
-      'HOW TO BUILD: 1. Open the grid icon, tap the hammer, tap Fire pit: a ring of glowing marks appears on the ground. 2. Take a stone from the bag, keep it pinched, hold it over a mark and open your fingers. 3. Repeat for every mark.',
+      'HOW TO BUILD: 1. Open the grid icon, tap the hammer, tap Fire pit: a ring of glowing marks appears on the ground. 2. With an empty hand, pinch or tap each glowing mark: it takes a stone from your bag and sets it there. (Or carry a stone to a mark and let go: the next stone appears in your hand.)',
     substeps: (g) => {
       const s = g.structures.find((t) => t.kind === 'firePit');
       const placed = s ? s.spots.filter((v) => v !== null).length + (s.keyOpen ? 0 : 1) : 0;

@@ -4,7 +4,7 @@
 // or completes, when the hint is dismissed, or when you reach the target. Four checks a second.
 
 import { createSystem } from '@iwsdk/core';
-import { arrived, planHint } from '../game/hintfx.js';
+import { arrived, glowFor, planHint } from '../game/hintfx.js';
 import { groundHeight } from '../game/world-layout.js';
 import { ResourceSystem } from './resource-system.js';
 import { getGame, getUi, hintFx } from './shared.js';
@@ -17,6 +17,7 @@ export class HintFxSystem extends createSystem({}) {
   private clear(): void {
     hintFx.pulse.length = 0;
     hintFx.exact = null;
+    hintFx.glow = null;
     if (this.beaconId) {
       getUi(this.world).setBeacon?.(null);
       this.beaconId = '';
@@ -59,9 +60,13 @@ export class HintFxSystem extends createSystem({}) {
         this.beaconId = plan.target.id;
         getUi(this.world).setBeacon?.({ x: plan.target.x, z: plan.target.z });
       }
+      // A glowing pool on the ground at the exact target, cleared with the pillar.
+      const gl = glowFor(plan)!;
+      hintFx.glow = { x: gl.x, y: gl.y || groundHeight(gl.x, gl.z), z: gl.z };
     } else if (this.beaconId) {
       getUi(this.world).setBeacon?.(null);
       this.beaconId = '';
+      hintFx.glow = null;
     }
   }
 }

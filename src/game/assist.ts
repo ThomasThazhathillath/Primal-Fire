@@ -155,14 +155,15 @@ export function snapVerdict(structures: readonly PlacedStructure[], marks: reado
  * to `out` (zero when nothing is close enough). Strongest at the edge of the radius, easing to nothing at the
  * mark so it never snatches the part and the hand still feels in control.
  */
-export function magnetPull(out: { x: number; z: number }, dt: number, px: number, pz: number, mx: number, mz: number, cfg = ASSIST): boolean {
+export function magnetPull(out: { x: number; z: number }, dt: number, px: number, pz: number, mx: number, mz: number, cfg = ASSIST, radiusScale = 1): boolean {
   out.x = 0;
   out.z = 0;
   const dx = mx - px;
   const dz = mz - pz;
   const d = Math.hypot(dx, dz);
-  if (d > cfg.magnetRadius || d < 1e-4) return false;
-  const k = d / cfg.magnetRadius; // 1 at the edge, 0 at the mark
+  const radius = cfg.magnetRadius * radiusScale;
+  if (d > radius || d < 1e-4) return false;
+  const k = d / radius; // 1 at the edge, 0 at the mark
   const step = Math.min(d, cfg.magnetSpeed * k * dt);
   out.x = (dx / d) * step;
   out.z = (dz / d) * step;

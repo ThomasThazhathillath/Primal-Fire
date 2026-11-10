@@ -99,3 +99,17 @@ describe('hint effects follow the hint level', () => {
     expect(p.target!.id).toBe('place_ruins');
   });
 });
+
+describe('ground glow', () => {
+  it('is under the beacon target at levels 3-4 and absent below that', async () => {
+    const { glowFor } = await import('../src/game/hintfx.js');
+    const g = new Game();
+    level(g, 2);
+    expect(glowFor(planHint(g, spots))).toBeNull();
+    level(g, 3);
+    const p = planHint(g, spots);
+    expect(glowFor(p)).toBe(p.target);
+    g.objectives.dismissHintFx();
+    expect(glowFor(planHint(g, spots))).toBeNull();
+  });
+});

@@ -49,6 +49,7 @@ export class CarrySystem extends createSystem({}) {
   private marksDirty = true;
   private pull = { x: 0, z: 0 };
   private markIdx = -1;
+  private intentT = 0.5;
   private pos = new Vector3();
   private vel = new Vector3();
   private target = new Vector3();
@@ -231,6 +232,12 @@ export class CarrySystem extends createSystem({}) {
     // Let go anywhere near a build that wants it: it seats on the nearest correct free mark (no fine positioning).
     // A wrong material or a finished build says why. A THROW is not a placement: it flies, and a gentle one that
     // enters a mark's radius is caught by DropSystem. Works in VR and on the desktop (E / click release).
+    // Letting go near a valid target does that target's action (feed the fire, fill the pot, plant ...): the held part
+    // may be used up by it, in which case there is nothing left to drop.
+    if (kind !== 'throw' && game.held === item) {
+      game.runIntent(item, p.x, p.z);
+      if (game.held !== item) return;
+    }
     if (kind !== 'throw' && game.held === item) {
       const hands = this.grip.count >= 2 || this.hadTwo || carryRules.easy ? 2 : 1;
       if (game.seatNear(item, p.x, p.z, { radius: ASSIST.buildArea, hands, say: true })) return;
@@ -276,12 +283,13 @@ export class CarrySystem extends createSystem({}) {
     }
     this.markIdx = -1;
     if (!this.marks.length || this.reachT < 1) return;
-    const i = nearestMarkIndex(this.marks, item, this.target.x, this.target.z, ASSIST.magnetRadius);
+    const mg = game.assist.magnet();
+    const i = nearestMarkIndex(this.marks, item, this.target.x, this.target.z, ASSIST.magnetRadius * mg);
     if (i < 0) return;
     const m = this.marks[i];
     // The slab and other two-hand key parts are lowered with both hands and pass the push test: no magnet or touch there.
     if (m.index < 0 && !m.structure.keyOpen) return;
-    magnetPull(this.pull, MAGNET_LOOK, this.target.x, this.target.z, m.x, m.z);
+    magnetPull(this.pull, MAGNET_LOOK * mg, this.target.x, this.target.z, m.x, m.z, ASSIST, mg);
     this.target.x += this.pull.x;
     this.target.z += this.pull.z;
     this.markIdx = i;
@@ -311,6 +319,15 @@ export class CarrySystem extends createSystem({}) {
     this.obj.quaternion.slerp(this.targetQ, Math.min(1, dt * (30 / (1 + ITEMS[this.item].weight))));
     this.touch(dt, prevY);
     if (!this.obj || !this.item) return;
+    // Touching a valid target with what you hold does its action (feed, fill, pour, seal, light, plant ...).
+    if ((this.intentT -= dt) <= 0 && this.reachT >= 1) {
+      this.intentT = 0.25;
+      const g = getGame(this.world);
+      if (g.runIntent(this.item, this.obj.position.x, this.obj.position.z, 'touch')) {
+        this.intentT = 1.2;
+        if (!this.item || g.held !== this.item) return;
+      }
+    }
     this.tracker.push(this.obj.position, this.clock);
     const q = this.obj.quaternion;
     handClaims.heldPos.copy(this.obj.position);

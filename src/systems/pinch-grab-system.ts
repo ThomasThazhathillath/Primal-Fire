@@ -9,7 +9,7 @@
 
 import { createSystem, Vector3 } from '@iwsdk/core';
 import { Gatherable } from '../components/game-components.js';
-import { type Candidate, resolveTarget } from '../game/assist.js';
+import { type Candidate, type Mark, nearestMarkIndex, openMarks, resolveTarget } from '../game/assist.js';
 import { type GrabCandidate, PINCH_CONFIG } from '../game/pinch.js';
 import { fitsPouch } from '../game/items.js';
 import { groundHeight, RESOURCES } from '../game/world-layout.js';
@@ -24,14 +24,48 @@ const TOUCH_DIST = 0.05;
 interface Target extends GrabCandidate {
   spotId?: string;
   dropId?: number;
+  /** An open mark: pinching it with an empty hand fills it from the bag. */
+  mark?: Mark;
 }
+
+/** A fingertip tapping a mark: within this distance (m) horizontally and vertically, moving down at least this fast (m/s). */
+const TAP_REACH = 0.1;
+const TAP_SPEED = 0.35;
 
 export class PinchGrabSystem extends createSystem({}) {
   private tmp = new Vector3();
+  private marks: Mark[] = [];
+  private marksDirty = true;
+  private tapAt = [-10, -10];
+  private listening = false;
 
   update(): void {
     const game = getGame(this.world);
     const now = performance.now() / 1000;
+    if (!this.listening) {
+      this.listening = true;
+      this.cleanupFuncs.push(game.on((e) => (e.type === 'structure' || e.type === 'held') && (this.marksDirty = true)));
+    }
+    if (this.marksDirty) {
+      this.marksDirty = false;
+      openMarks(game.structures, this.marks);
+    }
+    // An empty hand's fingertip tapping down onto an open mark fills it from the bag.
+    if (!game.held && this.marks.length) {
+      for (let h = 0; h < 2; h++) {
+        const hand = hands[h];
+        if (!hand.tipTracked || now - this.tapAt[h] < 0.6 || hand.motion.vel.y > -TAP_SPEED) continue;
+        const tip = hand.tipPos;
+        for (let i = 0; i < this.marks.length; i++) {
+          const m = this.marks[i];
+          if (Math.hypot(tip.x - m.x, tip.z - m.z) > TAP_REACH || Math.abs(tip.y - (m.y + 0.04)) > TAP_REACH) continue;
+          this.tapAt[h] = now;
+          game.log.add(`mark tapped by hand ${h}`);
+          game.fillFromBag(m.structure.id, m.index);
+          break;
+        }
+      }
+    }
     for (let h = 0; h < 2; h++) {
       const hand = hands[h];
       if (!hand.tipTracked) continue;
@@ -48,7 +82,7 @@ export class PinchGrabSystem extends createSystem({}) {
       handClaims.grabAt = now;
       if (!this.take(target)) continue;
       // Small things go to the pouch on pickup: bring it straight back into this hand.
-      if (!game.held) {
+      if (!game.held && !target.mark) {
         const id = target.id as Parameters<typeof game.takeOut>[0];
         if (fitsPouch(id)) game.takeOut(id);
       }
@@ -71,6 +105,11 @@ export class PinchGrabSystem extends createSystem({}) {
       }
     }
     for (const d of game.drops) list.push({ id: d.item, dropId: d.id, x: d.x, y: groundHeight(d.x, d.z) + 0.1, z: d.z });
+    // Open marks the bag can fill: pinching one with an empty hand seats a matching item there.
+    for (const m of this.marks) {
+      const have = m.accepts.find((i) => game.count(i) > 0);
+      if (have && !(m.index < 0 && !m.structure.keyOpen)) list.push({ id: have, mark: m, x: m.x, y: m.y + 0.04, z: m.z });
+    }
     // One place decides: what the fingertips touch, else the nearest valid thing, else whatever the
     // objective needs when it is about as near, else any other valid one (game/assist.ts).
     const need = game.objectives.current?.find?.(game) ?? [];
@@ -84,6 +123,7 @@ export class PinchGrabSystem extends createSystem({}) {
 
   private take(t: Target): boolean {
     const game = getGame(this.world);
+    if (t.mark) return game.fillFromBag(t.mark.structure.id, t.mark.index);
     if (t.dropId !== undefined) return game.pickUpDrop(t.dropId);
     const res = this.world.getSystem(ResourceSystem);
     const e = t.spotId ? res?.entityFor(t.spotId) : undefined;

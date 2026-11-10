@@ -243,6 +243,8 @@ export class StaticAnchor {
 export const hintFx = {
   pulse: [] as Array<{ id: string; x: number; y: number; z: number }>,
   exact: null as { id: string; x: number; y: number; z: number } | null,
+  /** The soft pool on the ground under the sky pillar, so the exact spot is easy to find once you reach it. */
+  glow: null as { x: number; y: number; z: number } | null,
 };
 
 export const handClaims = {

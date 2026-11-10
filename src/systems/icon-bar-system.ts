@@ -171,6 +171,7 @@ export class IconBarSystem extends createSystem({}) {
     const game = getGame(this.world);
     const held = game.held;
     if (!held) return game.toast('Your hands are empty.', 'note');
+    game.cancelRefill(); // Put away stops the build's automatic refill
     if (fitsPouch(held)) game.stow();
     else getUi(this.world).dropHeld?.(held);
   }

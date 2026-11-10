@@ -49,6 +49,8 @@ const DESCRIPTIONS: Record<StructureKind, string> = {
   storage: 'A woven basket that keeps your things at camp.',
   filter: 'A tripod of layers that clears murky water.',
   shelter: 'A lean-to of branches, twigs and a roof cover.',
+  leanTo: 'A real shelter, built in stages: poles, a ridge, ribs, lashings, small branches, then a layered roof.',
+  drainage: 'A channel dug around the shelter so rain runs past it.',
 };
 
 const UNLOCKS: Record<StructureKind, Unlock> = {
@@ -57,6 +59,8 @@ const UNLOCKS: Record<StructureKind, Unlock> = {
   storage: { level: 3, gathered: ['cane'], hint: 'Find hollow cane by the stream, or reach the Camp level.' },
   filter: { level: 2, gathered: ['charcoal'], hint: 'Make charcoal, or reach the Clean Water level.' },
   shelter: { level: 3, gathered: ['twigs'], events: ['shelter.site.chosen'], hint: 'Gather twigs, or reach the Camp level.' },
+  leanTo: { events: ['story.ch2.begin'], gathered: ['pole'], hint: 'Chapter 2: find long straight poles in the forest.' },
+  drainage: { events: ['shelter.rain.begin'], hint: 'Dug during the rain test.' },
 };
 
 const RECIPE_UNLOCK: Unlock = { built: 'workbench', hint: 'Build a workbench first.' };
@@ -95,6 +99,7 @@ function isUnlocked(game: Game, u: Unlock): boolean {
 export function bookEntries(game: Game): BookEntry[] {
   const out: BookEntry[] = [];
   for (const def of Object.values(BLUEPRINTS)) {
+    if (def.kind === 'drainage') continue; // dug during the rain test, never placed from the book
     const slots: ItemId[][] = [def.keyAccepts, ...def.spots.map((s) => s.accepts)];
     const parts = groupParts(game, slots);
     out.push({

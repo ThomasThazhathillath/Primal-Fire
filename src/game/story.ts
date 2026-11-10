@@ -10,7 +10,7 @@ import type { Game, GameEvent } from './game.js';
 import type { ItemId } from './items.js';
 import { LANDMARK_BY_ID, streamDistance } from './world-layout.js';
 
-export type ActId = 'strange' | 'signs' | 'build' | 'fire' | 'camp' | 'mystery';
+export type ActId = 'strange' | 'signs' | 'build' | 'fire' | 'camp' | 'mystery' | 'home' | 'frame' | 'roof';
 
 export const ACTS: Record<ActId, { title: string; text: string }> = {
   strange: { title: 'A Strange Place', text: 'You wake in an unfamiliar clearing. You have nothing with you. Take a moment to understand your surroundings.' },
@@ -19,6 +19,9 @@ export const ACTS: Record<ActId, { title: string; text: string }> = {
   fire: { title: 'First Fire', text: 'The temperature is dropping. I need a fire before it gets dark.' },
   camp: { title: 'A Place To Return To', text: 'A fire and a workbench, close together. This could be a camp.' },
   mystery: { title: 'Someone Was Here Before', text: 'The rusted structure in the distance. Tomorrow.' },
+  home: { title: 'A Place To Call Home', text: 'You have learned to control fire. Now learn to build something that can protect you.' },
+  frame: { title: 'The Frame', text: 'Poles push, cord pulls, and a triangle does not fold.' },
+  roof: { title: 'Roof Over Your Head', text: 'Layers overlap like tiles. Then the rain will tell you the truth.' },
 };
 
 /** Environmental clues near the waking spot (x, z in metres; StorySystem draws them). */
@@ -150,6 +153,29 @@ export const STORY_BEATS: StoryBeat[] = [
     when: (g) => lookingAt(g, MAST_TOP.x, MAST_TOP.z, LOOK_CONE),
     past: (g) => g.flag('finale'),
   },
+  // Chapter 2: the living camp (docs/CHAPTER2_SHELTER_SPEC.md). Evening comes; the camp has a fire and nothing more.
+  {
+    id: 'ch2Wind',
+    act: 'home',
+    opensAct: true,
+    quiet: true,
+    lines: ['The wind is picking up. Leaves and small branches are coming down around the camp.', 'The light is going gold.'],
+    when: (g) => g.quest?.title === 'A Place to Call Home',
+    past: (g) => g.questIndex > 0 && !!g.leanTo(),
+  },
+  {
+    id: 'ch2Exposed',
+    act: 'home',
+    quiet: true,
+    lines: ['My fire gives warmth, but nothing here keeps off the wind or the rain.', 'I need a shelter. Something long and straight, to begin with.'],
+    when: (g) => g.quest?.title === 'A Place to Call Home',
+    after: 'ch2Wind',
+    past: (g) => g.gatheredCount('pole') > 0,
+  },
+  { id: 'ch2Pole', act: 'home', lines: ['A pole this long takes both hands. Carry it where the frame will stand.'], on: (e) => gotOne(e, ['pole']), past: (g) => g.gatheredCount('pole') > 0 },
+  { id: 'ch2Frame', act: 'frame', opensAct: true, lines: ['Two posts, a ridge and ribs leaning in. Then cord to hold it all.'], when: (g) => g.quest?.title === 'Build the Frame', past: (g) => g.hasEvent('shelter.frame.built') },
+  { id: 'ch2Roof', act: 'roof', opensAct: true, lines: ['The frame stands. Now cover it, layer by layer.'], when: (g) => g.quest?.title === 'Roof Over Your Head', past: (g) => g.hasEvent('shelter.roof.covered') },
+  { id: 'ch2Rain', act: 'roof', quiet: true, lines: ['Clouds are coming in low.', 'Let us see what the roof can do.'], when: (g) => g.quest?.title === 'Test Your Engineering', past: (g) => g.hasEvent('shelter.rain.begin') },
 ];
 
 export const BEAT_BY_ID: Record<string, StoryBeat> = Object.fromEntries(STORY_BEATS.map((b) => [b.id, b]));

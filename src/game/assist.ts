@@ -6,7 +6,7 @@
 // The systems (carry, drop, highlight, hint) only feed it positions and apply
 // what it says, so the same rules serve hands, controllers and the desktop.
 
-import { BLUEPRINTS, spotWorldPosition, type PlacedStructure } from './blueprint.js';
+import { BLUEPRINTS, isSpotLocked, spotWorldPosition, type PlacedStructure } from './blueprint.js';
 import { ITEMS, type ItemId } from './items.js';
 
 // ---------------------------------------------------------------- tuning
@@ -65,6 +65,8 @@ export function openMarks(structures: readonly PlacedStructure[], out: Mark[] = 
     if (s.keyPlaced) continue;
     def.spots.forEach((spot, i) => {
       if (s.spots[i] !== null) return;
+      // A stage that is not open yet, and joints tied by hand, are not drop marks.
+      if (spot.gesture || isSpotLocked(s, i)) return;
       const p = spotWorldPosition(s, i);
       out.push({ structure: s, index: i, x: p.x, y: p.y, z: p.z, accepts: spot.accepts, label: spot.label });
     });

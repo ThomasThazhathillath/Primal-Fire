@@ -13,7 +13,7 @@ import {
   WORLD_RADIUS,
 } from './world-layout.js';
 
-export type StructureKind = 'firePit' | 'workbench' | 'filter' | 'shelter' | 'storage';
+export type StructureKind = 'firePit' | 'workbench' | 'filter' | 'shelter' | 'storage' | 'leanTo' | 'drainage';
 
 export interface SnapSpotDef {
   /** Offset from the structure origin, in the structure's local frame. */
@@ -22,6 +22,16 @@ export interface SnapSpotDef {
   z: number;
   accepts: ItemId[];
   label: string;
+  /** Construction stage (1, 2, ...): a spot only opens once every spot of an earlier stage is filled. Default 0 = always open. */
+  stage?: number;
+  /** Done by a hand gesture, not by setting a part down (lashing a joint with cord). Never offered as a drop mark. */
+  gesture?: 'lash';
+  /** A tool touched to the mark does the job and is kept (the digging stick digs a channel segment). */
+  tool?: boolean;
+  /** What the spot is, for rendering and the weather test (poles, roof layers ...). */
+  role?: 'upright' | 'ridge' | 'rib' | 'cross' | 'lash' | 'lattice' | 'roofBark' | 'roofLeaf' | 'roofGrass' | 'dig';
+  /** Roof panel 0..2 a roof layer belongs to. */
+  panel?: number;
 }
 
 export interface BlueprintDef {
@@ -126,6 +136,53 @@ export const BLUEPRINTS: Record<StructureKind, BlueprintDef> = {
     xp: 50,
     groundAdvice: 'Flat, dry ground away from the stream bank, near your fire.',
   },
+  // Chapter 2, the first real shelter: built stage by stage from poles, branches, cord, twigs and roof layers.
+  // The first pole in hand starts the plan and stands as the left upright (the key); everything else is a spot.
+  leanTo: {
+    kind: 'leanTo',
+    name: 'Lean-to frame',
+    keyAccepts: ['pole'],
+    key: { x: -0.9, y: 0.65, z: 0.6 },
+    spots: [
+      { x: 0.9, y: 0.65, z: 0.6, accepts: ['pole'], label: 'Second upright pole', stage: 1, role: 'upright' },
+      { x: 0, y: 1.3, z: 0.6, accepts: ['pole'], label: 'Ridge pole across the tops', stage: 2, role: 'ridge' },
+      { x: -0.8, y: 0.65, z: -0.4, accepts: ['greenBranch', 'dryBranch', 'branch'], label: 'Leaning rib', stage: 3, role: 'rib' },
+      { x: 0, y: 0.65, z: -0.4, accepts: ['greenBranch', 'dryBranch', 'branch'], label: 'Leaning rib', stage: 3, role: 'rib' },
+      { x: 0.8, y: 0.65, z: -0.4, accepts: ['greenBranch', 'dryBranch', 'branch'], label: 'Leaning rib', stage: 3, role: 'rib' },
+      { x: 0, y: 0.95, z: -0.2, accepts: ['greenBranch', 'dryBranch', 'branch'], label: 'Cross-support', stage: 4, role: 'cross' },
+      { x: 0, y: 0.45, z: -0.9, accepts: ['greenBranch', 'dryBranch', 'branch'], label: 'Cross-support', stage: 4, role: 'cross' },
+      { x: -0.9, y: 1.3, z: 0.6, accepts: ['cord'], label: 'Lash the left joint', stage: 5, gesture: 'lash', role: 'lash' },
+      { x: 0.9, y: 1.3, z: 0.6, accepts: ['cord'], label: 'Lash the right joint', stage: 5, gesture: 'lash', role: 'lash' },
+      { x: 0, y: 0.95, z: -0.2, accepts: ['cord'], label: 'Lash the cross-support', stage: 5, gesture: 'lash', role: 'lash' },
+      { x: -0.4, y: 0.8, z: -0.3, accepts: ['twigs'], label: 'Small branches', stage: 6, role: 'lattice' },
+      { x: 0.4, y: 0.8, z: -0.3, accepts: ['twigs'], label: 'Small branches', stage: 6, role: 'lattice' },
+      { x: -0.4, y: 0.55, z: -0.7, accepts: ['twigs'], label: 'Small branches', stage: 6, role: 'lattice' },
+      { x: 0.4, y: 0.55, z: -0.7, accepts: ['twigs'], label: 'Small branches', stage: 6, role: 'lattice' },
+      ...[0, 1, 2].map((p) => ({ x: (p - 1) * 0.62, y: 0.9, z: -0.4, accepts: ['bark'] as ItemId[], label: 'Roof: bark layer', stage: 7, role: 'roofBark' as const, panel: p })),
+      ...[0, 1, 2].map((p) => ({ x: (p - 1) * 0.62, y: 0.95, z: -0.4, accepts: ['leafLitter'] as ItemId[], label: 'Roof: leaf layer', stage: 7, role: 'roofLeaf' as const, panel: p })),
+      ...[0, 1, 2].map((p) => ({ x: (p - 1) * 0.62, y: 1.0, z: -0.4, accepts: ['dryGrass'] as ItemId[], label: 'Roof: grass thatch', stage: 7, role: 'roofGrass' as const, panel: p })),
+    ],
+    radius: 1.7,
+    xp: 120,
+    spotTolerance: 0.4,
+    groundAdvice: 'Flat, dry, slightly raised ground, away from the stream bank and dead branches overhead, near your fire.',
+  },
+  // The drainage channel dug around the shelter during the rain test: three segments, each dug by touching it with the digging stick.
+  drainage: {
+    kind: 'drainage',
+    name: 'Drainage channel',
+    keyAccepts: ['diggingStick'],
+    key: { x: -1.4, y: 0.03, z: -1.1 },
+    spots: [
+      { x: -0.5, y: 0.03, z: -1.8, accepts: ['diggingStick'], label: 'Dig the channel', tool: true, role: 'dig' },
+      { x: 0.6, y: 0.03, z: -1.8, accepts: ['diggingStick'], label: 'Dig the channel', tool: true, role: 'dig' },
+      { x: 1.4, y: 0.03, z: -1.1, accepts: ['diggingStick'], label: 'Dig the channel', tool: true, role: 'dig' },
+    ],
+    radius: 0.4,
+    xp: 40,
+    spotTolerance: 0.5,
+    groundAdvice: 'Behind the shelter, on the uphill side, so water runs around it.',
+  },
   // Storage basket: a stash that stays at camp; see Game.stash / Game.withdraw.
   storage: {
     kind: 'storage',
@@ -141,6 +198,41 @@ export const BLUEPRINTS: Record<StructureKind, BlueprintDef> = {
     xp: 30,
     groundAdvice: 'Beside your fire and shelter.',
   },
+};
+
+/** The lowest construction stage that still has an empty spot (Infinity when every spot is filled). */
+export function openStage(def: BlueprintDef, spots: ReadonlyArray<ItemId | null>): number {
+  let lowest = Infinity;
+  def.spots.forEach((sp, i) => {
+    if (spots[i] === null || spots[i] === undefined) lowest = Math.min(lowest, sp.stage ?? 0);
+  });
+  return lowest;
+}
+
+/** A spot of a later stage waits until the earlier stages are done. */
+export function spotLocked(def: BlueprintDef, spots: ReadonlyArray<ItemId | null>, index: number): boolean {
+  const st = def.spots[index]?.stage ?? 0;
+  return st > 0 && st > openStage(def, spots);
+}
+
+/** Is spot `i` of a placed structure closed for now (an earlier stage is unfinished, or the plan's first part is still to come)? */
+export function isSpotLocked(s: Pick<PlacedStructure, 'kind' | 'spots' | 'keyOpen'>, i: number): boolean {
+  const def = BLUEPRINTS[s.kind];
+  const st = def.spots[i]?.stage ?? 0;
+  if (st <= 0) return false;
+  if (s.keyOpen && st > 1) return true;
+  return spotLocked(def, s.spots, i);
+}
+
+/** Why a locked spot is not open yet, in a few words. */
+export const STAGE_NAMES: Record<number, string> = {
+  1: 'uprights',
+  2: 'ridge pole',
+  3: 'ribs',
+  4: 'cross-supports',
+  5: 'lashing',
+  6: 'small branches',
+  7: 'roof',
 };
 
 export const STORAGE_SLOTS = 40;
@@ -180,6 +272,8 @@ export interface PlacedStructure {
   store?: Partial<Record<ItemId, number>>;
   /** Finished at least once: rebuilding after taking it apart gives no second reward. */
   built?: boolean;
+  /** Progress 0..1 of gesture spots (lashing a joint), by spot index. Saved with the structure. */
+  work?: Record<number, number>;
 }
 
 export type PlacementResult =

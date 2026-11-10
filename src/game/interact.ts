@@ -558,6 +558,7 @@ export const FAILURE_TEXT: Record<GuideFailureCode, string> = {
 /** Material and hardness (blows of notch depth) of each resource look, for swings. */
 export const LOOK_MATERIAL: Record<string, { material: Material; hardness: number }> = {
   fallenLog: { material: 'wood', hardness: 2.5 },
+  pole: { material: 'wood', hardness: 1 },
   sapling: { material: 'wood', hardness: 1.5 },
   dryBranch: { material: 'wood', hardness: 0.8 },
   twigPile: { material: 'wood', hardness: 0.3 },

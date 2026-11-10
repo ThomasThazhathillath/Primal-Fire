@@ -526,6 +526,62 @@ const SURVIVAL_OBSERVATIONS: Record<string, Observation> = {
     why: 'Which way should the opening face?',
   },
 
+  // ------------------------------------------------ chapter 2: the living camp
+  c2_triangle: {
+    group: 'shelter',
+    trigger: 'shelter.frame.braced',
+    title: 'Triangles do not fold',
+    obs: 'Two posts and a ridge swayed when you pushed. Once the ribs leaned in and met the post, the frame stood firm.',
+    pri: 'A triangle cannot change shape without changing the length of one of its sides, so a triangle of rigid poles holds a frame rigid. A four-sided frame can fold flat.',
+    lim: 'Loose joints let even a triangle rack. The poles also have to be strong enough not to bend or snap.',
+    why: 'Which shape keeps its form when you push on a corner?',
+  },
+  c2_tension: {
+    group: 'shelter',
+    trigger: 'shelter.lashing.tight',
+    title: 'Cord pulls, poles push',
+    obs: 'Loose cord let the poles slide apart; wrapped tight, the joint held.',
+    pri: 'Poles carry compression (they are squeezed) while cord carries tension (it is pulled). A lashing turns a pole trying to slip into a cord being stretched, and a stretched cord resists strongly.',
+    lim: 'Cord stretches, and wet cord of plant fibre loses strength and rots.',
+    why: 'Which part of the joint is being pulled, and which is being pushed?',
+  },
+  c2_load: {
+    group: 'shelter',
+    trigger: 'shelter.load.shared',
+    title: 'Share the load',
+    obs: 'With a second cross-support, the ribs bent less when you pressed on the middle of the frame.',
+    pri: 'A load spread over several members gives each one less to carry, so no single piece is pushed to its limit. Supports spaced along a span shorten the span that has to bear the load.',
+    lim: 'Every extra piece adds weight and takes more material. Past a point it only wastes wood.',
+    why: 'What happens to one pole when two share the same weight?',
+  },
+  c2_slope: {
+    group: 'shelter',
+    trigger: 'shelter.roof.sheds',
+    title: 'A slope sheds rain',
+    obs: 'Rain ran down the sloping roof and fell off the low edge instead of pooling.',
+    pri: 'Gravity pulls water down the steepest path. On a slope each drop keeps moving before it can soak in; on a flat roof it lingers and finds every gap.',
+    lim: 'Too steep a roof needs a taller frame and catches more wind.',
+    why: 'Where does a drop go when the surface under it is tilted?',
+  },
+  c2_layers: {
+    group: 'shelter',
+    trigger: 'shelter.layers.sealed',
+    title: 'Layers beat gaps',
+    obs: 'One layer let drips through at the joins. Overlapping a second and third layer stopped them.',
+    pri: 'Each natural layer has small gaps, but the gaps in different layers do not line up. Overlapped like tiles, they leave water no straight path, and each upper layer drains onto the next.',
+    lim: 'Layers rot and flatten over weeks; the cover must be renewed.',
+    why: 'Why do the gaps in one layer not matter once another lies on top?',
+  },
+  c2_drain: {
+    group: 'shelter',
+    trigger: 'shelter.drain.dug',
+    title: 'Water takes the easy way',
+    obs: 'Water ran across the ground toward the shelter floor until you cut a channel; then it flowed around.',
+    pri: 'Flowing water follows the lowest, easiest path. A shallow channel cut across its way gives it a lower path, so it can be steered away from where you want to stay dry.',
+    lim: 'A channel silts up and overflows in heavy rain unless it keeps sloping away.',
+    why: 'Why does the water choose the channel over the floor?',
+  },
+
   // -------------------------------------------------------------- hunting
   h_track: {
     group: 'hunt',

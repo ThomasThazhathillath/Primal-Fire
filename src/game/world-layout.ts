@@ -276,7 +276,8 @@ export type ResourceLook =
   | 'vine'
   | 'bark'
   | 'stoneDark'
-  | 'stonePale';
+  | 'stonePale'
+  | 'pole';
 
 const LABELS: Record<ResourceLook, string> = {
   grass: 'Tall, pale grass that crackles when touched',
@@ -304,6 +305,7 @@ const LABELS: Record<ResourceLook, string> = {
   bark: 'A curl of bark peeling from a dead trunk',
   stoneDark: 'Flint: a dark, glassy stone that breaks into sharp flakes',
   stonePale: 'A pale, chalky stone with a flat face',
+  pole: 'A long, straight, dry pole: a dead sapling',
 };
 
 const LOOK_ITEM: Record<ResourceLook, ItemId> = {
@@ -333,6 +335,7 @@ const LOOK_ITEM: Record<ResourceLook, ItemId> = {
   // The dark, glassy stones are the flint you knap (they used to give plain stone, so flint was nowhere).
   stoneDark: 'flint',
   stonePale: 'dryStone',
+  pole: 'pole',
 };
 
 const LOOK_CHARGES: Partial<Record<ResourceLook, [number, number]>> = {
@@ -362,6 +365,7 @@ const LOOK_CHARGES: Partial<Record<ResourceLook, [number, number]>> = {
   bark: [2, 90],
   stoneDark: [1, 0],
   stonePale: [1, 0],
+  pole: [1, 120],
 };
 
 /** Where a scatter rule may place spots. */
@@ -402,6 +406,8 @@ export const SCATTER_RULES: ScatterRule[] = [
   // Last, so the random layout of everything above stays exactly where it was.
   // A few flint nodules close to where you wake, for the first sharp stone.
   { look: 'stoneDark', count: 3, zone: 'forest', minR: 3, maxR: 7 },
+  // Chapter 2: long straight poles for the shelter frame, scattered through the forest (appended last).
+  { look: 'pole', count: 12, zone: 'forest', minR: 7, maxR: 40, treeClear: 0.9 },
 ];
 
 function scatterPoint(rule: ScatterRule, rng: () => number): [number, number] | null {

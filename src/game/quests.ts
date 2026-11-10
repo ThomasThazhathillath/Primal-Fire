@@ -6,7 +6,8 @@
 // Clear ≠ Safe → First Lab. Steps whose mechanics are not built yet (M2/M3)
 // simply cannot complete; they are listed so the whole arc is visible.
 
-import type { StructureKind } from './blueprint.js';
+import { BLUEPRINTS, type StructureKind } from './blueprint.js';
+import { roofed, stageCount } from './shelter.js';
 import type { Game } from './game.js';
 import type { ItemId } from './items.js';
 import type { ScienceEventId } from './science-events.js';
@@ -427,6 +428,163 @@ const campQuests: Quest[] = [
  */
 export const EXTRA_QUESTS: Quest[] = survivalQuests;
 
+/** Chapter 2, the living camp (docs/CHAPTER2_SHELTER_SPEC.md): five quests from the first thought of shelter to the rain test. */
+const BRANCHES: ItemId[] = ['greenBranch', 'dryBranch', 'branch'];
+const gatheredSum = (g: Game, ids: ItemId[]): number => ids.reduce((n, id) => n + g.gatheredCount(id), 0);
+/** Cord in hand, in the bag, or already lashed into the frame. */
+const cordHave = (g: Game): number => {
+  const s = g.leanTo();
+  const lashed = s ? s.spots.filter((v, i) => v === 'cord' && BLUEPRINTS.leanTo.spots[i].gesture === 'lash').length : 0;
+  return g.count('cord') + (g.held === 'cord' ? 1 : 0) + lashed;
+};
+const frame = (g: Game, stage: number): boolean => {
+  const s = g.leanTo();
+  return !!s && stageCount(s, stage).done === stageCount(s, stage).total;
+};
+
+const chapter2Quests: Quest[] = [
+  {
+    title: 'A Place to Call Home',
+    recap: 'A frame is only as good as its shape: triangles hold, and a shelter starts as a plan.',
+    roadmapNode: null,
+    desc: 'You have learned to control fire. Now learn to build something that can protect you.',
+    steps: [
+      {
+        text: (g) => `Something long and straight enough to build a frame ${mark(g.gatheredCount('pole') > 0)}`,
+        done: (g) => g.gatheredCount('pole') > 0,
+        hints: [
+          'A frame needs long, stiff pieces. Which shapes keep their form when you push on them?',
+          'Dead saplings stand straight and dry in the forest, away from the stream. They are long: carry them with both hands.',
+        ],
+        target: { items: ['pole'] },
+      },
+    ],
+  },
+  {
+    title: 'The Foundation',
+    recap: 'Poles carry the push, cord carries the pull, and small branches spread the load.',
+    roadmapNode: null,
+    desc: 'Gather what a shelter frame is made of.',
+    steps: [
+      {
+        text: (g) => `Long poles (${Math.min(3, g.gatheredCount('pole'))}/3)`,
+        done: (g) => g.gatheredCount('pole') >= 3,
+        hints: ['The frame needs two uprights and a ridge across them.', 'Straight, dry poles lie scattered through the forest.'],
+        target: { items: ['pole'] },
+      },
+      {
+        text: (g) => `Flexible branches for ribs and cross-supports (${Math.min(5, gatheredSum(g, BRANCHES))}/5)`,
+        done: (g) => gatheredSum(g, BRANCHES) >= 5,
+        hints: ['Something has to lean from the ridge to the ground. What bends without breaking?', 'Living saplings and long dead branches both work.'],
+        target: { items: ['greenBranch', 'dryBranch'] },
+      },
+      {
+        text: (g) => `Cord to lash the joints (${Math.min(3, cordHave(g))}/3)`,
+        done: (g) => cordHave(g) >= 3,
+        hints: ['What stops two poles from sliding apart where they cross?', 'Twist plant fibres into cord at your workbench.'],
+        target: { structure: 'workbench', items: ['fibers'] },
+      },
+      {
+        text: (g) => `Small branches for the lattice (${Math.min(7, g.gatheredCount('twigs'))}/7)`,
+        done: (g) => g.gatheredCount('twigs') >= 7,
+        hints: ['Roof material needs something to rest on. What is light and plentiful?', 'Twigs lie under the trees all through the forest.'],
+        target: { items: ['twigs'] },
+      },
+    ],
+  },
+  {
+    title: 'Build the Frame',
+    recap: 'Compression, tension and triangles: the frame stands because every piece does one job.',
+    roadmapNode: 'structure',
+    desc: 'Build the frame of a lean-to with your hands: poles, ribs, cross-supports, lashings.',
+    steps: [
+      {
+        text: (g) => `Start the plan on flat, dry ground ${mark(!!g.leanTo())}`,
+        done: (g) => !!g.leanTo(),
+        hints: ['Where would rain collect, and where could something fall on you?', 'Slightly raised, flat ground near your fire, away from the stream. Hold a pole there, or choose the lean-to in the build book.'],
+        target: { structure: 'leanTo', items: ['pole'] },
+      },
+      {
+        text: (g) => `Two uprights and the ridge pole ${mark(frame(g, 1) && frame(g, 2))}`,
+        done: (g) => frame(g, 1) && frame(g, 2) && !g.leanTo()?.keyOpen,
+        guide: undefined,
+        hints: ['Two posts alone will sway. What goes across their tops?', 'Carry a pole with both hands; it snaps to the glowing marks.'],
+        target: { structure: 'leanTo', items: ['pole'] },
+      },
+      {
+        text: (g) => `Ribs and cross-supports ${mark(frame(g, 3) && frame(g, 4))}`,
+        done: (g) => frame(g, 3) && frame(g, 4),
+        hints: ['A triangle cannot fold. What shape do a post, the ridge and a leaning rib make?', 'Lean three branches from the ridge to the ground, then lay two across them.'],
+        target: { structure: 'leanTo', items: ['greenBranch', 'dryBranch'] },
+      },
+      {
+        text: (g) => `Lash the three joints with cord ${mark(frame(g, 5))}`,
+        done: (g) => frame(g, 5),
+        hints: ['Pulling is easier for a cord than pushing is for a pole. How can a cord stop a pole slipping?', 'Hold cord at a glowing joint and twist your wrists in opposite directions (mouse: scroll).'],
+        target: { structure: 'leanTo', items: ['cord'] },
+      },
+      {
+        text: (g) => `Small branches across the ribs ${mark(frame(g, 6))}`,
+        done: (g) => frame(g, 6),
+        hints: ['What would the roof rest on between the ribs?', 'Set four twigs on the glowing marks.'],
+        target: { structure: 'leanTo', items: ['twigs'] },
+      },
+    ],
+  },
+  {
+    title: 'Roof Over Your Head',
+    recap: 'Layers overlapped like tiles give water no straight path through.',
+    roadmapNode: null,
+    desc: 'Cover the frame: bark first, then leaves, then grass.',
+    steps: [
+      {
+        text: (g) => `Bark (${Math.min(3, g.gatheredCount('bark'))}/3), dry leaves (${Math.min(3, g.gatheredCount('leafLitter'))}/3), dry grass (${Math.min(3, g.gatheredCount('dryGrass'))}/3)`,
+        done: (g) => g.gatheredCount('bark') >= 3 && g.gatheredCount('leafLitter') >= 3 && g.gatheredCount('dryGrass') >= 3 + 2,
+        hints: ['A roof is not one thing. What overlaps best, and what fills the gaps?', 'Bark peels from dead trunks, crisp leaves drift under the trees, and dry grass grows in sunny clearings.'],
+        target: { items: ['bark', 'leafLitter', 'dryGrass'] },
+      },
+      {
+        text: (g) => `Put a layer on every part of the roof ${mark(!!g.leanTo() && roofed(g.leanTo()!))}`,
+        done: (g) => !!g.leanTo() && roofed(g.leanTo()!),
+        hints: ['Water finds the one place you forgot.', 'Set bark, leaves or grass on each glowing roof mark. More layers keep out more.'],
+        target: { structure: 'leanTo', items: ['bark', 'leafLitter', 'dryGrass'] },
+      },
+    ],
+  },
+  {
+    title: 'Test Your Engineering',
+    recap: 'A shelter is an experiment: rain shows where the roof is weak, and the fix is another layer.',
+    roadmapNode: 'hydro',
+    desc: 'Rain is coming. Stay under your roof and watch.',
+    steps: [
+      {
+        text: (g) => `Watch the rain fall on your roof ${mark(g.hasEvent('shelter.rain.begin'))}`,
+        done: (g) => g.hasEvent('shelter.rain.begin'),
+        hints: ['What does water do on a tilted surface?', 'Wait a little after the roof is on. Stand under it.'],
+        target: { structure: 'leanTo', items: [] },
+      },
+      {
+        text: (g) => `Find any leak and close it with another layer ${mark(g.hasEvent('shelter.leak.found') ? g.hasEvent('shelter.layers.sealed') : g.hasEvent('shelter.roof.sheds'))}`,
+        done: (g) => (g.hasEvent('shelter.leak.found') ? g.hasEvent('shelter.layers.sealed') : g.hasEvent('shelter.roof.sheds')),
+        hints: ['Where do the drips fall, and which part of the roof is above them?', 'A thin panel (one layer) leaks. Add bark, leaves or grass to the panel above the drip.'],
+        target: { structure: 'leanTo', items: ['bark', 'leafLitter', 'dryGrass'] },
+      },
+      {
+        text: (g) => `Dig a channel so the runoff goes around ${mark(g.drained())}`,
+        done: (g) => g.drained(),
+        hints: ['Water takes the easiest way. How could you give it an easier way than your floor?', 'Hold the digging stick to the three glowing marks behind the shelter.'],
+        target: { items: ['diggingStick'] },
+      },
+      {
+        text: (g) => `Stay dry through the shower ${mark(g.flag('shelterTested'))}`,
+        done: (g) => g.flag('shelterTested'),
+        hints: ['Is the floor dry and the roof tight?', 'Stand inside until the test passes.'],
+        target: { structure: 'leanTo', items: [] },
+      },
+    ],
+  },
+];
+
 export const QUESTS: Quest[] = [
   {
     title: 'Scavenger',
@@ -679,4 +837,5 @@ export const QUESTS: Quest[] = [
       },
     ],
   },
+  ...chapter2Quests,
 ];

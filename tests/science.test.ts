@@ -54,8 +54,10 @@ describe('quests (survival progression)', () => {
       }
     }
   });
-  it('keeps the finale last', () => {
-    expect(QUESTS[QUESTS.length - 1].title).toBe('First Lab');
+  it('keeps the Chapter 1 finale last of Chapter 1; Chapter 2 follows it', () => {
+    const lab = QUESTS.findIndex((q) => q.title === 'First Lab');
+    expect(QUESTS[lab + 1].title).toBe('A Place to Call Home');
+    expect(QUESTS[QUESTS.length - 1].title).toBe('Test Your Engineering');
   });
   it('event-driven steps complete only when their event fires', () => {
     const roof = EXTRA_QUESTS.find((q) => q.title === 'A Roof for the Night')!;

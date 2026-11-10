@@ -154,6 +154,11 @@ export class Game {
   readonly player = { x: 0, z: 0 };
   /** Head yaw in radians (0 = towards -Z); set each frame by the UI so directions can say "to your left". Not saved. */
   facingYaw = 0;
+  /**
+   * The structure the current lesson wants (set by the tutorial): `undefined` = no lesson says anything,
+   * `null` = this lesson builds nothing, so no outline may start. Takes precedence over the objective.
+   */
+  lessonStructure: StructureKind | null | undefined = undefined;
   readonly satchel = new Map<ItemId, number>();
   readonly gathered = new Map<ItemId, number>();
   readonly notebook: string[] = [];
@@ -998,6 +1003,16 @@ export class Game {
       });
     }
     return best;
+  }
+
+  /**
+   * Which structure a held part may start an outline for right now: the lesson's, else the beginner objective's
+   * (null = none: a pinch on open ground must not start an unrelated blueprint), else (undefined) any.
+   */
+  wantedStructure(): StructureKind | null | undefined {
+    if (this.lessonStructure !== undefined) return this.lessonStructure;
+    if (this.objectives.done) return undefined;
+    return this.objectives.current?.structure ?? null;
   }
 
   /**

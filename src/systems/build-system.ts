@@ -136,10 +136,11 @@ export class BuildSystem extends createSystem({
     const game = getGame(this.world);
     if (game.wantsItem(item, game.player.x, game.player.z)) return null;
     // A new outline replaces an unfinished one of the same kind (Game.placeBlueprint), so it may show anywhere.
-    const want = game.objectives.current?.structure;
+    // Only the structure the lesson / objective is building may start an outline: a stone in hand offers a
+    // fire pit during the workbench, and nothing at all while the objective builds nothing.
+    const want = game.wantedStructure();
+    if (want === null) return null;
     const def = blueprintsForKeyItem(item, want)[0] ?? null;
-    // While the objective builds something, a part it does not start (a stone offering a fire pit during the
-    // workbench) shows no outline: the objective's structure wins.
     return want && def && def.kind !== want ? null : def;
   }
 

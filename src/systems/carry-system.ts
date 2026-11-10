@@ -223,17 +223,18 @@ export class CarrySystem extends createSystem({}) {
       this.tmp2.y += 1.5 * k;
     }
     const p = this.obj.position;
-    // Let go anywhere near a build that wants it: it seats on the nearest correct free mark (no fine positioning).
-    // A wrong material or a finished build says why. Works in VR and on the desktop (E / click release).
-    if (!throwIt && game.held === item) {
-      const hands = this.grip.count >= 2 || this.hadTwo || carryRules.easy ? 2 : 1;
-      if (game.seatNear(item, p.x, p.z, { radius: ASSIST.buildArea, hands, say: true })) return;
-    }
     const sz = ITEM_PHYSICS[item].size;
     const half = Math.min(sz[0], sz[1], sz[2]) / 2;
     const ground = groundHeight(p.x, p.z);
     // VR: opening the pinch slowly near the ground sets it down right there; fast is a throw.
     const kind = throwIt ? 'throw' : this.immersive() ? releaseKind(handSpeed, p.y - half - ground) : 'drop';
+    // Let go anywhere near a build that wants it: it seats on the nearest correct free mark (no fine positioning).
+    // A wrong material or a finished build says why. A THROW is not a placement: it flies, and a gentle one that
+    // enters a mark's radius is caught by DropSystem. Works in VR and on the desktop (E / click release).
+    if (kind !== 'throw' && game.held === item) {
+      const hands = this.grip.count >= 2 || this.hadTwo || carryRules.easy ? 2 : 1;
+      if (game.seatNear(item, p.x, p.z, { radius: ASSIST.buildArea, hands, say: true })) return;
+    }
     if (kind === 'place') {
       pendingRelease.set(item, p.x, restHeight(ground, half), p.z, 0, 0, 0);
       pendingRelease.place = true;
@@ -253,10 +254,12 @@ export class CarrySystem extends createSystem({}) {
     const m = this.marks[this.markIdx];
     const p = this.obj!.position;
     const dy = Math.abs(p.y - m.y);
-    const down = dt > 0 ? Math.max(0, (prevY - p.y) / dt) : 0;
+    // A strike is read from the hand (the held part lags behind it): a quick downward motion near the mark.
+    const down = this.immersive() ? Math.max(0, -hands[this.hold].motion.vel.y) : dt > 0 ? Math.max(0, (prevY - p.y) / dt) : 0;
     const d = Math.hypot(p.x - m.x, p.z - m.z);
     const handSpeed = this.immersive() ? hands[this.hold].motion.speed : 0;
-    const intent = dy < 0.4 ? placementIntent({ distance: d, speed: handSpeed, downSpeed: down, thrown: false, letGo: false }) : null;
+    // A quick downward blow counts from a bit higher up than a plain touch.
+    const intent = dy < 0.8 ? placementIntent({ distance: dy < 0.4 ? d : Math.max(d, ASSIST.touchRadius + 0.01), speed: handSpeed, downSpeed: down, thrown: false, letGo: false }) : null;
     if (intent === 'touch' || intent === 'strike') {
       game.log.add(`${intent} placement of ${item}`);
       game.seatNear(item, m.x, m.z, { radius: ASSIST.touchRadius * 2, hands: 1 });

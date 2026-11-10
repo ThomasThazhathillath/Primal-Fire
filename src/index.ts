@@ -35,8 +35,9 @@ import { WaterSystem } from './systems/water-system.js';
 import { HudSystem } from './systems/hud-system.js';
 import { IconBarSystem } from './systems/icon-bar-system.js';
 import { PinchGrabSystem } from './systems/pinch-grab-system.js';
+import { GazeTargetSystem } from './systems/gaze-target-system.js';
 import { HintPanelSystem } from './systems/hint-panel-system.js';
-import { PerfSystem } from './systems/perf-system.js';
+import { PerfProbeSystem, PerfSystem } from './systems/perf-system.js';
 import { IntroSystem } from './systems/intro-system.js';
 import { ResourceSystem } from './systems/resource-system.js';
 import { SatchelSystem } from './systems/satchel-system.js';
@@ -60,12 +61,16 @@ World.create(
   const game = loadGame();
   (world.globals as Record<string, unknown>).game = game;
   world
+    // Frame timing probe for the dev perf overlay: first system of every frame.
+    .registerSystem(PerfProbeSystem, { priority: -100 })
     .registerSystem(WorldSystem)
     .registerSystem(WorldEnvironmentSystem)
     .registerSystem(NatureSystem)
     // Hand state and the direct pinch grab run before IWSDK's input system (-5), so a grab claims its pinch before any ray press does.
     .registerSystem(HandInputSystem, { priority: -6 })
     .registerSystem(PinchGrabSystem, { priority: -5.5 })
+    // Gaze + pinch: after the near grab (direct hands win), before IWSDK's input system so it owns its pinch first.
+    .registerSystem(GazeTargetSystem, { priority: -5.2 })
     .registerSystem(HandLocomotionSystem)
     .registerSystem(DesktopControlsSystem)
     .registerSystem(PlayerCollisionSystem)

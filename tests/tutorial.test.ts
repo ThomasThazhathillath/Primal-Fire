@@ -1,3 +1,4 @@
+import { gazeStats } from '../src/game/gaze.js';
 import { describe, expect, it } from 'vitest';
 import { spotWorldPosition } from '../src/game/blueprint.js';
 import { LAY_NEEDS } from '../src/game/fire.js';
@@ -38,6 +39,11 @@ function playLesson(r: TutorialRunner, g: Game): void {
     case 'hands':
       g.gather('slab', 'tutorial');
       g.gather('dryStone', 'tutorial');
+      break;
+    case 'look':
+      gazeStats.picks++;
+      gazeStats.releases++;
+      gazeStats.placed++;
       break;
     case 'gather':
       for (const id of ['dryGrass', 'twigs', 'fibers', 'dryStone'] as const) g.gather(id, 'tutorial');
@@ -167,18 +173,18 @@ describe('THE FIRST STEPS tutorial', () => {
     const g = new Game();
     const r = new TutorialRunner(g);
     playLesson(r, g);
-    at(r, 'gather');
+    at(r, 'look');
     r.begin(0);
     expect(r.ticks.every((t) => !t)).toBe(true);
     playLesson(r, g);
-    at(r, 'gather'); // goes on to the first lesson not yet done
+    at(r, 'look'); // goes on to the first lesson not yet done
   });
 
   it('a lesson can be skipped, and the whole tutorial too', () => {
     const g = new Game();
     const r = new TutorialRunner(g);
     r.skipLesson();
-    at(r, 'gather');
+    at(r, 'look');
     expect(r.done.has('hands')).toBe(true);
     r.skipAll();
     expect(r.finished).toBe(true);
@@ -190,7 +196,7 @@ describe('THE FIRST STEPS tutorial', () => {
     const r = new TutorialRunner(g);
     g.gather('dryStone');
     g.gather('dryStone');
-    at(r, 'gather');
+    at(r, 'look');
   });
 
   it('outside building lessons no blueprint can be started; inside, only the lesson structure', () => {
@@ -228,6 +234,7 @@ describe('THE FIRST STEPS tutorial', () => {
     const g = new Game();
     const r = new TutorialRunner(g);
     r.skipLesson();
+    r.skipLesson();
     at(r, 'gather');
     g.gather('fibers');
     g.gather('dryStone');
@@ -256,6 +263,7 @@ describe('THE FIRST STEPS tutorial', () => {
   it('progress survives a reload', () => {
     const g = new Game();
     const r = new TutorialRunner(g);
+    r.skipLesson();
     r.skipLesson();
     r.skipLesson();
     const r2 = new TutorialRunner(new Game(), JSON.parse(JSON.stringify(r.snapshot())));
@@ -334,7 +342,7 @@ describe('the opening as a story', () => {
     r.on((e) => e.type === 'science' && said.push(e.text));
     r.begin(LESSONS.findIndex((l) => l.id === 'gather'));
     playLesson(r, g);
-    expect(said).toEqual([LESSONS[1].science]);
+    expect(said).toEqual([LESSONS[LESSONS.findIndex((l) => l.id === 'gather')].science]);
     expect(g.notebook).toContain('g_dead');
   });
 

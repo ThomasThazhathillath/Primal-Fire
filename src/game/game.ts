@@ -37,7 +37,8 @@ const GUIDE_CODE_FOR: Partial<Record<GuideFailureCode, string>> = {
   'knap.badAngle': 'knap.angleTooSteep',
   'cord.sameDirection': 'twist.sameDirection',
 };
-import { ASSIST, openMarks, snapVerdict } from './assist.js';
+import { ASSIST, openMarks, resolveTarget, snapVerdict, type Candidate } from './assist.js';
+import { CONTINUOUS, type IntentAction, type IntentTarget, resolveIntent } from './intent.js';
 import { ObjectiveTracker, type ObjectivesSave } from './objectives.js';
 import { QUESTS, type QuestStep } from './quests.js';
 import { LANDMARKS, type Landmark } from './world-layout.js';
@@ -1035,6 +1036,83 @@ export class Game {
     }
     const m = v.mark;
     return m.index >= 0 ? this.fillSpot(m.structure.id, m.index, item, { x: m.x, z: m.z }) : this.placeKey(m.structure.id, m.x, m.z, o.hands ?? 1);
+  }
+
+  /**
+   * The ONE action holding `held` (null = empty hand) at (x, z) would do, from what is near: the fire pit, the
+   * stream, a filter, a charcoal mound, a plot, or the ground. Targets are ranked by distance and the table in
+   * intent.ts decides; an unrelated target never fires. Placement on marks is separate (`seatNear`).
+   */
+  intentAt(held: ItemId | null, x: number, z: number, motion: 'touch' | 'release' = 'release'): { action: IntentAction; at: { x: number; z: number }; dist: number } | null {
+    const at = { x, z };
+    const found: Array<{ action: IntentAction; at: { x: number; z: number }; dist: number }> = [];
+    const cands: Candidate[] = [];
+    const add = (t: IntentTarget, pos: { x: number; z: number }, reach: number) => {
+      const dist = Math.hypot(pos.x - x, pos.z - z);
+      if (dist > reach) return;
+      const a = resolveIntent(held, t);
+      if (!a) return;
+      found.push({ action: a, at: pos, dist });
+      cands.push({ id: String(found.length - 1), dist, aimed: false, valid: true, matchesHeld: true });
+    };
+    const pot = { fired: this.flag('potFired'), dry: this.flag('potDry'), water: this.water.potWater };
+    for (const s of this.structures) {
+      if (s.kind === 'firePit' && s.complete) {
+        const f = this.fire;
+        add({ kind: 'firePit', fire: { burning: f.stage === 'burning', embedded: f.embedded, layBuilt: f.layBuilt, stage: f.stage, carrying: f.carrying }, pot }, s, 0.75);
+      }
+    }
+    if (this.water.atStream(at)) add({ kind: 'stream', pot }, at, 0);
+    const filter = this.water.filterNear(at);
+    if (filter) add({ kind: 'filter', pot }, filter, 1.2);
+    const m = this.water.mound;
+    if (m) add({ kind: 'mound', mound: { sealed: m.sealed, burning: m.burn >= 0, fireLit: this.fire.stage === 'burning' } }, m, 1.2);
+    const plot = this.food.plotNear(at);
+    if (plot) add({ kind: 'plot', plot: { hasCrop: !!plot.crop, ripe: !!plot.crop && plot.growth >= 1, moist: plot.moist > 0 }, pot }, plot, 1.2);
+    // Digging needs a deliberate set-down, never just carrying the stick over the ground.
+    if (!plot && !m && motion === 'release') add({ kind: 'ground', canDig: this.food.canDig(at), canMound: this.count('logs') >= 2 }, at, 0);
+    const t = resolveTarget(cands);
+    return t ? found[Number(t.id)] : null;
+  }
+
+  /** Do what `intentAt` found (one-shot actions only: sawing, knapping, cutting and cooking run in their own systems). */
+  runIntent(held: ItemId | null, x: number, z: number, motion: 'touch' | 'release' = 'release'): IntentAction | null {
+    const hit = this.intentAt(held, x, z, motion);
+    if (!hit || CONTINUOUS.has(hit.action)) return null;
+    const at = { x, z };
+    let ok = false;
+    switch (hit.action) {
+      case 'feedFire':
+        ok = this.fire.addFuel();
+        break;
+      case 'carryEmber':
+        ok = this.fire.transferEmber();
+        break;
+      case 'firePot':
+      case 'boilPot':
+      case 'fillPot':
+      case 'pourFilter':
+      case 'sealMound':
+      case 'lightMound':
+      case 'openMound':
+      case 'digMound': {
+        const id = ({ firePot: 'firePot', boilPot: 'boil', fillPot: 'fillPot', pourFilter: 'pourFilter', sealMound: 'sealMound', lightMound: 'lightMound', openMound: 'openMound', digMound: 'digMound' } as const)[hit.action];
+        ok = this.water.perform(id, at);
+        break;
+      }
+      case 'plant':
+      case 'waterPlot':
+      case 'harvest':
+      case 'digPlot': {
+        const a = this.food.available(at, held);
+        ok = !!a && this.food.perform(a);
+        break;
+      }
+      default:
+        break;
+    }
+    if (ok) this.log.add(`intent ${hit.action} with ${held ?? 'empty hand'}`);
+    return ok ? hit.action : null;
   }
 
   /** A thrown part on the ground (a drop) was caught by an open mark: seat it there, or leave it lying if it will not fit. */

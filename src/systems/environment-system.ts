@@ -180,12 +180,12 @@ export class WorldEnvironmentSystem extends createSystem({
       const sky = e.getVectorView(HemisphereLightComponent, 'skyColor');
       // The dark night sky must not tint the ambient light: lights stay day-bright.
       for (let i = 0; i < 3; i++) sky[i] = Math.min(1, env.sky[i] * 0.8 + 0.45 * (1 - env.night) + NIGHT_AMBIENT[i] * env.night + 0.08);
-      e.setValue(HemisphereLightComponent, 'intensity', env.hemiIntensity);
+      e.setValue(HemisphereLightComponent, 'intensity', env.hemiIntensity * (1 - 0.3 * game.shelterShade));
     }
     for (const e of this.queries.sun.entities) {
       const c = e.getVectorView(DirectionalLightComponent, 'color');
       for (let i = 0; i < 3; i++) c[i] = env.lightColor[i];
-      e.setValue(DirectionalLightComponent, 'intensity', env.lightIntensity);
+      e.setValue(DirectionalLightComponent, 'intensity', env.lightIntensity * (1 - 0.55 * game.shelterShade));
       const o = e.object3D;
       if (o) {
         o.position.set(env.lightDir[0] * 30, env.lightDir[1] * 30, env.lightDir[2] * 30);

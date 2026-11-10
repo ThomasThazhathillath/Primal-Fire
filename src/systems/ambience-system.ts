@@ -335,8 +335,10 @@ export class AmbienceSystem extends createSystem({}) {
       const t = ctx.currentTime;
       const dist = this.placeStream();
       this.streamGain.gain.setTargetAtTime(dist < STREAM_RANGE ? 0.6 * (1 - dist / STREAM_RANGE) + 0.05 : 0, t, 0.5);
-      this.rainGain.gain.setTargetAtTime(env.rain * 0.28, t, 1);
-      this.rainLow.gain.setTargetAtTime(Math.max(0, env.rain - 0.5) * 0.35, t, 1);
+      // Under a roof the hiss softens and the low patter of drops on leaves and wood takes over.
+      const shade = getGame(this.world).shelterShade;
+      this.rainGain.gain.setTargetAtTime(env.rain * 0.28 * (1 - 0.6 * shade), t, 1);
+      this.rainLow.gain.setTargetAtTime((Math.max(0, env.rain - 0.5) * 0.35) + env.rain * 0.3 * shade, t, 1);
       // Gusts: two slow sines multiplied, so peaks come irregularly.
       this.gustPhase += 0.25;
       const g = Math.max(0, Math.sin(this.gustPhase * 0.29) * Math.sin(this.gustPhase * 0.113 + 2));

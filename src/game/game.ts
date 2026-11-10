@@ -180,6 +180,8 @@ export class Game {
   readonly shelterTest = new ShelterTest();
   private forcedRain = false;
   private shelterT = 0;
+  /** 0..1 how far inside the shelter the player is (smoothed by ShelterSystem; darkens the light, muffles the rain). Not saved. */
+  shelterShade = 0;
   /** Game time a shelter part was last set (the rain waits for the builder to finish). */
   private lastBuildAt = -99;
   /** Game time a plan (outline) was last placed from a held key part: that pinch must not also let go of the part. */

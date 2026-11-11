@@ -5,7 +5,7 @@
 import { mulberry32, range, valueNoise } from './rng.js';
 import { groundHeight, inClearing, streamDistance, TREES, WORLD_RADIUS } from './world-layout.js';
 
-export const TREE_VARIANTS = ['oak', 'ash', 'aspen', 'pine', 'snag'] as const;
+export const TREE_VARIANTS = ['oak', 'ash', 'aspen', 'pine', 'snag', 'bush1', 'bush2', 'bush3'] as const;
 export type TreeVariant = (typeof TREE_VARIANTS)[number];
 
 /** Level of detail: 0 full, 1 medium, 2 low, 3 billboard. */
@@ -62,6 +62,24 @@ export function understory(count = 420): TreeInstance[] {
   return out;
 }
 
+/** Shrubs (walk-through): the same seeded loop as the old faceted bushes, so they stay where they were. */
+export function bushes(count = 260): TreeInstance[] {
+  const rng = mulberry32(31);
+  const out: TreeInstance[] = [];
+  for (let tries = 0; out.length < count && tries < 6000; tries++) {
+    const a = rng() * Math.PI * 2;
+    const r = 6 + rng() * (WORLD_RADIUS + 4);
+    const x = Math.cos(a) * r;
+    const z = Math.sin(a) * r;
+    if (inClearing(x, z, -0.5) || streamDistance(x, z) < 1.6) continue;
+    const sc = range(rng, 0.25, 0.6);
+    const rot = rng() * 6;
+    const n = out.length;
+    out.push({ x, y: groundHeight(x, z) - 0.02, z, rotY: rot, lean: 0, leanDir: 0, w: sc * 2.2, h: sc * 2.0, variant: (['bush1', 'bush2', 'bush3'] as const)[n % 3], tint: n % 4, bias: 2.4, tree: -1 });
+  }
+  return out;
+}
+
 export function allTrees(): TreeInstance[] {
   const out: TreeInstance[] = TREES.map((t, i) => ({
     x: t.x,
@@ -77,7 +95,7 @@ export function allTrees(): TreeInstance[] {
     bias: Math.max(1, Math.min(1.6, 1.15 / (t.scale * t.height))),
     tree: i,
   }));
-  return out.concat(understory());
+  return out.concat(understory(), bushes());
 }
 
 /** The level of detail for a tree at squared distance `d2`, given the one it had (null = first time). */

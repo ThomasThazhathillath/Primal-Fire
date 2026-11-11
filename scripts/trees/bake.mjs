@@ -23,6 +23,10 @@ const VARIANTS = [
   { id: 'ash', trunk: 1.5, preset: 'Ash Medium', seed: 22022, height: 4.9, leaf: 'ash', lk: 0.8, bk: 0.55, bark: [0x80786a, 0x5a5348] },
   { id: 'aspen', trunk: 2.3, preset: 'Aspen Medium', seed: 33033, height: 4.6, leaf: 'aspen', bark: [0xe6e2d6, 0x8f897c] },
   { id: 'pine', trunk: 1.6, preset: 'Pine Medium', seed: 44044, height: 5.2, leaf: 'pine', lk: 0.6, bk: 0.4, bark: [0x6e4e39, 0x4a3426] },
+  // EZ-Tree bush presets: low shrubs for the undergrowth (placed by tree-lod.ts bushes()).
+  { id: 'bush1', preset: 'Bush 1', seed: 61061, height: 1.1, leaf: 'ash', lk: 1.0, bk: 0.35, bark: [0x6e5b47, 0x4a3b2c] },
+  { id: 'bush2', preset: 'Bush 2', seed: 62062, height: 1.0, leaf: 'aspen', lk: 1.0, bk: 0.5, bark: [0x6e5b47, 0x4a3b2c] },
+  { id: 'bush3', preset: 'Bush 3', seed: 63063, height: 1.2, leaf: 'pine', lk: 1.0, bk: 0.3, bark: [0x6e4e39, 0x4a3426] },
   { id: 'snag', trunk: 1.9, preset: 'Oak Small', seed: 55055, height: 3.6, leaf: 'oak', bark: [0x8a8174, 0x625b52], dead: true },
 ];
 

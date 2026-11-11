@@ -132,7 +132,7 @@ export class TreeSystem extends createSystem({}) {
       near: (x: number, z: number, r: number) => this.trees.filter((t) => Math.hypot(t.x - x, t.z - z) < r).map((t) => ({ x: t.x, z: t.z, h: t.h, w: t.w })),
       pick: (variant: string, lo = 0.7, hi = 1.2, gap = 2.4) =>
         this.trees
-          .filter((t) => t.variant === variant && t.tree >= 0 && t.h >= lo && t.h <= hi && !this.trees.some((o) => o !== t && Math.hypot(o.x - t.x, o.z - t.z) < gap))
+          .filter((t) => t.variant === variant && (t.tree >= 0 || variant.startsWith('bush')) && t.h >= lo && t.h <= hi && !this.trees.some((o) => o !== t && Math.hypot(o.x - t.x, o.z - t.z) < gap))
           .sort((a, b) => Math.hypot(a.x, a.z) - Math.hypot(b.x, b.z))[0] ?? null,
     });
     (window as unknown as { __trees?: unknown }).__trees = dbg;

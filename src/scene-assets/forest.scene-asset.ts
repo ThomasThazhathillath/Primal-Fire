@@ -222,7 +222,7 @@ function fernGeometry(): BufferGeometry {
   return out;
 }
 
-/** Bushes (walk-through) and boulders, both instanced. */
+/** Boulders, instanced (the shrubs are drawn by TreeSystem). */
 export function createUndergrowth(): Object3D {
   const root = new Group();
   root.name = 'Undergrowth';
@@ -234,8 +234,7 @@ export function createUndergrowth(): Object3D {
   const p = new Vector3();
   const col = new Color();
 
-  const bushes = new InstancedMesh(new IcosahedronGeometry(1, 0), lambert(0xffffff), 260);
-  bushes.name = 'Bushes';
+  // The shrubs moved to TreeSystem; this loop only replays their random draws so everything after it keeps its layout.
   let n = 0;
   for (let tries = 0; n < 260 && tries < 6000; tries++) {
     const a = rng() * Math.PI * 2;
@@ -243,14 +242,10 @@ export function createUndergrowth(): Object3D {
     const x = Math.cos(a) * r;
     const z = Math.sin(a) * r;
     if (inClearing(x, z, -0.5) || streamDistance(x, z) < 1.6) continue;
-    const sc = range(rng, 0.25, 0.6);
-    m.compose(p.set(x, sc * 0.45, z), q.setFromAxisAngle(up, rng() * 6), s.set(sc, sc * 0.75, sc));
-    bushes.setMatrixAt(n, m);
-    bushes.setColorAt(n, col.setHex([0x3d5f2e, 0x4a6b34, 0x36542a][n % 3]));
+    range(rng, 0.25, 0.6);
+    rng();
     n++;
   }
-  bushes.count = n;
-  root.add(bushes);
 
   const boulders = new InstancedMesh(new DodecahedronGeometry(1, 0), lambert(0xffffff), BOULDERS.length);
   boulders.name = 'Boulders';

@@ -29,7 +29,7 @@ const VARIANTS = [
   { id: 'bush3', preset: 'Bush 3', seed: 63063, height: 1.2, leaf: 'pine', lk: 1.0, bk: 0.3, bark: [0x6e4e39, 0x4a3426] },
   // Ferns: arching cards textured with the ash leaf sprig (placed by tree-lod.ts ferns()). Built by hand, not by EZ-Tree.
   { id: 'fern', fern: true, height: 0.7, leaf: 'ash', bark: [0, 0] },
-  { id: 'snag', trunk: 1.9, preset: 'Oak Small', seed: 55055, height: 3.6, leaf: 'oak', bark: [0x8a8174, 0x625b52], dead: true },
+  { id: 'snag', trunk: 1.9, preset: 'Oak Small', seed: 55055, height: 3.6, leaf: 'oak', bark: [0x5a4d40, 0x2f2720], dead: true },
 ];
 
 /** Detail levels: leaf count scale, billboard type, branch levels, segment/section reductions, leaf size scale. */
@@ -175,7 +175,15 @@ for (const v of VARIANTS) {
     for (let i = 1; i < branches.P.length; i += 3) maxY = Math.max(maxY, branches.P[i]);
     for (let i = 0; i < branches.P.length / 3; i++) {
       const c = srgbToLinear(lerpC(v.bark[1], v.bark[0], Math.min(1, branches.P[i * 3 + 1] / (maxY * 0.8)) * 0.45 + 0.4 + (branches.UV[i * 2 + 1] > 0.5 ? 0.06 : 0)));
-      bh.set(c, i * 3);
+      if (v.dead) {
+        // Weathered wood: vertical grain streaks (one tone per ring segment), cracks and dark patches along the trunk, a silvery-brown cast.
+        const seg = Math.floor(branches.UV[i * 2] * 7.001);
+        const hs = (n) => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
+        const streak = 0.72 + 0.5 * hs(seg + Math.floor(branches.P[i * 3 + 1] * 1.3) * 0.37);
+        const patch = 0.82 + 0.3 * hs(Math.floor(branches.P[i * 3 + 1] * 5) * 1.7 + seg * 3.1);
+        const k = streak * patch;
+        bh.set([c[0] * k * 1.05, c[1] * k * 0.98, c[2] * k * 0.9], i * 3);
+      } else bh.set(c, i * 3);
     }
     const mkMesh = (name, g, mat, extra) => {
       const prim = d

@@ -29,7 +29,7 @@ const LOOKS: Record<string, string> = {
   rootBad: 'Smooth, hairless, purple-blotched stem with a musty smell. A look-alike of wild carrot that is deadly: never dig it.',
 };
 
-export const FORAGE_COUNT = { berry: 4, nut: 3, root: 3 };
+export const FORAGE_COUNT = { berry: 6, nut: 4, root: 3 };
 export const FORAGE_REGROW = 240;
 
 function build(): ForagePatch[] {

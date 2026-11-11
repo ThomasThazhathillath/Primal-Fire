@@ -85,6 +85,18 @@ Plan and audit: [PHASE3_LIVING_WORLD_PLAN.md](PHASE3_LIVING_WORLD_PLAN.md); brie
 - **Perf:** adds 6 draw calls mono (3 species, 1 tracks, 2 forage). Samples after begin: 245 draw calls, 231k triangles, CPU 4.2 ms, in the IWER browser. The earlier baseline (512 draw calls, 474k triangles) was taken in a different view and cannot be compared directly. Not measured on a Quest.
 - **Not verified:** a full playthrough of the seven quests in the emulator, rain and fog behaviour live, the rack/stack/bed in the 3D build flow (rendered only as generic snap spots), anything on a headset.
 
+### Resource overhaul (branch `claude/resource-overhaul`, cut from the Phase 3 branch, not merged)
+
+Spec [RESOURCE_OVERHAUL_SPEC](RESOURCE_OVERHAUL_SPEC.md); audit and plan [RESOURCE_OVERHAUL_PLAN](RESOURCE_OVERHAUL_PLAN.md); screenshots in `shots-resources/`.
+
+- **What changed:** `resource-class.ts` (every look and world object classified: resource, interactable, decor, quest, constructed); habitat clusters in `world-layout.ts` (8 rocky deposits with 8-15 stones and 3-6 flint beside outcrops, 16 fallen-tree clusters, stream beds of clay, sand, gravel and wet stones, appended last so old spot ids are unchanged); spots 465 to about 775 and flint 14 to about 60; per-type regrowth one charge at a time; spot state saved as `resources` (new, optional); bag count in the pickup toast; `?resdebug` overlay (`resource-debug-system.ts`).
+- **Bug found and fixed:** used spots refilled on every reload because their charges were never saved.
+- **Unit-tested (vitest, 658 tests, 43 new in `resource-overhaul.test.ts`):** every item a spot offers can be gathered, stacks and refuses cleanly when the pack is full; regrowth rules; save and reload with no duplicates and old saves; cluster counts and habitat (outcrop, trunk, stream); flint within 22 m of the start; supply of every chapter material.
+- **Emulator-tested (IWER, flat desktop and emulated hands, not a headset):** gaze targeted a stone and a pinch gathered it (log: `gaze take r:stone-41`, objective completed); a hand pinch gathered a flint; both spots appeared as used after a reload; `?resdebug` view. Screenshots: `shots-resources/`.
+- **Perf (IWER, mono draw calls as reported, 4 s after begin):** baseline 244, first cluster build 291, after shortening the visibility distance from 20 to 15 m and the glow ring from 9 to 5 m: **220 draw calls**, 231k triangles, CPU 4.7 ms. Cluster visuals are the existing flattened per-spot meshes, culled by distance, not InstancedMesh; ray interaction still limited to 7.5 m by `PerfSystem.cullRays`.
+- **Quest-verified:** nothing.
+- **Not done:** berries are still the Phase 3 forage patches (6 berry and 4 nut patches now, with identification), not plain collectible cluster items; no pickup sound beyond the existing contact sound; stones are not InstancedMesh.
+
 ### Docs index
 
 | Doc | What it is |

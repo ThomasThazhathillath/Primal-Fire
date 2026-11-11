@@ -20,6 +20,7 @@ import {
 import { fitsPouch, ITEM_PHYSICS, type ItemId } from '../game/items.js';
 import { SWING_TOOLS } from '../game/interact.js';
 import { groundHeight, RESOURCES, type ResourceSpot } from '../game/world-layout.js';
+import { afterGather, afterRegrow, loadedCharges } from '../game/resource-state.js';
 import { Gatherable } from '../components/game-components.js';
 import { itemMesh, resourceMesh } from '../scene-assets/item-meshes.js';
 import { hands } from './hand-input-system.js';
@@ -41,9 +42,9 @@ const AIM_CONE = 0.21;
 const AIM_HISTORY = 12;
 const AIM_LOOKBACK = 9;
 /** Spots farther than this (m) are hidden: they sit in full fog and cost draw calls. */
-const CULL_DISTANCE = 20;
+const CULL_DISTANCE = 15;
 /** The pickup glow only matters up close (it is one draw call per spot): beyond this (m) it is hidden. */
-const GLOW_DISTANCE = 9;
+const GLOW_DISTANCE = 5;
 
 interface Flight {
   obj: Object3D;
@@ -100,8 +101,12 @@ export class ResourceSystem extends createSystem({
       glow.position.y = 0.025;
       obj.add(glow);
       const e = this.world.createTransformEntity(obj);
-      e.addComponent(Gatherable, { spotId: spot.id, charges: spot.charges, regrowAt: 0 });
-      e.addComponent(RayInteractable);
+      // A saved, part-used or stripped spot comes back exactly as it was left (no refill, no duplicate).
+      const saved = getGame(this.world).spotState.get(spot.id);
+      const charges = loadedCharges(saved, spot);
+      e.addComponent(Gatherable, { spotId: spot.id, charges, regrowAt: saved?.r ?? 0 });
+      if (charges > 0) e.addComponent(RayInteractable);
+      else obj.visible = false;
       this.bySpot.set(spot.id, spot);
       this.entityBySpot.set(spot.id, e);
     }
@@ -223,8 +228,11 @@ export class ResourceSystem extends createSystem({
     if (left <= 0) {
       e.object3D!.visible = false;
       e.removeComponent(RayInteractable);
-      e.setValue(Gatherable, 'regrowAt', spot.regrow > 0 ? game.time + spot.regrow : 0);
     }
+    // One charge grows back at a time, every `regrow` seconds, until the spot is full again (0 = never).
+    const next = afterGather(game.spotState.get(spot.id), spot, game.time);
+    e.setValue(Gatherable, 'regrowAt', next.r);
+    game.spotState.set(spot.id, next);
     return true;
   }
 
@@ -358,10 +366,22 @@ export class ResourceSystem extends createSystem({
       if (at <= 0 || now < at) continue;
       const spot = this.bySpot.get(e.getValue(Gatherable, 'spotId') ?? '');
       if (!spot) continue;
-      e.setValue(Gatherable, 'charges', spot.charges);
-      e.setValue(Gatherable, 'regrowAt', 0);
+      const game = getGame(this.world);
+      const prev = game.spotState.get(spot.id) ?? { c: e.getValue(Gatherable, 'charges') ?? 0, r: at };
+      const res = afterRegrow(prev, spot, now);
+      if (res === 'wait') continue;
+      if (res === null) {
+        e.setValue(Gatherable, 'charges', spot.charges);
+        e.setValue(Gatherable, 'regrowAt', 0);
+        game.spotState.delete(spot.id);
+      } else {
+        e.setValue(Gatherable, 'charges', res.c);
+        e.setValue(Gatherable, 'regrowAt', res.r);
+        game.spotState.set(spot.id, res);
+      }
       this.setNear(e.object3D!, true);
-      e.addComponent(RayInteractable);
+      e.object3D!.visible = true;
+      if (!e.hasComponent(RayInteractable)) e.addComponent(RayInteractable);
     }
   }
 }

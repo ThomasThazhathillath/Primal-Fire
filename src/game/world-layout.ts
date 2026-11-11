@@ -249,6 +249,8 @@ export interface ResourceSpot {
   /** Looks like this: drives which mesh the scene builds. */
   look: ResourceLook;
   rotY: number;
+  /** Id of the habitat cluster this spot belongs to (resource-overhaul), if any. */
+  cluster?: string;
 }
 
 export type ResourceLook =
@@ -348,13 +350,15 @@ const LOOK_CHARGES: Partial<Record<ResourceLook, [number, number]>> = {
   mossRock: [2, 40],
   straightStick: [1, 60],
   board: [1, 70],
-  clayPatch: [4, 30],
-  sandBar: [4, 30],
-  gravelBed: [4, 30],
+  // Clay and sand are finite beds, big and slow to come back; gravel is the stream's own and returns.
+  clayPatch: [6, 1800],
+  sandBar: [6, 900],
+  gravelBed: [4, 300],
   cloth: [2, 90],
   lens: [1, 0],
-  stone: [1, 0],
-  wetStone: [1, 0],
+  // Stones come back very slowly (frost and the stream expose new ones); flint slower still.
+  stone: [1, 1500],
+  wetStone: [1, 1200],
   slab: [1, 0],
   forkedStick: [1, 90],
   diggingStick: [1, 0],
@@ -363,8 +367,8 @@ const LOOK_CHARGES: Partial<Record<ResourceLook, [number, number]>> = {
   leafLitter: [2, 40],
   vine: [2, 70],
   bark: [2, 90],
-  stoneDark: [1, 0],
-  stonePale: [1, 0],
+  stoneDark: [1, 3000],
+  stonePale: [1, 1500],
   pole: [1, 120],
 };
 
@@ -434,10 +438,11 @@ function generateResources(): ResourceSpot[] {
   const rng = mulberry32(23);
   const spots: ResourceSpot[] = [];
   const counts: Partial<Record<ResourceLook, number>> = {};
-  const add = (look: ResourceLook, x: number, z: number): void => {
+  const add = (look: ResourceLook, x: number, z: number, cluster?: string): void => {
     const n = (counts[look] = (counts[look] ?? 0) + 1);
     const [charges, regrow] = LOOK_CHARGES[look] ?? [1, 0];
     spots.push({
+      ...(cluster ? { cluster } : {}),
       id: `${look}-${n}`,
       itemId: LOOK_ITEM[look],
       x,
@@ -556,7 +561,147 @@ function generateResources(): ResourceSpot[] {
       placed++;
     }
   }
+  // Habitat clusters (resource overhaul), appended after everything else so older ids never move.
+  CLUSTERS.length = 0;
+  generateClusters(add, spots, sgrid, CLUSTERS);
   return spots;
+}
+
+// ------------------------------------------------- habitat clusters
+
+export type ClusterKind = 'rocky' | 'fallen' | 'stream';
+
+export interface ResourceCluster {
+  id: string;
+  kind: ClusterKind;
+  x: number;
+  z: number;
+  /** Radius that contains every spot of the cluster (debug rings, tests). */
+  r: number;
+  /** Count of spots per look. */
+  counts: Partial<Record<ResourceLook, number>>;
+}
+
+/** Filled by generateResources (the same seeded layout every run). */
+export const CLUSTERS: ResourceCluster[] = [];
+
+type AddFn = (look: ResourceLook, x: number, z: number, cluster?: string) => void;
+
+/**
+ * Natural groupings on top of the single scattered spots: loose stone and flint deposits beside rock
+ * outcrops and on the stream bank, sticks and bark lying round fallen trunks, and clay/sand/gravel beds
+ * along the water. Seeded and irregular (no grid): each piece is a random polar offset from the cluster
+ * centre, thinned by a minimum spacing, so no two deposits are alike.
+ */
+function generateClusters(add: AddFn, spots: ResourceSpot[], grid: SpatialGrid<ResourceSpot>, out: ResourceCluster[]): void {
+  const rng = mulberry32(202);
+  const taken = (x: number, z: number, gap: number) => !!grid.nearest(x, z, gap);
+  const place = (cl: ResourceCluster, look: ResourceLook, cx: number, cz: number, rMax: number, opts: { gap: number; stream?: boolean; treeClear?: number }): boolean => {
+    for (let t = 0; t < 40; t++) {
+      const a = rng() * Math.PI * 2;
+      const r = 0.25 + Math.sqrt(rng()) * rMax;
+      const x = cx + Math.cos(a) * r;
+      const z = cz + Math.sin(a) * r;
+      if (Math.hypot(x, z) > WORLD_RADIUS - 3 || inClearing(x, z, 0.5)) continue;
+      const sd = streamDistance(x, z);
+      if (opts.stream ? sd < 0.9 || sd > STREAM_BANK + 0.9 : sd < STREAM_BANK + 0.2) continue;
+      if (nearestTreeDistance(x, z, 2) < (opts.treeClear ?? 0.5)) continue;
+      if (BOULDERS.some((b) => Math.hypot(b.x - x, b.z - z) < b.size + 0.35)) continue;
+      if (FALLEN_TRUNKS.some((f) => onTrunk(f, x, z))) continue;
+      if (taken(x, z, opts.gap)) continue;
+      const before = spots.length;
+      add(look, x, z, cl.id);
+      grid.insert(x, z, spots[before]);
+      cl.counts[look] = (cl.counts[look] ?? 0) + 1;
+      cl.r = Math.max(cl.r, Math.hypot(x - cl.x, z - cl.z));
+      return true;
+    }
+    return false;
+  };
+  const far = (x: number, z: number, others: ResourceCluster[], d: number) => others.every((c) => Math.hypot(c.x - x, c.z - z) > d);
+
+  // 1. Rocky deposits: 8-15 stones and 3-6 flint beside rock outcrops. One of them sits 12-20 m from the start.
+  const rocky: ResourceCluster[] = [];
+  const edge = WORLD_RADIUS - 8;
+  const outcrops = BOULDERS.filter((b) => streamDistance(b.x, b.z) > 5 && Math.hypot(b.x, b.z) > 10 && Math.hypot(b.x, b.z) < edge && !inClearing(b.x, b.z, 2));
+  const starters = outcrops.filter((b) => Math.hypot(b.x, b.z) < 20);
+  const picks: Array<{ x: number; z: number }> = [];
+  if (starters.length) picks.push(starters[Math.floor(rng() * starters.length)]);
+  for (let t = 0; t < 400 && picks.length < 8 && outcrops.length; t++) {
+    const b = outcrops[Math.floor(rng() * outcrops.length)];
+    if (picks.every((c) => Math.hypot(c.x - b.x, c.z - b.z) > 13)) picks.push(b);
+  }
+  picks.forEach((b, i) => {
+    const a = rng() * Math.PI * 2;
+    const cx = b.x + Math.cos(a) * 2;
+    const cz = b.z + Math.sin(a) * 2;
+    const cl: ResourceCluster = { id: `rocky-${i + 1}`, kind: 'rocky', x: cx, z: cz, r: 0, counts: {} };
+    const stones = 8 + Math.floor(rng() * 8);
+    const flints = 3 + Math.floor(rng() * 4);
+    const R = 1.5 + 0.09 * (stones + flints);
+    for (let k = 0; k < stones; k++) place(cl, rng() < 0.7 ? 'stone' : 'stonePale', cx, cz, R, { gap: 0.45 });
+    for (let k = 0; k < flints; k++) place(cl, 'stoneDark', cx, cz, R, { gap: 0.45 });
+    out.push(cl);
+    rocky.push(cl);
+  });
+
+  // 2. Fallen-tree clusters: sticks, branches, bark, vine and fibre lie round the trunk.
+  const trunks = FALLEN_TRUNKS.filter((f) => streamDistance(f.x, f.z) > 4 && Math.hypot(f.x, f.z) > 8 && Math.hypot(f.x, f.z) < edge);
+  const chosen: FallenTrunk[] = [];
+  for (let t = 0; t < 400 && chosen.length < 16 && trunks.length; t++) {
+    const f = trunks[Math.floor(rng() * trunks.length)];
+    if (chosen.every((c) => Math.hypot(c.x - f.x, c.z - f.z) > 7)) chosen.push(f);
+  }
+  chosen.forEach((f, i) => {
+    const cl: ResourceCluster = { id: `fallen-${i + 1}`, kind: 'fallen', x: f.x, z: f.z, r: 0, counts: {} };
+    const R = f.length * 0.5 + 0.8;
+    const mix: ResourceLook[] = [];
+    for (let k = 0; k < 3 + Math.floor(rng() * 3); k++) mix.push('twigPile');
+    for (let k = 0; k < 1 + Math.floor(rng() * 2); k++) mix.push('dryBranch');
+    for (let k = 0; k < 1 + Math.floor(rng() * 2); k++) mix.push('bark');
+    if (rng() < 0.6) mix.push('vine');
+    if (rng() < 0.5) mix.push('fibrePlant');
+    for (const look of mix) place(cl, look, f.x, f.z, R, { gap: 0.6 });
+    out.push(cl);
+  });
+
+  // 3. Stream deposits: clay, sand, gravel and wet stones in beds along the water, and a few stones with flint on the bank.
+  const beds: ResourceCluster[] = [];
+  for (let t = 0; t < 300 && beds.length < 8; t++) {
+    const i = Math.floor(rng() * (STREAM.length - 1));
+    const u = rng();
+    const [ax, az] = STREAM[i];
+    const [bx, bz] = STREAM[i + 1];
+    const len = Math.hypot(bx - ax, bz - az) || 1;
+    const off = range(rng, 1.1, 1.7) * (rng() < 0.5 ? -1 : 1);
+    const x = ax + (bx - ax) * u - ((bz - az) / len) * off;
+    const z = az + (bz - az) * u + ((bx - ax) / len) * off;
+    if (Math.hypot(x, z) > WORLD_RADIUS - 4 || inClearing(x, z, 2) || !far(x, z, beds, 9)) continue;
+    const cl: ResourceCluster = { id: `stream-${beds.length + 1}`, kind: 'stream', x, z, r: 0, counts: {} };
+    const mix: ResourceLook[] = [];
+    const n = (min: number, max: number) => min + Math.floor(rng() * (max - min + 1));
+    for (let k = 0; k < n(2, 3); k++) mix.push('clayPatch');
+    for (let k = 0; k < n(1, 2); k++) mix.push('sandBar');
+    for (let k = 0; k < n(2, 3); k++) mix.push('gravelBed');
+    for (let k = 0; k < n(3, 5); k++) mix.push('wetStone');
+    // Flint washes down with the stones: a couple on the bank of every other bed.
+    if (beds.length % 2 === 0) for (let k = 0; k < n(2, 3); k++) mix.push('stoneDark');
+    for (const look of mix) place(cl, look, x, z, 2.2, { gap: 0.55, stream: true, treeClear: 0.3 });
+    out.push(cl);
+    beds.push(cl);
+  }
+}
+
+/** Is (x, z) on the body of a fallen trunk? */
+function onTrunk(f: FallenTrunk, x: number, z: number): boolean {
+  const dx = x - f.x;
+  const dz = z - f.z;
+  const c = Math.cos(f.rotY);
+  const s = Math.sin(f.rotY);
+  // The scene stretches the cylinder along local X, rotated about Y by rotY (three.js: x' = c*x + s*z, z' = -s*x + c*z).
+  const along = dx * c - dz * s;
+  const across = dx * s + dz * c;
+  return Math.abs(along) < f.length * 0.5 + 0.2 && Math.abs(across) < 0.2 * f.thick + 0.25;
 }
 
 export const RESOURCES: ResourceSpot[] = generateResources();

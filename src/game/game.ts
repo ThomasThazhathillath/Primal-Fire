@@ -211,6 +211,11 @@ export class Game {
   readonly tracks = new Tracks();
   /** Ids of finished Phase 3 quests (saved). */
   readonly living = new Set<string>();
+  /**
+   * Gather spots that are not at full charge: id to charges left and the game time the next charge grows
+   * back (0 = none due). Saved, so a reload neither refills a stripped deposit nor duplicates anything.
+   */
+  readonly spotState = new Map<string, { c: number; r: number }>();
   private trackSeen = new Set<number>();
   private trackAges = new Set<string>();
   private trackT = 0;
@@ -809,7 +814,7 @@ export class Game {
       this.gathered.set(id, this.gatheredCount(id) + bonus);
     }
     this.log.add(`gathered ${id} from ${sourceId}${bonus ? ' (+tool)' : ''}`);
-    this.toast(`+1 ${itemName(id)}`);
+    this.toast(big ? `+1 ${itemName(id)}` : `+1 ${itemName(id)} (${this.count(id)} in bag)`);
     const obs = ITEMS[id].firstObservation;
     if (first && obs) this.observe(obs);
     this.checkQuests();
@@ -1888,6 +1893,7 @@ export class Game {
       notebook: [...this.notebook],
       events: [...this.events],
       living: [...this.living],
+      resources: [...this.spotState].map(([id, v]) => [id, v.c, v.r] as [string, number, number]),
       guide: this.guide.snapshot(),
       structures: this.structures.map((s) => ({
         ...s,
@@ -1927,6 +1933,7 @@ export class Game {
     g.notebook.push(...data.notebook);
     for (const e of data.events ?? []) g.events.add(e);
     for (const q of data.living ?? []) g.living.add(q);
+    for (const [id, c, r] of data.resources ?? []) g.spotState.set(id, { c, r });
     for (const q of LIVING_QUESTS) g['livingSteps'].set(q.id, q.steps.filter((st) => st.done(g)).length);
     if (data.guide) g.guide.restore(data.guide);
     g.structures.push(...data.structures);
@@ -1982,6 +1989,7 @@ export interface SaveData {
   notebook: string[];
   events?: string[];
   living?: string[];
+  resources?: Array<[string, number, number]>;
   guide?: GuideSave;
   structures: PlacedStructure[];
   discovered: string[];

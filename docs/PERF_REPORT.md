@@ -233,3 +233,10 @@ Standard viewpoint (UI hidden): 213 draw calls, **232,134 triangles** (was 253,9
 Item 2 changes colours and one fragment tweak only (no geometry). Item 3: grass is laid out in two passes (cells within 4.5 m first, with 3 extra tufts per cell and 1.45x patch density;
 then the ring out to 8.5 m, thinning with distance), 1,450 tufts at most; forest-floor debris is 450 twigs and 1,000 leaf cards (static, chunk-culled); the ground is darker under the
 canopy. Tree LOD distances 4.5/10.5/19.5 m. Standard viewpoint: 214 draw calls, **230,148 triangles**, CPU 4.72 ms (budget 240k). Mountain tessellation 112 x 4.
+
+### Polish pass 2, item 5 and final numbers
+
+Grass is now kept clear around built structures. The structure and fire shots (workbench, fire pit with a burning fire and smoke, lean-to, drying rack, bed, woodstack) show that the
+existing models read fine under the new lighting; fire, smoke and the ground glow were already soft shader effects and are unchanged. With all six structures standing and the fire lit,
+the standard viewpoint is 223 draw calls and **233,904 triangles**, CPU 4.84 ms (budget 240k). Playtests after this pass: `story-check.mjs` Chapter 1 play-through (workbench complete, fire
+lit, no errors) and `tutorial-check.mjs` (enters, reports its first lesson) pass; `playtest.mjs` was not run again (it already failed at the workbench step before this pass).

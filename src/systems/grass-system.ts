@@ -4,6 +4,7 @@
 // wind is a vertex-shader sway. They are walk-through scenery: nothing gameplay-related reads them.
 
 import { BufferAttribute, BufferGeometry, createSystem, DoubleSide, DynamicDrawUsage, InstancedBufferAttribute, InstancedMesh, MeshLambertMaterial, Vector3 } from '@iwsdk/core';
+import { BLUEPRINTS } from '../game/blueprint.js';
 import { valueNoise } from '../game/rng.js';
 import { groundHeight, inClearing, nearestTreeDistance, streamDistance } from '../game/world-layout.js';
 import { getGame } from './shared.js';
@@ -161,6 +162,7 @@ export class GrassSystem extends createSystem({}) {
     const col = this.mesh.instanceColor!.array as Float32Array;
     const farr = this.flowers.instanceMatrix.array as Float32Array;
     const fcol = this.flowers.instanceColor!.array as Float32Array;
+    const structs = getGame(this.world).structures;
     const n0x = Math.floor(cx / CELL);
     const n0z = Math.floor(cz / CELL);
     const span = Math.ceil(RADIUS / CELL);
@@ -188,6 +190,13 @@ export class GrassSystem extends createSystem({}) {
           const d = Math.hypot(x - cx, z - cz);
           if (d > RADIUS) continue;
           if (streamDistance(x, z) < 0.95 || nearestTreeDistance(x, z, 0.5) < 0.4) continue;
+          // Keep the ground clear where you have built: camp pieces are not buried in grass.
+          let built = false;
+          for (let q = 0; q < structs.length; q++) {
+            const st = structs[q];
+            if (Math.hypot(st.x - x, st.z - z) < BLUEPRINTS[st.kind].radius + 0.55) built = true;
+          }
+          if (built) continue;
           const fade = d < FADE_FROM ? 1 : 1 - (d - FADE_FROM) / (RADIUS - FADE_FROM);
           const s = (0.6 + hash(ix, iz, k * 3 + 3) * 0.7 + dens * 0.2) * fade;
           if (s < 0.05) continue;

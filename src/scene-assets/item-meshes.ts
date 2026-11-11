@@ -107,7 +107,7 @@ const builders: Record<ResourceLook, () => Object3D> = {
     // A slim trunk with soft, smooth-shaded leaf masses (no faceted solids).
     const g = new Group();
     g.add(at(new Mesh(new CylinderGeometry(0.02, 0.035, 1.2, 10), lambert(0x6b5a3a)), 0, 0.6, 0));
-    const tones = [0x3f6e2a, 0x4a7a30, 0x55883a];
+    const tones = [0x2c4f1f, 0x35602a, 0x3f6e2f];
     [[0.7, 0.2], [0.95, 0.18], [1.2, 0.14]].forEach(([y, s], i) => {
       const puff = new Mesh(new SphereGeometry(s, 10, 8), lambert(tones[i]));
       puff.scale.set(1, 0.8, 1);
@@ -118,7 +118,7 @@ const builders: Record<ResourceLook, () => Object3D> = {
   mossRock: () => {
     const g = new Group();
     g.add(at(stone(0xb0aca0, 0.11, 3), 0, 0, 0));
-    g.add(at(new Mesh(new SphereGeometry(0.21, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2.4), lambert(0x3f6a33)), 0, 0.17, 0));
+    g.add(at(new Mesh(new SphereGeometry(0.21, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2.4), lambert(0x2f4f26)), 0, 0.17, 0));
     return g;
   },
   straightStick: () => at(new Mesh(new CylinderGeometry(0.02, 0.022, 0.8, 10), lambert(0xc49a66)), 0, 0.36, 0, 0, 0, -0.3),

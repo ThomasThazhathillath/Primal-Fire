@@ -10,76 +10,85 @@ import {
   DynamicDrawUsage,
   InstancedMesh,
   MeshLambertMaterial,
+  CylinderGeometry,
   Object3D,
+  SphereGeometry,
 } from '@iwsdk/core';
 import { Color } from '@iwsdk/core';
 import { freshness, TRACK_CAP, TRACK_LIFE } from '../game/tracks.js';
 import type { Animal, Species } from '../game/wildlife.js';
 import { getGame } from './shared.js';
 
-type Box = [cx: number, cy: number, cz: number, sx: number, sy: number, sz: number, rgb: number];
+/** A part: 'e' ellipsoid (centre, radii), 'c' tapered cylinder (centre, radius, height). Colour is 0xrrggbb. */
+type Part = ['e', number, number, number, number, number, number, number] | ['c', number, number, number, number, number, number, number];
 
-/** Boxes (centre, size, colour) in a model facing +Z, feet at y = 0. */
-const MODELS: Record<Species, Box[]> = {
+/** Parts in a model facing +Z, feet at y = 0 (smooth shapes with a darker back and lighter belly, instead of boxes). */
+const MODELS: Record<Species, Part[]> = {
   deer: [
-    [0, 0.95, 0, 0.5, 0.5, 1.15, 0x8a5a34], // body
-    [0, 1.5, 0.7, 0.22, 0.55, 0.22, 0x8a5a34], // neck
-    [0, 1.8, 0.88, 0.22, 0.24, 0.4, 0x9a6a40], // head
-    [0, 0.8, -0.62, 0.16, 0.16, 0.12, 0xe8dcc8], // tail
-    [-0.17, 0.42, 0.42, 0.1, 0.84, 0.1, 0x5e3b22],
-    [0.17, 0.42, 0.42, 0.1, 0.84, 0.1, 0x5e3b22],
-    [-0.17, 0.42, -0.42, 0.1, 0.84, 0.1, 0x5e3b22],
-    [0.17, 0.42, -0.42, 0.1, 0.84, 0.1, 0x5e3b22],
+    ['e', 0, 0.98, 0, 0.26, 0.27, 0.6, 0x8a5a34], // body
+    ['e', 0, 0.9, -0.45, 0.24, 0.25, 0.3, 0x80522f], // haunch
+    ['c', 0, 1.45, 0.62, 0.1, 0.62, 0, 0x8a5a34], // neck (leaned by the head below)
+    ['e', 0, 1.78, 0.82, 0.1, 0.13, 0.22, 0x9a6a40], // head
+    ['e', -0.07, 1.98, 0.76, 0.03, 0.08, 0.03, 0x7a4c2a], // ears
+    ['e', 0.07, 1.98, 0.76, 0.03, 0.08, 0.03, 0x7a4c2a],
+    ['e', 0, 0.98, -0.66, 0.06, 0.09, 0.07, 0xeee4d0], // tail
+    ['c', -0.15, 0.4, 0.4, 0.045, 0.8, 0, 0x5e3b22],
+    ['c', 0.15, 0.4, 0.4, 0.045, 0.8, 0, 0x5e3b22],
+    ['c', -0.15, 0.4, -0.42, 0.05, 0.8, 0, 0x5e3b22],
+    ['c', 0.15, 0.4, -0.42, 0.05, 0.8, 0, 0x5e3b22],
   ],
   rabbit: [
-    [0, 0.14, 0, 0.18, 0.18, 0.3, 0x8c7a62],
-    [0, 0.22, 0.2, 0.13, 0.13, 0.14, 0x9a8870],
-    [-0.03, 0.36, 0.2, 0.03, 0.14, 0.04, 0x9a8870],
-    [0.03, 0.36, 0.2, 0.03, 0.14, 0.04, 0x9a8870],
-    [0, 0.16, -0.17, 0.08, 0.08, 0.08, 0xf0ece4],
+    ['e', 0, 0.15, 0, 0.1, 0.12, 0.17, 0x8c7a62],
+    ['e', 0, 0.12, -0.08, 0.1, 0.1, 0.13, 0x86745c],
+    ['e', 0, 0.24, 0.2, 0.065, 0.065, 0.085, 0x9a8870],
+    ['e', -0.03, 0.38, 0.19, 0.018, 0.09, 0.02, 0x9a8870],
+    ['e', 0.03, 0.38, 0.19, 0.018, 0.09, 0.02, 0x9a8870],
+    ['e', 0, 0.16, -0.19, 0.04, 0.04, 0.04, 0xf0ece4],
   ],
   bird: [
-    [0, 0.1, 0, 0.12, 0.12, 0.2, 0x5a6a78],
-    [0, 0.17, 0.12, 0.08, 0.08, 0.08, 0x6a7a88],
-    [0, 0.1, -0.15, 0.05, 0.03, 0.12, 0x3a4450],
-    [-0.1, 0.12, 0, 0.1, 0.02, 0.14, 0x4a5a68],
-    [0.1, 0.12, 0, 0.1, 0.02, 0.14, 0x4a5a68],
+    ['e', 0, 0.11, 0, 0.065, 0.065, 0.11, 0x5a6a78],
+    ['e', 0, 0.17, 0.11, 0.04, 0.04, 0.05, 0x6a7a88],
+    ['e', 0, 0.1, -0.16, 0.035, 0.012, 0.09, 0x3a4450],
+    ['e', -0.09, 0.12, 0, 0.07, 0.012, 0.09, 0x4a5a68],
+    ['e', 0.09, 0.12, 0, 0.07, 0.012, 0.09, 0x4a5a68],
   ],
 };
 
-function buildGeometry(boxes: Box[]): BufferGeometry {
+const sphereUnit = new SphereGeometry(1, 12, 9);
+const cylUnit = new CylinderGeometry(0.8, 1, 1, 8, 1);
+
+function buildGeometry(parts: Part[]): BufferGeometry {
   const pos: number[] = [];
+  const nor: number[] = [];
   const col: number[] = [];
-  const idx: number[] = [];
-  const nrm: number[] = [];
-  // 6 faces of a unit cube: normal, then 4 corners.
-  const faces: Array<[number[], number[][]]> = [
-    [[0, 0, 1], [[-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1]]],
-    [[0, 0, -1], [[1, -1, -1], [-1, -1, -1], [-1, 1, -1], [1, 1, -1]]],
-    [[1, 0, 0], [[1, -1, 1], [1, -1, -1], [1, 1, -1], [1, 1, 1]]],
-    [[-1, 0, 0], [[-1, -1, -1], [-1, -1, 1], [-1, 1, 1], [-1, 1, -1]]],
-    [[0, 1, 0], [[-1, 1, 1], [1, 1, 1], [1, 1, -1], [-1, 1, -1]]],
-    [[0, -1, 0], [[-1, -1, -1], [1, -1, -1], [1, -1, 1], [-1, -1, 1]]],
-  ];
-  for (const [cx, cy, cz, sx, sy, sz, rgb] of boxes) {
-    const r = ((rgb >> 16) & 255) / 255;
-    const g = ((rgb >> 8) & 255) / 255;
-    const b = (rgb & 255) / 255;
-    for (const [n, cs] of faces) {
-      const base = pos.length / 3;
-      for (const c of cs) {
-        pos.push(cx + (c[0] * sx) / 2, cy + (c[1] * sy) / 2, cz + (c[2] * sz) / 2);
-        nrm.push(n[0], n[1], n[2]);
-        col.push(r, g, b);
-      }
-      idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
+  const dummy = new Object3D();
+  const c = new Color();
+  for (const [kind, cx, cy, cz, a, b, d, rgb] of parts) {
+    const src = (kind === 'e' ? sphereUnit : cylUnit).toNonIndexed();
+    dummy.position.set(cx, cy, cz);
+    dummy.rotation.set(0, 0, 0);
+    if (kind === 'e') dummy.scale.set(a, b, d);
+    else {
+      dummy.scale.set(a, b, a); // radius a, height b
+      if (cx === 0 && cz > 0.5 && cy > 1.3) dummy.rotation.set(0.5, 0, 0); // the deer's neck leans forward
+    }
+    dummy.updateMatrix();
+    src.applyMatrix4(dummy.matrix);
+    c.setHex(rgb);
+    const p = src.attributes.position.array as Float32Array;
+    const n = src.attributes.normal.array as Float32Array;
+    for (let i = 0; i < p.length; i += 3) {
+      pos.push(p[i], p[i + 1], p[i + 2]);
+      nor.push(n[i], n[i + 1], n[i + 2]);
+      // Darker back, lighter belly.
+      const k = 1.12 - 0.3 * (n[i + 1] * 0.5 + 0.5);
+      col.push(c.r * k, c.g * k, c.b * k);
     }
   }
   const geo = new BufferGeometry();
   geo.setAttribute('position', new BufferAttribute(new Float32Array(pos), 3));
-  geo.setAttribute('normal', new BufferAttribute(new Float32Array(nrm), 3));
+  geo.setAttribute('normal', new BufferAttribute(new Float32Array(nor), 3));
   geo.setAttribute('color', new BufferAttribute(new Float32Array(col), 3));
-  geo.setIndex(idx);
   return geo;
 }
 
@@ -110,8 +119,8 @@ export class WildlifeSystem extends createSystem({}) {
     // Footprints: a cloven pair of flat marks per print, tinted by age.
     const pm = new MeshLambertMaterial({ color: 0xffffff });
     const printGeo = buildGeometry([
-      [-0.045, 0, 0, 0.05, 0.012, 0.13, 0xffffff],
-      [0.045, 0, 0, 0.05, 0.012, 0.13, 0xffffff],
+      ['e', -0.04, 0, 0, 0.026, 0.006, 0.068, 0xffffff],
+      ['e', 0.04, 0, 0, 0.026, 0.006, 0.068, 0xffffff],
     ]);
     this.prints = new InstancedMesh(printGeo, pm, TRACK_CAP);
     this.prints.instanceMatrix.setUsage(DynamicDrawUsage);

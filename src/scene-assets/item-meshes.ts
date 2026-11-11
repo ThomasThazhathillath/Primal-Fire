@@ -23,7 +23,7 @@ import {
 import { ITEMS, type ItemId } from '../game/items.js';
 import { mulberry32, range } from '../game/rng.js';
 import type { ResourceLook } from '../game/world-layout.js';
-import { lambert } from './materials.js';
+import { lambert, weather } from './materials.js';
 import { ROCK_STONES } from './rock-stones.data.js';
 import { MeshLambertMaterial } from '@iwsdk/core';
 import { toolMesh } from './tool-meshes.js';
@@ -148,7 +148,7 @@ const builders: Record<ResourceLook, () => Object3D> = {
   },
   stone: () => stone(0xf0e8da, 0.09, 0),
   wetStone: () => stone(0xa9bccb, 0.09, 2),
-  slab: () => at(new Mesh(new BoxGeometry(0.6, 0.07, 0.42), lambert(ITEMS.slab.color)), 0, 0.035, 0),
+  slab: () => at(new Mesh(weather(new BoxGeometry(0.6, 0.07, 0.42, 6, 1, 4), 0.012, 5), new MeshLambertMaterial({ color: ITEMS.slab.color, vertexColors: true })), 0, 0.035, 0),
   forkedStick: () => {
     const g = new Group();
     g.add(at(new Mesh(new CylinderGeometry(0.018, 0.022, 0.7, 10), lambert(0x8a6a45)), 0, 0.02, 0, 0, 0, Math.PI / 2));

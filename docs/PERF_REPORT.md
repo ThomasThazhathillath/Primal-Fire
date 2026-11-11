@@ -157,3 +157,10 @@ Method: IWER browser, flat view, clear noon, same viewpoint before and after eac
 
 Stage 1: the 260 faceted icosahedron shrubs became three baked EZ-Tree bush variants drawn by the same `TreeSystem` as the trees, so no new
 system and +7 draw calls. Bush full detail is 2.2k to 8.4k triangles but only within about 2.5 m; beyond about 21 m they are 2-triangle billboards.
+
+| 2 Rocks (Poly Haven Rock Moss Set 01) | before (= stage 1 after) | 196 | 198,692 | 4.88 |
+| | after | 210 | 214,708 | 4.69 |
+
+Stage 2: the 45 boulders are six baked rocks (2.2k / 450 / 110 triangles) drawn by `RockSystem` with distance LOD; collectible stones, flint and chalk are
+110-triangle vertex-coloured versions of the same rocks (no texture) so decor (large, textured, mossy) and resources (small, tinted, with a pickup ring)
+stay different. Rock GLB 2.4 MB with embedded 1K JPEGs (JPEG, not KTX2: no basis encoder is installed). +14 draw calls, +16k triangles.

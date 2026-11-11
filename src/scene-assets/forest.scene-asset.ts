@@ -247,17 +247,7 @@ export function createUndergrowth(): Object3D {
     n++;
   }
 
-  const boulders = new InstancedMesh(new DodecahedronGeometry(1, 0), lambert(0xffffff), BOULDERS.length);
-  boulders.name = 'Boulders';
-  n = 0;
-  for (const b of BOULDERS) {
-    m.compose(p.set(b.x, b.size * 0.35, b.z), q.setFromAxisAngle(up, b.rotY), s.set(b.size, b.size * 0.8, b.size));
-    boulders.setMatrixAt(n, m);
-    boulders.setColorAt(n, col.setHex([0x8a857b, 0x77736b, 0x6e6a62][n % 3]));
-    n++;
-  }
-  boulders.count = n;
-  root.add(boulders);
+  // Boulders are drawn by RockSystem (baked Poly Haven rocks, see scripts/rocks/bake.mjs).
 
   // Ferns: a merged 6-frond tuft, instanced.
   const FERNS = 700;

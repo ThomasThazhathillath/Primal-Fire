@@ -24,6 +24,7 @@ import { DesktopControlsSystem } from './systems/desktop-controls-system.js';
 import { WorldEnvironmentSystem } from './systems/environment-system.js';
 import { NatureSystem } from './systems/nature-system.js';
 import { TreeSystem } from './systems/tree-system.js';
+import { RockSystem } from './systems/rock-system.js';
 import { WildlifeSystem } from './systems/wildlife-system.js';
 import { LivingDetailSystem } from './systems/living-detail-system.js';
 import { ResourceDebugSystem } from './systems/resource-debug-system.js';
@@ -75,6 +76,7 @@ World.create(
     .registerSystem(WorldEnvironmentSystem)
     .registerSystem(NatureSystem)
     .registerSystem(TreeSystem)
+    .registerSystem(RockSystem)
     .registerSystem(WildlifeSystem)
     .registerSystem(LivingDetailSystem)
     .registerSystem(ResourceDebugSystem)

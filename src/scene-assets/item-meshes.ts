@@ -24,6 +24,8 @@ import { ITEMS, type ItemId } from '../game/items.js';
 import { mulberry32, range } from '../game/rng.js';
 import type { ResourceLook } from '../game/world-layout.js';
 import { lambert } from './materials.js';
+import { ROCK_STONES } from './rock-stones.data.js';
+import { MeshLambertMaterial } from '@iwsdk/core';
 import { toolMesh } from './tool-meshes.js';
 
 const rng = mulberry32(77);
@@ -44,10 +46,27 @@ function sticks(count: number, color: number, len: [number, number], radius: num
   return g;
 }
 
-function stone(color: number, size: number): Mesh {
-  const m = new Mesh(new DodecahedronGeometry(size, 0), lambert(color));
-  m.scale.set(1, 0.7, 0.9);
-  m.position.y = size * 0.6;
+const stoneGeos: BufferGeometry[] = [];
+/** One of the six baked rock shapes (Poly Haven Rock Moss Set 01, about 110 triangles), vertex-coloured from its texture. */
+function rockGeometry(i: number): BufferGeometry {
+  if (!stoneGeos[i]) {
+    const d = ROCK_STONES[i % ROCK_STONES.length];
+    const g = new BufferGeometry();
+    g.setAttribute('position', new BufferAttribute(Float32Array.from(d.P), 3));
+    g.setAttribute('normal', new BufferAttribute(Float32Array.from(d.N), 3));
+    // Source colours are sRGB bytes; vertex colours are linear.
+    g.setAttribute('color', new BufferAttribute(Float32Array.from(d.C, (v) => Math.pow(v / 255, 2.2)), 3));
+    g.setIndex(d.I);
+    stoneGeos[i] = g;
+  }
+  return stoneGeos[i];
+}
+
+/** A collectible stone: a small rock tinted by `color` (a darker tint reads as flint, a pale one as chalk). Decor boulders are big and mossy. */
+function stone(color: number, size: number, rock = 0): Mesh {
+  const mat = new MeshLambertMaterial({ vertexColors: true, color });
+  const m = new Mesh(rockGeometry(rock), mat);
+  m.scale.setScalar(size * 2.1);
   return m;
 }
 
@@ -123,8 +142,8 @@ const builders: Record<ResourceLook, () => Object3D> = {
     g.add(at(new Mesh(new CircleGeometry(0.058, 16), lambert(0xcfe8ff, { transparent: true, opacity: 0.55 })), 0, 0.07, 0, Math.PI / 2.4 - Math.PI / 2));
     return g;
   },
-  stone: () => stone(ITEMS.dryStone.color, 0.09),
-  wetStone: () => stone(ITEMS.wetStone.color, 0.09),
+  stone: () => stone(0xf0e8da, 0.09, 0),
+  wetStone: () => stone(0xa9bccb, 0.09, 2),
   slab: () => at(new Mesh(new BoxGeometry(0.6, 0.07, 0.42), lambert(ITEMS.slab.color)), 0, 0.035, 0),
   forkedStick: () => {
     const g = new Group();
@@ -167,8 +186,8 @@ const builders: Record<ResourceLook, () => Object3D> = {
     const m = new Mesh(new CylinderGeometry(0.1, 0.1, 0.36, 8, 1, true, 0, Math.PI * 1.1), lambert(0x6e5238, { side: DoubleSide }));
     return at(m, 0, 0.09, 0, 0, 0.6, Math.PI / 2);
   },
-  stoneDark: () => stone(0x5b5a58, 0.14),
-  stonePale: () => stone(0xc2bba9, 0.11),
+  stoneDark: () => stone(0x8d909a, 0.14, 4),
+  stonePale: () => stone(0xffffff, 0.11, 1),
 };
 
 /**
@@ -191,7 +210,7 @@ function flatten(root: Object3D): Object3D {
   const out = new Group();
   for (const [mat, parts] of groups) {
     const merged = new BufferGeometry();
-    for (const name of ['position', 'normal']) {
+    for (const name of parts[0].attributes.color ? ['position', 'normal', 'color'] : ['position', 'normal']) {
       const arr = new Float32Array(parts.reduce((n, g) => n + g.attributes[name].array.length, 0));
       let offset = 0;
       for (const g of parts) {

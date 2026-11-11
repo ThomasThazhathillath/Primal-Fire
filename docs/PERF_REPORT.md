@@ -144,3 +144,16 @@ Follow-up (clean screenshots round): LOD0 foliage was made fuller (it looked ske
 uses flatter light so far trees no longer look pale. The table above shows the final per-level counts. The two tables of measurements
 above were taken before this change with the HUD visible; the new clean shots in `docs/shots-trees/clean-*.jpg` were taken with all
 UI hidden, so draw call counts from that session (about 115 to 158) are lower for that reason and are not comparable.
+
+
+## Modern look round (branch `claude/modern-look`)
+
+Method: IWER browser, flat view, clear noon, same viewpoint before and after each stage, HUD hidden, 4 s sample. Not a Quest.
+
+| Stage | | Draw calls | Triangles | CPU ms |
+|---|---|---|---|---|
+| 1 Bushes (EZ-Tree bush presets, LOD0-2 and billboards, instanced) | before | 189 | 201,686 | 4.58 |
+| | after | 196 | 198,692 | 4.88 |
+
+Stage 1: the 260 faceted icosahedron shrubs became three baked EZ-Tree bush variants drawn by the same `TreeSystem` as the trees, so no new
+system and +7 draw calls. Bush full detail is 2.2k to 8.4k triangles but only within about 2.5 m; beyond about 21 m they are 2-triangle billboards.

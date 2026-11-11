@@ -21,12 +21,15 @@ import {
   Points,
   RepeatWrapping,
   RGBAFormat,
+  SRGBColorSpace,
   ShaderMaterial,
   SphereGeometry,
   UnsignedByteType,
   Vector3,
   type World,
 } from '@iwsdk/core';
+import { Sky } from 'three/addons/objects/Sky.js';
+import { AssetManager, type Texture } from '@iwsdk/core';
 import type { Environment } from '../game/environment.js';
 import { mulberry32 } from '../game/rng.js';
 import { cloudCoverage, cloudLight, starVisibility } from '../game/sky.js';
@@ -208,6 +211,25 @@ function makeCloudNoise(): DataTexture {
   return tex;
 }
 
+const PHOTO_FRAG = /* glsl */ `
+uniform sampler2D uMap;
+uniform float uOff;
+uniform vec3 uTint;
+uniform float uOpacity;
+uniform vec3 uFog;
+varying vec3 vDir;
+void main() {
+  vec3 d = normalize(vDir);
+  if (d.y < 0.0) discard;
+  float u = atan(d.z, d.x) / 6.2831853 + 0.5 + uOff;
+  float v = 0.5 + asin(clamp(d.y, -1.0, 1.0)) / 3.1415927;
+  vec4 c = texture2D(uMap, vec2(u, v));
+  // Near the horizon the cloud thins into the haze.
+  float a = c.a * uOpacity * smoothstep(0.02, 0.2, d.y);
+  vec3 col = mix(c.rgb * uTint, uFog, 0.25 * (1.0 - smoothstep(0.0, 0.5, d.y)));
+  gl_FragColor = vec4(col, a);
+}`;
+
 // ------------------------------------------------------------------- system
 
 export class SkyFx {
@@ -219,6 +241,10 @@ export class SkyFx {
   private moonMat!: ShaderMaterial;
   private clouds!: Mesh;
   private cloudMat!: ShaderMaterial;
+  private physical!: Sky;
+  private photoMat!: ShaderMaterial;
+  private photo!: Mesh;
+  private readonly tint = new Color();
   private t = 0;
   private offX = 0.13;
   private offY = 0.41;
@@ -312,6 +338,43 @@ export class SkyFx {
     this.clouds.frustumCulled = false;
     this.clouds.renderOrder = -2;
     world.createTransformEntity(this.clouds);
+
+    // --- physical sky: the three.js Preetham daylight model driven by the clock's sun, fading out at night so the gradient dome, stars and moon remain
+    this.physical = new Sky();
+    const pm = this.physical.material as ShaderMaterial;
+    pm.transparent = true;
+    pm.depthTest = true;
+    pm.fragmentShader = ('uniform float uAlpha;\n' + pm.fragmentShader)
+      .replace('gl_FragColor = vec4( texColor, 1.0 );', 'gl_FragColor = vec4( vec3(1.0) - exp(-texColor * 0.42), uAlpha );');
+    pm.uniforms.uAlpha = { value: 1 };
+    pm.uniforms.cloudCoverage.value = 0; // clouds come from the photo layer below
+    pm.uniforms.cloudDensity.value = 0;
+    pm.uniforms.showSunDisc.value = 0; // the existing soft sun billboard is the sun
+    this.physical.scale.setScalar(SKY_RADIUS * 1.6);
+    this.physical.renderOrder = -6;
+    this.physical.frustumCulled = false;
+    world.createTransformEntity(this.physical);
+
+    // --- photographed clouds: Poly Haven's partly cloudy sky, as an alpha mask on a dome, tinted by the sun and faded with night
+    this.photoMat = new ShaderMaterial({
+      vertexShader: CLOUD_VERT,
+      fragmentShader: PHOTO_FRAG,
+      uniforms: { uMap: { value: null }, uOff: { value: 0 }, uTint: { value: new Color(1, 1, 1) }, uOpacity: { value: 0 }, uFog: { value: new Color(0.62, 0.72, 0.76) } },
+      transparent: true,
+      depthWrite: false,
+      side: BackSide,
+      fog: false,
+    });
+    this.photo = new Mesh(new SphereGeometry(SKY_RADIUS - 4, 32, 12, 0, Math.PI * 2, 0, Math.PI / 2 + 0.05), this.photoMat);
+    this.photo.frustumCulled = false;
+    this.photo.renderOrder = -5;
+    world.createTransformEntity(this.photo);
+    void Promise.resolve(AssetManager.getTexture('sky-clouds') ?? AssetManager.loadTextureById('sky-clouds')).then((t: Texture) => {
+      t.wrapS = RepeatWrapping;
+      t.colorSpace = SRGBColorSpace;
+      t.needsUpdate = true;
+      this.photoMat.uniforms.uMap.value = t;
+    });
   }
 
   /** Follow the clock. `head` is the camera's world position; `fog` the current fog colour. */
@@ -360,6 +423,27 @@ export class SkyFx {
     (u.uShade.value as Color).setRGB(this.shade[0], this.shade[1], this.shade[2]);
     (u.uFog.value as Color).copy(fog);
     this.clouds.position.copy(head);
+
+    // Physical sky: follows the sun, fades out as it gets dark (the gradient dome and stars take over).
+    const pu = (this.physical.material as ShaderMaterial).uniforms;
+    pu.sunPosition.value.set(sd[0], sd[1], sd[2]);
+    pu.turbidity.value = 2 + env.cloud * 8 + env.fog * 6;
+    pu.rayleigh.value = 1.2 + 1.5 * (1 - smooth(0.0, 0.35, sd[1]));
+    pu.mieCoefficient.value = 0.004 + env.fog * 0.02;
+    pu.uAlpha.value = (1 - smooth(0.3, 0.9, env.night)) * (1 - env.fog * 0.6);
+    this.physical.visible = pu.uAlpha.value > 0.01;
+    this.physical.position.copy(head);
+
+    // Photo clouds: white by day, warm at sunrise and sunset, gone at night; thicker with the weather's cloud cover.
+    const pc = this.photoMat.uniforms;
+    pc.uOff.value += (0.0007 + env.wind.x * 0.0008) * delta;
+    const warm = 1 - smooth(0.02, 0.35, sd[1]);
+    this.tint.setRGB(1, 1 - 0.38 * warm, 1 - 0.62 * warm).multiplyScalar(0.95 + 0.2 * smooth(-0.05, 0.4, sd[1]));
+    (pc.uTint.value as Color).copy(this.tint);
+    pc.uOpacity.value = (1 - smooth(0.25, 0.8, env.night)) * Math.min(1, 0.35 + env.cloud * 1.2) * (1 - env.fog * 0.7);
+    (pc.uFog.value as Color).copy(fog);
+    this.photo.visible = pc.uOpacity.value > 0.01 && pc.uMap.value !== null;
+    this.photo.position.copy(head);
   }
 }
 

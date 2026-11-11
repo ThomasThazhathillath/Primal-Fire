@@ -28,6 +28,8 @@ const groundTex = (id: string) => ({ url: publicAssetUrl(`ground/${id}.webp`), t
 
 export default defineAssets({
   // Poly Haven CC0 ground textures packed by scripts/ground/bake.mjs (diffuse + roughness, and normal).
+  // Poly Haven kloofendal_48d_partly_cloudy_puresky (CC0), baked to a cloud-alpha equirect image by scripts/sky/bake.mjs.
+  'sky-clouds': { url: publicAssetUrl('sky/clouds.webp'), type: AssetType.Texture, name: 'Sky clouds', priority: 'critical' as const },
   'ground-ground-dr': groundTex('ground_dr'),
   'ground-ground-n': groundTex('ground_n'),
   'ground-leaves-dr': groundTex('leaves_dr'),

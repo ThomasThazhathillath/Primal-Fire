@@ -171,3 +171,9 @@ Stage 3: `GroundSystem` swaps the ground for a MeshStandardMaterial that blends 
 extra geometry). `GrassSystem` adds one InstancedMesh of up to 2,400 five-blade tufts (10 triangles each, about 24k) on a hashed 1 m grid within 11 m of
 the camera, shrinking to nothing at the edge; it re-lays every 0.2 s only when you have moved 0.35 m and allocates nothing. +1 draw call, +22k triangles.
 Also fixed: `environment-system` looked the ground up by a name the scene does not use ("Forest Ground"), so wet-ground darkening never applied; it does now.
+| 4 Sky (three.js physical Sky + Poly Haven photo clouds) | before (= stage 3 after) | 211 | 237,138 | 4.81 |
+| | | after | 213 | 233,974 | 4.41 |
+
+Stage 4: the Preetham `Sky` box (12 triangles) is drawn behind the world and fades out at night so the existing gradient dome, stars and moon still show; a
+second dome carries the photographed clouds (alpha mask from the Poly Haven HDRI, tinted warm at dusk, faded at night, thicker with the weather's cloud cover).
+Two extra draw calls and no per-frame allocation. The scene's image-based light is still the time-of-day gradient (`IBLGradient`), not a PMREM of the physical sky.

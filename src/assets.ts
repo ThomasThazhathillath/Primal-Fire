@@ -22,7 +22,15 @@ const uikitml = (fileName: string, name: string) => ({
   name,
 });
 
+const tree = (id: string) => ({ url: publicAssetUrl(`trees/${id}.glb`), type: AssetType.GLTF, name: `Tree ${id}`, priority: 'critical' as const });
+
 export default defineAssets({
+  // Baked EZ-Tree variants (scripts/trees/bake.mjs): drawn by TreeSystem, not placed by the scene.
+  'tree-oak': tree('oak'),
+  'tree-ash': tree('ash'),
+  'tree-aspen': tree('aspen'),
+  'tree-pine': tree('pine'),
+  'tree-snag': tree('snag'),
   'forest-ground': createForestGround(),
   stream: createStream(),
   'forest-trees': createForestTrees(),

@@ -24,6 +24,8 @@
     "three": "npm:super-three@0.185.0"
   },
   "devDependencies": {
+    "@dgreenheck/ez-tree": "^1.1.0",
+    "@gltf-transform/core": "^4.5.1",
     "@iwsdk/cli": "1.1.0-rc.2",
     "@iwsdk/reference": "1.1.0-rc.2",
     "@iwsdk/vite-plugin-dev": "1.1.0-rc.2",

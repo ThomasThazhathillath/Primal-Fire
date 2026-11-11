@@ -98,6 +98,18 @@ export class GroundSystem extends createSystem({}) {
           vec3 patchTint = mix(vec3(0.78, 0.92, 0.62), vec3(1.18, 1.04, 0.84), smoothstep(0.3, 0.7, big));
           patchTint = mix(patchTint, vec3(0.82, 0.78, 0.74), smoothstep(0.62, 0.8, gn(vWUv * 0.13 + 31.0)) * 0.6);
           diffuseColor.rgb *= patchTint * (0.86 + 0.28 * mid) * (0.82 + 0.36 * fine);
+          // Mid-distance meadow: beyond the tufts (about 5 m) the open ground takes on blades and clumps in the shader, so the meadow
+          // reads lush all the way to the treeline without any geometry. Green clumps and darker gaps, speckled with light blade tips.
+          {
+            float dm = length(vViewPosition);
+            float far = smoothstep(3.5, 8.0, dm);
+            float meadow = far * zw.x * smoothstep(0.25, 0.5, gn(vWUv * 0.19 + 5.0) * 0.7 + gn(vWUv * 0.7) * 0.3);
+            float clump = gn(vWUv * 2.3) * 0.55 + gn(vWUv * 6.5) * 0.45;
+            vec3 grassTint = mix(vec3(0.16, 0.3, 0.09), vec3(0.4, 0.55, 0.16), clump);
+            grassTint *= 0.78 + 0.5 * gn(vec2(vWUv.x * 17.0, vWUv.y * 4.0));
+            grassTint += step(0.82, gn(vWUv * 24.0)) * vec3(0.14, 0.17, 0.05);
+            diffuseColor.rgb = mix(diffuseColor.rgb, grassTint, meadow * 0.78);
+          }
           // Under the canopy the floor is darker (the leaf-litter zone).
           diffuseColor.rgb *= 1.0 - 0.26 * zw.y * (0.6 + 0.4 * mid);
           // Wet banks: the mud zone is darker and glossier.

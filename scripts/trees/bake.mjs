@@ -28,9 +28,9 @@ const VARIANTS = [
 
 /** Detail levels: leaf count scale, billboard type, branch levels, segment/section reductions, leaf size scale. */
 const LODS = [
-  { name: 'LOD0', leafCount: 1.5, double: false, levels: null, seg: 0.8, sec: 0.8, size: 1.3, kids: 1, trunkSec: 1 },
-  { name: 'LOD1', leafCount: 1.0, double: false, levels: -1, seg: 0.5, sec: 0.5, size: 2.0, kids: 0.55, trunkSec: 0.5 },
-  { name: 'LOD2', leafCount: 0.5, double: false, levels: -99, seg: 0.4, sec: 0.34, size: 3.2, kids: 0.3, trunkSec: 0.34 },
+  { name: 'LOD0', leafCount: 1.0, double: false, levels: null, seg: 0.8, sec: 0.8, size: 1.3, kids: 1, trunkSec: 1 },
+  { name: 'LOD1', leafCount: 0.65, double: false, levels: -1, seg: 0.45, sec: 0.45, size: 2.3, kids: 0.45, trunkSec: 0.5 },
+  { name: 'LOD2', leafCount: 0.3, double: false, levels: -99, seg: 0.34, sec: 0.34, size: 3.8, kids: 0.3, trunkSec: 0.34 },
 ];
 
 function build(v, lod) {

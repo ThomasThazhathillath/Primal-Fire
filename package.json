@@ -14,7 +14,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "theme": "node scripts/ui-theme.mjs"
+    "theme": "node scripts/ui-theme.mjs",
+    "trees:bake": "node scripts/trees/bake.mjs"
   },
   "dependencies": {
     "@iwsdk/core": "1.1.0-rc.2",

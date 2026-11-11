@@ -457,13 +457,13 @@ export function createGroundDetail(): Object3D {
 
   // (Loose pebbles and leaf flakes were removed: anything that small must be a
   // real gatherable, see SCATTER_RULES. Leaf litter now lives in the ground colour.)
-  const mossCush = new InstancedMesh(new SphereGeometry(1, 10, 4, 0, Math.PI * 2, 0, Math.PI / 2), lambert(0xffffff), 260);
+  const mossCush = new InstancedMesh(new SphereGeometry(1, 10, 4, 0, Math.PI * 2, 0, Math.PI / 2), lambert(0xffffff), 70);
   mossCush.name = 'MossCushions';
   n = 0;
-  for (let tries = 0; n < 260 && tries < 3000; tries++) {
+  for (let tries = 0; n < 70 && tries < 3000; tries++) {
     const [x, z] = spot(2);
     if (inClearing(x, z, -2) || streamDistance(x, z) < 1.0) continue;
-    const sc = range(rng, 0.1, 0.3);
+    const sc = range(rng, 0.07, 0.2);
     m.compose(p.set(x, 0, z), q.setFromAxisAngle(up, rng() * 6), s.set(sc, sc * 0.1, sc));
     mossCush.setMatrixAt(n, m);
     mossCush.setColorAt(n, col.setHex([0x2a3f1f, 0x33492a, 0x24381c, 0x3a4a2a][n % 4]));

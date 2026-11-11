@@ -21,7 +21,7 @@ mkdirSync(OUT, { recursive: true });
 const VARIANTS = [
   { id: 'oak', trunk: 1.7, preset: 'Oak Medium', seed: 11011, height: 4.4, leaf: 'oak', lk: 1.1, bark: [0x6e5b47, 0x4a3b2c] },
   { id: 'ash', trunk: 1.5, preset: 'Ash Medium', seed: 22022, height: 4.9, leaf: 'ash', lk: 0.8, bk: 0.55, bark: [0x80786a, 0x5a5348] },
-  { id: 'aspen', trunk: 2.3, preset: 'Aspen Medium', seed: 33033, height: 4.6, leaf: 'aspen', bark: [0xe6e2d6, 0x8f897c] },
+  { id: 'aspen', trunk: 2.3, preset: 'Aspen Medium', seed: 33033, height: 4.6, leaf: 'aspen', bark: [0xb4ac9c, 0x4a443a], birch: true },
   { id: 'pine', trunk: 1.6, preset: 'Pine Medium', seed: 44044, height: 5.2, leaf: 'pine', lk: 0.6, bk: 0.4, bark: [0x6e4e39, 0x4a3426] },
   // EZ-Tree bush presets: low shrubs for the undergrowth (placed by tree-lod.ts bushes()).
   { id: 'bush1', preset: 'Bush 1', seed: 61061, height: 1.1, leaf: 'ash', lk: 1.0, bk: 0.35, bark: [0x6e5b47, 0x4a3b2c] },
@@ -175,7 +175,14 @@ for (const v of VARIANTS) {
     for (let i = 1; i < branches.P.length; i += 3) maxY = Math.max(maxY, branches.P[i]);
     for (let i = 0; i < branches.P.length / 3; i++) {
       const c = srgbToLinear(lerpC(v.bark[1], v.bark[0], Math.min(1, branches.P[i * 3 + 1] / (maxY * 0.8)) * 0.45 + 0.4 + (branches.UV[i * 2 + 1] > 0.5 ? 0.06 : 0)));
-      if (v.dead) {
+      if (v.birch) {
+        // Birch-like bark: pale but warm, with dark horizontal dashes (lenticels) and soft vertical shading, instead of a flat white pole.
+        const hs = (n) => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
+        const seg = Math.floor(branches.UV[i * 2] * 7.001);
+        const dash = hs(seg * 7.3 + Math.floor(branches.P[i * 3 + 1] * 9)) > 0.72 ? 0.32 : 1;
+        const shade = 0.82 + 0.22 * hs(seg + 3.1);
+        bh.set([c[0] * dash * shade, c[1] * dash * shade, c[2] * dash * shade * 0.97], i * 3);
+      } else if (v.dead) {
         // Weathered wood: vertical grain streaks (one tone per ring segment), cracks and dark patches along the trunk, a silvery-brown cast.
         const seg = Math.floor(branches.UV[i * 2] * 7.001);
         const hs = (n) => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };

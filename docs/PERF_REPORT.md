@@ -240,3 +240,10 @@ Grass is now kept clear around built structures. The structure and fire shots (w
 existing models read fine under the new lighting; fire, smoke and the ground glow were already soft shader effects and are unchanged. With all six structures standing and the fire lit,
 the standard viewpoint is 223 draw calls and **233,904 triangles**, CPU 4.84 ms (budget 240k). Playtests after this pass: `story-check.mjs` Chapter 1 play-through (workbench complete, fire
 lit, no errors) and `tutorial-check.mjs` (enters, reports its first lesson) pass; `playtest.mjs` was not run again (it already failed at the workbench step before this pass).
+
+### Polish pass 3
+
+Campfire (static meshes only for a finished pit: soot decal, ash bed, 7 extra baked stones, 6 charred logs, 11 embers), a mid-distance meadow in the ground fragment shader
+(no geometry), noon contrast (sun intensity x1.22 by day, hemisphere fill x0.82, sun slightly warmer), birch-style aspen bark, a soft halo instead of a flat disc for pickup glows,
+fewer and smaller moss cushions (260 to 70). Standard viewpoint with the story camp standing (workbench, fire pit): 212 draw calls, **225,536 triangles**, CPU 4.96 ms (budget 240k).
+Playtests: `story-check.mjs` (workbench complete, fire lit, no errors) and `tutorial-check.mjs` pass; `npm test` 679 pass; production build passes.

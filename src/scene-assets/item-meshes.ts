@@ -73,11 +73,11 @@ function stone(color: number, size: number, rock = 0): Mesh {
 /** A long, straight, dry pole: slightly tapered, one end splintered, a snapped stub, lying on the ground. */
 function poleMesh(): Object3D {
   const g = new Group();
-  const shaft = new Mesh(new CylinderGeometry(0.032, 0.048, 1.6, 7), lambert(0x8a6a45));
+  const shaft = new Mesh(new CylinderGeometry(0.032, 0.048, 1.6, 10), lambert(0x8a6a45));
   g.add(at(shaft, 0, 0.05, 0, 0, 0, Math.PI / 2));
-  const stub = new Mesh(new CylinderGeometry(0.012, 0.02, 0.14, 5), lambert(0x7a5c3b));
+  const stub = new Mesh(new CylinderGeometry(0.012, 0.02, 0.14, 10), lambert(0x7a5c3b));
   g.add(at(stub, 0.3, 0.1, 0.03, 0.9, 0, 0));
-  const cap = new Mesh(new CylinderGeometry(0.048, 0.04, 0.05, 7), lambert(0xc9a86a));
+  const cap = new Mesh(new CylinderGeometry(0.048, 0.04, 0.05, 10), lambert(0xc9a86a));
   g.add(at(cap, -0.8, 0.05, 0, 0, 0, Math.PI / 2));
   return g;
 }
@@ -106,7 +106,7 @@ const builders: Record<ResourceLook, () => Object3D> = {
   sapling: () => {
     // A slim trunk with soft, smooth-shaded leaf masses (no faceted solids).
     const g = new Group();
-    g.add(at(new Mesh(new CylinderGeometry(0.02, 0.035, 1.2, 8), lambert(0x6b5a3a)), 0, 0.6, 0));
+    g.add(at(new Mesh(new CylinderGeometry(0.02, 0.035, 1.2, 10), lambert(0x6b5a3a)), 0, 0.6, 0));
     const tones = [0x5f9a3a, 0x6fae40, 0x7cbd4c];
     [[0.7, 0.2], [0.95, 0.18], [1.2, 0.14]].forEach(([y, s], i) => {
       const puff = new Mesh(new SphereGeometry(s, 10, 8), lambert(tones[i]));
@@ -121,7 +121,7 @@ const builders: Record<ResourceLook, () => Object3D> = {
     g.add(at(new Mesh(new SphereGeometry(0.21, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2.4), lambert(0x3f6a33)), 0, 0.17, 0));
     return g;
   },
-  straightStick: () => at(new Mesh(new CylinderGeometry(0.02, 0.022, 0.8, 6), lambert(0xc49a66)), 0, 0.36, 0, 0, 0, -0.3),
+  straightStick: () => at(new Mesh(new CylinderGeometry(0.02, 0.022, 0.8, 10), lambert(0xc49a66)), 0, 0.36, 0, 0, 0, -0.3),
   board: () => at(new Mesh(new BoxGeometry(0.55, 0.04, 0.16), lambert(0x9a7650)), 0, 0.02, 0),
   clayPatch: () => {
     const g = new Group();
@@ -151,8 +151,8 @@ const builders: Record<ResourceLook, () => Object3D> = {
   slab: () => at(new Mesh(new BoxGeometry(0.6, 0.07, 0.42), lambert(ITEMS.slab.color)), 0, 0.035, 0),
   forkedStick: () => {
     const g = new Group();
-    g.add(at(new Mesh(new CylinderGeometry(0.018, 0.022, 0.7, 5), lambert(0x8a6a45)), 0, 0.02, 0, 0, 0, Math.PI / 2));
-    g.add(at(new Mesh(new CylinderGeometry(0.012, 0.016, 0.25, 5), lambert(0x8a6a45)), 0.3, 0.02, 0.06, 0, 0.5, Math.PI / 2));
+    g.add(at(new Mesh(new CylinderGeometry(0.018, 0.022, 0.7, 10), lambert(0x8a6a45)), 0, 0.02, 0, 0, 0, Math.PI / 2));
+    g.add(at(new Mesh(new CylinderGeometry(0.012, 0.016, 0.25, 10), lambert(0x8a6a45)), 0.3, 0.02, 0.06, 0, 0.5, Math.PI / 2));
     return g;
   },
   diggingStick: () => at(new Mesh(new ConeGeometry(0.03, 0.9, 6), lambert(0x7d5f3e)), 0, 0.03, 0, 0, 0, Math.PI / 2),
@@ -160,14 +160,14 @@ const builders: Record<ResourceLook, () => Object3D> = {
     const g = new Group();
     for (let i = 0; i < 5; i++) {
       const h = r(0.9, 1.4);
-      g.add(at(new Mesh(new CylinderGeometry(0.018, 0.02, h, 6), lambert([0x9fae5a, 0x8f9e4a][i % 2])), r(-0.12, 0.12), h / 2, r(-0.12, 0.12), r(-0.08, 0.08), 0, r(-0.08, 0.08)));
+      g.add(at(new Mesh(new CylinderGeometry(0.018, 0.02, h, 10), lambert([0x9fae5a, 0x8f9e4a][i % 2])), r(-0.12, 0.12), h / 2, r(-0.12, 0.12), r(-0.08, 0.08), 0, r(-0.08, 0.08)));
     }
     return g;
   },
   dryBranch: () => {
     const g = new Group();
-    g.add(at(new Mesh(new CylinderGeometry(0.02, 0.035, 1.1, 5), lambert(0x7a6248)), 0, 0.05, 0, 0, 0.4, Math.PI / 2 - 0.08));
-    g.add(at(new Mesh(new CylinderGeometry(0.01, 0.018, 0.45, 4), lambert(0x6e583f)), 0.2, 0.09, 0.14, 0, -0.5, Math.PI / 2 - 0.2));
+    g.add(at(new Mesh(new CylinderGeometry(0.02, 0.035, 1.1, 10), lambert(0x7a6248)), 0, 0.05, 0, 0, 0.4, Math.PI / 2 - 0.08));
+    g.add(at(new Mesh(new CylinderGeometry(0.01, 0.018, 0.45, 10), lambert(0x6e583f)), 0.2, 0.09, 0.14, 0, -0.5, Math.PI / 2 - 0.2));
     return g;
   },
   leafLitter: () => {
@@ -181,7 +181,7 @@ const builders: Record<ResourceLook, () => Object3D> = {
   vine: () => {
     const g = new Group();
     for (let i = 0; i < 6; i++) {
-      g.add(at(new Mesh(new CylinderGeometry(0.014, 0.014, 0.28, 5), lambert(0x4f7a34)), i * 0.1 - 0.25, 0.03, Math.sin(i * 1.3) * 0.08, 0, i * 0.5, Math.PI / 2 + Math.sin(i) * 0.3));
+      g.add(at(new Mesh(new CylinderGeometry(0.014, 0.014, 0.28, 10), lambert(0x4f7a34)), i * 0.1 - 0.25, 0.03, Math.sin(i * 1.3) * 0.08, 0, i * 0.5, Math.PI / 2 + Math.sin(i) * 0.3));
     }
     for (let i = 0; i < 4; i++) g.add(at(new Mesh(new CircleGeometry(0.05, 5), lambert(0x6fa040, { side: DoubleSide })), i * 0.14 - 0.2, 0.05, r(-0.08, 0.08), -Math.PI / 2, 0, r(0, 6)));
     return g;
@@ -299,7 +299,7 @@ export function itemMesh(id: ItemId): Object3D {
       proto.add(at(new Mesh(new IcosahedronGeometry(0.06, 0), lambert(ITEMS[id].color)), 0, 0.06, 0));
     }
     // Logs and saplings are too big to hold; shrink the world look.
-    if (id === 'logs') proto = at(new Mesh(new CylinderGeometry(0.05, 0.056, 0.36, 7), lambert(ITEMS.logs.color)), 0, 0.05, 0, 0, 0, Math.PI / 2);
+    if (id === 'logs') proto = at(new Mesh(new CylinderGeometry(0.05, 0.056, 0.36, 10), lambert(ITEMS.logs.color)), 0, 0.05, 0, 0, 0, Math.PI / 2);
     itemCache.set(id, proto);
   }
   return wrap(proto);

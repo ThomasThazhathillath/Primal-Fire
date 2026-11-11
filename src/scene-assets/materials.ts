@@ -10,7 +10,7 @@ export function lambert(color: number, opts: MeshLambertMaterialParameters = {})
   const key = `${color}:${JSON.stringify(opts)}`;
   let m = cache.get(key);
   if (!m) {
-    m = new MeshLambertMaterial({ color, flatShading: true, ...opts });
+    m = new MeshLambertMaterial({ color, flatShading: false, ...opts });
     cache.set(key, m);
   }
   return m;

@@ -15,7 +15,7 @@ const green = lambert(0x6a8a3a);
 
 /** A stick of `len` along X, centred. */
 function stick(len: number, r: number, mat = wood): Mesh {
-  const m = new Mesh(new CylinderGeometry(r * 0.85, r, len, 7), mat);
+  const m = new Mesh(new CylinderGeometry(r * 0.85, r, len, 10), mat);
   m.rotation.z = Math.PI / 2;
   return m;
 }

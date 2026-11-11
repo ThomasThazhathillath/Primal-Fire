@@ -7,8 +7,11 @@
 
 import { roundPoints } from './round-points.js';
 import {
-  BoxGeometry,
   BufferAttribute,
+  CapsuleGeometry,
+  Object3D,
+  SphereGeometry,
+  TorusGeometry,
   BufferGeometry,
   CylinderGeometry,
   createSystem,
@@ -26,27 +29,64 @@ import { camNudge, getGame, handPose } from './shared.js';
 
 type Anim = 'idle' | 'reach' | 'swing' | 'snap' | 'rub' | 'knap';
 const SPARKS = 10;
+/** Merge shaped parts (each placed by position and Euler rotation) into one smooth-shaded geometry. */
+function merge(parts: Array<{ g: BufferGeometry; p: [number, number, number]; r?: [number, number, number]; s?: [number, number, number] }>): BufferGeometry {
+  const dummy = new Object3D();
+  const pos: number[] = [];
+  const nor: number[] = [];
+  for (const part of parts) {
+    const g = part.g.index ? part.g.toNonIndexed() : part.g.clone();
+    dummy.position.set(...part.p);
+    dummy.rotation.set(...(part.r ?? [0, 0, 0]));
+    dummy.scale.set(...(part.s ?? [1, 1, 1]));
+    dummy.updateMatrix();
+    g.applyMatrix4(dummy.matrix);
+    pos.push(...(g.attributes.position.array as Float32Array));
+    nor.push(...(g.attributes.normal.array as Float32Array));
+  }
+  const out = new BufferGeometry();
+  out.setAttribute('position', new BufferAttribute(new Float32Array(pos), 3));
+  out.setAttribute('normal', new BufferAttribute(new Float32Array(nor), 3));
+  return out;
+}
+
 const skin = lambert(0xd9a77f);
 const sleeve = lambert(0x5d4a36);
-const forearmGeo = new CylinderGeometry(0.032, 0.04, 0.34, 8);
-forearmGeo.rotateX(Math.PI / 2);
-const handGeo = new BoxGeometry(0.085, 0.03, 0.1);
-const fingerGeo = new BoxGeometry(0.075, 0.022, 0.06);
-const thumbGeo = new BoxGeometry(0.025, 0.022, 0.06);
+const cuff = lambert(0x7a6246);
+
+// Rounded, anatomical-ish hand: a soft palm, four tapered fingers fanned a little, a thumb, a wrist; a tapered sleeve with a cuff.
+// Built once per side (mirrored in x), two merged meshes per arm so the cost stays at four draw calls for both arms.
+function handGeometry(side: 1 | -1): BufferGeometry {
+  const palm = new SphereGeometry(0.045, 14, 10);
+  const finger = new CapsuleGeometry(0.0095, 0.045, 4, 8);
+  const parts: Parameters<typeof merge>[0] = [
+    { g: palm, p: [0, 0, 0], s: [1, 0.42, 1.05] },
+    { g: new CylinderGeometry(0.026, 0.03, 0.06, 12).rotateX(Math.PI / 2), p: [0, 0, 0.065] },
+  ];
+  [-0.027, -0.009, 0.009, 0.027].forEach((x, i) => {
+    const len = [0.9, 1.1, 1.05, 0.8][i];
+    parts.push({ g: finger, p: [x * side, 0.004, -0.07 * len], r: [Math.PI / 2 + 0.25, 0, (i - 1.5) * 0.07 * side], s: [1, len, 1] });
+  });
+  parts.push({ g: finger, p: [-0.05 * side, 0.004, -0.028], r: [Math.PI / 2 + 0.2, 0, 0.9 * side], s: [1.1, 0.9, 1.1] });
+  return merge(parts);
+}
+
+function sleeveGeometry(): BufferGeometry {
+  return merge([
+    { g: new CylinderGeometry(0.031, 0.043, 0.3, 16).rotateX(Math.PI / 2), p: [0, 0, 0.22] },
+    { g: new TorusGeometry(0.034, 0.008, 8, 16), p: [0, 0, 0.075] },
+  ]);
+}
+
+const handGeos: Record<number, BufferGeometry> = { 1: handGeometry(1), [-1]: handGeometry(-1) };
+const sleeveGeo = sleeveGeometry();
 
 function buildArm(side: 1 | -1): Group {
   const g = new Group();
-  const fore = new Mesh(forearmGeo, sleeve);
-  fore.position.z = 0.2;
-  const hand = new Mesh(handGeo, skin);
-  hand.position.z = 0;
-  const fingers = new Mesh(fingerGeo, skin);
-  fingers.position.set(0, 0, -0.07);
-  fingers.rotation.x = 0.35;
-  const thumb = new Mesh(thumbGeo, skin);
-  thumb.position.set(-0.05 * side, 0.005, -0.03);
-  thumb.rotation.y = 0.5 * side;
-  g.add(fore, hand, fingers, thumb);
+  const hand = new Mesh(handGeos[side], skin);
+  const fore = new Mesh(sleeveGeo, sleeve);
+  g.add(fore, hand);
+  void cuff;
   return g;
 }
 

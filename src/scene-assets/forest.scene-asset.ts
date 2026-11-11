@@ -251,7 +251,29 @@ export function createUndergrowth(): Object3D {
 
   // Fallen logs: decorative trunks lying in the leaf litter.
   const LOGS = FALLEN_TRUNKS.length;
-  const logs = new InstancedMesh(new CylinderGeometry(0.16, 0.2, 1, 7).rotateZ(Math.PI / 2), lambert(0xffffff), LOGS);
+  // A rounder trunk with bark streaks and moss on the upper side baked into vertex colours (12 sides, 5 rings).
+  const logGeo = new CylinderGeometry(0.16, 0.2, 1, 12, 5).rotateZ(Math.PI / 2);
+  {
+    const pos = logGeo.attributes.position;
+    const lc = new Float32Array(pos.count * 3);
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i);
+      const y = pos.getY(i);
+      const z = pos.getZ(i);
+      const ang = Math.atan2(z, y);
+      const streak = valueNoise(ang * 3.2 + 11, x * 1.8);
+      const fine = valueNoise(ang * 9 + 2, x * 6);
+      let k = 0.72 + 0.4 * streak + 0.16 * fine;
+      const top = Math.max(0, y / 0.2);
+      const moss = Math.max(0, valueNoise(x * 3 + 5, ang * 2) * 1.6 - 0.65) * top;
+      lc[i * 3] = k * (1 - moss) + 0.28 * moss;
+      lc[i * 3 + 1] = k * (1 - moss) + 0.5 * moss;
+      lc[i * 3 + 2] = k * (1 - moss) + 0.2 * moss;
+      k = 0;
+    }
+    logGeo.setAttribute('color', new BufferAttribute(lc, 3));
+  }
+  const logs = new InstancedMesh(logGeo, lambert(0xffffff, { vertexColors: true, flatShading: false }), LOGS);
   logs.name = 'FallenTrunks';
   let n = 0;
   for (const t of FALLEN_TRUNKS) {
@@ -283,29 +305,62 @@ export function createMountains(): Object3D {
     [170, 100, 4, 3, 0.36, [0.33, 0.34, 0.36]],
     [215, 125, 3, 4, 0.55, [0.34, 0.38, 0.43]],
   ];
-  const SEG = 128;
+  // Each ridge is a grid (SEG around, ROWS up) with ridged-noise crags, a treeline of dark green on the lower slopes of the nearer ranges and
+  // snow on the high peaks of the farther ones, all in vertex colours (still one unlit draw call per ridge).
+  const SEG = 256;
+  const ROWS = 7;
   layers.forEach(([radius, peak, freq, seed, haze, stone], li) => {
-    const verts = new Float32Array((SEG + 1) * 2 * 3);
-    const cols = new Float32Array((SEG + 1) * 2 * 3);
+    const V = (SEG + 1) * (ROWS + 1);
+    const verts = new Float32Array(V * 3);
+    const cols = new Float32Array(V * 3);
     const index: number[] = [];
+    const snowLine = li === 0 ? 2 : li === 1 ? 0.86 : 0.72;
     for (let i = 0; i <= SEG; i++) {
       const a = (i / SEG) * Math.PI * 2;
       // Wrap noise seamlessly by sampling on a circle.
       const nx = Math.cos(a) * freq + seed * 17;
       const nz = Math.sin(a) * freq + seed * 31;
-      const h = peak * (0.25 + 0.75 * Math.pow(valueNoise(nx, nz) * 0.65 + valueNoise(nx * 2.3, nz * 2.3) * 0.35, 1.4));
-      const x = Math.cos(a) * radius;
-      const z = Math.sin(a) * radius;
-      verts.set([x, -6, z, x, h, z], i * 6);
-      // Rocky variation along the ridge: lighter, warmer crests against cooler, darker slopes.
-      const rock = valueNoise(nx * 3.1 + 9, nz * 3.1 - 5);
-      const crest = 0.86 + 0.3 * rock;
-      const warm = (valueNoise(nx * 1.4 - 3, nz * 1.4 + 11) - 0.5) * 0.16;
-      // Foot of the ridge (vertex 0) is a little darker so slopes read as rock, not a flat cut-out.
-      cols.set([0.82, 0.82, 0.84, crest + warm, crest, crest - warm], i * 6);
+      const base = Math.pow(valueNoise(nx, nz) * 0.65 + valueNoise(nx * 2.3, nz * 2.3) * 0.35, 1.4);
+      // Ridged crags: the sharp creases of 1 - |2n - 1|, stronger on the higher parts.
+      const ridge = 1 - Math.abs(valueNoise(nx * 5.1 + 3, nz * 5.1 - 7) * 2 - 1);
+      const h = peak * (0.25 + 0.75 * base) * (0.9 + 0.2 * ridge);
+      for (let j = 0; j <= ROWS; j++) {
+        const t = j / ROWS;
+        const rr = radius * (1 - 0.05 * t * (0.6 + valueNoise(nx * 7 + j, nz * 7 - j)));
+        const x = Math.cos(a) * rr;
+        const z = Math.sin(a) * rr;
+        const y = -6 + (h + 6) * Math.pow(t, 0.9) + (valueNoise(nx * 9 + j * 3, nz * 9) - 0.5) * peak * 0.05 * t;
+        const k = (i * (ROWS + 1) + j) * 3;
+        verts[k] = x;
+        verts[k + 1] = y;
+        verts[k + 2] = z;
+        const rock = valueNoise(nx * 3.1 + 9 + j * 0.3, nz * 3.1 - 5);
+        let c = 0.78 + 0.34 * rock + 0.16 * (ridge - 0.5) * t;
+        const warm = (valueNoise(nx * 1.4 - 3, nz * 1.4 + 11) - 0.5) * 0.16;
+        let r = c + warm;
+        let g = c;
+        let b = c - warm;
+        // Lower slopes of the near ranges: dark conifer green.
+        const tree = (li < 2 ? 1 : 0.35) * Math.max(0, 1 - t * 3.2) * (0.6 + 0.4 * valueNoise(nx * 6, nz * 6 + j));
+        r = r * (1 - tree) + 0.4 * tree;
+        g = g * (1 - tree) + 0.6 * tree;
+        b = b * (1 - tree) + 0.4 * tree;
+        // Snow on the highest parts.
+        const sn = Math.max(0, Math.min(1, (t * (0.55 + 0.45 * base) - snowLine * 0.7) / 0.18)) * (0.65 + 0.35 * ridge);
+        const snow = Math.min(1, sn);
+        r = r * (1 - snow) + 1.35 * snow;
+        g = g * (1 - snow) + 1.38 * snow;
+        b = b * (1 - snow) + 1.45 * snow;
+        cols[k] = r;
+        cols[k + 1] = g;
+        cols[k + 2] = b;
+      }
       if (i < SEG) {
-        const k = i * 2;
-        index.push(k, k + 1, k + 2, k + 1, k + 3, k + 2);
+        for (let j = 0; j < ROWS; j++) {
+          const a0 = i * (ROWS + 1) + j;
+          const a1 = (i + 1) * (ROWS + 1) + j;
+          index.push(a0, a0 + 1, a1, a0 + 1, a1 + 1, a1);
+        }
       }
     }
     const geo = new BufferGeometry();

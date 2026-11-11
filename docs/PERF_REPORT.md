@@ -164,3 +164,10 @@ system and +7 draw calls. Bush full detail is 2.2k to 8.4k triangles but only wi
 Stage 2: the 45 boulders are six baked rocks (2.2k / 450 / 110 triangles) drawn by `RockSystem` with distance LOD; collectible stones, flint and chalk are
 110-triangle vertex-coloured versions of the same rocks (no texture) so decor (large, textured, mossy) and resources (small, tinted, with a pickup ring)
 stay different. Rock GLB 2.4 MB with embedded 1K JPEGs (JPEG, not KTX2: no basis encoder is installed). +14 draw calls, +16k triangles.
+| 3 Ground (zone-blended Poly Haven textures with normal and roughness, plus grass tufts) | before (= stage 2 after) | 210 | 214,708 | 4.69 |
+| | after | 211 | 237,138 | 4.81 |
+
+Stage 3: `GroundSystem` swaps the ground for a MeshStandardMaterial that blends three textures by a per-vertex zone weight (6 texture fetches, no
+extra geometry). `GrassSystem` adds one InstancedMesh of up to 2,400 five-blade tufts (10 triangles each, about 24k) on a hashed 1 m grid within 11 m of
+the camera, shrinking to nothing at the edge; it re-lays every 0.2 s only when you have moved 0.35 m and allocates nothing. +1 draw call, +22k triangles.
+Also fixed: `environment-system` looked the ground up by a name the scene does not use ("Forest Ground"), so wet-ground darkening never applied; it does now.

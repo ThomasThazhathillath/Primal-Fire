@@ -186,7 +186,7 @@ const builders: Record<ResourceLook, () => Object3D> = {
     const m = new Mesh(new CylinderGeometry(0.1, 0.1, 0.36, 8, 1, true, 0, Math.PI * 1.1), lambert(0x6e5238, { side: DoubleSide }));
     return at(m, 0, 0.09, 0, 0, 0.6, Math.PI / 2);
   },
-  stoneDark: () => stone(0x8d909a, 0.14, 4),
+  stoneDark: () => stone(0xb4b8c4, 0.14, 4),
   stonePale: () => stone(0xffffff, 0.11, 1),
 };
 

@@ -67,6 +67,8 @@ export function createForestGround(): Object3D {
   geo.rotateX(-Math.PI / 2);
   const pos = geo.attributes.position;
   const colors = new Float32Array(pos.count * 3);
+  // Texture blend weights per vertex (forest ground, leaf litter, stream mud), used by GroundSystem's ground shader.
+  const zone = new Float32Array(pos.count * 3);
   const c = new Color();
   const floor = new Color(0x4a5630);
   const dirt = new Color(0x5e4c35);
@@ -113,12 +115,21 @@ export function createForestGround(): Object3D {
     if (sd < 5) c.lerp(damp, clamp(1 - (sd - 1.5) / 3.5, 0, 0.6));
     if (sd < 2.2) c.lerp(bank, clamp(1 - (sd - 0.6) / 1.6, 0, 1));
     if (sd < 1.6) c.lerp(mud, clamp(1.15 - (sd - 0.5) / 1.1, 0, 0.9));
+    // Zones: mud along the water, open ground in the clearings and meadow, leaf litter under the trees.
+    const wm = clamp(1.05 - (sd - 0.9) / 2.3, 0, 1);
+    const open = Math.max(clamp(1.25 - dw / 6.5, 0, 1), clamp(1.3 - dm / 8, 0, 1), clamp(valueNoise(x * 0.09 + 20, z * 0.09 - 8) * 1.6 - 0.95, 0, 0.55));
+    const wg = (1 - wm) * open;
+    const wl = Math.max(0, 1 - wm - wg);
+    zone[i * 3] = wg;
+    zone[i * 3 + 1] = wl;
+    zone[i * 3 + 2] = wm;
     pos.setY(i, groundHeight(x, z));
     colors[i * 3] = c.r;
     colors[i * 3 + 1] = c.g;
     colors[i * 3 + 2] = c.b;
   }
   geo.setAttribute('color', new BufferAttribute(colors, 3));
+  geo.setAttribute('zone', new BufferAttribute(zone, 3));
   geo.computeVertexNormals();
   const ground = new Mesh(geo, new MeshLambertMaterial({ vertexColors: true }));
   ground.name = 'ForestGround';

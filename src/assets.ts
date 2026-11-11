@@ -24,7 +24,16 @@ const uikitml = (fileName: string, name: string) => ({
 
 const tree = (id: string) => ({ url: publicAssetUrl(`trees/${id}.glb`), type: AssetType.GLTF, name: `Tree ${id}`, priority: 'critical' as const });
 
+const groundTex = (id: string) => ({ url: publicAssetUrl(`ground/${id}.webp`), type: AssetType.Texture, name: `Ground ${id}`, priority: 'critical' as const });
+
 export default defineAssets({
+  // Poly Haven CC0 ground textures packed by scripts/ground/bake.mjs (diffuse + roughness, and normal).
+  'ground-ground-dr': groundTex('ground_dr'),
+  'ground-ground-n': groundTex('ground_n'),
+  'ground-leaves-dr': groundTex('leaves_dr'),
+  'ground-leaves-n': groundTex('leaves_n'),
+  'ground-mud-dr': groundTex('mud_dr'),
+  'ground-mud-n': groundTex('mud_n'),
   // Baked EZ-Tree variants (scripts/trees/bake.mjs): drawn by TreeSystem, not placed by the scene.
   'tree-oak': tree('oak'),
   'tree-ash': tree('ash'),

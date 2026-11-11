@@ -25,6 +25,8 @@ import { WorldEnvironmentSystem } from './systems/environment-system.js';
 import { NatureSystem } from './systems/nature-system.js';
 import { TreeSystem } from './systems/tree-system.js';
 import { RockSystem } from './systems/rock-system.js';
+import { GroundSystem } from './systems/ground-system.js';
+import { GrassSystem } from './systems/grass-system.js';
 import { WildlifeSystem } from './systems/wildlife-system.js';
 import { LivingDetailSystem } from './systems/living-detail-system.js';
 import { ResourceDebugSystem } from './systems/resource-debug-system.js';
@@ -77,6 +79,8 @@ World.create(
     .registerSystem(NatureSystem)
     .registerSystem(TreeSystem)
     .registerSystem(RockSystem)
+    .registerSystem(GroundSystem)
+    .registerSystem(GrassSystem)
     .registerSystem(WildlifeSystem)
     .registerSystem(LivingDetailSystem)
     .registerSystem(ResourceDebugSystem)

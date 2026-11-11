@@ -73,7 +73,7 @@ export class WorldEnvironmentSystem extends createSystem({
   private rain!: LineSegments;
   private rainMat!: ShaderMaterial;
   private sky = new SkyFx();
-  private groundMat: MeshLambertMaterial | null = null;
+  private groundMesh: Mesh | null = null;
   private groundSearch = 0;
   /** Unlit mountain ridges (MeshBasicMaterial): stone colour and haze per layer, recoloured from the sky each frame. */
   private ridges: Array<{ mat: MeshBasicMaterial; stone: Color; haze: number; mesh: Mesh }> = [];
@@ -218,10 +218,10 @@ export class WorldEnvironmentSystem extends createSystem({
     }
 
     // --- wet ground tint: darken the ground's vertex colours as it soaks
-    if (!this.groundMat && (this.groundSearch -= delta) <= 0) {
+    if (!this.groundMesh && (this.groundSearch -= delta) <= 0) {
       this.groundSearch = 2;
-      const g = this.scene.getObjectByName('ForestGround') as Mesh | undefined;
-      if (g) this.groundMat = g.material as MeshLambertMaterial;
+      const g = (this.scene.getObjectByName('Forest Ground') ?? this.scene.getObjectByName('ForestGround')) as Mesh | undefined;
+      if (g) this.groundMesh = g;
       this.scene.traverse((o) => {
         if (/^Ridge\d/.test(o.name) && (o as Mesh).material) {
           const mat = (o as Mesh).material as MeshBasicMaterial;
@@ -240,7 +240,8 @@ export class WorldEnvironmentSystem extends createSystem({
       r.mat.color.copy(r.stone).multiplyScalar(lum);
       r.mat.color.lerp(this.fog.color, Math.min(0.9, r.haze + env.fog * 0.5 + env.rain * 0.2));
     }
-    if (this.groundMat) this.groundMat.color.setScalar(1 - env.wet * 0.32);
+    // The ground's material may be swapped at run time (GroundSystem), so read it from the mesh each frame.
+    if (this.groundMesh) (this.groundMesh.material as MeshLambertMaterial).color.setScalar(1 - env.wet * 0.32);
 
     // --- rain on an exposed fire
     if ((this.fireCheck -= delta) <= 0) {

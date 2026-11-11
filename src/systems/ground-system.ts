@@ -81,10 +81,12 @@ export class GroundSystem extends createSystem({}) {
           gB = mix(texture2D(tLdr, uvB), texture2D(tLdr, uvB2), 0.4);
           gC = mix(texture2D(tMdr, uvC), texture2D(tMdr, uvC2), 0.4);
           vec3 zw = vZone / max(vZone.x + vZone.y + vZone.z, 1e-3);
-          diffuseColor.rgb = gA.rgb * zw.x + gB.rgb * zw.y + gC.rgb * zw.z;`,
+          diffuseColor.rgb = gA.rgb * zw.x + gB.rgb * zw.y + gC.rgb * zw.z;
+          // Wet banks: the mud zone is darker and glossier.
+          diffuseColor.rgb *= 1.0 - 0.38 * zw.z;`,
         )
         .replace('#include <color_fragment>', 'diffuseColor.rgb *= mix(vec3(1.0), vColor.rgb * 2.3, 0.55);')
-        .replace('#include <roughnessmap_fragment>', 'float roughnessFactor = clamp(gA.a * zw.x + gB.a * zw.y + gC.a * zw.z, 0.35, 1.0);')
+        .replace('#include <roughnessmap_fragment>', 'float roughnessFactor = clamp(gA.a * zw.x + gB.a * zw.y + gC.a * zw.z, 0.35, 1.0) * (1.0 - 0.45 * zw.z);')
         .replace(
           '#include <normal_fragment_maps>',
           `vec3 nA = texture2D(tGn, uvA).xyz * 2.0 - 1.0; vec3 nB = texture2D(tLn, uvB).xyz * 2.0 - 1.0; vec3 nC = texture2D(tMn, uvC).xyz * 2.0 - 1.0;

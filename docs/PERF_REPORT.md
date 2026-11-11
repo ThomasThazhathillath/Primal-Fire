@@ -177,3 +177,10 @@ Also fixed: `environment-system` looked the ground up by a name the scene does n
 Stage 4: the Preetham `Sky` box (12 triangles) is drawn behind the world and fades out at night so the existing gradient dome, stars and moon still show; a
 second dome carries the photographed clouds (alpha mask from the Poly Haven HDRI, tinted warm at dusk, faded at night, thicker with the weather's cloud cover).
 Two extra draw calls and no per-frame allocation. The scene's image-based light is still the time-of-day gradient (`IBLGradient`), not a PMREM of the physical sky.
+| 5 Stream look (dual scrolling normals, sky and cloud reflection, bed and depth tint, wet banks) | before (= stage 4 after) | 213 | 233,974 | 4.41 |
+| | after | 213 | 235,488 | 4.55 |
+
+Stage 5: look only. The water shader gains a second counter-scrolling normal layer, a Fresnel reflection of the sky gradient plus the photographed clouds
+(sampled by the reflected ray from the cloud texture, no second scene render), the mud texture as a bed seen through the shallows with a depth tint toward
+the middle, and variable transparency; the ground shader darkens and glosses the mud zone for wet banks. The stream mesh, its path and every water hook are
+untouched. No new draw calls. Not done: foam rings round individual rocks (the bank foam and crest foam are the old ones).

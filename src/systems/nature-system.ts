@@ -8,6 +8,7 @@
 // Cost: +2 draw calls (splash, leaves) and 2 extra shader programs. No per-frame allocation.
 
 import {
+  AssetManager,
   BufferAttribute,
   BufferGeometry,
   Color,
@@ -49,6 +50,10 @@ uniform float uRain;
 uniform vec3 uFogColor;
 uniform float uFogNear;
 uniform float uFogFar;
+uniform sampler2D uBed;
+uniform sampler2D uCloud;
+uniform float uCloudOp;
+uniform vec3 uCloudTint;
 varying vec2 vFlow;
 varying vec3 vWorld;
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -57,6 +62,7 @@ float noise(vec2 p) {
   vec2 u = f * f * (3.0 - 2.0 * f);
   return mix(mix(hash(i), hash(i + vec2(1, 0)), u.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), u.x), u.y);
 }
+float layer2(vec2 q, float t) { return noise(q) * 0.6 + noise(q * 2.1 + vec2(-t * 0.2, 3.1)) * 0.4; }
 void main() {
   // Flow coordinates: x along the stream (m), y across (0..1 bank to bank).
   vec2 p = vec2(vFlow.x - uTime * 0.9, vFlow.y * 1.3);
@@ -65,7 +71,12 @@ void main() {
   // Normal from finite differences in flow space (smooth, unlike screen derivatives).
   float hx = noise(q + vec2(0.15, 0.0)) * 0.65 + noise((q + vec2(0.15, 0.0)) * 2.3 + vec2(-uTime * 0.5, 1.7)) * 0.35;
   float hy = noise(q + vec2(0.0, 0.15)) * 0.65 + noise((q + vec2(0.0, 0.15)) * 2.3 + vec2(-uTime * 0.5, 1.7)) * 0.35;
-  vec3 nrm = normalize(vec3((h - hx) * 2.2, 1.0, (h - hy) * 2.2));
+  // Second normal layer scrolling the other way and across, at a different scale: the two together read as moving water, not a pattern.
+  vec2 q2 = vec2(vFlow.x * 1.9 + uTime * 0.35, vFlow.y * 3.1 - uTime * 0.08);
+  float h2 = layer2(q2, uTime);
+  float h2x = layer2(q2 + vec2(0.12, 0.0), uTime);
+  float h2y = layer2(q2 + vec2(0.0, 0.12), uTime);
+  vec3 nrm = normalize(vec3((h - hx) * 2.2 + (h2 - h2x) * 1.7, 1.0, (h - hy) * 2.2 + (h2 - h2y) * 1.7));
   float n2 = noise(p * vec2(3.0, 5.0) + vec2(-uTime * 0.4, 0.0));
   // Rain rings: sparse cells that pulse.
   vec2 cell = floor(vWorld.xz * 3.0);
@@ -74,8 +85,17 @@ void main() {
   float ring = uRain * smoothstep(0.04, 0.0, abs(d - t * 0.45)) * (1.0 - t) * step(0.55, hash(cell + 3.1));
   vec3 view = normalize(cameraPosition - vWorld);
   float fres = pow(1.0 - max(dot(view, nrm), 0.0), 3.0);
-  vec3 refl = mix(uHorizon, uSky, clamp(view.y * 1.5, 0.0, 1.0));
-  vec3 col = mix(uDeep * (0.4 + 0.6 * uLight), refl, 0.15 + 0.5 * fres);
+  // Fresnel reflection of the sky: the gradient, then the photographed clouds sampled by the reflected ray (no second scene render).
+  vec3 rv = reflect(-view, nrm);
+  vec3 refl = mix(uHorizon, uSky, clamp(rv.y * 1.6, 0.0, 1.0));
+  vec4 cl = texture2D(uCloud, vec2(atan(rv.z, rv.x) / 6.2831853 + 0.5, 0.5 + asin(clamp(rv.y, 0.0, 1.0)) / 3.1415927));
+  refl = mix(refl, cl.rgb * uCloudTint, cl.a * uCloudOp * smoothstep(0.02, 0.25, rv.y));
+  // Depth: the bed shows through the shallows near the banks and fades to the deep tint toward the middle.
+  float bankD = 1.0 - abs(vFlow.y * 2.0 - 1.0);
+  float shallow = 1.0 - smoothstep(0.04, 0.95, bankD);
+  vec3 bed = pow(texture2D(uBed, vWorld.xz / 1.6 + nrm.xz * 0.06).rgb, vec3(0.4545)) * (0.4 + 0.6 * uLight) * 0.8;
+  vec3 body = mix(uDeep * (0.4 + 0.6 * uLight), bed, shallow * 0.8);
+  vec3 col = mix(body, refl, 0.1 + 0.6 * fres);
   // Sun glint.
   vec3 hv = normalize(uSunDir + view);
   col += uSunColor * pow(max(dot(nrm, hv), 0.0), 60.0) * 0.8 * uLight;
@@ -85,7 +105,7 @@ void main() {
   col = mix(col, vec3(0.85, 0.9, 0.92) * (0.35 + 0.65 * uLight), clamp(foam, 0.0, 1.0) * 0.7);
   float fogD = length(cameraPosition - vWorld);
   col = mix(col, uFogColor, smoothstep(uFogNear, uFogFar, fogD));
-  gl_FragColor = vec4(col, 0.9);
+  gl_FragColor = vec4(col, mix(0.72, 0.95, smoothstep(0.0, 0.5, bankD)));
 }`;
 
 const SPLASH_N = 48;
@@ -207,6 +227,10 @@ export class NatureSystem extends createSystem({}) {
         uFogColor: { value: new Color() },
         uFogNear: { value: 16 },
         uFogFar: { value: 52 },
+        uBed: { value: null },
+        uCloud: { value: null },
+        uCloudOp: { value: 0 },
+        uCloudTint: { value: new Color(1, 1, 1) },
       },
     });
     (mesh.material as Material).dispose();
@@ -305,6 +329,11 @@ export class NatureSystem extends createSystem({}) {
       (w.uFogColor.value as Color).setRGB(env.fogColor[0], env.fogColor[1], env.fogColor[2]);
       w.uFogNear.value = env.fogNear;
       w.uFogFar.value = env.fogFar;
+      // Textures are preloaded by the manifest; pick them up once.
+      w.uBed.value ??= AssetManager.getTexture('ground-mud-dr');
+      w.uCloud.value ??= AssetManager.getTexture('sky-clouds');
+      w.uCloudOp.value = (1 - env.night) * Math.min(1, 0.35 + env.cloud * 1.2) * (1 - env.fog * 0.7);
+      (w.uCloudTint.value as Color).setScalar(0.7 + 0.3 * env.lightIntensity / 2.2);
     }
 
     // --- splash particles

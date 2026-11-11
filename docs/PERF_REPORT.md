@@ -118,9 +118,9 @@ behind you skipped, wind as a vertex sway only. Positions, collision, perching, 
 
 | Level | Distance | Triangles per tree |
 |---|---|---|
-| LOD0 | under 6 m | 2.9k to 8.3k |
-| LOD1 | 6 to 14 m | 0.4k to 1.4k |
-| LOD2 | 14 to 26 m | 0.1k to 0.4k |
+| LOD0 | under 6 m | 2.9k to 12.2k |
+| LOD1 | 6 to 14 m | 0.5k to 2.0k |
+| LOD2 | 14 to 26 m | 0.1k to 0.6k |
 | Billboard | beyond 26 m | 2 |
 
 Small trees and the 420 understory saplings count their distance 1.2 to 2.2 times over, so they drop levels sooner.
@@ -139,3 +139,8 @@ Measured in the IWER browser (flat view, clear weather, noon, 4 s sample, same s
 - Billboards are rendered once at start-up into 128 px textures per variant; the leaf textures (512 px, four of them) add about 21 MB of GPU memory with mipmaps.
 - GLB payload is about 3.8 MB in total (embedded textures).
 - Not measured: a headset. The editor preview of the scene no longer shows trees (they are runtime only).
+
+Follow-up (clean screenshots round): LOD0 foliage was made fuller (it looked skeletal), bark colours lightened, and the billboard bake
+uses flatter light so far trees no longer look pale. The table above shows the final per-level counts. The two tables of measurements
+above were taken before this change with the HUD visible; the new clean shots in `docs/shots-trees/clean-*.jpg` were taken with all
+UI hidden, so draw call counts from that session (about 115 to 158) are lower for that reason and are not comparable.

@@ -26,7 +26,7 @@ export function installDebugHooks(world: World): void {
     game,
     begin: () => sys(IntroSystem).begin(),
     goTo: (x: number, z: number) => sys(DesktopControlsSystem).goTo(x, z),
-    face: (x: number, z: number) => sys(DesktopControlsSystem).face(x, z),
+    face: (x: number, z: number, pitch?: number) => sys(DesktopControlsSystem).face(x, z, pitch),
     /** Gather from a resource spot by id, as if you pinched it. */
     gather: (spotId: string) => {
       const e = sys(ResourceSystem).entityFor(spotId);

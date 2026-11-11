@@ -57,9 +57,9 @@ describe('baked GLBs', () => {
     const lod = (i: number) => (tris[`Trunk_LOD${i}`] ?? 0) + (tris[`Leaves_LOD${i}`] ?? 0);
     expect(lod(0)).toBeGreaterThan(lod(1));
     expect(lod(1)).toBeGreaterThan(lod(2));
-    expect(lod(0)).toBeLessThanOrEqual(9000);
-    expect(lod(1)).toBeLessThanOrEqual(1500);
-    expect(lod(2)).toBeLessThanOrEqual(500);
+    expect(lod(0)).toBeLessThanOrEqual(13000);
+    expect(lod(1)).toBeLessThanOrEqual(2200);
+    expect(lod(2)).toBeLessThanOrEqual(700);
     for (const mat of doc.getRoot().listMaterials()) if (mat.getName().endsWith('leaf')) expect(mat.getAlphaMode()).toBe('MASK');
   });
 });

@@ -19,18 +19,18 @@ mkdirSync(OUT, { recursive: true });
 
 /** The variants: EZ-Tree preset, seed, target height at scale 1, leaf texture, bark colour and per-LOD overrides. */
 const VARIANTS = [
-  { id: 'oak', trunk: 1.7, preset: 'Oak Medium', seed: 11011, height: 4.4, leaf: 'oak', lk: 1.1, bark: [0x5a4a3a, 0x3f3226] },
-  { id: 'ash', trunk: 1.5, preset: 'Ash Medium', seed: 22022, height: 4.9, leaf: 'ash', lk: 0.8, bk: 0.55, bark: [0x6e665a, 0x4a443b] },
-  { id: 'aspen', trunk: 2.3, preset: 'Aspen Medium', seed: 33033, height: 4.6, leaf: 'aspen', bark: [0xd9d3c4, 0x4a4540] },
-  { id: 'pine', trunk: 1.6, preset: 'Pine Medium', seed: 44044, height: 5.2, leaf: 'pine', lk: 0.6, bk: 0.4, bark: [0x5b4030, 0x3a281c] },
-  { id: 'snag', trunk: 1.9, preset: 'Oak Small', seed: 55055, height: 3.6, leaf: 'oak', bark: [0x7d7468, 0x56504a], dead: true },
+  { id: 'oak', trunk: 1.7, preset: 'Oak Medium', seed: 11011, height: 4.4, leaf: 'oak', lk: 1.1, bark: [0x6e5b47, 0x4a3b2c] },
+  { id: 'ash', trunk: 1.5, preset: 'Ash Medium', seed: 22022, height: 4.9, leaf: 'ash', lk: 0.8, bk: 0.55, bark: [0x80786a, 0x5a5348] },
+  { id: 'aspen', trunk: 2.3, preset: 'Aspen Medium', seed: 33033, height: 4.6, leaf: 'aspen', bark: [0xe6e2d6, 0x8f897c] },
+  { id: 'pine', trunk: 1.6, preset: 'Pine Medium', seed: 44044, height: 5.2, leaf: 'pine', lk: 0.6, bk: 0.4, bark: [0x6e4e39, 0x4a3426] },
+  { id: 'snag', trunk: 1.9, preset: 'Oak Small', seed: 55055, height: 3.6, leaf: 'oak', bark: [0x8a8174, 0x625b52], dead: true },
 ];
 
 /** Detail levels: leaf count scale, billboard type, branch levels, segment/section reductions, leaf size scale. */
 const LODS = [
-  { name: 'LOD0', leafCount: 1.0, double: false, levels: null, seg: 0.8, sec: 0.8, size: 1.3, kids: 1, trunkSec: 1 },
-  { name: 'LOD1', leafCount: 0.65, double: false, levels: -1, seg: 0.45, sec: 0.45, size: 2.3, kids: 0.45, trunkSec: 0.5 },
-  { name: 'LOD2', leafCount: 0.3, double: false, levels: -99, seg: 0.34, sec: 0.34, size: 3.8, kids: 0.3, trunkSec: 0.34 },
+  { name: 'LOD0', leafCount: 1.7, double: false, levels: null, seg: 0.8, sec: 0.8, size: 1.55, kids: 1, trunkSec: 1 },
+  { name: 'LOD1', leafCount: 1.1, double: false, levels: -1, seg: 0.45, sec: 0.45, size: 2.6, kids: 0.45, trunkSec: 0.5 },
+  { name: 'LOD2', leafCount: 0.5, double: false, levels: -99, seg: 0.34, sec: 0.34, size: 4.2, kids: 0.3, trunkSec: 0.34 },
 ];
 
 function build(v, lod) {
@@ -124,7 +124,7 @@ for (const v of VARIANTS) {
     let maxY = 0;
     for (let i = 1; i < branches.P.length; i += 3) maxY = Math.max(maxY, branches.P[i]);
     for (let i = 0; i < branches.P.length / 3; i++) {
-      const c = srgbToLinear(lerpC(v.bark[1], v.bark[0], Math.min(1, branches.P[i * 3 + 1] / (maxY * 0.8)) * 0.6 + (branches.UV[i * 2 + 1] > 0.5 ? 0.08 : 0)));
+      const c = srgbToLinear(lerpC(v.bark[1], v.bark[0], Math.min(1, branches.P[i * 3 + 1] / (maxY * 0.8)) * 0.45 + 0.4 + (branches.UV[i * 2 + 1] > 0.5 ? 0.06 : 0)));
       bh.set(c, i * 3);
     }
     const mkMesh = (name, g, mat, extra) => {

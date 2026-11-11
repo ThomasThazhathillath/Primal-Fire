@@ -57,6 +57,10 @@ export class TreeSystem extends createSystem({}) {
   private t = 0;
   private acc = 0;
   private ready = false;
+  /** Screenshot helper: draw only this tree (index into the instance list), at full detail. */
+  private solo = -1;
+  /** Screenshot helper: draw every tree at this level (3 = billboards only), or -1 for normal distance rules. */
+  private force = -1;
   private head = new Vector3();
   private fwd = new Vector3();
   private disposables: Array<{ dispose(): void }> = [];
@@ -113,7 +117,25 @@ export class TreeSystem extends createSystem({}) {
       this.addLevel(`${v}:3`, this.billboard(geos[0], material, leaf), this.billboardMaterial(this.bake(geos[0], material)), count, true);
     }
     this.ready = true;
-    (window as unknown as { __trees?: unknown }).__trees = () => this.stats();
+    const dbg = Object.assign(() => this.stats(), {
+      /** A tree of `variant` with a height multiplier in [lo, hi] and no neighbour within `gap` m, nearest the origin (for screenshots). */
+      /** Draw only the given tree (an object from pick) at full detail; null restores the forest. */
+      only: (t: { x: number; z: number } | null) => {
+        this.solo = t ? this.trees.findIndex((o) => o.x === t.x && o.z === t.z) : -1;
+        this.acc = 1;
+      },
+      forceLod: (n: number) => {
+        this.force = n;
+        this.acc = 1;
+      },
+      /** Trees within `r` m of a point (for screenshots). */
+      near: (x: number, z: number, r: number) => this.trees.filter((t) => Math.hypot(t.x - x, t.z - z) < r).map((t) => ({ x: t.x, z: t.z, h: t.h, w: t.w })),
+      pick: (variant: string, lo = 0.7, hi = 1.2, gap = 2.4) =>
+        this.trees
+          .filter((t) => t.variant === variant && t.tree >= 0 && t.h >= lo && t.h <= hi && !this.trees.some((o) => o !== t && Math.hypot(o.x - t.x, o.z - t.z) < gap))
+          .sort((a, b) => Math.hypot(a.x, a.z) - Math.hypot(b.x, b.z))[0] ?? null,
+    });
+    (window as unknown as { __trees?: unknown }).__trees = dbg;
   }
 
   /** Merge each level's trunk and leaves into one geometry, and build the variant's alpha-tested material. */
@@ -253,7 +275,8 @@ export class TreeSystem extends createSystem({}) {
     const cam = new OrthographicCamera(-ext / 2, ext / 2, ext, 0, 0.1, 50);
     cam.position.set(0, 0, 10);
     const sc = new Scene();
-    sc.add(new AmbientLight(0xffffff, 1.7), new DirectionalLight(0xffffff, 0.9));
+    // Near-flat light: the card is lit again by the scene at run time, so the baked image must hold albedo, not a lit tree.
+    sc.add(new AmbientLight(0xffffff, 1.3), new DirectionalLight(0xffffff, 0.5));
     const mesh = new Mesh(geo, material);
     sc.add(mesh);
     const r = this.renderer;
@@ -351,7 +374,8 @@ export class TreeSystem extends createSystem({}) {
       const dz = t.z - this.head.z;
       const d2 = dx * dx + dz * dz;
       const d = Math.sqrt(d2);
-      const lod = lodFor(d2 * t.bias * t.bias, this.lod[i]);
+      if (this.solo >= 0 && i !== this.solo) continue;
+      const lod = this.solo >= 0 ? 0 : this.force >= 0 ? (this.force as Lod) : lodFor(d2 * t.bias * t.bias, this.lod[i]);
       this.lod[i] = lod;
       if (!worthDrawing(d, (dx * fx + dz * fz) / (d || 1))) continue;
       const key = `${t.variant}:${lod}`;

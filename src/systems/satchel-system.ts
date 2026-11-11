@@ -287,7 +287,7 @@ export class SatchelSystem extends createSystem({
       if (entry) {
         this.panel
           .requireElementById<UIKit.Text>(`item-${i}-label`)
-          .setProperties({ text: uiText(`${itemName(entry.id)}${entry.count > 1 ? ` x${entry.count}` : ''}: ${ITEMS[entry.id].usedFor}`) });
+          .setProperties({ text: uiText(`${itemName(entry.id)}${entry.count > 1 ? ` x${entry.count}` : ''}${game.food.freshnessOf(entry.id) === 'ageing' ? ' (going off)' : ''}: ${ITEMS[entry.id].usedFor}`) });
       }
     }
     this.fillBag(contents);

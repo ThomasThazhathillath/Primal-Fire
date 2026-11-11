@@ -4,6 +4,7 @@
 // is a moment. Chapter 2 adds the "structure" (frame) and "hydro" (drainage) nodes.
 
 import { createSystem, type Mesh, MeshBasicMaterial } from '@iwsdk/core';
+import { LIVING_QUESTS } from '../game/living-quests.js';
 import { QUESTS } from '../game/quests.js';
 import { getGame } from './shared.js';
 
@@ -31,8 +32,11 @@ export class RoadmapSystem extends createSystem({}) {
     if ((this.timer -= delta) > 0) return;
     this.timer = 1;
     const game = getGame(this.world);
-    for (let i = 0; i < QUESTS.length && i < game.questIndex; i++) {
-      const id = QUESTS[i].roadmapNode;
+    // Chain quests light their node by position in the chain; field tasks by being done.
+    const ids: Array<string | null> = [];
+    for (let i = 0; i < QUESTS.length && i < game.questIndex; i++) ids.push(QUESTS[i].roadmapNode);
+    for (const q of LIVING_QUESTS) if (game.living.has(q.id)) ids.push(q.roadmapNode);
+    for (const id of ids) {
       if (!id || this.lit.has(id)) continue;
       const node = this.world.scene.getObjectByName(`RoadmapNode_${id}`) as Mesh | undefined;
       if (!node) continue; // the ruins are not built yet (far away): try again later

@@ -47,7 +47,11 @@ export type ItemId =
   | 'fish'
   | 'cookedFish'
   | 'tuber'
-  | 'seeds';
+  | 'seeds'
+  // LIVING WORLD (Phase 3): foraged and preserved food.
+  | 'berries'
+  | 'nuts'
+  | 'driedFish';
 
 export type ItemCategory =
   | 'tinder'
@@ -156,7 +160,10 @@ export const ITEMS: Record<ItemId, ItemDef> = {
   // FOOD (Level 3, Science session): see src/game/food.ts.
   fishingSpear: { name: 'Fishing spear', cats: ['tool'], color: 0xb08a5a, weight: 0.6, usedFor: 'Spear fish in the stream' },
   fish: { name: 'Raw fish', cats: ['food'], color: 0x8fa7b3, weight: 0.4, usedFor: 'Raw: cook it over the fire before eating' },
-  cookedFish: { name: 'Cooked fish', cats: ['food'], color: 0xe2c79a, weight: 0.3, usedFor: 'Safe to eat, cooked through' },
+  cookedFish: { name: 'Cooked fish', cats: ['food'], color: 0xc4864a, weight: 0.3, usedFor: 'Safe to eat, cooked through' },
+  berries: { name: 'Wild berries', cats: ['food'], color: 0xb02a3a, weight: 0.15, usedFor: 'Sweet, quick food. Only eat berries you have identified' },
+  nuts: { name: 'Hazelnuts', cats: ['food'], color: 0xa9803f, weight: 0.2, usedFor: 'Rich in fat and keep for months' },
+  driedFish: { name: 'Dried fish', cats: ['food'], color: 0xb89a6a, weight: 0.15, usedFor: 'Fish dried on a rack keeps for weeks' },
   tuber: { name: 'Wild tuber', cats: ['food'], color: 0x9a6b3f, weight: 0.25, usedFor: 'Food: eat it cooked, or plant it to grow more' },
   seeds: { name: 'Seeds', cats: ['food'], color: 0xc8b46a, weight: 0.02, usedFor: 'Plant them in dug ground to grow food' },
 };
@@ -206,6 +213,9 @@ export const SATCHEL_ORDER: ItemId[] = [
   'cookedFish',
   'tuber',
   'seeds',
+  'berries',
+  'nuts',
+  'driedFish',
 ];
 
 export const itemName = (id: ItemId): string => ITEMS[id].name;
@@ -290,6 +300,9 @@ export const ITEM_PHYSICS: Record<ItemId, ItemPhysics> = {
   fish: { size: [0.3, 0.06, 0.08], material: 'bone', surface: 'smooth', interaction: 'pouch', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false },
   cookedFish: { size: [0.28, 0.05, 0.08], material: 'bone', surface: 'soft', interaction: 'pouch', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false },
   tuber: { size: [0.1, 0.06, 0.06], material: 'leaf', surface: 'rough', interaction: 'pouch', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false },
+  berries: { size: [0.05, 0.05, 0.05], material: 'leaf', surface: 'soft', interaction: 'pouch', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false },
+  nuts: { size: [0.04, 0.04, 0.04], material: 'wood', surface: 'smooth', interaction: 'pouch', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false },
+  driedFish: { size: [0.26, 0.03, 0.07], material: 'bone', surface: 'rough', interaction: 'pouch', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false },
   seeds: { size: [0.04, 0.02, 0.04], material: 'leaf', surface: 'rough', interaction: 'pouch', grips: [{ x: 0, y: 0, z: 0 }], com: { x: 0, y: 0, z: 0 }, breakable: false },
 };
 

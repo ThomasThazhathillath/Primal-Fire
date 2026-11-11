@@ -44,6 +44,8 @@
     <div id="step-3" class="step">-</div>
     <div id="step-4" class="step">-</div>
     <div id="step-5" class="step">-</div>
+    <div id="field-0" class="step">-</div>
+    <div id="field-1" class="step">-</div>
   </div>
   <div id="toast" class="toast"> </div>
   <!-- What you point at and what you can do with it (no floating tooltip in the world). -->

@@ -29,14 +29,17 @@ The game is **hands-only** in VR; controllers also work.
 | `H` hint · `N` notebook · `J` guide · `T` skip / mute story thoughts | Menu button on the right (folding icon grid, fingertip tap or gaze + pinch) |
 | `V` shoot (bow) | Draw and release |
 
-Add `?perf` to the URL for the developer performance overlay. Double-tap the restart icon to start over.
+Add `?perf` to the URL for the developer performance overlay, or `?resdebug` for the resource layout view (spot markers, hit spheres, cluster rings, counts; developers only). Double-tap the restart icon to start over.
 
 ## How to play
 
 1. **The First Steps** (tutorial, the story opening): wake in the clearing and learn look-and-pinch, gathering, the satchel, carrying, the workbench, cord and fire before nightfall. What you learn carries into the survival game.
 2. **Chapter 1 — First Fire:** quests say what you *need*, not where. Ask for a hint up to three times (science clue → kind of place → direction with a light pillar and ground glow). Build a workbench and fire pit by snap-to-blueprint, craft a bow drill, make fire, then pottery, charcoal and clean water, and establish your first camp. Story thoughts follow your discoveries and end with the ruins teaser.
 3. **Chapter 2 — The Living Camp:** gather poles, branches, cord, grass and bark; set the poles, add cross-supports, lash them with a twist, roof the frame in layers, then survive a rain test: find the leaks, patch them and dig a drainage channel.
-4. Every outcome is recorded in the **Lab Notebook** as Observation → Principle → Real-world limit (80 observations), and big discoveries light nodes on the **Science Roadmap** wall in the ruins.
+4. **Phase 3 — The Living World** (open from the start, in any order; branch `claude/phase3-living-world`): deer, rabbits and birds live in the forest and notice how loud you are. Look for **tracks** and read whose they are and how old; **plant** seeds, water them and watch them grow through sprout, young, mature and harvestable (keep some seed); **forage** only plants you have looked at closely, because some look-alikes are poisonous; **spear, gut, cook** a fish and **dry** food on a rack; build a **bed, firewood stack with a bark cover and a storage basket**. Seven field tasks (The Hidden Trail, The Living Forest, Seeds of Tomorrow, A Growing Future, From Stream to Fire, Preserving the Harvest, A Home That Provides) follow your progress on the quest card. Checked in the emulator only, not on a headset.
+5. Every outcome is recorded in the **Lab Notebook** as Observation → Principle → Real-world limit (92 observations), and big discoveries light nodes on the **Science Roadmap** wall in the ruins.
+
+**Resources:** stones, flint, sticks, bark, clay, sand and gravel now lie in natural deposits (rocky deposits beside outcrops and on the stream bank, sticks and bark round fallen trunks, clay/sand/gravel beds along the water), so you never walk far for a stone or a flint. Pick them one at a time. Used spots stay used after a reload; sticks and leaves regrow within minutes, stones and flint only very slowly, clay and sand are big finite beds. Large boulders and fallen trunks stay scenery (see `src/game/resource-class.ts`).
 
 Progress saves in the browser automatically (`primal-first-fire.save.v1`, migrated safely between versions).
 

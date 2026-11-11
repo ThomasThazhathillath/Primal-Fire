@@ -24,6 +24,7 @@ import type { FoodAction } from '../game/food.js';
 import type { WaterAction } from '../game/water.js';
 import { PourState, pourRate } from '../game/gestures.js';
 import { groundHeight } from '../game/world-layout.js';
+import { hands } from './hand-input-system.js';
 import { getGame, handClaims } from './shared.js';
 
 /** Seconds a hand must stay at the spot to act in VR. */
@@ -132,7 +133,14 @@ export class WaterSystem extends createSystem({}) {
       if (vr ? this.reaching(act.a.at) : this.keyDown) g.food.cookOver(delta);
     } else if (act && !(vr && act.kind === 'water' && act.a.id === 'pourFilter')) {
       let fire = false;
-      if (vr) {
+      if (vr && act.kind === 'food' && act.a.id === 'harvest') {
+        // Harvesting is deliberate: reach over the ripe plant and pinch (with the hand not holding something).
+        // Holding a pot (or anything) over it must never pick it by itself.
+        this.dwell = 0;
+        if (this.reaching(act.a.at)) {
+          for (let h = 0; h < 2; h++) if (hands[h].gripDown && !(g.held && handClaims.holdHand === h && handClaims.grabbing[h])) fire = true;
+        }
+      } else if (vr) {
         this.dwell = this.reaching(act.a.at) ? this.dwell + delta : 0;
         fire = this.dwell >= DWELL;
       } else fire = this.pressed;

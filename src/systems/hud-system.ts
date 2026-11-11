@@ -244,6 +244,13 @@ export class HudSystem extends createSystem({
         el.setProperties({ text: uiText(`${done ? '[x]' : '[ ]'} ${step.text(game)}`), color: done ? '#7fd37f' : undefined });
       }
     }
+    // The non-linear field tasks (Phase 3): the one you are furthest along, and its next step.
+    const field = game.fieldTask();
+    for (let i = 0; i < 2; i++) this.hud.requireElementById<UIKit.Text>(`field-${i}`).setProperties({ display: field ? 'flex' : 'none' });
+    if (field) {
+      this.hud.requireElementById<UIKit.Text>('field-0').setProperties({ text: uiText(`FIELD TASK: ${field.title} ${field.done}/${field.total}`), color: '#e8c36a' });
+      this.hud.requireElementById<UIKit.Text>('field-1').setProperties({ text: uiText(`[ ] ${field.next}`) });
+    }
     this.hud.requireElementById('xp-fill').setProperties({ width: Math.round(350 * game.levelProgress) });
   }
 

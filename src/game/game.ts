@@ -2,6 +2,9 @@
 // call these actions and react to the events; tests drive them directly.
 
 import { type StorySave, StoryTracker } from './story.js';
+import { Wildlife } from './wildlife.js';
+import { freshness, Tracks } from './tracks.js';
+import { LIVING_QUESTS, livingProgress } from './living-quests.js';
 import { Environment, type EnvironmentSave } from './environment.js';
 import { actionFor } from './actions.js';
 import { BENCH_BY_ID, BenchSession, canStart, missingText, type BenchMotion } from './bench.js';
@@ -203,6 +206,24 @@ export class Game {
   readonly drops: WorldDrop[] = [];
   /** Time of day and weather (EnvironmentSystem renders it). */
   readonly env = new Environment();
+  /** Deer, rabbits and birds (deterministic, not saved). */
+  readonly wildlife = new Wildlife();
+  readonly tracks = new Tracks();
+  /** Ids of finished Phase 3 quests (saved). */
+  readonly living = new Set<string>();
+  /**
+   * Gather spots that are not at full charge: id to charges left and the game time the next charge grows
+   * back (0 = none due). Saved, so a reload neither refills a stripped deposit nor duplicates anything.
+   */
+  readonly spotState = new Map<string, { c: number; r: number }>();
+  private trackSeen = new Set<number>();
+  private trackAges = new Set<string>();
+  private trackT = 0;
+  private wildSeen = new Set<string>();
+  /** Seconds each species has been in view and in range (a 'seen' event needs about a second). */
+  private wildLook = new Map<string, number>();
+  /** Calls and splashes for the ambience system to voice (drained there). */
+  readonly wildAudio: import('./wildlife.js').WildEvent[] = [];
   private nextDropId = 1;
   readonly discovered = new Set<string>(LANDMARKS.filter((l) => l.known).map((l) => l.id));
   readonly log: EventLog;
@@ -544,6 +565,7 @@ export class Game {
     s.store ??= {};
     s.store[id] = (s.store[id] ?? 0) + moved;
     this.satchel.set(id, this.count(id) - moved);
+    if (ITEMS[id].cats.includes('food')) this.science('camp.food.stored');
     this.emit({ type: 'satchel' });
     return moved;
   }
@@ -684,9 +706,67 @@ export class Game {
     this.fire.tick(dt);
     this.water.tick(dt);
     this.food.tick(dt);
+    this.tickWildlife(dt);
     if (this.moveLimits.encumbrance !== 'light') {
       if ((this.heavyTime += dt) > 30) this.science('body.carry.heavy');
     } else this.heavyTime = 0;
+  }
+
+  /** Standing over a print reads it: what animal, how fresh, and a trail once you have read several. */
+  private inspectTracks(): void {
+    const hit = this.tracks.nearest(this.player.x, this.player.z, 1.8, this.time);
+    if (!hit) return;
+    this.science('hunt.track.found');
+    this.science(hit.print.species === 'deer' ? 'hunt.track.deer' : 'hunt.track.rabbit');
+    this.trackAges.add(freshness(hit.age));
+    // Telling fresh from old needs two different ages to compare.
+    if (this.trackAges.size >= 2) this.science('hunt.track.fresh');
+    this.trackSeen.add(hit.index);
+    if (this.trackSeen.size >= 5) this.science('hunt.track.followed');
+  }
+
+  /** Step the animals and turn what you watch of them into science events. */
+  private tickWildlife(dt: number): void {
+    const w = this.wildlife;
+    w.update(dt, { px: this.player.x, pz: this.player.z, hour: this.env.hour, mist: this.env.fog });
+    for (const a of w.animals) this.tracks.note(a, this.time);
+    if ((this.trackT += dt) >= 0.5) {
+      this.trackT = 0;
+      this.tracks.expire(this.time);
+      this.inspectTracks();
+    }
+    for (const a of w.animals) {
+      if (!a.active || a.hidden) continue;
+      const d = Math.hypot(a.x - this.player.x, a.z - this.player.z);
+      // "Seen" needs the animal in your view (within ~35 degrees of where you face), in range, for a moment:
+      // an animal behind you or one that was just near you at the wake-up never counts.
+      if (d > 5 && d < 24) {
+        const id = `wild.${a.species}.seen`;
+        if (!this.wildSeen.has(id)) {
+          const dot = (-Math.sin(this.facingYaw) * (a.x - this.player.x) + -Math.cos(this.facingYaw) * (a.z - this.player.z)) / d;
+          if (dot > 0.82) {
+            const t = (this.wildLook.get(id) ?? 0) + dt;
+            this.wildLook.set(id, t);
+            if (t >= 1) {
+              this.wildSeen.add(id);
+              this.science(id);
+            }
+          } else this.wildLook.set(id, 0);
+        }
+      }
+      if (a.species === 'deer' && d < 20 && this.env.fog > 0.5 && (a.state === 'graze' || a.state === 'idle')) this.science('wild.mist.deer');
+      if (a.species === 'deer' && d < 26 && this.env.hour >= 18 && this.env.hour < 20.5 && a.state === 'walk') this.science('wild.evening.rest');
+      if (a.species === 'deer' && d < 14 && w.playerSpeed < 0.6 && a.state !== 'flee' && a.state !== 'run' && !this.wildSeen.has('quiet')) {
+        this.wildSeen.add('quiet');
+        this.science('wild.quiet.approach');
+      }
+    }
+    for (const e of w.events) {
+      if (e.species === 'deer' && e.kind === 'flee') this.science('wild.deer.fled');
+      if (e.species === 'deer' && e.kind === 'drink' && Math.hypot(e.x - this.player.x, e.z - this.player.z) < 30) this.science('wild.deer.drank');
+      if ((e.kind === 'call' || e.kind === 'startle') && this.wildAudio.length < 8) this.wildAudio.push(e);
+    }
+    w.events.length = 0;
   }
 
   setPlayerPosition(x: number, z: number): void {
@@ -745,7 +825,7 @@ export class Game {
       this.gathered.set(id, this.gatheredCount(id) + bonus);
     }
     this.log.add(`gathered ${id} from ${sourceId}${bonus ? ' (+tool)' : ''}`);
-    this.toast(`+1 ${itemName(id)}`);
+    this.toast(big ? `+1 ${itemName(id)}` : `+1 ${itemName(id)} (${this.count(id)} in bag)`);
     const obs = ITEMS[id].firstObservation;
     if (first && obs) this.observe(obs);
     this.checkQuests();
@@ -1650,6 +1730,43 @@ export class Game {
     this.log.add(`event: ${event}`, 'ok');
     for (const id of observationsForEvent(event)) this.observe(id);
     this.checkQuests();
+    this.checkLiving();
+  }
+
+  /** The non-linear Phase 3 quests: judged from state whenever something happens. */
+  private livingSteps = new Map<string, number>();
+
+  /** The unfinished field task you are furthest along (null until you have begun one). */
+  fieldTask(): { title: string; done: number; total: number; next: string } | null {
+    let best: { title: string; done: number; total: number; next: string } | null = null;
+    for (const q of LIVING_QUESTS) {
+      if (this.living.has(q.id)) continue;
+      const done = q.steps.filter((s) => s.done(this)).length;
+      if (done === 0) continue;
+      if (!best || done / q.steps.length > best.done / best.total) {
+        const nx = q.steps.find((s) => !s.done(this));
+        best = { title: q.title, done, total: q.steps.length, next: (nx?.text(this) ?? '').replace(/\s*\[[ x]\]$/, '') };
+      }
+    }
+    return best;
+  }
+
+  checkLiving(): void {
+    for (const q of LIVING_QUESTS) {
+      if (this.living.has(q.id)) continue;
+      const n = q.steps.filter((s) => s.done(this)).length;
+      const was = this.livingSteps.get(q.id) ?? 0;
+      if (n > was && n < q.steps.length) {
+        this.toast(was === 0 ? `New field task: ${q.title} (${n}/${q.steps.length}). Open the quest card to follow it.` : `${q.title}: ${n}/${q.steps.length}`, 'info');
+      }
+      this.livingSteps.set(q.id, n);
+    }
+    for (const q of livingProgress(this)) {
+      this.log.add(`quest complete: ${q.title}`, 'ok');
+      this.addXp(100);
+      this.toast(`Quest complete: ${q.title}`, 'good');
+      if (q.recap) this.toast(q.recap, 'note');
+    }
   }
 
   hasEvent(event: string): boolean {
@@ -1786,6 +1903,8 @@ export class Game {
       gathered: Object.fromEntries(this.gathered),
       notebook: [...this.notebook],
       events: [...this.events],
+      living: [...this.living],
+      resources: [...this.spotState].map(([id, v]) => [id, v.c, v.r] as [string, number, number]),
       guide: this.guide.snapshot(),
       structures: this.structures.map((s) => ({
         ...s,
@@ -1824,6 +1943,9 @@ export class Game {
     for (const [k, v] of Object.entries(data.gathered)) g.gathered.set(k as ItemId, v);
     g.notebook.push(...data.notebook);
     for (const e of data.events ?? []) g.events.add(e);
+    for (const q of data.living ?? []) g.living.add(q);
+    for (const [id, c, r] of data.resources ?? []) g.spotState.set(id, { c, r });
+    for (const q of LIVING_QUESTS) g['livingSteps'].set(q.id, q.steps.filter((st) => st.done(g)).length);
     if (data.guide) g.guide.restore(data.guide);
     g.structures.push(...data.structures);
     g.nextStructureId = Math.max(0, ...data.structures.map((s) => s.id)) + 1;
@@ -1877,6 +1999,8 @@ export interface SaveData {
   gathered: Partial<Record<ItemId, number>>;
   notebook: string[];
   events?: string[];
+  living?: string[];
+  resources?: Array<[string, number, number]>;
   guide?: GuideSave;
   structures: PlacedStructure[];
   discovered: string[];

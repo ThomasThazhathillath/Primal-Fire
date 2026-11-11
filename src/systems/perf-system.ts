@@ -257,7 +257,7 @@ export class PerfSystem extends createSystem({
       const d = Math.hypot(this.spotPos.x - this.head.x, this.spotPos.z - this.head.z);
       const has = e.hasComponent(RayInteractable);
       if (has && d > RAY_RANGE + 0.5) e.removeComponent(RayInteractable);
-      else if (!has && d < RAY_RANGE) e.addComponent(RayInteractable);
+      else if (!has && d < RAY_RANGE && (e.getValue(Gatherable, 'charges') ?? 0) > 0) e.addComponent(RayInteractable);
     }
   }
 

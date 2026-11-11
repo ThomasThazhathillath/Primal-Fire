@@ -126,6 +126,10 @@ function createRoadmapWall(): Object3D {
     // Chapter 2: building and water control.
     ['structure', -1.4, 1.55],
     ['hydro', -0.05, 1.7],
+    // Phase 3: the living world.
+    ['ecology', -1.4, 2.15],
+    ['agri', -0.7, 1.9],
+    ['preserve', 0.6, 0.7],
   ];
   for (const [id, x, y] of nodes) {
     const disc = new Mesh(new CircleGeometry(0.13, 16), socket);

@@ -1247,9 +1247,13 @@ export class Game {
         ok = this.water.perform(id, at);
         break;
       }
+      case 'harvest':
+        // Harvesting is explicit (a pinch/gather or the action key, in WaterSystem): a held item touching or let go
+        // over a ripe plot never picks it by itself, even if its intent resolves to harvest.
+        if (held) break;
+      // falls through
       case 'plant':
       case 'waterPlot':
-      case 'harvest':
       case 'digPlot': {
         const a = this.food.available(at, held);
         ok = !!a && this.food.perform(a);

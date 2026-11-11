@@ -106,11 +106,11 @@ Per stage commit, clean screenshots in `docs/shots-revamp/<stage>-*.jpg`, number
 | 1 Bushes | Yes: EZ-Tree bush presets, LOD0-2 and billboards, instanced |
 | 2 Rocks | Yes: Poly Haven Rock Moss Set 01 boulders (3 LODs) and matching collectible stones (110 triangles, tinted; decor stays big and textured) |
 | 3 Ground | Yes: three Poly Haven textures blended by zone with normal and roughness, instanced grass tufts that fade out |
-| 4 Sky | Mostly: three.js physical Sky and Poly Haven photo clouds, tinted by time and faded at night. Not done: the scene's image-based light is still the gradient, not a PMREM of the physical sky |
-| 5 Stream | Mostly: dual scrolling normals, sky and cloud reflection, bed and depth tint, wet banks. Not done: foam rings round rocks |
-| 6 Everything else | Partial. Done: ferns, story and misc rocks, round soft particles, ACES tone mapping. **Not done:** mountains and horizon, logs/sticks/items in the hand, hands and arms, ruins/mast/Roadmap wall, built structures (workbench, fire pit, shelter, rack), fire/smoke/rain effects beyond round points, animals, moss cushions and grass clumps, saplings, track prints (look like black squares at a distance) |
+| 4 Sky | Yes: three.js physical Sky, Poly Haven photo clouds tinted by time and faded at night, and the scene's environment light is a PMREM of the same sky (rebuilt every 6 s) |
+| 5 Stream | Yes: dual scrolling normals, sky and cloud reflection, bed and depth tint, wet banks, foam rings round the twelve nearest stream rocks |
+| 6 Everything else | Done: ferns, story and misc rocks, round soft particles, ACES tone mapping, detailed mountains (ridged crags, treeline, snow), barked rounder logs, smooth item cylinders, rounded hands and sleeves, weathered ruins/mast base/Roadmap wall and split rock, weathered workbench slab, smooth animals with countershading, soft sapling, lighter oval footprint decals, no faceted grass clumps. **Not changed:** the leaning-shelter, rack, bed and fire-pit models beyond the global smooth shading and rounder cylinders, fire/smoke/rain (already soft shader sprites), moss cushions beyond more segments |
 
-Verified: typecheck, 679 unit tests, production build, emulator screenshots and perf samples at each stage. Not verified: a headset, chapters 1 to 3 replayed end to end in the emulator after the round (unit tests pass), texture memory on Quest (about 19 MB for the ground set).
+Verified: typecheck, 679 unit tests, production build, emulator screenshots and perf samples at each stage; `scripts/story-check.mjs` (Chapter 1 story: gather, workbench, fire, camp, no errors) and `scripts/tutorial-check.mjs` (tutorial enters and reports lesson state) pass in the emulator. `scripts/playtest.mjs` (the M1-era script) stops with a script error at the workbench step; it was not run on main for comparison. Not verified: Chapter 2 and 3 replayed end to end in the emulator (their unit tests pass), a headset, texture memory on Quest (about 19 MB for the ground set), and the triangle total against the Quest budget (see PERF_REPORT).
 
 ### Docs index
 

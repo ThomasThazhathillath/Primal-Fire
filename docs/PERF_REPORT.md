@@ -192,3 +192,18 @@ Stage 6 (partial, see PROJECT_STATUS): the 700 spiky faceted ferns became archin
 shared fragment tweak); the renderer uses ACES filmic tone mapping at exposure 1.05. Fewer triangles than before the stage (the spiky ferns were more geometry
 than the cards), draw calls 209. Total over the whole round (stage 1 before to stage 6 after): draw calls 189 to 209, triangles 201,686 to 222,650, CPU
 4.58 to 4.68 ms in the IWER browser. Not measured on a Quest. No real-time shadows were added.
+
+### Stage 6 follow-up (leftovers), same method
+
+| Step | Draw calls | Triangles | CPU ms |
+|---|---|---|---|
+| 6 (ferns, particles, ACES) | 209 | 222,650 | 4.68 |
+| 6b sky environment light (PMREM), rock foam, soft sapling, no grass clumps | 210 | 203,366 | 4.77 |
+| 6c mountains, barked logs, hands | 210 | 277,004 | 4.87 |
+| 6d after trimming mountain tessellation (160 x 5 rows), log and animal tessellation | 210 | 240,764 | 5.56 (noisy) |
+
+The mountains are the largest single addition (about 9k triangles after trimming); the weathered ruins, rounded hands (about 4k) and smooth animals (about 6k) are the rest.
+The environment light is a 128 px PMREM rebuilt every 6 s (one small render) at environment intensity 0.04 to 0.16. The whole round, stage 1 before to 6d after:
+draw calls 189 to 210, triangles 201.7k to 240.8k, which is above the 240k per eye the original report treats as the ceiling for the dense forest view; it should be
+re-measured on a Quest before shipping and the first things to cut are the mountain tessellation and the 18 hand and animal spheres. Fire, smoke and rain were already
+soft shader sprites and were not changed.

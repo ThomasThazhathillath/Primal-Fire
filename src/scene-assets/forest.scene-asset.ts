@@ -252,9 +252,19 @@ export function createUndergrowth(): Object3D {
   // Fallen logs: decorative trunks lying in the leaf litter.
   const LOGS = FALLEN_TRUNKS.length;
   // A rounder trunk with bark streaks and moss on the upper side baked into vertex colours (12 sides, 5 rings).
-  const logGeo = new CylinderGeometry(0.16, 0.2, 1, 10, 3).rotateZ(Math.PI / 2);
+  const logGeo = new CylinderGeometry(0.16, 0.2, 1, 16, 6).rotateZ(Math.PI / 2);
   {
     const pos = logGeo.attributes.position;
+    const uv = logGeo.attributes.uv;
+    for (let i = 0; i < pos.count; i++) {
+      // Rounder, slightly knobbly trunk: a radial wobble along its length and a gentle bend; bark texture repeats 4x along it.
+      const x = pos.getX(i);
+      const y = pos.getY(i);
+      const z = pos.getZ(i);
+      const w = 1 + 0.14 * (valueNoise(x * 4.1 + 3, Math.atan2(z, y) * 2.2) - 0.5);
+      pos.setXYZ(i, x, y * w + Math.sin(x * 3.1) * 0.012, z * w);
+      uv.setY(i, uv.getY(i) * 4);
+    }
     const lc = new Float32Array(pos.count * 3);
     for (let i = 0; i < pos.count; i++) {
       const x = pos.getX(i);
@@ -266,20 +276,22 @@ export function createUndergrowth(): Object3D {
       let k = 0.72 + 0.4 * streak + 0.16 * fine;
       const top = Math.max(0, y / 0.2);
       const moss = Math.max(0, valueNoise(x * 3 + 5, ang * 2) * 1.6 - 0.65) * top;
-      lc[i * 3] = k * (1 - moss) + 0.28 * moss;
-      lc[i * 3 + 1] = k * (1 - moss) + 0.5 * moss;
-      lc[i * 3 + 2] = k * (1 - moss) + 0.2 * moss;
-      k = 0;
+      k = 0.9 + (k - 0.9) * 0.4;
+      lc[i * 3] = k * (1 - moss) + 0.45 * moss;
+      lc[i * 3 + 1] = k * (1 - moss) + 0.75 * moss;
+      lc[i * 3 + 2] = k * (1 - moss) + 0.35 * moss;
     }
     logGeo.setAttribute('color', new BufferAttribute(lc, 3));
   }
   const logs = new InstancedMesh(logGeo, lambert(0xffffff, { vertexColors: true, flatShading: false }), LOGS);
+  logs.userData.bark = true;
   logs.name = 'FallenTrunks';
   let n = 0;
   for (const t of FALLEN_TRUNKS) {
     m.compose(p.set(t.x, 0.16 * t.thick, t.z), q.setFromAxisAngle(up, t.rotY), s.set(t.length, t.thick, t.thick));
     logs.setMatrixAt(n, m);
-    logs.setColorAt(n, col.setHex([0x5a4636, 0x4d3d2f, 0x66503c][n % 3]));
+    // The bark texture supplies the colour (GroundSystem); these only vary the shade a little.
+    logs.setColorAt(n, col.setHex([0xffffff, 0xe6ddd0, 0xf2e9dc][n % 3]));
     n++;
   }
   logs.count = n;
@@ -368,6 +380,36 @@ export function createMountains(): Object3D {
     geo.setAttribute('color', new BufferAttribute(cols, 3));
     geo.setIndex(index);
     const mat = new MeshBasicMaterial({ color: new Color(stone[0], stone[1], stone[2]), vertexColors: true, fog: false, side: DoubleSide });
+    // Rock texture without a texture: strata (horizontal bands bent by noise) and a fine grain in the fragment shader, a lighter hazy foot,
+    // so the ridges read as layered, weathered mountain faces instead of flat polygons. Layers farther away get less contrast.
+    const contrast = 0.55 + 0.45 * (1 - li / 3);
+    mat.onBeforeCompile = (sh) => {
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vMp;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvMp = position;');
+      sh.fragmentShader = sh.fragmentShader
+        .replace(
+          '#include <common>',
+          `#include <common>
+          varying vec3 vMp;
+          float mh(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+          float mn(vec2 p) { vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f); return mix(mix(mh(i), mh(i + vec2(1.0, 0.0)), u.x), mix(mh(i + vec2(0.0, 1.0)), mh(i + vec2(1.0, 1.0)), u.x), u.y); }`,
+        )
+        .replace(
+          '#include <color_fragment>',
+          `#include <color_fragment>
+          {
+            vec2 q = vec2(vMp.x + vMp.z, vMp.y);
+            float strata = sin(vMp.y * 0.55 + mn(vec2(vMp.x, vMp.z) * 0.04) * 7.0) * 0.5 + 0.5;
+            float grain = mn(q * 0.9) * 0.55 + mn(q * 3.1 + 7.0) * 0.45;
+            float crag = mn(vec2(vMp.x * 0.35 - vMp.z * 0.2, vMp.y * 0.6));
+            float k = 0.78 + ${contrast.toFixed(2)} * (0.32 * strata + 0.34 * grain + 0.2 * crag);
+            diffuseColor.rgb *= k;
+            // Hazy foot: the lowest part of the face washes toward a light grey-blue.
+            float foot = 1.0 - smoothstep(-6.0, 14.0, vMp.y);
+            diffuseColor.rgb = mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(0.33)) + 0.22), foot * 0.5);
+          }`,
+        );
+    };
+    mat.customProgramCacheKey = () => `ridge${li}`;
     const mesh = new Mesh(geo, mat);
     mesh.name = `Ridge${li}`;
     mesh.userData.stone = [stone[0], stone[1], stone[2]]; // plain data: userData survives cloning
@@ -411,10 +453,10 @@ export function createGroundDetail(): Object3D {
   for (let tries = 0; n < 260 && tries < 3000; tries++) {
     const [x, z] = spot(2);
     if (inClearing(x, z, -2) || streamDistance(x, z) < 1.0) continue;
-    const sc = range(rng, 0.12, 0.4);
-    m.compose(p.set(x, 0, z), q.setFromAxisAngle(up, rng() * 6), s.set(sc, sc * 0.12, sc));
+    const sc = range(rng, 0.1, 0.3);
+    m.compose(p.set(x, 0, z), q.setFromAxisAngle(up, rng() * 6), s.set(sc, sc * 0.1, sc));
     mossCush.setMatrixAt(n, m);
-    mossCush.setColorAt(n, col.setHex([0x3b5a2a, 0x4a6b34, 0x33522a][n % 3]));
+    mossCush.setColorAt(n, col.setHex([0x2a3f1f, 0x33492a, 0x24381c, 0x3a4a2a][n % 4]));
     n++;
   }
   mossCush.count = n;

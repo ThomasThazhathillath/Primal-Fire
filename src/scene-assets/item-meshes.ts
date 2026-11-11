@@ -107,7 +107,7 @@ const builders: Record<ResourceLook, () => Object3D> = {
     // A slim trunk with soft, smooth-shaded leaf masses (no faceted solids).
     const g = new Group();
     g.add(at(new Mesh(new CylinderGeometry(0.02, 0.035, 1.2, 10), lambert(0x6b5a3a)), 0, 0.6, 0));
-    const tones = [0x5f9a3a, 0x6fae40, 0x7cbd4c];
+    const tones = [0x3f6e2a, 0x4a7a30, 0x55883a];
     [[0.7, 0.2], [0.95, 0.18], [1.2, 0.14]].forEach(([y, s], i) => {
       const puff = new Mesh(new SphereGeometry(s, 10, 8), lambert(tones[i]));
       puff.scale.set(1, 0.8, 1);
@@ -146,8 +146,8 @@ const builders: Record<ResourceLook, () => Object3D> = {
     g.add(at(new Mesh(new CircleGeometry(0.058, 16), lambert(0xcfe8ff, { transparent: true, opacity: 0.55 })), 0, 0.07, 0, Math.PI / 2.4 - Math.PI / 2));
     return g;
   },
-  stone: () => stone(0xf0e8da, 0.09, 0),
-  wetStone: () => stone(0xa9bccb, 0.09, 2),
+  stone: () => stone(0xe6d8c2, 0.09, 0),
+  wetStone: () => stone(0x93a6b6, 0.09, 2),
   slab: () => at(new Mesh(weather(new BoxGeometry(0.6, 0.07, 0.42, 6, 1, 4), 0.012, 5), new MeshLambertMaterial({ color: ITEMS.slab.color, vertexColors: true })), 0, 0.035, 0),
   forkedStick: () => {
     const g = new Group();
@@ -190,8 +190,8 @@ const builders: Record<ResourceLook, () => Object3D> = {
     const m = new Mesh(new CylinderGeometry(0.1, 0.1, 0.36, 8, 1, true, 0, Math.PI * 1.1), lambert(0x6e5238, { side: DoubleSide }));
     return at(m, 0, 0.09, 0, 0, 0.6, Math.PI / 2);
   },
-  stoneDark: () => stone(0xb4b8c4, 0.14, 4),
-  stonePale: () => stone(0xffffff, 0.11, 1),
+  stoneDark: () => stone(0x6f7480, 0.14, 4),
+  stonePale: () => stone(0xf0e2c0, 0.11, 1),
 };
 
 /**

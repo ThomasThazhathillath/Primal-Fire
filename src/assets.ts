@@ -36,6 +36,8 @@ export default defineAssets({
   'ground-leaves-n': groundTex('leaves_n'),
   'ground-mud-dr': groundTex('mud_dr'),
   'ground-mud-n': groundTex('mud_n'),
+  'ground-bark-dr': groundTex('bark_dr'),
+  'ground-bark-n': groundTex('bark_n'),
   // Baked EZ-Tree variants (scripts/trees/bake.mjs): drawn by TreeSystem, not placed by the scene.
   'tree-oak': tree('oak'),
   'tree-ash': tree('ash'),

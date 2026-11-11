@@ -96,14 +96,14 @@ void main() {
   float bankD = 1.0 - abs(vFlow.y * 2.0 - 1.0);
   float shallow = 1.0 - smoothstep(0.04, 0.95, bankD);
   vec3 bed = pow(texture2D(uBed, vWorld.xz / 1.6 + nrm.xz * 0.06).rgb, vec3(0.4545)) * (0.4 + 0.6 * uLight) * 0.8;
-  vec3 body = mix(uDeep * (0.4 + 0.6 * uLight), bed, shallow * 0.8);
+  vec3 body = mix(uDeep * (0.5 + 0.6 * uLight), bed, shallow * 0.9);
   vec3 col = mix(body, refl, 0.1 + 0.6 * fres);
   // Sun glint.
   vec3 hv = normalize(uSunDir + view);
-  col += uSunColor * pow(max(dot(nrm, hv), 0.0), 60.0) * 0.8 * uLight;
+  col += uSunColor * pow(max(dot(nrm, hv), 0.0), 60.0) * 0.8 * uLight + uSunColor * pow(max(dot(nrm, hv), 0.0), 320.0) * 3.0 * uLight * (0.4 + 0.6 * noise(vWorld.xz * 11.0 + uTime));
   // Foam: banks and the noisy crests.
   float edge = 1.0 - abs(vFlow.y * 2.0 - 1.0);
-  float foam = smoothstep(0.22, 0.0, edge + (n2 - 0.5) * 0.2) + smoothstep(0.8, 0.95, h) * 0.25 + ring;
+  float foam = smoothstep(0.34, 0.02, edge + (n2 - 0.5) * 0.3) * 0.55 + smoothstep(0.8, 0.95, h) * 0.25 + ring;
   // Foam rings round the rocks that break the surface (the twelve nearest to you, set from the layout).
   for (int i = 0; i < 12; i++) {
     float rr = uRocks[i].z;
@@ -113,7 +113,8 @@ void main() {
   col = mix(col, vec3(0.85, 0.9, 0.92) * (0.35 + 0.65 * uLight), clamp(foam, 0.0, 1.0) * 0.7);
   float fogD = length(cameraPosition - vWorld);
   col = mix(col, uFogColor, smoothstep(uFogNear, uFogFar, fogD));
-  gl_FragColor = vec4(col, mix(0.72, 0.95, smoothstep(0.0, 0.5, bankD)));
+  // Soft banks: the water fades to nothing at its edge, is clearer in the shallows and denser toward the middle.
+  gl_FragColor = vec4(col, smoothstep(0.0, 0.32, bankD) * mix(0.5, 0.9, smoothstep(0.1, 0.85, bankD)));
 }`;
 
 const SPLASH_N = 48;
@@ -232,7 +233,7 @@ export class NatureSystem extends createSystem({}) {
       transparent: true,
       uniforms: {
         uTime: { value: 0 },
-        uDeep: { value: new Color(0x1f4f63) },
+        uDeep: { value: new Color(0x2f7a92) },
         uSky: { value: new Color() },
         uHorizon: { value: new Color() },
         uSunDir: { value: new Vector3(0, 1, 0) },

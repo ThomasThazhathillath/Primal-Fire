@@ -13,6 +13,8 @@ only and recompressed; nothing is used at 4K.
 | Forest Leaves 02, 1K, same packing | Leaf litter under the trees | https://polyhaven.com/a/forest_leaves_02 | CC0 1.0 | `public/ground/leaves_*.webp` |
 | Brown Mud Leaves 01, 1K, same packing | Stream banks | https://polyhaven.com/a/brown_mud_leaves_01 | CC0 1.0 | `public/ground/mud_*.webp` |
 
+| Bark Brown 02, 1K diffuse, normal (GL), roughness, same packing | Fallen trunks | https://polyhaven.com/a/bark_brown_02 | CC0 1.0 | `public/ground/bark_*.webp` |
+
 Each `_dr.webp` is 1024 px with diffuse in RGB and roughness in alpha (about 0.75 to 0.95 MB); each `_n.webp` is a 512 px tangent-space normal (about 0.12 MB). WebP is used instead of KTX2 because no Basis encoder is installed.
 
 | kloofendal_48d_partly_cloudy_puresky 2K HDR (https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/kloofendal_48d_partly_cloudy_puresky_2k.hdr), converted by `scripts/sky/bake.mjs` to a 2048x1024 cloud-alpha WebP (0.25 MB) | Photographed clouds over the physical sky | https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky | CC0 1.0 | `public/sky/clouds.webp` |

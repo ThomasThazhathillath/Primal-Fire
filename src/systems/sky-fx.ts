@@ -226,7 +226,8 @@ void main() {
   vec4 c = texture2D(uMap, vec2(u, v));
   // Near the horizon the cloud thins into the haze.
   float a = c.a * uOpacity * smoothstep(0.02, 0.2, d.y);
-  vec3 col = mix(c.rgb * uTint, uFog, 0.25 * (1.0 - smoothstep(0.0, 0.5, d.y)));
+  // A floor under the shading so the shadowed core of a cloud is tinted, never black.
+  vec3 col = mix((0.34 + 0.66 * c.rgb) * uTint, uFog, 0.25 * (1.0 - smoothstep(0.0, 0.5, d.y)));
   gl_FragColor = vec4(col, a);
 }`;
 
@@ -438,8 +439,16 @@ export class SkyFx {
     u.uSun.value.y = src[2] / l;
     u.uCover.value = cloudCoverage(env.cloud);
     cloudLight(sd[1], env.night, env.cloud, this.lit, this.shade, env.hour < 12);
-    (u.uLit.value as Color).setRGB(this.lit[0], this.lit[1], this.lit[2]);
-    (u.uShade.value as Color).setRGB(this.shade[0], this.shade[1], this.shade[2]);
+    // Dusk and dawn: tint the cloud body warm instead of letting its shaded side go black, and never darker than a deep blue-grey at night.
+    const duskK = (1 - smooth(0.02, 0.35, sd[1])) * (1 - smooth(0.7, 1.0, env.night));
+    const mixTo = (a: number, b: number, k: number) => a + (b - a) * k;
+    (u.uLit.value as Color).setRGB(mixTo(this.lit[0], 1.0, duskK * 0.6), mixTo(this.lit[1], 0.74, duskK * 0.7), mixTo(this.lit[2], 0.58, duskK * 0.7));
+    (u.uShade.value as Color).setRGB(
+      // Never darker than most of the horizon glow (the fog colour), so a cloud against a lit dusk sky is tinted, not a black hole.
+      Math.max(fog.r * 0.7, mixTo(this.shade[0], 0.8, duskK * 0.9)),
+      Math.max(fog.g * 0.7, mixTo(this.shade[1], 0.5, duskK * 0.9)),
+      Math.max(fog.b * 0.75, mixTo(this.shade[2], 0.5, duskK * 0.9)),
+    );
     (u.uFog.value as Color).copy(fog);
     this.clouds.position.copy(head);
 

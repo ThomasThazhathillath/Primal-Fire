@@ -207,3 +207,18 @@ The environment light is a 128 px PMREM rebuilt every 6 s (one small render) at 
 draw calls 189 to 210, triangles 201.7k to 240.8k, which is above the 240k per eye the original report treats as the ceiling for the dense forest view; it should be
 re-measured on a Quest before shipping and the first things to cut are the mountain tessellation and the 18 hand and animal spheres. Fire, smoke and rain were already
 soft shader sprites and were not changed.
+
+### Look polish round (grass clumps, ground detail, mountains, bark, stream edges, dusk clouds, stones)
+
+Same method, UI hidden. Before (end of the leftovers round): 210 draw calls, 240,764 triangles. After: see the last row.
+
+| Step | Draw calls | Triangles |
+|---|---|---|
+| Clustered grass (up to 3,000 tufts, 5 blades) and flowers | 213 | 266,771 |
+| After capping at 2,200 tufts of 4 blades | 213 | 253,902 |
+
+The grass is now laid out in patches (coarse noise decides where it grows thick, thin or not at all), in four colour families, with up to 450 flower heads in the thick
+parts, drawn by a second small InstancedMesh (one extra draw call). Ground textures tile at 0.9 to 1.3 m instead of 2.2 to 3.2 m, with anisotropic filtering and
+procedural patch and grain variation in the shader. Mountains gain strata, grain and a hazy foot in their fragment shader (no extra geometry). Fallen trunks use
+Poly Haven bark_brown_02 (1K, packed like the ground set) on 16-sided knobbly geometry. The stream fades to nothing at its banks, is lighter and clearer in the shallows,
+and has sharper sun glints. Dusk clouds can no longer be darker than most of the horizon glow.

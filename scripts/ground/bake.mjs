@@ -7,7 +7,7 @@ import sharp from 'sharp';
 
 const src = resolve(process.argv[2] ?? '.');
 const out = new URL('../../public/ground/', import.meta.url).pathname;
-const SETS = { ground: 'forrest_ground_01', leaves: 'forest_leaves_02', mud: 'brown_mud_leaves_01' };
+const SETS = { ground: 'forrest_ground_01', leaves: 'forest_leaves_02', mud: 'brown_mud_leaves_01', bark: 'bark_brown_02' };
 for (const [name, asset] of Object.entries(SETS)) {
   const rough = await sharp(`${src}/${asset}_rough.jpg`).resize(1024, 1024).greyscale().raw().toBuffer();
   const { data, info } = await sharp(`${src}/${asset}_diff.jpg`).resize(1024, 1024).removeAlpha().raw().toBuffer({ resolveWithObject: true });

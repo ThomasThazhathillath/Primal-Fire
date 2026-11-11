@@ -7,9 +7,9 @@
 import { AssetManager, createSystem, MeshStandardMaterial, NoColorSpace, RepeatWrapping, SRGBColorSpace, type Mesh, type Texture } from '@iwsdk/core';
 
 /** Metres per texture repeat. */
-const TILE = { ground: 3.2, leaves: 2.6, mud: 2.2 };
+const TILE = { ground: 1.3, leaves: 1.0, mud: 0.9 };
 
-const NAMES = ['ground', 'leaves', 'mud'] as const;
+const NAMES = ['ground', 'leaves', 'mud', 'bark'] as const;
 
 export class GroundSystem extends createSystem({}) {
   private done = false;
@@ -29,7 +29,7 @@ export class GroundSystem extends createSystem({}) {
         const t = AssetManager.getTexture(key) ?? (await AssetManager.loadTexture(key, key).catch(() => null));
         if (!t) return;
         t.wrapS = t.wrapT = RepeatWrapping;
-        t.anisotropy = 4;
+        t.anisotropy = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
         t.colorSpace = kind === 'dr' ? SRGBColorSpace : NoColorSpace;
         t.needsUpdate = true;
         this.tex.push(t);
@@ -39,13 +39,19 @@ export class GroundSystem extends createSystem({}) {
   }
 
   update(delta: number): void {
-    if (this.done || this.tex.length < 6 || this.loading) return;
+    if (this.done || this.tex.length < 8 || this.loading) return;
     if ((this.search -= delta) > 0) return;
     this.search = 1;
     // The scene names the instance after its node ("Forest Ground"); the asset's own name is ForestGround.
     const ground = (this.scene.getObjectByName('Forest Ground') ?? this.scene.getObjectByName('ForestGround')) as Mesh | undefined;
     if (!ground || !ground.geometry.attributes.zone) return;
-    const [gdr, gn, ldr, ln, mdr, mn] = this.tex;
+    const [gdr, gn, ldr, ln, mdr, mn, bdr, bn] = this.tex;
+    // Fallen trunks get bark: the same two-map recipe on a plain PBR material (the trunk's UVs repeat along its length).
+    const trunks = this.scene.getObjectByName('FallenTrunks') as Mesh | undefined;
+    if (trunks) {
+      const old = trunks.material as MeshStandardMaterial;
+      trunks.material = new MeshStandardMaterial({ map: bdr, normalMap: bn, roughness: 0.95, metalness: 0, vertexColors: true, color: old.color });
+    }
     const mat = new MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0 });
     mat.onBeforeCompile = (sh) => {
       sh.uniforms.tGdr = { value: gdr };
@@ -70,7 +76,9 @@ export class GroundSystem extends createSystem({}) {
             float det = max(dot(T, T), dot(B, B)); float sc = (det == 0.0) ? 0.0 : inversesqrt(det);
             return normalize(T * (mapN.x * sc) + B * (mapN.y * sc) + N * mapN.z);
           }
-          vec4 gA, gB, gC;`,
+          vec4 gA, gB, gC;
+          float gh(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+          float gn(vec2 p) { vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f); return mix(mix(gh(i), gh(i + vec2(1.0, 0.0)), u.x), mix(gh(i + vec2(0.0, 1.0)), gh(i + vec2(1.0, 1.0)), u.x), u.y); }`,
         )
         .replace(
           '#include <map_fragment>',
@@ -82,6 +90,14 @@ export class GroundSystem extends createSystem({}) {
           gC = mix(texture2D(tMdr, uvC), texture2D(tMdr, uvC2), 0.4);
           vec3 zw = vZone / max(vZone.x + vZone.y + vZone.z, 1e-3);
           diffuseColor.rgb = gA.rgb * zw.x + gB.rgb * zw.y + gC.rgb * zw.z;
+          // Break up the repeat and the flat brown: large soft colour patches (moss, dry earth, dark soil) and a fine detail grain that
+          // keeps the surface sharp close up, both from cheap noise.
+          float big = gn(vWUv * 0.07) * 0.6 + gn(vWUv * 0.21 + 9.0) * 0.4;
+          float mid = gn(vWUv * 0.9);
+          float fine = gn(vWUv * 7.0) * 0.5 + gn(vWUv * 19.0) * 0.5;
+          vec3 patchTint = mix(vec3(0.78, 0.92, 0.62), vec3(1.18, 1.04, 0.84), smoothstep(0.3, 0.7, big));
+          patchTint = mix(patchTint, vec3(0.82, 0.78, 0.74), smoothstep(0.62, 0.8, gn(vWUv * 0.13 + 31.0)) * 0.6);
+          diffuseColor.rgb *= patchTint * (0.86 + 0.28 * mid) * (0.82 + 0.36 * fine);
           // Wet banks: the mud zone is darker and glossier.
           diffuseColor.rgb *= 1.0 - 0.38 * zw.z;`,
         )

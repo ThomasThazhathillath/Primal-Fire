@@ -54,7 +54,7 @@ const MODELS: Record<Species, Part[]> = {
   ],
 };
 
-const sphereUnit = new SphereGeometry(1, 12, 9);
+const sphereUnit = new SphereGeometry(1, 9, 7);
 const cylUnit = new CylinderGeometry(0.8, 1, 1, 8, 1);
 
 function buildGeometry(parts: Part[]): BufferGeometry {

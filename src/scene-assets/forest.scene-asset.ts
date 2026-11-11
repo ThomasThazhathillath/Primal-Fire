@@ -252,7 +252,7 @@ export function createUndergrowth(): Object3D {
   // Fallen logs: decorative trunks lying in the leaf litter.
   const LOGS = FALLEN_TRUNKS.length;
   // A rounder trunk with bark streaks and moss on the upper side baked into vertex colours (12 sides, 5 rings).
-  const logGeo = new CylinderGeometry(0.16, 0.2, 1, 12, 5).rotateZ(Math.PI / 2);
+  const logGeo = new CylinderGeometry(0.16, 0.2, 1, 10, 3).rotateZ(Math.PI / 2);
   {
     const pos = logGeo.attributes.position;
     const lc = new Float32Array(pos.count * 3);
@@ -307,8 +307,8 @@ export function createMountains(): Object3D {
   ];
   // Each ridge is a grid (SEG around, ROWS up) with ridged-noise crags, a treeline of dark green on the lower slopes of the nearer ranges and
   // snow on the high peaks of the farther ones, all in vertex colours (still one unlit draw call per ridge).
-  const SEG = 256;
-  const ROWS = 7;
+  const SEG = 160;
+  const ROWS = 5;
   layers.forEach(([radius, peak, freq, seed, haze, stone], li) => {
     const V = (SEG + 1) * (ROWS + 1);
     const verts = new Float32Array(V * 3);

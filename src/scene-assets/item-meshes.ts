@@ -246,12 +246,27 @@ const ITEM_LOOK: Partial<Record<ItemId, ResourceLook>> = {
 const itemCache = new Map<ItemId, Object3D>();
 
 /** A hand-sized mesh for an item you hold or place. */
+/** A fish: silver-blue raw, browned and opaque once cooked (the colour change is what you read at a glance). */
+export const FISH_COLORS = { raw: 0x8fa7b3, cooked: 0xc4864a };
+function fishMesh(cooked: boolean): Group {
+  const col = cooked ? FISH_COLORS.cooked : FISH_COLORS.raw;
+  const g = new Group();
+  const body = new Mesh(new SphereGeometry(0.5, 10, 6), lambert(col));
+  body.scale.set(0.3, 0.07, 0.1);
+  g.add(at(body, 0, 0.04, 0));
+  const tail = new Mesh(new ConeGeometry(0.05, 0.1, 4), lambert(col));
+  g.add(at(tail, -0.17, 0.04, 0, 0, 0, Math.PI / 2));
+  return g;
+}
+
 export function itemMesh(id: ItemId): Object3D {
   let proto = itemCache.get(id);
   if (!proto) {
     const look = ITEM_LOOK[id];
     const tool = toolMesh(id);
-    if (tool) {
+    if (id === 'fish' || id === 'cookedFish') {
+      proto = fishMesh(id === 'cookedFish');
+    } else if (tool) {
       proto = tool;
     } else if (look) {
       proto = builders[look]();

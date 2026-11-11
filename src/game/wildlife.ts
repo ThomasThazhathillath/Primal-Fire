@@ -325,13 +325,14 @@ export class Wildlife {
       this.awayGoal(a, ctx.px, ctx.pz, 18);
       this.enter(a, 'flee', 2.5);
     }
-    if (a.state !== 'flee' && a.state !== 'run' && a.state !== 'alert') {
+    if (a.state !== 'flee' && a.state !== 'run') {
       const sleepy = a.state === 'sleep';
+      // An alert deer still bolts once you come close (alert used to skip this check and never fled).
       if (threat < (sleepy ? P.flee * 0.6 : P.flee)) {
         this.awayGoal(a, ctx.px, ctx.pz, 22);
         this.enter(a, 'flee', 2.5);
         this.emit('flee', a);
-      } else if (threat < (sleepy ? P.alert * 0.4 : P.alert)) {
+      } else if (a.state !== 'alert' && threat < (sleepy ? P.alert * 0.4 : P.alert)) {
         this.enter(a, 'alert', 0);
         this.emit('alert', a);
       }

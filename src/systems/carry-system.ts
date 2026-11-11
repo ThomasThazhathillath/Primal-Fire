@@ -10,14 +10,15 @@
 //   Desktop: held low on the right (two-handed: across the bottom of the
 //       view); G drops it, Shift+G throws it.
 
-import { Box3, createSystem, Group, type Object3D, Quaternion, Vector3, VisibilityState } from '@iwsdk/core';
+import { Box3, Color, createSystem, Group, Mesh, type MeshLambertMaterial, type Object3D, Quaternion, Vector3, VisibilityState } from '@iwsdk/core';
 import { tiltDegrees } from '../game/gestures.js';
 import { throwImpulse } from '../game/handmotion.js';
 import { distanceToAxis, GripBlend, TwoHandGrip, TwoHandPose } from '../game/twohand.js';
 import { followStiffness, springStep, VelocityTracker } from '../game/carry.js';
 import type { GameEvent } from '../game/game.js';
+import { COOK_SECONDS } from '../game/food.js';
 import { carryRules, ITEM_PHYSICS, ITEMS, twoHanded, type ItemId } from '../game/items.js';
-import { itemMesh } from '../scene-assets/item-meshes.js';
+import { FISH_COLORS, itemMesh } from '../scene-assets/item-meshes.js';
 import { hands } from './hand-input-system.js';
 import { releaseKind, restHeight } from '../game/pinch.js';
 import { groundHeight } from '../game/world-layout.js';
@@ -115,6 +116,11 @@ export class CarrySystem extends createSystem({}) {
     this.box.getSize(this.tmp);
     if (this.tmp.z > this.tmp.x && this.tmp.z >= this.tmp.y) inner.rotation.y = Math.PI / 2;
     else if (this.tmp.y > this.tmp.x && this.tmp.y > this.tmp.z) inner.rotation.z = Math.PI / 2;
+    // A raw fish in hand browns as it cooks: it gets its own materials to tint.
+    if (item === 'fish') inner.traverse((o) => {
+      const m = o as Mesh;
+      if (m.isMesh) m.material = (m.material as MeshLambertMaterial).clone();
+    });
     inner.updateMatrixWorld(true);
     this.box.setFromObject(inner).getCenter(this.tmp);
     inner.position.sub(this.tmp);
@@ -126,6 +132,7 @@ export class CarrySystem extends createSystem({}) {
     if (this.obj) this.root.remove(this.obj);
     this.obj = null;
     this.item = item;
+    this.fishK = -1;
     if (!item) {
       handClaims.grabbing[0] = handClaims.grabbing[1] = false;
       return;
@@ -304,10 +311,25 @@ export class CarrySystem extends createSystem({}) {
     this.markIdx = i;
   }
 
+  private fishRaw = new Color(FISH_COLORS.raw);
+  private fishCooked = new Color(FISH_COLORS.cooked);
+  private fishK = -1;
+  /** Held raw fish: its colour follows the cooking progress over the fire (silver-blue to browned). */
+  private tintFish(): void {
+    const k = Math.round(Math.min(1, getGame(this.world).food.cook / COOK_SECONDS) * 20) / 20;
+    if (k === this.fishK || !this.obj) return;
+    this.fishK = k;
+    this.obj.traverse((o) => {
+      const m = o as Mesh;
+      if (m.isMesh) (m.material as MeshLambertMaterial).color.copy(this.fishRaw).lerp(this.fishCooked, k);
+    });
+  }
+
   update(delta: number): void {
     const dt = Math.min(delta, 0.05);
     this.clock += dt;
     this.dtNow = dt;
+    if (this.obj && this.item === 'fish') this.tintFish();
     if (!this.obj || !this.item) return;
     const nHands = this.computeTarget();
     this.assist(dt);

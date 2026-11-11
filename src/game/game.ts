@@ -220,6 +220,8 @@ export class Game {
   private trackAges = new Set<string>();
   private trackT = 0;
   private wildSeen = new Set<string>();
+  /** Seconds each species has been in view and in range (a 'seen' event needs about a second). */
+  private wildLook = new Map<string, number>();
   /** Calls and splashes for the ambience system to voice (drained there). */
   readonly wildAudio: import('./wildlife.js').WildEvent[] = [];
   private nextDropId = 1;
@@ -736,11 +738,20 @@ export class Game {
     for (const a of w.animals) {
       if (!a.active || a.hidden) continue;
       const d = Math.hypot(a.x - this.player.x, a.z - this.player.z);
+      // "Seen" needs the animal in your view (within ~35 degrees of where you face), in range, for a moment:
+      // an animal behind you or one that was just near you at the wake-up never counts.
       if (d > 5 && d < 24) {
         const id = `wild.${a.species}.seen`;
         if (!this.wildSeen.has(id)) {
-          this.wildSeen.add(id);
-          this.science(id);
+          const dot = (-Math.sin(this.facingYaw) * (a.x - this.player.x) + -Math.cos(this.facingYaw) * (a.z - this.player.z)) / d;
+          if (dot > 0.82) {
+            const t = (this.wildLook.get(id) ?? 0) + dt;
+            this.wildLook.set(id, t);
+            if (t >= 1) {
+              this.wildSeen.add(id);
+              this.science(id);
+            }
+          } else this.wildLook.set(id, 0);
         }
       }
       if (a.species === 'deer' && d < 20 && this.env.fog > 0.5 && (a.state === 'graze' || a.state === 'idle')) this.science('wild.mist.deer');

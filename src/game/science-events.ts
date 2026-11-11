@@ -133,6 +133,7 @@ export const SCIENCE_EVENTS = {
   'food.fish.startled': 'Fish bolted when the player rushed the bank.',
   'food.fish.cleaned': 'A fish was gutted and washed.',
   'food.fish.dried': 'Fish was dried on a rack.',
+  'food.spoiled': 'Fresh food spoiled: moisture and warmth let microbes grow.',
   'food.berries.dried': 'Berries were dried on a rack.',
   'food.rack.loaded': 'Food was hung on a drying rack.',
   'food.preserved.eaten': 'Preserved food was eaten.',

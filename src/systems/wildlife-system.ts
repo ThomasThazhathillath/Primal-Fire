@@ -174,7 +174,7 @@ export class WildlifeSystem extends createSystem({}) {
         d.scale.setScalar(0.0001);
       } else {
         const age = game.time - p.born;
-        const fade = Math.max(0, 1 - age / TRACK_LIFE);
+        const fade = Math.max(p.seeded ? 0.3 : 0, 1 - age / TRACK_LIFE);
         d.position.set(p.x + Math.cos(p.heading) * (p.side ? 0.12 : -0.12), tr.y(p), p.z - Math.sin(p.heading) * (p.side ? 0.12 : -0.12));
         d.rotation.set(0, p.heading, 0);
         const sz = p.species === 'deer' ? 1 : 0.55;

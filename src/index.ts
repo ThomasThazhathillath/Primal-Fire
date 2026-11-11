@@ -24,6 +24,7 @@ import { DesktopControlsSystem } from './systems/desktop-controls-system.js';
 import { WorldEnvironmentSystem } from './systems/environment-system.js';
 import { NatureSystem } from './systems/nature-system.js';
 import { WildlifeSystem } from './systems/wildlife-system.js';
+import { LivingDetailSystem } from './systems/living-detail-system.js';
 import { ResourceDebugSystem } from './systems/resource-debug-system.js';
 import { AmbienceSystem } from './systems/ambience-system.js';
 import { DropSystem } from './systems/drop-system.js';
@@ -73,6 +74,7 @@ World.create(
     .registerSystem(WorldEnvironmentSystem)
     .registerSystem(NatureSystem)
     .registerSystem(WildlifeSystem)
+    .registerSystem(LivingDetailSystem)
     .registerSystem(ResourceDebugSystem)
     // Hand state and the direct pinch grab run before IWSDK's input system (-5), so a grab claims its pinch before any ray press does.
     .registerSystem(HandInputSystem, { priority: -6 })

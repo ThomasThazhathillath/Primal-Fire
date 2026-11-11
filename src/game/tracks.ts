@@ -24,6 +24,8 @@ export interface Print {
   /** Alternate left/right foot for the pair offset. */
   side: number;
   live: boolean;
+  /** A quest-trail print: has its own slots and never expires, so fresh/old can always be compared. */
+  seeded?: boolean;
 }
 
 export type Freshness = 'fresh' | 'recent' | 'old';
@@ -35,6 +37,9 @@ export class Tracks {
   /** Bumped whenever a print is added or removed (so the renderer knows to rebuild). */
   version = 0;
   private next = 0;
+  /** Slots [0, reserved) hold the seeded trails; animals' prints cycle through the rest. */
+  private reserved = 0;
+  private seeding = true;
   private lastX = new Map<number, number>();
   private lastZ = new Map<number, number>();
 
@@ -85,11 +90,14 @@ export class Tracks {
         this.add(x, z, heading, tr.species, -(tr.ageBase + i * 3), i);
       }
     });
+    this.seeding = false;
+    this.reserved = this.next;
   }
 
   private add(x: number, z: number, heading: number, species: Species, born: number, side: number): void {
     const p = this.prints[this.next];
-    this.next = (this.next + 1) % TRACK_CAP;
+    p.seeded = this.seeding;
+    this.next = this.seeding ? this.next + 1 : this.reserved + ((this.next + 1 - this.reserved) % (TRACK_CAP - this.reserved));
     p.x = x;
     p.z = z;
     p.heading = heading;
@@ -121,7 +129,7 @@ export class Tracks {
 
   /** Remove prints that have faded away. */
   expire(now: number): void {
-    for (const p of this.prints) if (p.live && now - p.born > TRACK_LIFE) {
+    for (const p of this.prints) if (p.live && !p.seeded && now - p.born > TRACK_LIFE) {
       p.live = false;
       this.version++;
     }

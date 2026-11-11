@@ -10,7 +10,7 @@
 //             and in light, then harvest it.
 
 import type { Game } from './game.js';
-import type { ItemId } from './items.js';
+import { type ItemId, itemName } from './items.js';
 import { FORAGE_PATCHES, FORAGE_REGROW } from './forage.js';
 import { mulberry32, type Rng } from './rng.js';
 import { nearestTreeDistance, STREAM, STREAM_BANK, STREAM_HALF_WIDTH, streamDistance } from './world-layout.js';
@@ -139,7 +139,17 @@ export const WILD_TUBERS: ReadonlyArray<{ x: number; z: number }> = [
 /** Seconds over a burning fire to cook a fish through. */
 export const COOK_SECONDS = 8;
 
+/** Seconds of game time a stack of each food keeps before one of it goes bad. Preserved food lasts far longer; nuts and seeds keep. */
+export const SHELF_LIFE: Partial<Record<ItemId, number>> = { fish: 360, cookedFish: 720, berries: 540, tuber: 2400, driedFish: 6000 };
+/** The share of its shelf life after which a stack is shown as going off. */
+export const AGEING_AT = 0.6;
+export type Freshness = 'fresh' | 'ageing' | 'keeps';
+
 export interface FoodSave {
+  /** Seconds each rack has been drying its current batch, by structure id (so a reload does not restart it). */
+  rack?: Record<number, number>;
+  /** Age (s) of the satchel stack of each perishable food. */
+  spoil?: Record<string, number>;
   plots: Plot[];
   wild?: number[];
   /** Seconds until each foraging patch regrows. */
@@ -374,6 +384,39 @@ export class FoodState {
     }
   }
 
+  // ---- spoilage: a stack in the satchel ages; at its shelf life one item goes bad, then one more every 15% of it.
+  private spoilAge = new Map<string, number>();
+  private spoilCount = new Map<string, number>();
+  private tickSpoil(dt: number): void {
+    const g = this.g;
+    for (const key of Object.keys(SHELF_LIFE)) {
+      const id = key as ItemId;
+      const life = SHELF_LIFE[id]!;
+      const n = g.count(id);
+      const was = this.spoilCount.get(id) ?? n;
+      let age = this.spoilAge.get(id) ?? 0;
+      // New items join fresh: the stack's age is the average.
+      if (n > was && n > 0) age = (age * was) / n;
+      if (n === 0) age = 0;
+      else age += dt;
+      if (n > 0 && age >= life) {
+        g.useItem(id);
+        age = life * 0.85;
+        g.toast(`One ${itemName(id).toLowerCase()} has spoiled. Food rots as microbes grow in it: cook it, dry it, or eat it soon.`, 'bad');
+        g.science('food.spoiled');
+      }
+      this.spoilAge.set(id, age);
+      this.spoilCount.set(id, g.count(id));
+    }
+  }
+
+  /** How fresh the stack of `id` in the satchel is (for the satchel and notebook). */
+  freshnessOf(id: ItemId): Freshness {
+    const life = SHELF_LIFE[id];
+    if (!life) return 'keeps';
+    return (this.spoilAge.get(id) ?? 0) >= life * AGEING_AT ? 'ageing' : 'fresh';
+  }
+
   /** Drying progresses in the open air and stops in rain; an uncovered woodpile gets wet in rain. */
   private campT = 0;
   private rackT = new Map<number, number>();
@@ -445,6 +488,7 @@ export class FoodState {
     for (let i = 0; i < this.forage.length; i++) this.forage[i] = Math.max(0, this.forage[i] - dt);
     this.tickStages();
     this.tickCamp(dt);
+    this.tickSpoil(dt);
     // Cooking only counts while the fish is held over the fire.
     if (this.g.held !== 'fish') this.cook = 0;
   }
@@ -621,12 +665,22 @@ export class FoodState {
   }
 
   snapshot(): FoodSave {
-    return { plots: this.plots.map((p) => ({ ...p })), wild: [...this.wild], forage: [...this.forage], cook: 0, nextId: this.nextId };
+    return {
+      plots: this.plots.map((p) => ({ ...p })),
+      wild: [...this.wild],
+      forage: [...this.forage],
+      cook: 0,
+      nextId: this.nextId,
+      rack: Object.fromEntries(this.rackT),
+      spoil: Object.fromEntries(this.spoilAge),
+    };
   }
 
   restore(s: FoodSave): void {
     this.plots.push(...s.plots.map((p) => ({ ...p })));
     this.nextId = Math.max(this.nextId, s.nextId);
+    for (const [k, v] of Object.entries(s.rack ?? {})) this.rackT.set(Number(k), v);
+    for (const [k, v] of Object.entries(s.spoil ?? {})) this.spoilAge.set(k, v);
     s.wild?.forEach((v, i) => i < this.wild.length && (this.wild[i] = v));
     s.forage?.forEach((v, i) => i < this.forage.length && (this.forage[i] = v));
     // Plants already past a stage in the save do not re-announce it.

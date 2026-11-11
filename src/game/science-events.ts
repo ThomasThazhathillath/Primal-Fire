@@ -81,6 +81,11 @@ export const SCIENCE_EVENTS = {
   'hunt.fletch.made': 'Feathers were added to an arrow.',
   'hunt.arrow.fly': 'An arrow was shot.',
   'hunt.arrow.hit': 'An arrow hit its target.',
+  'wild.deer.seen': 'A deer was watched from a distance.',
+  'wild.deer.fled': 'Deer fled from the player.',
+  'wild.rabbit.seen': 'A rabbit was seen near its burrow.',
+  'wild.bird.seen': 'A bird was watched in a tree.',
+  'wild.quiet.approach': 'Player came close to wildlife by moving slowly.',
   'nature.foodchain.seen': 'A predator was seen near its prey.',
   'nature.predator.near': 'A predator noticed the player.',
 

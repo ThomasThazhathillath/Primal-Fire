@@ -2,6 +2,7 @@
 // call these actions and react to the events; tests drive them directly.
 
 import { type StorySave, StoryTracker } from './story.js';
+import { Wildlife } from './wildlife.js';
 import { Environment, type EnvironmentSave } from './environment.js';
 import { actionFor } from './actions.js';
 import { BENCH_BY_ID, BenchSession, canStart, missingText, type BenchMotion } from './bench.js';
@@ -203,6 +204,11 @@ export class Game {
   readonly drops: WorldDrop[] = [];
   /** Time of day and weather (EnvironmentSystem renders it). */
   readonly env = new Environment();
+  /** Deer, rabbits and birds (deterministic, not saved). */
+  readonly wildlife = new Wildlife();
+  private wildSeen = new Set<string>();
+  /** Calls and splashes for the ambience system to voice (drained there). */
+  readonly wildAudio: import('./wildlife.js').WildEvent[] = [];
   private nextDropId = 1;
   readonly discovered = new Set<string>(LANDMARKS.filter((l) => l.known).map((l) => l.id));
   readonly log: EventLog;
@@ -684,9 +690,36 @@ export class Game {
     this.fire.tick(dt);
     this.water.tick(dt);
     this.food.tick(dt);
+    this.tickWildlife(dt);
     if (this.moveLimits.encumbrance !== 'light') {
       if ((this.heavyTime += dt) > 30) this.science('body.carry.heavy');
     } else this.heavyTime = 0;
+  }
+
+  /** Step the animals and turn what you watch of them into science events. */
+  private tickWildlife(dt: number): void {
+    const w = this.wildlife;
+    w.update(dt, { px: this.player.x, pz: this.player.z, hour: this.env.hour });
+    for (const a of w.animals) {
+      if (!a.active || a.hidden) continue;
+      const d = Math.hypot(a.x - this.player.x, a.z - this.player.z);
+      if (d > 5 && d < 24) {
+        const id = `wild.${a.species}.seen`;
+        if (!this.wildSeen.has(id)) {
+          this.wildSeen.add(id);
+          this.science(id);
+        }
+      }
+      if (a.species === 'deer' && d < 14 && w.playerSpeed < 0.6 && a.state !== 'flee' && a.state !== 'run' && !this.wildSeen.has('quiet')) {
+        this.wildSeen.add('quiet');
+        this.science('wild.quiet.approach');
+      }
+    }
+    for (const e of w.events) {
+      if (e.species === 'deer' && e.kind === 'flee') this.science('wild.deer.fled');
+      if ((e.kind === 'call' || e.kind === 'startle') && this.wildAudio.length < 8) this.wildAudio.push(e);
+    }
+    w.events.length = 0;
   }
 
   setPlayerPosition(x: number, z: number): void {

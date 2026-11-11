@@ -197,9 +197,19 @@ export class AmbienceSystem extends createSystem({}) {
   }
 
   /** A bird phrase: a few rising/falling whistles with a per-bird voice. */
-  private bird(): void {
+  private bird(at?: { x: number; z: number; y: number }): void {
     const ctx = this.ctx!;
-    const dest = this.around(6 + Math.random() * 14);
+    let dest: AudioNode;
+    if (at) {
+      const p = ctx.createPanner();
+      p.panningModel = 'equalpower';
+      p.refDistance = 3;
+      p.positionX.value = at.x;
+      p.positionY.value = at.y;
+      p.positionZ.value = at.z;
+      p.connect(this.out!);
+      dest = p;
+    } else dest = this.around(6 + Math.random() * 14);
     const base = 2200 + Math.random() * 2200;
     const notes = 2 + Math.floor(Math.random() * 5);
     const style = Math.random();
@@ -324,7 +334,11 @@ export class AmbienceSystem extends createSystem({}) {
       L.upZ.value = 0;
     }
 
-    const env = getGame(this.world).env;
+    const game = getGame(this.world);
+    // Calls of the birds you can see, from where they sit.
+    for (const e of game.wildAudio) if (e.species === 'bird') this.bird({ x: e.x, y: 6, z: e.z });
+    game.wildAudio.length = 0;
+    const env = game.env;
     const h = env.hour;
     const day = 1 - env.night;
     const calm = 1 - Math.min(1, env.rain * 1.5);

@@ -87,6 +87,8 @@ export const SCIENCE_EVENTS = {
   'hunt.arrow.hit': 'An arrow hit its target.',
   'wild.deer.seen': 'A deer was watched from a distance.',
   'wild.deer.fled': 'Deer fled from the player.',
+  'wild.mist.deer': 'A deer was watched grazing in the mist.',
+  'wild.evening.rest': 'Deer were seen heading to rest at dusk.',
   'wild.deer.drank': 'A deer was watched drinking at the stream.',
   'wild.rabbit.seen': 'A rabbit was seen near its burrow.',
   'wild.bird.seen': 'A bird was watched in a tree.',

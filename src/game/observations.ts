@@ -7,6 +7,7 @@
 import type { ScienceEventId } from './science-events.js';
 
 export type ObservationGroup =
+  | 'living'
   | 'gather'
   | 'build'
   | 'fire'
@@ -45,6 +46,7 @@ export const OBSERVATION_GROUPS: Record<ObservationGroup, string> = {
   hunt: 'Hunting',
   body: 'Your body',
   nature: 'Nature',
+  living: 'Living world',
 };
 
 const BASE_OBSERVATIONS: Record<string, Observation> = {
@@ -791,11 +793,123 @@ const SURVIVAL_OBSERVATIONS: Record<string, Observation> = {
   },
 };
 
+
+const LIVING_OBSERVATIONS: Record<string, Observation> = {
+  l_mist: {
+    group: 'living',
+    trigger: 'wild.mist.deer',
+    title: 'Mist hides you',
+    obs: 'In the mist the deer kept grazing while you stood closer than usual.',
+    pri: 'Fog scatters light and muffles sound, so animals see and hear you only from a short way off. Dawn mist is when a careful watcher can get nearest.',
+    lim: 'The animals still smell you, and wet leaves underfoot can crack loudly.',
+    why: 'Why could you get closer in the mist?',
+  },
+  l_dusk: {
+    group: 'living',
+    trigger: 'wild.evening.rest',
+    title: 'Animals keep a daily clock',
+    obs: 'At dusk the deer left the meadow and walked toward the trees to rest.',
+    pri: 'Many animals feed at dawn and dusk and rest in cover in the dark, when predators hunt by night and they cannot see well. Habits like this are why tracks and sightings cluster at certain hours.',
+    lim: 'Habits shift with weather, season and how often they are disturbed.',
+    why: 'Why might deer rest in the trees at night?',
+  },
+  l_alert: {
+    group: 'living',
+    trigger: 'wild.deer.fled',
+    title: 'Deer notice you first',
+    obs: 'The deer lifted their heads, then bolted before you got close.',
+    pri: 'Prey animals spend their day watching. Wide-set eyes see almost all around, and big ears catch footsteps. Fleeing early costs little; being caught costs everything.',
+    lim: 'A hunter has to work with this: approach slowly, upwind, and stay quiet.',
+    why: 'Why did they run before you were close?',
+  },
+  l_quiet: {
+    group: 'living',
+    trigger: 'wild.quiet.approach',
+    title: 'Slow is quiet',
+    obs: 'You came close to a deer by moving slowly and stopping often.',
+    pri: 'Every step makes sound and vibration, and fast movement stands out against still scenery. Slow, steady movement makes less of both, so animals read it as harmless for longer.',
+    lim: 'Even a perfect approach fails if the wind carries your smell toward the animal.',
+    why: 'What made this approach work when running did not?',
+  },
+  l_age: {
+    group: 'living',
+    trigger: 'hunt.track.fresh',
+    title: "Reading a track's age",
+    obs: 'You compared a sharp dark track with a blurred pale one.',
+    pri: 'A fresh print has crisp edges and dark, damp soil. Wind, rain and sun round the edges and dry the soil, so old prints look soft and pale. Comparing prints shows which way and how long ago something passed.',
+    lim: 'Rain or hard ground can make a track look much older or younger than it is.',
+    why: 'How could you tell which track was the newer one?',
+  },
+  l_sprout: {
+    group: 'living',
+    trigger: 'farm.stage.sprout',
+    title: 'From seed to shoot',
+    obs: 'A seed in wet soil put out a green shoot.',
+    pri: 'A seed is a tiny plant with stored food. Water wakes it, and it uses that store to push a root down and a shoot up until its first leaves can make food from light.',
+    lim: 'A seed that dries out again, or lies too deep, may not recover.',
+    why: 'What did the seed need before it could sprout?',
+  },
+  l_seeds: {
+    group: 'living',
+    trigger: 'farm.seeds.saved',
+    title: 'Saving seed',
+    obs: 'You kept seeds from your harvest to plant again.',
+    pri: 'Part of every crop is its next generation. A farmer who keeps some seed each year never has to find wild plants again, and can pick the best plants to save from.',
+    lim: 'Saved seed from a poor plant gives poor plants: save from the best.',
+    why: 'Why keep some of the crop instead of eating all of it?',
+  },
+  l_lookalike: {
+    group: 'living',
+    trigger: 'food.forage.avoided',
+    title: 'Look-alikes kill',
+    obs: 'You left a plant alone because it matched an edible one only at a glance.',
+    pri: 'Many safe plants have poisonous cousins. Safe identification means checking several features together: berries, leaves, stems, smell. If you cannot name it with certainty, it is not food.',
+    lim: 'A single feature, like colour, is never enough to trust a wild plant.',
+    why: 'Which features could tell the safe plant from its look-alike?',
+  },
+  l_clean: {
+    group: 'living',
+    trigger: 'food.fish.cleaned',
+    title: 'Why gut a fish',
+    obs: 'You gutted the fish with a sharp edge and washed it in the stream.',
+    pri: 'The gut holds bacteria and enzymes that start spoiling the meat within hours. Removing it and rinsing with running water slows spoilage; cooking then kills what is left.',
+    lim: 'Washing in a dirty stream can add germs. Cooking is still what makes it safe.',
+    why: 'What spoils a fish first?',
+  },
+  l_dry: {
+    group: 'living',
+    trigger: 'food.fish.dried',
+    title: 'Dry food keeps',
+    obs: 'Fish hung in the air dried hard and light.',
+    pri: 'Germs and moulds need water to grow. Moving air and warmth carry the water out of thin strips of meat until too little remains for them. This is the oldest way to keep food.',
+    lim: 'Drying fails in damp air or rain, and a thick piece can rot in the middle.',
+    why: 'Why does removing water stop food from spoiling?',
+  },
+  l_woodrain: {
+    group: 'living',
+    trigger: 'camp.wood.kept.dry',
+    title: 'Keep fuel dry',
+    obs: 'Rain fell and the covered wood stayed dry.',
+    pri: "Wet wood must boil its water away before it burns, which uses up most of the fire's heat. Raised logs under a cover let rain run off and air circulate.",
+    lim: 'A cover that touches the ground wicks up damp, and damp wood still smoulders badly.',
+    why: 'Why would wet wood make a poor fire?',
+  },
+  l_bed: {
+    group: 'living',
+    trigger: 'camp.bed.rested',
+    title: 'Ground steals heat',
+    obs: 'You lay on layers of leaves and grass instead of bare earth.',
+    pri: 'Cold ground pulls heat out of your body by direct contact. Dry leaves and grass trap still air, a very poor conductor, so less of your warmth escapes.',
+    lim: 'Damp bedding conducts heat away as fast as bare ground.',
+    why: 'Why is a thick bed warmer than the bare ground?',
+  },
+};
+
 export const OBSERVATIONS: Record<string, Observation> = {};
 for (const [id, o] of Object.entries(BASE_OBSERVATIONS)) {
   OBSERVATIONS[id] = { ...o, ...BASE_META[id] };
 }
-Object.assign(OBSERVATIONS, SURVIVAL_OBSERVATIONS);
+Object.assign(OBSERVATIONS, SURVIVAL_OBSERVATIONS, LIVING_OBSERVATIONS);
 
 export const OBSERVATION_COUNT = Object.keys(OBSERVATIONS).length;
 

@@ -34,3 +34,8 @@ Baseline on `main` (3d9c8a3), initial forest, 4 s sample: **512 draw calls (ster
 
 ## What is and is not claimed
 Unit-tested means vitest. Emulator-tested means driven in IWER with screenshots. Nothing in this phase is Quest-tested.
+
+## As built (differences from the plan above)
+- Milestones C, D and E went into one commit because they share `food.ts` and the build book. Crop stages live in `food.ts` (no `crops.ts`); tracks render inside `wildlife-system.ts` (no `track-system.ts`).
+- Notebook count: 80 to 92 entries. Field tasks do not use the quest chain; they live in `living-quests.ts` and save as `living`.
+- Spoilage is not simulated: preservation is the drying rack (fish becomes dried fish).

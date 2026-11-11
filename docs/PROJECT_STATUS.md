@@ -71,6 +71,20 @@ Meta VR Start Developer Competition 2026 · Gaming track · New Experience divis
 4. A final GitHub Pages build, kept frozen until about Dec 11.
 5. The Devpost entry, submitted by **Nov 18, 12:00 PM PT**.
 
+### Phase 3: The Living World (branch `claude/phase3-living-world`, not merged)
+
+Plan and audit: [PHASE3_LIVING_WORLD_PLAN.md](PHASE3_LIVING_WORLD_PLAN.md); brief: [PHASE3_LIVING_WORLD_SPEC.md](PHASE3_LIVING_WORLD_SPEC.md).
+
+- **Wildlife** (`wildlife.ts`, `wildlife-system.ts`): 3 deer, 5 rabbits, 6 birds. Idle, graze, walk, run, drink, sleep, alert, flee, perch, fly; evening and night routines; mist lets you come closer; distance activation (38 m) and parking; birds call from where they sit. Fish now come in small schools with three sizes and bolt if you rush the bank.
+- **Tracks** (`tracks.ts`): footprints dropped by walking animals plus three seeded old trails; read by standing on them (species, fresh vs old, following a trail). `hunt.track.found` is now emitted (before, the Hunt step could not complete).
+- **Farming** (`food.ts`, `farm-system.ts`): five growth stages with events, seeds returned from every harvest, stage visuals.
+- **Food** (`food.ts`, `forage.ts`): 10 foraging patches (berries, nuts, roots; some poisonous look-alikes) with inspect-then-pick; gutting fish; drying rack; new items berries, nuts, dried fish.
+- **Camp** (`blueprint.ts`): drying rack, firewood stack (bark cover keeps wood dry in rain), sleeping bed, food in the storage basket. All saved with the structures.
+- **Quests** (`living-quests.ts`): seven non-linear field tasks judged from state, saved in `living`, shown on the HUD quest details; three light new Roadmap nodes (ecology, agri, preserve). 12 new notebook entries.
+- **Tests:** 615 unit tests (about 18 new in `wildlife`, `tracks`, `living-food`). Emulator checks: wildlife state changes, an instanced deer at its simulated position, footprints in the meadow, a berry bush, perf sample.
+- **Perf:** adds 6 draw calls mono (3 species, 1 tracks, 2 forage). Samples after begin: 245 draw calls, 231k triangles, CPU 4.2 ms, in the IWER browser. The earlier baseline (512 draw calls, 474k triangles) was taken in a different view and cannot be compared directly. Not measured on a Quest.
+- **Not verified:** a full playthrough of the seven quests in the emulator, rain and fog behaviour live, the rack/stack/bed in the 3D build flow (rendered only as generic snap spots), anything on a headset.
+
 ### Docs index
 
 | Doc | What it is |
@@ -80,7 +94,7 @@ Meta VR Start Developer Competition 2026 · Gaming track · New Experience divis
 | [PERF_REPORT.md](PERF_REPORT.md) | Measured performance, before and after, and the Quest checklist |
 | [SETUP.md](SETUP.md) | Setup and hosting |
 | Specs (the user's briefs, verbatim) | [HANDS_ONLY_SPEC](HANDS_ONLY_SPEC.md) · [QUEST_GUIDANCE_SPEC](QUEST_GUIDANCE_SPEC.md) · [SKY_SPEC](SKY_SPEC.md) · [CORE_GAMEPLAY_SPEC](CORE_GAMEPLAY_SPEC.md) · [TUTORIAL_USABILITY_SPEC](TUTORIAL_USABILITY_SPEC.md) · [STORY_CHAPTER1_SPEC](STORY_CHAPTER1_SPEC.md) · [GAZE_PINCH_90FPS_SPEC](GAZE_PINCH_90FPS_SPEC.md) · [CHAPTER2_SHELTER_SPEC](CHAPTER2_SHELTER_SPEC.md) |
-| Implementation plans | [STORY_CHAPTER1_PLAN](STORY_CHAPTER1_PLAN.md) · [GAZE_PINCH_90FPS_PLAN](GAZE_PINCH_90FPS_PLAN.md) · [CHAPTER2_SHELTER_PLAN](CHAPTER2_SHELTER_PLAN.md) |
+| Implementation plans | [PHASE3_LIVING_WORLD_PLAN](PHASE3_LIVING_WORLD_PLAN.md) · [STORY_CHAPTER1_PLAN](STORY_CHAPTER1_PLAN.md) · [GAZE_PINCH_90FPS_PLAN](GAZE_PINCH_90FPS_PLAN.md) · [CHAPTER2_SHELTER_PLAN](CHAPTER2_SHELTER_PLAN.md) |
 | Historical | [NEXT_PROMPT.md](NEXT_PROMPT.md) (the Oct prototype brief), [SETUP_UNITY.md](SETUP_UNITY.md) (Unity path, not used), `shots-*/` (verification screenshots) |
 
 The milestone table and lists below are the original Oct 27–28 plan, kept for history.

@@ -4,7 +4,7 @@
 import { type StorySave, StoryTracker } from './story.js';
 import { Wildlife } from './wildlife.js';
 import { freshness, Tracks } from './tracks.js';
-import { livingProgress } from './living-quests.js';
+import { LIVING_QUESTS, livingProgress } from './living-quests.js';
 import { Environment, type EnvironmentSave } from './environment.js';
 import { actionFor } from './actions.js';
 import { BENCH_BY_ID, BenchSession, canStart, missingText, type BenchMotion } from './bench.js';
@@ -721,7 +721,7 @@ export class Game {
   /** Step the animals and turn what you watch of them into science events. */
   private tickWildlife(dt: number): void {
     const w = this.wildlife;
-    w.update(dt, { px: this.player.x, pz: this.player.z, hour: this.env.hour });
+    w.update(dt, { px: this.player.x, pz: this.player.z, hour: this.env.hour, mist: this.env.fog });
     for (const a of w.animals) this.tracks.note(a, this.time);
     if ((this.trackT += dt) >= 0.5) {
       this.trackT = 0;
@@ -738,6 +738,8 @@ export class Game {
           this.science(id);
         }
       }
+      if (a.species === 'deer' && d < 20 && this.env.fog > 0.5 && (a.state === 'graze' || a.state === 'idle')) this.science('wild.mist.deer');
+      if (a.species === 'deer' && d < 26 && this.env.hour >= 18 && this.env.hour < 20.5 && a.state === 'walk') this.science('wild.evening.rest');
       if (a.species === 'deer' && d < 14 && w.playerSpeed < 0.6 && a.state !== 'flee' && a.state !== 'run' && !this.wildSeen.has('quiet')) {
         this.wildSeen.add('quiet');
         this.science('wild.quiet.approach');
@@ -1716,7 +1718,33 @@ export class Game {
   }
 
   /** The non-linear Phase 3 quests: judged from state whenever something happens. */
+  private livingSteps = new Map<string, number>();
+
+  /** The unfinished field task you are furthest along (null until you have begun one). */
+  fieldTask(): { title: string; done: number; total: number; next: string } | null {
+    let best: { title: string; done: number; total: number; next: string } | null = null;
+    for (const q of LIVING_QUESTS) {
+      if (this.living.has(q.id)) continue;
+      const done = q.steps.filter((s) => s.done(this)).length;
+      if (done === 0) continue;
+      if (!best || done / q.steps.length > best.done / best.total) {
+        const nx = q.steps.find((s) => !s.done(this));
+        best = { title: q.title, done, total: q.steps.length, next: (nx?.text(this) ?? '').replace(/\s*\[[ x]\]$/, '') };
+      }
+    }
+    return best;
+  }
+
   checkLiving(): void {
+    for (const q of LIVING_QUESTS) {
+      if (this.living.has(q.id)) continue;
+      const n = q.steps.filter((s) => s.done(this)).length;
+      const was = this.livingSteps.get(q.id) ?? 0;
+      if (n > was && n < q.steps.length) {
+        this.toast(was === 0 ? `New field task: ${q.title} (${n}/${q.steps.length}). Open the quest card to follow it.` : `${q.title}: ${n}/${q.steps.length}`, 'info');
+      }
+      this.livingSteps.set(q.id, n);
+    }
     for (const q of livingProgress(this)) {
       this.log.add(`quest complete: ${q.title}`, 'ok');
       this.addXp(100);
@@ -1899,6 +1927,7 @@ export class Game {
     g.notebook.push(...data.notebook);
     for (const e of data.events ?? []) g.events.add(e);
     for (const q of data.living ?? []) g.living.add(q);
+    for (const q of LIVING_QUESTS) g['livingSteps'].set(q.id, q.steps.filter((st) => st.done(g)).length);
     if (data.guide) g.guide.restore(data.guide);
     g.structures.push(...data.structures);
     g.nextStructureId = Math.max(0, ...data.structures.map((s) => s.id)) + 1;

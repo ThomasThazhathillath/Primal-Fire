@@ -20,7 +20,7 @@ export const LIVING_QUESTS: LivingQuest[] = [
   {
     id: 'hiddenTrail',
     title: 'The Hidden Trail',
-    roadmapNode: null,
+    roadmapNode: 'ecology',
     desc: 'The forest is not empty. Something passes through it, and it leaves a story on the ground.',
     recap: 'Every animal writes a trail: the shape of the print says who, the sharpness says how long ago, and the line of them says where.',
     steps: [
@@ -101,7 +101,7 @@ LIVING_QUESTS.push(
   {
     id: 'growingFuture',
     title: 'A Growing Future',
-    roadmapNode: null,
+    roadmapNode: 'agri',
     desc: 'Tend what you planted and watch it grow into food and into more seeds.',
     recap: 'A farm is patience: water, light and time, and part of every harvest returns to the soil as next year’s seed.',
     steps: [
@@ -127,7 +127,7 @@ LIVING_QUESTS.push(
   {
     id: 'preservingHarvest',
     title: 'Preserving the Harvest',
-    roadmapNode: null,
+    roadmapNode: 'preserve',
     desc: 'Good days end. Learn to make food last.',
     recap: 'Food spoils because water lets germs grow. Take the water out, by air, sun or smoke, and it keeps.',
     steps: [

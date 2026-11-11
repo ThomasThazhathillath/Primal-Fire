@@ -86,6 +86,8 @@ export interface WildContext {
   pz: number;
   /** Hour of day 0..24. */
   hour: number;
+  /** Mist / fog 0..1: animals see you later, so you can come closer. */
+  mist?: number;
 }
 
 const rand = (a: Animal): number => {
@@ -213,7 +215,8 @@ export class Wildlife {
     }
     this.lastPx = ctx.px;
     this.lastPz = ctx.pz;
-    const noise = Math.min(WILD.noiseMax, 1 + this.playerSpeed * WILD.noisePerSpeed);
+    // In mist they see and hear you less far away, so the same distance counts as further.
+    const noise = Math.min(WILD.noiseMax, 1 + this.playerSpeed * WILD.noisePerSpeed) * (1 - 0.35 * Math.min(1, ctx.mist ?? 0));
     for (const a of this.animals) {
       const dist = Math.hypot(a.x - ctx.px, a.z - ctx.pz);
       const was = a.active;

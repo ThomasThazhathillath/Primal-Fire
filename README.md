@@ -43,6 +43,8 @@ Add `?perf` to the URL for the developer performance overlay, or `?resdebug` for
 
 Progress saves in the browser automatically (`primal-first-fire.save.v1`, migrated safely between versions).
 
+Trees are baked with [EZ-Tree](https://github.com/dgreenheck/ez-tree) (MIT, Daniel Greenheck) by `npm run trees:bake` into `public/trees/`; see `docs/PERF_REPORT.md`.
+
 ## Project layout
 
 ```

@@ -14,7 +14,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "theme": "node scripts/ui-theme.mjs"
+    "theme": "node scripts/ui-theme.mjs",
+    "trees:bake": "node scripts/trees/bake.mjs"
   },
   "dependencies": {
     "@iwsdk/core": "1.1.0-rc.2",
@@ -24,6 +25,8 @@
     "three": "npm:super-three@0.185.0"
   },
   "devDependencies": {
+    "@dgreenheck/ez-tree": "^1.1.0",
+    "@gltf-transform/core": "^4.5.1",
     "@iwsdk/cli": "1.1.0-rc.2",
     "@iwsdk/reference": "1.1.0-rc.2",
     "@iwsdk/vite-plugin-dev": "1.1.0-rc.2",

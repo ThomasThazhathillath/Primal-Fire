@@ -105,3 +105,42 @@ Raw data: `artifacts/gaze/perf-baseline.jsonl`. Not measured: an active campfire
 On the headset: open the app with `?perf`, then check the overlay's FPS, CPU and spikes in each scenario above.
 Use OVR Metrics Tool for GPU time and the real display rate. **Do not count 90 fps as reached until the Quest
 measurements say so.**
+
+
+## Trees: baked EZ-Tree variants (branch `claude/ez-trees`)
+
+The low-poly forest (3 instanced meshes) was replaced by five baked [EZ-Tree](https://github.com/dgreenheck/ez-tree) variants
+(MIT): oak, ash, aspen, pine and a dead snag. `scripts/trees/bake.mjs` (build time only, `npm run trees:bake`) generates each at three
+levels of detail into `public/trees/*.glb` with alpha-tested leaf cards (no blending) and bark as vertex colours; the library is a
+dev dependency and is never imported by the app. `TreeSystem` draws them: one InstancedMesh per variant and level (trunk and leaves in
+one geometry), a camera-facing billboard baked at start-up beyond 26 m, instances re-bucketed by distance 10 times a second, trees
+behind you skipped, wind as a vertex sway only. Positions, collision, perching, sightlines and gaze occlusion still come from `TREES`.
+
+| Level | Distance | Triangles per tree |
+|---|---|---|
+| LOD0 | under 6 m | 2.9k to 12.2k |
+| LOD1 | 6 to 14 m | 0.5k to 2.0k |
+| LOD2 | 14 to 26 m | 0.1k to 0.6k |
+| Billboard | beyond 26 m | 2 |
+
+Small trees and the 420 understory saplings count their distance 1.2 to 2.2 times over, so they drop levels sooner.
+
+Measured in the IWER browser (flat view, clear weather, noon, 4 s sample, same script before and after). **Not a Quest.**
+
+| Viewpoint | | Draw calls | Triangles | CPU ms | Scene meshes |
+|---|---|---|---|---|---|
+| Spawn clearing | before (main a538d22) | 216 | 236,142 | 4.71 | 1713 |
+| Spawn clearing | after | 203 | 199,004 | 4.85 | 1684 |
+| Dense forest | before | 159 | 173,912 | 4.72 | 1505 |
+| Dense forest | after | 163 | 204,772 | 4.70 | 1476 |
+
+- Trees alone in the dense view: 62k triangles, 17 draw calls (3 full, 23 medium, 67 low and 438 billboard instances drawn).
+- Triangles are about 15% lower at spawn and about 18% higher in the dense forest. Draw calls and CPU are unchanged within noise.
+- Billboards are rendered once at start-up into 128 px textures per variant; the leaf textures (512 px, four of them) add about 21 MB of GPU memory with mipmaps.
+- GLB payload is about 3.8 MB in total (embedded textures).
+- Not measured: a headset. The editor preview of the scene no longer shows trees (they are runtime only).
+
+Follow-up (clean screenshots round): LOD0 foliage was made fuller (it looked skeletal), bark colours lightened, and the billboard bake
+uses flatter light so far trees no longer look pale. The table above shows the final per-level counts. The two tables of measurements
+above were taken before this change with the HUD visible; the new clean shots in `docs/shots-trees/clean-*.jpg` were taken with all
+UI hidden, so draw call counts from that session (about 115 to 158) are lower for that reason and are not comparable.

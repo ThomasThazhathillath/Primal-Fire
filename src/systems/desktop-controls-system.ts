@@ -100,11 +100,11 @@ export class DesktopControlsSystem extends createSystem({}) {
   }
 
   /** Turns to look at (x, z) from where you stand. */
-  face(x: number, z: number): void {
+  face(x: number, z: number, pitch = -0.35): void {
     const dx = x - this.player.position.x;
     const dz = z - this.player.position.z;
     this.yaw = Math.atan2(-dx, -dz);
-    this.pitch = -0.35;
+    this.pitch = pitch;
   }
 
   update(delta: number): void {

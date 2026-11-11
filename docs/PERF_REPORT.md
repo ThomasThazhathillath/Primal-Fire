@@ -247,3 +247,11 @@ Campfire (static meshes only for a finished pit: soot decal, ash bed, 7 extra ba
 (no geometry), noon contrast (sun intensity x1.22 by day, hemisphere fill x0.82, sun slightly warmer), birch-style aspen bark, a soft halo instead of a flat disc for pickup glows,
 fewer and smaller moss cushions (260 to 70). Standard viewpoint with the story camp standing (workbench, fire pit): 212 draw calls, **225,536 triangles**, CPU 4.96 ms (budget 240k).
 Playtests: `story-check.mjs` (workbench complete, fire lit, no errors) and `tutorial-check.mjs` pass; `npm test` 679 pass; production build passes.
+
+### Polish pass 4 (meadow and ash)
+
+The meadow is now two instanced layers: the near tufts (5 bent blades, 12 triangles, at most 1,000, out to about 6 m) and a mid-distance layer of low dense clumps (9 single-triangle blades each,
+at most 1,900, from about 4 m to 15 m, shrinking to nothing over the last 4 m), laid out on broader patches (density threshold lowered, patches about 6 m across) in four colour families including dry
+yellow-green; the ground shader's meadow blend now starts at 1 m and adds dry patches. Twigs and leaf litter trimmed to 300 and 700 to pay for it. The ash is an unlit shader (charcoal, pale flecks,
+soft edge, faint ember glow at the centre). Standard viewpoint with the camp standing: 213 draw calls, **234,012 triangles**, CPU 4.57 ms (budget 240k). Typecheck, 679 tests, production build,
+`story-check.mjs` (workbench complete, fire lit, no errors) and `tutorial-check.mjs` pass.

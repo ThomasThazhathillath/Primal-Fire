@@ -11,6 +11,9 @@
 
 import {
   CircleGeometry,
+  CylinderGeometry,
+  MeshLambertMaterial,
+  ShaderMaterial,
   createSystem,
   DoubleSide,
   type Entity,
@@ -61,7 +64,45 @@ const spotGlowMat = new MeshBasicMaterial({ color: 0xffb547, transparent: true, 
 const spotGlowGeo = new CircleGeometry(0.17, 18);
 /** Joints that are tied by hand with cord: a cooler ring than the set-down marks. */
 const lashMat = new MeshBasicMaterial({ color: 0x7fe8ff, transparent: true, opacity: 0.95 });
-const ashMat = new MeshBasicMaterial({ color: 0x2b241e });
+/** Charcoal and ash: unlit dark grey-black with pale flecks, a soft edge into the scorched earth, and a faint ember glow only at the very centre. */
+const ashMat = new ShaderMaterial({
+  transparent: true,
+  depthWrite: false,
+  uniforms: {},
+  vertexShader: 'varying vec2 vUv; void main() { vUv = uv * 2.0 - 1.0; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+  fragmentShader: `varying vec2 vUv;
+    float h(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+    float n(vec2 p) { vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f); return mix(mix(h(i), h(i + vec2(1.0, 0.0)), u.x), mix(h(i + vec2(0.0, 1.0)), h(i + vec2(1.0, 1.0)), u.x), u.y); }
+    void main() {
+      float r = length(vUv) + (n(vUv * 6.0) - 0.5) * 0.3;
+      float a = smoothstep(1.0, 0.45, r);
+      float fleck = step(0.78, n(vUv * 17.0)) * 0.5 + n(vUv * 5.0) * 0.5;
+      vec3 c = mix(vec3(0.05, 0.045, 0.04), vec3(0.2, 0.19, 0.18), fleck * (0.35 + 0.65 * smoothstep(0.1, 0.7, r)));
+      float ember = smoothstep(0.34, 0.0, length(vUv)) * (0.35 + 0.65 * n(vUv * 9.0 + 3.0));
+      c += vec3(0.55, 0.17, 0.03) * ember * 0.5;
+      gl_FragColor = vec4(c, a);
+    }`,
+});
+/** Soot: near-black at the centre, fading to nothing at the edge, with a ragged outline. */
+const scorchMat = new ShaderMaterial({
+  transparent: true,
+  depthWrite: false,
+  uniforms: {},
+  vertexShader: 'varying vec2 vUv; void main() { vUv = uv * 2.0 - 1.0; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+  fragmentShader: `varying vec2 vUv;
+    float h(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+    float n(vec2 p) { vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f); return mix(mix(h(i), h(i + vec2(1.0, 0.0)), u.x), mix(h(i + vec2(0.0, 1.0)), h(i + vec2(1.0, 1.0)), u.x), u.y); }
+    void main() {
+      float r = length(vUv) + (n(vUv * 5.0) - 0.5) * 0.28;
+      float a = smoothstep(1.0, 0.25, r) * 0.88;
+      vec3 c = mix(vec3(0.02, 0.016, 0.012), vec3(0.09, 0.07, 0.05), smoothstep(0.2, 0.9, r));
+      gl_FragColor = vec4(c, a);
+    }`,
+});
+const charGeo = new CylinderGeometry(0.032, 0.045, 0.62, 8);
+const charMat = new MeshLambertMaterial({ color: 0x191310 });
+const emberGeo = new SphereGeometry(0.03, 6, 5);
+const emberMat = new MeshBasicMaterial({ color: 0xff6a22 });
 const partGeo = new SphereGeometry(0.16, 8, 6);
 const partMat = new MeshBasicMaterial({ visible: false });
 
@@ -366,10 +407,49 @@ export class BuildSystem extends createSystem({
       root.add(ring);
     }
     if (s.kind === 'firePit' && s.complete) {
-      const ash = new Mesh(new CircleGeometry(0.3, 20), ashMat);
+      // A lived-in fire pit: soot-blackened earth fading out into the ground, a grey ash bed, a ring of baked stones, charred logs
+      // leaning into a teepee and a few glowing embers (all static meshes, a dozen draw calls at most, only for a finished pit).
+      const scorch = new Mesh(new CircleGeometry(0.95, 36), scorchMat);
+      scorch.rotation.x = -Math.PI / 2;
+      scorch.position.y = 0.013;
+      root.add(scorch);
+      const ash = new Mesh(new CircleGeometry(0.4, 28), ashMat);
       ash.rotation.x = -Math.PI / 2;
-      ash.position.y = 0.012;
+      ash.position.y = 0.016;
       root.add(ash);
+      for (let k = 0; k < 7; k++) {
+        const a = (k / 7) * Math.PI * 2 + 0.3;
+        const st = itemMesh('dryStone');
+        const sc = 1.0 + 0.35 * ((k * 5) % 3) / 2;
+        st.scale.set(sc * 1.15, sc, sc);
+        st.rotation.y = k * 2.3;
+        st.position.set(Math.cos(a) * 0.46, 0, Math.sin(a) * 0.46);
+        root.add(st);
+      }
+      for (let k = 0; k < 4; k++) {
+        const a = (k / 4) * Math.PI * 2 + 0.6;
+        const log = new Mesh(charGeo, charMat);
+        log.position.set(Math.cos(a) * 0.1, 0.2, Math.sin(a) * 0.1);
+        log.rotation.set(Math.sin(a) * 0.55, 0, -Math.cos(a) * 0.55);
+        root.add(log);
+        const tip = new Mesh(emberGeo, emberMat);
+        tip.position.set(Math.cos(a) * 0.015, 0.45, Math.sin(a) * 0.015);
+        root.add(tip);
+      }
+      for (let k = 0; k < 2; k++) {
+        const log = new Mesh(charGeo, charMat);
+        log.scale.set(1, 0.8, 1);
+        log.position.set(0, 0.06 + k * 0.05, 0);
+        log.rotation.set(Math.PI / 2, 0, k * 1.2 + 0.4);
+        root.add(log);
+      }
+      for (let k = 0; k < 9; k++) {
+        const a = k * 2.4;
+        const em = new Mesh(emberGeo, emberMat);
+        em.scale.setScalar(0.5 + (k % 3) * 0.3);
+        em.position.set(Math.cos(a) * (0.05 + 0.04 * (k % 4)), 0.03, Math.sin(a) * (0.05 + 0.04 * (k % 4)));
+        root.add(em);
+      }
     }
     def.spots.forEach((spotDef, i) => {
       const filled = s.spots[i];

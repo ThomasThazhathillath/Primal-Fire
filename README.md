@@ -45,6 +45,12 @@ Progress saves in the browser automatically (`primal-first-fire.save.v1`, migrat
 
 Trees are baked with [EZ-Tree](https://github.com/dgreenheck/ez-tree) (MIT, Daniel Greenheck) by `npm run trees:bake` into `public/trees/`; see `docs/PERF_REPORT.md`.
 
+## Look (modern-look round, branch `claude/modern-look`)
+
+Trees, shrubs and ferns are EZ-Tree bakes; boulders and collectible stones are Poly Haven Rock Moss Set 01; the ground blends three Poly Haven textures by zone with
+normal and roughness maps and has instanced grass tufts; the sky is the three.js physical Sky with photographed Poly Haven clouds; the stream reflects the sky and
+clouds; ACES tone mapping. Sources and licences: `docs/ASSETS.md`. Numbers: `docs/PERF_REPORT.md`. Screenshots: `docs/shots-revamp/`. Checked in the emulator only, not on a headset.
+
 ## Project layout
 
 ```

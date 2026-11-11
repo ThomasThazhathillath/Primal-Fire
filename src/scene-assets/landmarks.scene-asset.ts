@@ -13,15 +13,20 @@ import {
   SphereGeometry,
   TorusGeometry,
 } from '@iwsdk/core';
-import { mulberry32, range } from '../game/rng.js';
-import { lambert } from './materials.js';
+import { mulberry32, range, valueNoise } from '../game/rng.js';
+import { BufferAttribute, type BufferGeometry, IcosahedronGeometry, MeshLambertMaterial, type Material } from '@iwsdk/core';
+import { lambert, weather } from './materials.js';
 
 const concrete = () => lambert(0x948e84);
 const moss = () => lambert(0x4f6b35);
 const rust = () => lambert(0x7a3e22);
 
+const weatheredMats = new Map<Material, MeshLambertMaterial>();
 function box(w: number, h: number, d: number, mat: ReturnType<typeof lambert>, x: number, y: number, z: number): Mesh {
-  const m = new Mesh(new BoxGeometry(w, h, d), mat);
+  let wm = weatheredMats.get(mat);
+  if (!wm) weatheredMats.set(mat, (wm = new MeshLambertMaterial({ color: mat.color.clone().multiplyScalar(0.72), vertexColors: true })));
+  const seg = (v: number) => Math.max(1, Math.min(8, Math.round(v / 0.35)));
+  const m = new Mesh(weather(new BoxGeometry(w, h, d, seg(w), seg(h), seg(d)), Math.min(w, h, d) * 0.07, x * 1.3 + y * 0.7 + z), wm);
   m.position.set(x, y, z);
   return m;
 }
@@ -146,7 +151,7 @@ export function createSplitRock(): Object3D {
   g.name = 'SplitRock';
   const stone = lambert(0x9d978c);
   for (const side of [-1, 1]) {
-    const half = new Mesh(new DodecahedronGeometry(1.5, 0), stone);
+    const half = new Mesh(weather(new IcosahedronGeometry(1.5, 3), 0.5, side * 3), new MeshLambertMaterial({ color: 0x7c776f, vertexColors: true }));
     half.name = side < 0 ? 'WestHalf' : 'EastHalf';
     half.scale.set(0.55, 0.85, 1);
     half.position.set(side * 0.75, 0.9, 0);

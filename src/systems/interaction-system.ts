@@ -11,6 +11,7 @@
 //                          a slab needs both hands (VR: both grips; desktop: Shift) Results go through
 // Game.completeAction / Game.work; failures through Game.interactionFailure.
 
+import { roundPoints } from './round-points.js';
 import {
   AdditiveBlending,
   Box3,
@@ -163,7 +164,7 @@ export class InteractionSystem extends createSystem({
     getUi(this.world).capturesPointer = () => this.capturesPointer();
     const geo = new BufferGeometry();
     geo.setAttribute('position', new BufferAttribute(this.chipPos, 3));
-    this.chips = new Points(geo, new PointsMaterial({ color: 0xd8b07a, size: 0.03, transparent: true, depthWrite: false }));
+    this.chips = new Points(geo, roundPoints(new PointsMaterial({ color: 0xd8b07a, size: 0.03, transparent: true, depthWrite: false })));
     this.chips.frustumCulled = false;
     for (let i = 0; i < CHIPS; i++) this.chipPos[i * 3 + 1] = -50;
     this.world.createTransformEntity(this.chips);

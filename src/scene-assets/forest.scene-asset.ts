@@ -67,6 +67,8 @@ export function createForestGround(): Object3D {
   geo.rotateX(-Math.PI / 2);
   const pos = geo.attributes.position;
   const colors = new Float32Array(pos.count * 3);
+  // Texture blend weights per vertex (forest ground, leaf litter, stream mud), used by GroundSystem's ground shader.
+  const zone = new Float32Array(pos.count * 3);
   const c = new Color();
   const floor = new Color(0x4a5630);
   const dirt = new Color(0x5e4c35);
@@ -113,12 +115,21 @@ export function createForestGround(): Object3D {
     if (sd < 5) c.lerp(damp, clamp(1 - (sd - 1.5) / 3.5, 0, 0.6));
     if (sd < 2.2) c.lerp(bank, clamp(1 - (sd - 0.6) / 1.6, 0, 1));
     if (sd < 1.6) c.lerp(mud, clamp(1.15 - (sd - 0.5) / 1.1, 0, 0.9));
+    // Zones: mud along the water, open ground in the clearings and meadow, leaf litter under the trees.
+    const wm = clamp(1.05 - (sd - 0.9) / 2.3, 0, 1);
+    const open = Math.max(clamp(1.25 - dw / 6.5, 0, 1), clamp(1.3 - dm / 8, 0, 1), clamp(valueNoise(x * 0.09 + 20, z * 0.09 - 8) * 1.6 - 0.95, 0, 0.55));
+    const wg = (1 - wm) * open;
+    const wl = Math.max(0, 1 - wm - wg);
+    zone[i * 3] = wg;
+    zone[i * 3 + 1] = wl;
+    zone[i * 3 + 2] = wm;
     pos.setY(i, groundHeight(x, z));
     colors[i * 3] = c.r;
     colors[i * 3 + 1] = c.g;
     colors[i * 3 + 2] = c.b;
   }
   geo.setAttribute('color', new BufferAttribute(colors, 3));
+  geo.setAttribute('zone', new BufferAttribute(zone, 3));
   geo.computeVertexNormals();
   const ground = new Mesh(geo, new MeshLambertMaterial({ vertexColors: true }));
   ground.name = 'ForestGround';
@@ -222,7 +233,7 @@ function fernGeometry(): BufferGeometry {
   return out;
 }
 
-/** Bushes (walk-through) and boulders, both instanced. */
+/** Boulders, instanced (the shrubs are drawn by TreeSystem). */
 export function createUndergrowth(): Object3D {
   const root = new Group();
   root.name = 'Undergrowth';
@@ -234,66 +245,53 @@ export function createUndergrowth(): Object3D {
   const p = new Vector3();
   const col = new Color();
 
-  const bushes = new InstancedMesh(new IcosahedronGeometry(1, 0), lambert(0xffffff), 260);
-  bushes.name = 'Bushes';
-  let n = 0;
-  for (let tries = 0; n < 260 && tries < 6000; tries++) {
-    const a = rng() * Math.PI * 2;
-    const r = 6 + rng() * (WORLD_RADIUS + 4);
-    const x = Math.cos(a) * r;
-    const z = Math.sin(a) * r;
-    if (inClearing(x, z, -0.5) || streamDistance(x, z) < 1.6) continue;
-    const sc = range(rng, 0.25, 0.6);
-    m.compose(p.set(x, sc * 0.45, z), q.setFromAxisAngle(up, rng() * 6), s.set(sc, sc * 0.75, sc));
-    bushes.setMatrixAt(n, m);
-    bushes.setColorAt(n, col.setHex([0x3d5f2e, 0x4a6b34, 0x36542a][n % 3]));
-    n++;
-  }
-  bushes.count = n;
-  root.add(bushes);
+  // Boulders are drawn by RockSystem (baked Poly Haven rocks, see scripts/rocks/bake.mjs).
 
-  const boulders = new InstancedMesh(new DodecahedronGeometry(1, 0), lambert(0xffffff), BOULDERS.length);
-  boulders.name = 'Boulders';
-  n = 0;
-  for (const b of BOULDERS) {
-    m.compose(p.set(b.x, b.size * 0.35, b.z), q.setFromAxisAngle(up, b.rotY), s.set(b.size, b.size * 0.8, b.size));
-    boulders.setMatrixAt(n, m);
-    boulders.setColorAt(n, col.setHex([0x8a857b, 0x77736b, 0x6e6a62][n % 3]));
-    n++;
-  }
-  boulders.count = n;
-  root.add(boulders);
-
-  // Ferns: a merged 6-frond tuft, instanced.
-  const FERNS = 700;
-  const ferns = new InstancedMesh(fernGeometry(), lambert(0xffffff, { side: DoubleSide }), FERNS);
-  ferns.name = 'Ferns';
-  n = 0;
-  for (let tries = 0; n < FERNS && tries < 12000; tries++) {
-    const a = rng() * Math.PI * 2;
-    const r = 4 + Math.sqrt(rng()) * (WORLD_RADIUS + 6);
-    const x = Math.cos(a) * r;
-    const z = Math.sin(a) * r;
-    if (inClearing(x, z, 0) || streamDistance(x, z) < 1.2) continue;
-    const sc = range(rng, 0.6, 1.3);
-    m.compose(p.set(x, 0, z), q.setFromAxisAngle(up, rng() * 6), s.set(sc, sc, sc));
-    ferns.setMatrixAt(n, m);
-    ferns.setColorAt(n, col.setHex([0x3f7a2e, 0x4e8a34, 0x356a2a, 0x5a9a3c][n % 4]));
-    n++;
-  }
-  ferns.count = n;
-  ferns.frustumCulled = false;
-  root.add(ferns);
+  // Ferns are drawn by TreeSystem (arching leaf cards).
 
   // Fallen logs: decorative trunks lying in the leaf litter.
   const LOGS = FALLEN_TRUNKS.length;
-  const logs = new InstancedMesh(new CylinderGeometry(0.16, 0.2, 1, 7).rotateZ(Math.PI / 2), lambert(0xffffff), LOGS);
+  // A rounder trunk with bark streaks and moss on the upper side baked into vertex colours (12 sides, 5 rings).
+  const logGeo = new CylinderGeometry(0.16, 0.2, 1, 16, 6).rotateZ(Math.PI / 2);
+  {
+    const pos = logGeo.attributes.position;
+    const uv = logGeo.attributes.uv;
+    for (let i = 0; i < pos.count; i++) {
+      // Rounder, slightly knobbly trunk: a radial wobble along its length and a gentle bend; bark texture repeats 4x along it.
+      const x = pos.getX(i);
+      const y = pos.getY(i);
+      const z = pos.getZ(i);
+      const w = 1 + 0.14 * (valueNoise(x * 4.1 + 3, Math.atan2(z, y) * 2.2) - 0.5);
+      pos.setXYZ(i, x, y * w + Math.sin(x * 3.1) * 0.012, z * w);
+      uv.setY(i, uv.getY(i) * 4);
+    }
+    const lc = new Float32Array(pos.count * 3);
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i);
+      const y = pos.getY(i);
+      const z = pos.getZ(i);
+      const ang = Math.atan2(z, y);
+      const streak = valueNoise(ang * 3.2 + 11, x * 1.8);
+      const fine = valueNoise(ang * 9 + 2, x * 6);
+      let k = 0.72 + 0.4 * streak + 0.16 * fine;
+      const top = Math.max(0, y / 0.2);
+      const moss = Math.max(0, valueNoise(x * 3 + 5, ang * 2) * 1.6 - 0.65) * top;
+      k = 0.9 + (k - 0.9) * 0.4;
+      lc[i * 3] = k * (1 - moss) + 0.45 * moss;
+      lc[i * 3 + 1] = k * (1 - moss) + 0.75 * moss;
+      lc[i * 3 + 2] = k * (1 - moss) + 0.35 * moss;
+    }
+    logGeo.setAttribute('color', new BufferAttribute(lc, 3));
+  }
+  const logs = new InstancedMesh(logGeo, lambert(0xffffff, { vertexColors: true, flatShading: false }), LOGS);
+  logs.userData.bark = true;
   logs.name = 'FallenTrunks';
-  n = 0;
+  let n = 0;
   for (const t of FALLEN_TRUNKS) {
     m.compose(p.set(t.x, 0.16 * t.thick, t.z), q.setFromAxisAngle(up, t.rotY), s.set(t.length, t.thick, t.thick));
     logs.setMatrixAt(n, m);
-    logs.setColorAt(n, col.setHex([0x5a4636, 0x4d3d2f, 0x66503c][n % 3]));
+    // The bark texture supplies the colour (GroundSystem); these only vary the shade a little.
+    logs.setColorAt(n, col.setHex([0xffffff, 0xe6ddd0, 0xf2e9dc][n % 3]));
     n++;
   }
   logs.count = n;
@@ -319,29 +317,62 @@ export function createMountains(): Object3D {
     [170, 100, 4, 3, 0.36, [0.33, 0.34, 0.36]],
     [215, 125, 3, 4, 0.55, [0.34, 0.38, 0.43]],
   ];
-  const SEG = 128;
+  // Each ridge is a grid (SEG around, ROWS up) with ridged-noise crags, a treeline of dark green on the lower slopes of the nearer ranges and
+  // snow on the high peaks of the farther ones, all in vertex colours (still one unlit draw call per ridge).
+  const SEG = 112;
+  const ROWS = 4;
   layers.forEach(([radius, peak, freq, seed, haze, stone], li) => {
-    const verts = new Float32Array((SEG + 1) * 2 * 3);
-    const cols = new Float32Array((SEG + 1) * 2 * 3);
+    const V = (SEG + 1) * (ROWS + 1);
+    const verts = new Float32Array(V * 3);
+    const cols = new Float32Array(V * 3);
     const index: number[] = [];
+    const snowLine = li === 0 ? 2 : li === 1 ? 1.05 : 0.95;
     for (let i = 0; i <= SEG; i++) {
       const a = (i / SEG) * Math.PI * 2;
       // Wrap noise seamlessly by sampling on a circle.
       const nx = Math.cos(a) * freq + seed * 17;
       const nz = Math.sin(a) * freq + seed * 31;
-      const h = peak * (0.25 + 0.75 * Math.pow(valueNoise(nx, nz) * 0.65 + valueNoise(nx * 2.3, nz * 2.3) * 0.35, 1.4));
-      const x = Math.cos(a) * radius;
-      const z = Math.sin(a) * radius;
-      verts.set([x, -6, z, x, h, z], i * 6);
-      // Rocky variation along the ridge: lighter, warmer crests against cooler, darker slopes.
-      const rock = valueNoise(nx * 3.1 + 9, nz * 3.1 - 5);
-      const crest = 0.86 + 0.3 * rock;
-      const warm = (valueNoise(nx * 1.4 - 3, nz * 1.4 + 11) - 0.5) * 0.16;
-      // Foot of the ridge (vertex 0) is a little darker so slopes read as rock, not a flat cut-out.
-      cols.set([0.82, 0.82, 0.84, crest + warm, crest, crest - warm], i * 6);
+      const base = Math.pow(valueNoise(nx, nz) * 0.65 + valueNoise(nx * 2.3, nz * 2.3) * 0.35, 1.4);
+      // Ridged crags: the sharp creases of 1 - |2n - 1|, stronger on the higher parts.
+      const ridge = 1 - Math.abs(valueNoise(nx * 5.1 + 3, nz * 5.1 - 7) * 2 - 1);
+      const h = peak * (0.25 + 0.75 * base) * (0.9 + 0.2 * ridge);
+      for (let j = 0; j <= ROWS; j++) {
+        const t = j / ROWS;
+        const rr = radius * (1 - 0.05 * t * (0.6 + valueNoise(nx * 7 + j, nz * 7 - j)));
+        const x = Math.cos(a) * rr;
+        const z = Math.sin(a) * rr;
+        const y = -6 + (h + 6) * Math.pow(t, 0.9) + (valueNoise(nx * 9 + j * 3, nz * 9) - 0.5) * peak * 0.05 * t;
+        const k = (i * (ROWS + 1) + j) * 3;
+        verts[k] = x;
+        verts[k + 1] = y;
+        verts[k + 2] = z;
+        const rock = valueNoise(nx * 3.1 + 9 + j * 0.3, nz * 3.1 - 5);
+        let c = 0.78 + 0.34 * rock + 0.16 * (ridge - 0.5) * t;
+        const warm = (valueNoise(nx * 1.4 - 3, nz * 1.4 + 11) - 0.5) * 0.16;
+        let r = c + warm;
+        let g = c;
+        let b = c - warm;
+        // Lower slopes of the near ranges: dark conifer green.
+        const tree = (li < 2 ? 1 : 0.35) * Math.max(0, 1 - t * 3.2) * (0.6 + 0.4 * valueNoise(nx * 6, nz * 6 + j));
+        r = r * (1 - tree) + 0.4 * tree;
+        g = g * (1 - tree) + 0.6 * tree;
+        b = b * (1 - tree) + 0.4 * tree;
+        // Snow on the highest parts.
+        const sn = Math.max(0, Math.min(1, (t * (0.55 + 0.45 * base) - snowLine * 0.7) / 0.18)) * (0.65 + 0.35 * ridge);
+        const snow = Math.min(1, sn);
+        r = r * (1 - snow) + 1.35 * snow;
+        g = g * (1 - snow) + 1.38 * snow;
+        b = b * (1 - snow) + 1.45 * snow;
+        cols[k] = r;
+        cols[k + 1] = g;
+        cols[k + 2] = b;
+      }
       if (i < SEG) {
-        const k = i * 2;
-        index.push(k, k + 1, k + 2, k + 1, k + 3, k + 2);
+        for (let j = 0; j < ROWS; j++) {
+          const a0 = i * (ROWS + 1) + j;
+          const a1 = (i + 1) * (ROWS + 1) + j;
+          index.push(a0, a0 + 1, a1, a0 + 1, a1 + 1, a1);
+        }
       }
     }
     const geo = new BufferGeometry();
@@ -349,6 +380,46 @@ export function createMountains(): Object3D {
     geo.setAttribute('color', new BufferAttribute(cols, 3));
     geo.setIndex(index);
     const mat = new MeshBasicMaterial({ color: new Color(stone[0], stone[1], stone[2]), vertexColors: true, fog: false, side: DoubleSide });
+    // Rock texture without a texture: strata (horizontal bands bent by noise) and a fine grain in the fragment shader, a lighter hazy foot,
+    // so the ridges read as layered, weathered mountain faces instead of flat polygons. Layers farther away get less contrast.
+    const contrast = 0.55 + 0.45 * (1 - li / 3);
+    // Snow brightness and tint are driven from the clock (EnvironmentSystem): it only catches the low sun, and goes dark blue at night.
+    const snow = { uSnow: { value: 1 }, uSnowTint: { value: new Color(1, 1, 1) } };
+    mat.userData.snow = snow;
+    mat.onBeforeCompile = (sh) => {
+      sh.uniforms.uSnow = snow.uSnow;
+      sh.uniforms.uSnowTint = snow.uSnowTint;
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vMp;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvMp = position;');
+      sh.fragmentShader = sh.fragmentShader
+        .replace(
+          '#include <common>',
+          `#include <common>
+          varying vec3 vMp;
+          uniform float uSnow;
+          uniform vec3 uSnowTint;
+          float mh(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+          float mn(vec2 p) { vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f); return mix(mix(mh(i), mh(i + vec2(1.0, 0.0)), u.x), mix(mh(i + vec2(0.0, 1.0)), mh(i + vec2(1.0, 1.0)), u.x), u.y); }`,
+        )
+        .replace(
+          '#include <color_fragment>',
+          `#include <color_fragment>
+          {
+            vec2 q = vec2(vMp.x + vMp.z, vMp.y);
+            float strata = sin(vMp.y * 0.55 + mn(vec2(vMp.x, vMp.z) * 0.04) * 7.0) * 0.5 + 0.5;
+            float grain = mn(q * 0.9) * 0.55 + mn(q * 3.1 + 7.0) * 0.45;
+            float crag = mn(vec2(vMp.x * 0.35 - vMp.z * 0.2, vMp.y * 0.6));
+            float k = 0.78 + ${contrast.toFixed(2)} * (0.32 * strata + 0.34 * grain + 0.2 * crag);
+            diffuseColor.rgb *= k;
+            // Snow (vertex colours above 1) takes the sun's tint and strength; rock does not.
+            float snowy = smoothstep(1.05, 1.25, dot(vColor.rgb, vec3(0.3333)));
+            diffuseColor.rgb *= mix(vec3(1.0), uSnowTint * uSnow, snowy);
+            // Hazy foot: the lowest part of the face washes toward a light grey-blue.
+            float foot = 1.0 - smoothstep(-6.0, 14.0, vMp.y);
+            diffuseColor.rgb = mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(0.33)) + 0.22), foot * 0.5);
+          }`,
+        );
+    };
+    mat.customProgramCacheKey = () => `ridge${li}`;
     const mesh = new Mesh(geo, mat);
     mesh.name = `Ridge${li}`;
     mesh.userData.stone = [stone[0], stone[1], stone[2]]; // plain data: userData survives cloning
@@ -381,36 +452,21 @@ export function createGroundDetail(): Object3D {
     return [Math.cos(a) * r, Math.sin(a) * r];
   };
 
-  // Living grass clumps (walk-through), clustered by a noise field.
-  const CLUMPS = 1200;
-  const grass = new InstancedMesh(grassClumpGeometry(), lambert(0xffffff, { side: DoubleSide }), CLUMPS);
-  grass.name = 'GrassClumps';
+  // Grass tufts are drawn around the player by GrassSystem.
   let n = 0;
-  for (let tries = 0; n < CLUMPS && tries < 20000; tries++) {
-    const [x, z] = spot(1);
-    if (streamDistance(x, z) < 0.8 || rng() > valueNoise(x * 0.5 + 7, z * 0.5 - 3) * 1.6 - 0.2) continue;
-    const sc = range(rng, 0.6, 1.4);
-    m.compose(p.set(x, groundHeight(x, z), z), q.setFromAxisAngle(up, rng() * 6), s.set(sc, sc * range(rng, 0.7, 1.3), sc));
-    grass.setMatrixAt(n, m);
-    grass.setColorAt(n, col.setHex([0x5a7a32, 0x6b8a3a, 0x4e6e2c, 0x7a8a40][n % 4]));
-    n++;
-  }
-  grass.count = n;
-  grass.frustumCulled = false;
-  root.add(grass);
 
   // (Loose pebbles and leaf flakes were removed: anything that small must be a
   // real gatherable, see SCATTER_RULES. Leaf litter now lives in the ground colour.)
-  const mossCush = new InstancedMesh(new SphereGeometry(1, 6, 3, 0, Math.PI * 2, 0, Math.PI / 2), lambert(0xffffff), 260);
+  const mossCush = new InstancedMesh(new SphereGeometry(1, 10, 4, 0, Math.PI * 2, 0, Math.PI / 2), lambert(0xffffff), 70);
   mossCush.name = 'MossCushions';
   n = 0;
-  for (let tries = 0; n < 260 && tries < 3000; tries++) {
+  for (let tries = 0; n < 70 && tries < 3000; tries++) {
     const [x, z] = spot(2);
     if (inClearing(x, z, -2) || streamDistance(x, z) < 1.0) continue;
-    const sc = range(rng, 0.12, 0.4);
-    m.compose(p.set(x, 0, z), q.setFromAxisAngle(up, rng() * 6), s.set(sc, sc * 0.12, sc));
+    const sc = range(rng, 0.07, 0.2);
+    m.compose(p.set(x, 0, z), q.setFromAxisAngle(up, rng() * 6), s.set(sc, sc * 0.1, sc));
     mossCush.setMatrixAt(n, m);
-    mossCush.setColorAt(n, col.setHex([0x3b5a2a, 0x4a6b34, 0x33522a][n % 3]));
+    mossCush.setColorAt(n, col.setHex([0x2a3f1f, 0x33492a, 0x24381c, 0x3a4a2a][n % 4]));
     n++;
   }
   mossCush.count = n;
@@ -435,5 +491,40 @@ export function createGroundDetail(): Object3D {
   roots.count = n;
   roots.frustumCulled = false;
   root.add(roots);
+
+  // Forest-floor debris: fallen twigs and leaf litter scattered thickest under the trees (decor, instanced, static).
+  const TWIGS = 300;
+  const twigs = new InstancedMesh(new CylinderGeometry(0.007, 0.011, 1, 4).rotateZ(Math.PI / 2), lambert(0xffffff), TWIGS);
+  twigs.name = 'Twigs';
+  const LEAVES = 700;
+  const litter = new InstancedMesh(new PlaneGeometry(0.07, 0.11).rotateX(-Math.PI / 2), lambert(0xffffff, { side: DoubleSide }), LEAVES);
+  litter.name = 'LeafLitter';
+  let nt = 0;
+  let nl = 0;
+  for (let tries = 0; (nt < TWIGS || nl < LEAVES) && tries < 14000; tries++) {
+    const [x, z] = spot(2);
+    if (streamDistance(x, z) < 1.0) continue;
+    const under = nearestTreeDistance(x, z, 3) < 3;
+    const open = inClearing(x, z, -1);
+    if (nt < TWIGS && (under ? 1 : 0.3) * (open ? 0.3 : 1) > rng() * 1.4) {
+      const len = range(rng, 0.22, 0.7);
+      m.compose(p.set(x, groundHeight(x, z) + 0.012, z), q.setFromAxisAngle(up, rng() * 6.28), s.set(len, 1, 1));
+      twigs.setMatrixAt(nt, m);
+      twigs.setColorAt(nt, col.setHex([0x5a4630, 0x6b5638, 0x4a3a28, 0x7a6848][nt % 4]));
+      nt++;
+    }
+    if (nl < LEAVES && (under ? 1 : 0.35) * (open ? 0.4 : 1) > rng()) {
+      const sc = range(rng, 0.7, 1.5);
+      m.compose(p.set(x, groundHeight(x, z) + 0.01 + rng() * 0.01, z), q.setFromAxisAngle(up, rng() * 6.28), s.set(sc, 1, sc));
+      litter.setMatrixAt(nl, m);
+      litter.setColorAt(nl, col.setHex([0xa8793a, 0x8c6230, 0x6a4a24, 0x7a5528, 0x9a7a30, 0x5f6b2c][nl % 6]));
+      nl++;
+    }
+  }
+  twigs.count = nt;
+  litter.count = nl;
+  twigs.frustumCulled = false;
+  litter.frustumCulled = false;
+  root.add(twigs, litter);
   return root;
 }

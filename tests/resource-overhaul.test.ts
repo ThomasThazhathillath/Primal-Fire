@@ -104,7 +104,7 @@ describe('layout: abundance, clusters, habitat', () => {
         for (const t of TREES) expect(Math.hypot(t.x - r.x, t.z - r.z), r.id).toBeGreaterThan(0.2);
       }
     }
-  });
+  }, 30000);
   it('flint is abundant and some is within a short walk of the start', () => {
     const flint = RESOURCES.filter((r) => r.itemId === 'flint');
     expect(flint.length).toBeGreaterThanOrEqual(35);

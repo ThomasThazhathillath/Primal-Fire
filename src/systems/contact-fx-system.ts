@@ -2,6 +2,7 @@
 // dust, flint sparks, leaf bits, water splash. One pooled Points object with
 // per-particle colours; nothing is allocated per frame.
 
+import { roundPoints } from './round-points.js';
 import { BufferAttribute, BufferGeometry, createSystem, Points, PointsMaterial } from '@iwsdk/core';
 import { contactProfile, type ContactParticle } from '../game/contact.js';
 import type { GameEvent } from '../game/game.js';
@@ -39,7 +40,7 @@ export class ContactFxSystem extends createSystem({}) {
     const geo = new BufferGeometry();
     geo.setAttribute('position', new BufferAttribute(this.pos, 3));
     geo.setAttribute('color', new BufferAttribute(this.col, 3));
-    this.points = new Points(geo, new PointsMaterial({ size: 0.022, vertexColors: true, transparent: true, depthWrite: false }));
+    this.points = new Points(geo, roundPoints(new PointsMaterial({ size: 0.022, vertexColors: true, transparent: true, depthWrite: false })));
     this.points.frustumCulled = false;
     this.points.name = 'ContactFx';
     for (let i = 0; i < POOL; i++) this.pos[i * 3 + 1] = -50;

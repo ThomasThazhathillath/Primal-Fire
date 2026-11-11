@@ -144,3 +144,114 @@ Follow-up (clean screenshots round): LOD0 foliage was made fuller (it looked ske
 uses flatter light so far trees no longer look pale. The table above shows the final per-level counts. The two tables of measurements
 above were taken before this change with the HUD visible; the new clean shots in `docs/shots-trees/clean-*.jpg` were taken with all
 UI hidden, so draw call counts from that session (about 115 to 158) are lower for that reason and are not comparable.
+
+
+## Modern look round (branch `claude/modern-look`)
+
+Method: IWER browser, flat view, clear noon, same viewpoint before and after each stage, HUD hidden, 4 s sample. Not a Quest.
+
+| Stage | | Draw calls | Triangles | CPU ms |
+|---|---|---|---|---|
+| 1 Bushes (EZ-Tree bush presets, LOD0-2 and billboards, instanced) | before | 189 | 201,686 | 4.58 |
+| | after | 196 | 198,692 | 4.88 |
+
+Stage 1: the 260 faceted icosahedron shrubs became three baked EZ-Tree bush variants drawn by the same `TreeSystem` as the trees, so no new
+system and +7 draw calls. Bush full detail is 2.2k to 8.4k triangles but only within about 2.5 m; beyond about 21 m they are 2-triangle billboards.
+
+| 2 Rocks (Poly Haven Rock Moss Set 01) | before (= stage 1 after) | 196 | 198,692 | 4.88 |
+| | after | 210 | 214,708 | 4.69 |
+
+Stage 2: the 45 boulders are six baked rocks (2.2k / 450 / 110 triangles) drawn by `RockSystem` with distance LOD; collectible stones, flint and chalk are
+110-triangle vertex-coloured versions of the same rocks (no texture) so decor (large, textured, mossy) and resources (small, tinted, with a pickup ring)
+stay different. Rock GLB 2.4 MB with embedded 1K JPEGs (JPEG, not KTX2: no basis encoder is installed). +14 draw calls, +16k triangles.
+| 3 Ground (zone-blended Poly Haven textures with normal and roughness, plus grass tufts) | before (= stage 2 after) | 210 | 214,708 | 4.69 |
+| | after | 211 | 237,138 | 4.81 |
+
+Stage 3: `GroundSystem` swaps the ground for a MeshStandardMaterial that blends three textures by a per-vertex zone weight (6 texture fetches, no
+extra geometry). `GrassSystem` adds one InstancedMesh of up to 2,400 five-blade tufts (10 triangles each, about 24k) on a hashed 1 m grid within 11 m of
+the camera, shrinking to nothing at the edge; it re-lays every 0.2 s only when you have moved 0.35 m and allocates nothing. +1 draw call, +22k triangles.
+Also fixed: `environment-system` looked the ground up by a name the scene does not use ("Forest Ground"), so wet-ground darkening never applied; it does now.
+| 4 Sky (three.js physical Sky + Poly Haven photo clouds) | before (= stage 3 after) | 211 | 237,138 | 4.81 |
+| | | after | 213 | 233,974 | 4.41 |
+
+Stage 4: the Preetham `Sky` box (12 triangles) is drawn behind the world and fades out at night so the existing gradient dome, stars and moon still show; a
+second dome carries the photographed clouds (alpha mask from the Poly Haven HDRI, tinted warm at dusk, faded at night, thicker with the weather's cloud cover).
+Two extra draw calls and no per-frame allocation. The scene's image-based light is still the time-of-day gradient (`IBLGradient`), not a PMREM of the physical sky.
+| 5 Stream look (dual scrolling normals, sky and cloud reflection, bed and depth tint, wet banks) | before (= stage 4 after) | 213 | 233,974 | 4.41 |
+| | after | 213 | 235,488 | 4.55 |
+
+Stage 5: look only. The water shader gains a second counter-scrolling normal layer, a Fresnel reflection of the sky gradient plus the photographed clouds
+(sampled by the reflected ray from the cloud texture, no second scene render), the mud texture as a bed seen through the shallows with a depth tint toward
+the middle, and variable transparency; the ground shader darkens and glosses the mud zone for wet banks. The stream mesh, its path and every water hook are
+untouched. No new draw calls. Not done: foam rings round individual rocks (the bank foam and crest foam are the old ones).
+| 6 Fern cards, baked-rock leftovers, round particles, ACES tone mapping | before (= stage 5 after) | 213 | 235,488 | 4.55 |
+| | after | 209 | 222,650 | 4.68 |
+
+Stage 6 (partial, see PROJECT_STATUS): the 700 spiky faceted ferns became arching leaf cards (9/6/4 cards by distance, 2-triangle billboards far away) drawn by
+`TreeSystem`; the story clue stones, mossy rocks and gravel beds use the baked rock shapes; every `PointsMaterial` particle is now a soft round point (one
+shared fragment tweak); the renderer uses ACES filmic tone mapping at exposure 1.05. Fewer triangles than before the stage (the spiky ferns were more geometry
+than the cards), draw calls 209. Total over the whole round (stage 1 before to stage 6 after): draw calls 189 to 209, triangles 201,686 to 222,650, CPU
+4.58 to 4.68 ms in the IWER browser. Not measured on a Quest. No real-time shadows were added.
+
+### Stage 6 follow-up (leftovers), same method
+
+| Step | Draw calls | Triangles | CPU ms |
+|---|---|---|---|
+| 6 (ferns, particles, ACES) | 209 | 222,650 | 4.68 |
+| 6b sky environment light (PMREM), rock foam, soft sapling, no grass clumps | 210 | 203,366 | 4.77 |
+| 6c mountains, barked logs, hands | 210 | 277,004 | 4.87 |
+| 6d after trimming mountain tessellation (160 x 5 rows), log and animal tessellation | 210 | 240,764 | 5.56 (noisy) |
+
+The mountains are the largest single addition (about 9k triangles after trimming); the weathered ruins, rounded hands (about 4k) and smooth animals (about 6k) are the rest.
+The environment light is a 128 px PMREM rebuilt every 6 s (one small render) at environment intensity 0.04 to 0.16. The whole round, stage 1 before to 6d after:
+draw calls 189 to 210, triangles 201.7k to 240.8k, which is above the 240k per eye the original report treats as the ceiling for the dense forest view; it should be
+re-measured on a Quest before shipping and the first things to cut are the mountain tessellation and the 18 hand and animal spheres. Fire, smoke and rain were already
+soft shader sprites and were not changed.
+
+### Look polish round (grass clumps, ground detail, mountains, bark, stream edges, dusk clouds, stones)
+
+Same method, UI hidden. Before (end of the leftovers round): 210 draw calls, 240,764 triangles. After: see the last row.
+
+| Step | Draw calls | Triangles |
+|---|---|---|
+| Clustered grass (up to 3,000 tufts, 5 blades) and flowers | 213 | 266,771 |
+| After capping at 2,200 tufts of 4 blades | 213 | 253,902 |
+
+The grass is now laid out in patches (coarse noise decides where it grows thick, thin or not at all), in four colour families, with up to 450 flower heads in the thick
+parts, drawn by a second small InstancedMesh (one extra draw call). Ground textures tile at 0.9 to 1.3 m instead of 2.2 to 3.2 m, with anisotropic filtering and
+procedural patch and grain variation in the shader. Mountains gain strata, grain and a hazy foot in their fragment shader (no extra geometry). Fallen trunks use
+Poly Haven bark_brown_02 (1K, packed like the ground set) on 16-sided knobbly geometry. The stream fades to nothing at its banks, is lighter and clearer in the shallows,
+and has sharper sun glints. Dusk clouds can no longer be darker than most of the horizon glow.
+
+### Polish pass 2, item 1: back within budget
+
+Cuts, cheapest detail first: tree LOD distances 6/14/26 m to 5/11.5/21 m, mountain ridges from 160 x 5 to 112 x 4 cells, grass ring from 10 m / 2,200 tufts to 9 m / 1,700 tufts.
+Standard viewpoint (UI hidden): 213 draw calls, **232,134 triangles** (was 253,902), CPU 4.76 ms. The headroom is spent on denser grass near the player in item 3.
+
+### Polish pass 2, items 2 and 3
+
+Item 2 changes colours and one fragment tweak only (no geometry). Item 3: grass is laid out in two passes (cells within 4.5 m first, with 3 extra tufts per cell and 1.45x patch density;
+then the ring out to 8.5 m, thinning with distance), 1,450 tufts at most; forest-floor debris is 450 twigs and 1,000 leaf cards (static, chunk-culled); the ground is darker under the
+canopy. Tree LOD distances 4.5/10.5/19.5 m. Standard viewpoint: 214 draw calls, **230,148 triangles**, CPU 4.72 ms (budget 240k). Mountain tessellation 112 x 4.
+
+### Polish pass 2, item 5 and final numbers
+
+Grass is now kept clear around built structures. The structure and fire shots (workbench, fire pit with a burning fire and smoke, lean-to, drying rack, bed, woodstack) show that the
+existing models read fine under the new lighting; fire, smoke and the ground glow were already soft shader effects and are unchanged. With all six structures standing and the fire lit,
+the standard viewpoint is 223 draw calls and **233,904 triangles**, CPU 4.84 ms (budget 240k). Playtests after this pass: `story-check.mjs` Chapter 1 play-through (workbench complete, fire
+lit, no errors) and `tutorial-check.mjs` (enters, reports its first lesson) pass; `playtest.mjs` was not run again (it already failed at the workbench step before this pass).
+
+### Polish pass 3
+
+Campfire (static meshes only for a finished pit: soot decal, ash bed, 7 extra baked stones, 6 charred logs, 11 embers), a mid-distance meadow in the ground fragment shader
+(no geometry), noon contrast (sun intensity x1.22 by day, hemisphere fill x0.82, sun slightly warmer), birch-style aspen bark, a soft halo instead of a flat disc for pickup glows,
+fewer and smaller moss cushions (260 to 70). Standard viewpoint with the story camp standing (workbench, fire pit): 212 draw calls, **225,536 triangles**, CPU 4.96 ms (budget 240k).
+Playtests: `story-check.mjs` (workbench complete, fire lit, no errors) and `tutorial-check.mjs` pass; `npm test` 679 pass; production build passes.
+
+### Polish pass 4 (meadow and ash)
+
+The meadow is now two instanced layers: the near tufts (5 bent blades, 12 triangles, at most 1,000, out to about 6 m) and a mid-distance layer of low dense clumps (9 single-triangle blades each,
+at most 1,900, from about 4 m to 15 m, shrinking to nothing over the last 4 m), laid out on broader patches (density threshold lowered, patches about 6 m across) in four colour families including dry
+yellow-green; the ground shader's meadow blend now starts at 1 m and adds dry patches. Twigs and leaf litter trimmed to 300 and 700 to pay for it. The ash is an unlit shader (charcoal, pale flecks,
+soft edge, faint ember glow at the centre). Standard viewpoint with the camp standing: 213 draw calls, **234,012 triangles**, CPU 4.57 ms (budget 240k). Typecheck, 679 tests, production build,
+`story-check.mjs` (workbench complete, fire lit, no errors) and `tutorial-check.mjs` pass.

@@ -5,13 +5,13 @@
 import { mulberry32, range, valueNoise } from './rng.js';
 import { groundHeight, inClearing, streamDistance, TREES, WORLD_RADIUS } from './world-layout.js';
 
-export const TREE_VARIANTS = ['oak', 'ash', 'aspen', 'pine', 'snag'] as const;
+export const TREE_VARIANTS = ['oak', 'ash', 'aspen', 'pine', 'snag', 'bush1', 'bush2', 'bush3', 'fern'] as const;
 export type TreeVariant = (typeof TREE_VARIANTS)[number];
 
 /** Level of detail: 0 full, 1 medium, 2 low, 3 billboard. */
 export type Lod = 0 | 1 | 2 | 3;
 /** Distances (m) at which a tree drops to the next level; hysteresis stops flicker at a boundary. */
-export const LOD_DISTANCE = [6, 14, 26] as const;
+export const LOD_DISTANCE = [4.5, 10.5, 19.5] as const;
 export const LOD_HYSTERESIS = 2;
 /** Beyond this distance a tree behind you (angle past ~105 degrees) is not drawn at all. */
 export const CULL_NEAR = 9;
@@ -62,6 +62,55 @@ export function understory(count = 420): TreeInstance[] {
   return out;
 }
 
+/** Shrubs (walk-through): the same seeded loop as the old faceted bushes, so they stay where they were. */
+export function bushes(count = 260): TreeInstance[] {
+  const rng = mulberry32(31);
+  const out: TreeInstance[] = [];
+  for (let tries = 0; out.length < count && tries < 6000; tries++) {
+    const a = rng() * Math.PI * 2;
+    const r = 6 + rng() * (WORLD_RADIUS + 4);
+    const x = Math.cos(a) * r;
+    const z = Math.sin(a) * r;
+    if (inClearing(x, z, -0.5) || streamDistance(x, z) < 1.6) continue;
+    const sc = range(rng, 0.25, 0.6);
+    const rot = rng() * 6;
+    const n = out.length;
+    out.push({ x, y: groundHeight(x, z) - 0.02, z, rotY: rot, lean: 0, leanDir: 0, w: sc * 2.2, h: sc * 2.0, variant: (['bush1', 'bush2', 'bush3'] as const)[n % 3], tint: n % 4, bias: 2.4, tree: -1 });
+  }
+  return out;
+}
+
+/**
+ * Ferns: the same seeded loop as the old spiky fronds (it continues the random draws of the shrub loop, as before),
+ * so each fern stays where it was. Drawn as arching leaf cards.
+ */
+export function ferns(count = 700): TreeInstance[] {
+  const rng = mulberry32(31);
+  // Replay the shrub loop's draws so the fern loop starts from the same state as in the original layout.
+  for (let tries = 0, n = 0; n < 260 && tries < 6000; tries++) {
+    const a = rng() * Math.PI * 2;
+    const r = 6 + rng() * (WORLD_RADIUS + 4);
+    const x = Math.cos(a) * r;
+    const z = Math.sin(a) * r;
+    if (inClearing(x, z, -0.5) || streamDistance(x, z) < 1.6) continue;
+    range(rng, 0.25, 0.6);
+    rng();
+    n++;
+  }
+  const out: TreeInstance[] = [];
+  for (let tries = 0; out.length < count && tries < 12000; tries++) {
+    const a = rng() * Math.PI * 2;
+    const r = 4 + Math.sqrt(rng()) * (WORLD_RADIUS + 6);
+    const x = Math.cos(a) * r;
+    const z = Math.sin(a) * r;
+    if (inClearing(x, z, 0) || streamDistance(x, z) < 1.2) continue;
+    const sc = range(rng, 0.6, 1.3);
+    const rot = rng() * 6;
+    out.push({ x, y: groundHeight(x, z), z, rotY: rot, lean: 0, leanDir: 0, w: sc, h: sc * 0.9, variant: 'fern', tint: out.length % 4, bias: 2.6, tree: -1 });
+  }
+  return out;
+}
+
 export function allTrees(): TreeInstance[] {
   const out: TreeInstance[] = TREES.map((t, i) => ({
     x: t.x,
@@ -77,7 +126,7 @@ export function allTrees(): TreeInstance[] {
     bias: Math.max(1, Math.min(1.6, 1.15 / (t.scale * t.height))),
     tree: i,
   }));
-  return out.concat(understory());
+  return out.concat(understory(), bushes(), ferns());
 }
 
 /** The level of detail for a tree at squared distance `d2`, given the one it had (null = first time). */

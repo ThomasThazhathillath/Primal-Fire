@@ -1,6 +1,6 @@
 import { NodeIO } from '@gltf-transform/core';
 import { describe, expect, it } from 'vitest';
-import { allTrees, CULL_COS, LOD_DISTANCE, lodFor, TREE_VARIANTS, understory, variantOf, worthDrawing } from '../src/game/tree-lod.js';
+import { allTrees, bushes, ferns, CULL_COS, LOD_DISTANCE, lodFor, TREE_VARIANTS, understory, variantOf, worthDrawing } from '../src/game/tree-lod.js';
 import { inClearing, streamDistance, TREES } from '../src/game/world-layout.js';
 
 describe('tree placement stays the game data', () => {
@@ -11,7 +11,7 @@ describe('tree placement stays the game data', () => {
       expect(all[i].x).toBe(t.x);
       expect(all[i].z).toBe(t.z);
     });
-    expect(all.length).toBe(TREES.length + understory().length);
+    expect(all.length).toBe(TREES.length + understory().length + bushes().length + ferns().length);
   });
   it('kinds map to the baked variants, every variant is used', () => {
     expect(variantOf(0, 2)).toBe('pine');

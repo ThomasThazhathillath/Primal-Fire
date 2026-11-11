@@ -21,9 +21,15 @@ mkdirSync(OUT, { recursive: true });
 const VARIANTS = [
   { id: 'oak', trunk: 1.7, preset: 'Oak Medium', seed: 11011, height: 4.4, leaf: 'oak', lk: 1.1, bark: [0x6e5b47, 0x4a3b2c] },
   { id: 'ash', trunk: 1.5, preset: 'Ash Medium', seed: 22022, height: 4.9, leaf: 'ash', lk: 0.8, bk: 0.55, bark: [0x80786a, 0x5a5348] },
-  { id: 'aspen', trunk: 2.3, preset: 'Aspen Medium', seed: 33033, height: 4.6, leaf: 'aspen', bark: [0xe6e2d6, 0x8f897c] },
+  { id: 'aspen', trunk: 2.3, preset: 'Aspen Medium', seed: 33033, height: 4.6, leaf: 'aspen', bark: [0xb4ac9c, 0x4a443a], birch: true },
   { id: 'pine', trunk: 1.6, preset: 'Pine Medium', seed: 44044, height: 5.2, leaf: 'pine', lk: 0.6, bk: 0.4, bark: [0x6e4e39, 0x4a3426] },
-  { id: 'snag', trunk: 1.9, preset: 'Oak Small', seed: 55055, height: 3.6, leaf: 'oak', bark: [0x8a8174, 0x625b52], dead: true },
+  // EZ-Tree bush presets: low shrubs for the undergrowth (placed by tree-lod.ts bushes()).
+  { id: 'bush1', preset: 'Bush 1', seed: 61061, height: 1.1, leaf: 'ash', lk: 1.0, bk: 0.35, bark: [0x6e5b47, 0x4a3b2c] },
+  { id: 'bush2', preset: 'Bush 2', seed: 62062, height: 1.0, leaf: 'aspen', lk: 1.0, bk: 0.5, bark: [0x6e5b47, 0x4a3b2c] },
+  { id: 'bush3', preset: 'Bush 3', seed: 63063, height: 1.2, leaf: 'pine', lk: 1.0, bk: 0.3, bark: [0x6e4e39, 0x4a3426] },
+  // Ferns: arching cards textured with the ash leaf sprig (placed by tree-lod.ts ferns()). Built by hand, not by EZ-Tree.
+  { id: 'fern', fern: true, height: 0.7, leaf: 'ash', bark: [0, 0] },
+  { id: 'snag', trunk: 1.9, preset: 'Oak Small', seed: 55055, height: 3.6, leaf: 'oak', bark: [0x5a4d40, 0x2f2720], dead: true },
 ];
 
 /** Detail levels: leaf count scale, billboard type, branch levels, segment/section reductions, leaf size scale. */
@@ -92,9 +98,53 @@ const lerpC = (a, b, t) => {
 };
 const srgbToLinear = (c) => c.map((x) => (x <= 0.04045 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4)));
 
+/** Hand-built fern: arching leaf cards radiating from a point. Same output nodes as a tree (Leaves_LOD0..2). */
+function fernGeometry(count, seed) {
+  let a = seed;
+  const rnd = () => { a = (a * 1664525 + 1013904223) >>> 0; return a / 4294967296; };
+  const P = [], N = [], UV = [], I = [];
+  for (let k = 0; k < count; k++) {
+    const yaw = (k / count) * Math.PI * 2 + rnd() * 0.5;
+    const tilt = 0.9 + rnd() * 0.55; // from vertical, radians
+    const L = 0.55 + rnd() * 0.4;
+    const W = L * 0.7;
+    const base = P.length / 3;
+    const corners = [[-W / 2, L], [-W / 2, 0], [W / 2, 0], [W / 2, L]];
+    corners.forEach(([x, y], j) => {
+      // tilt the card outward about X, bend its tip down a little, then rotate by yaw
+      const bend = (y / L) * (y / L) * 0.12;
+      let px = x, py = y * Math.cos(tilt) - bend, pz = y * Math.sin(tilt);
+      const cx = px * Math.cos(yaw) - pz * Math.sin(yaw);
+      const cz = px * Math.sin(yaw) + pz * Math.cos(yaw);
+      P.push(cx, py + 0.02, cz);
+      N.push(Math.sin(yaw) * 0.25, 0.9, Math.cos(yaw) * 0.25);
+      UV.push(j < 2 ? 0 : 1, j === 0 || j === 3 ? 0 : 1);
+    });
+    I.push(base, base + 1, base + 2, base, base + 2, base + 3);
+  }
+  return { P: new Float32Array(P), N: new Float32Array(N), UV: new Float32Array(UV), I: Uint16Array.from(I) };
+}
+
 const summary = [];
 for (const v of VARIANTS) {
   const { d, scene } = doc(v);
+  if (v.fern) {
+    const buffer = d.getRoot().listBuffers()[0];
+    const tex = d.createTexture(`${v.id}-leaf`).setImage(readFileSync(new URL(`leaf_${v.leaf}.png`, OUT))).setMimeType('image/png');
+    const mat = d.createMaterial(`${v.id}-leaf`).setBaseColorTexture(tex).setAlphaMode('MASK').setAlphaCutoff(0.5).setDoubleSided(true).setRoughnessFactor(1).setMetallicFactor(0);
+    const lods = [[9, 'LOD0'], [6, 'LOD1'], [4, 'LOD2']];
+    const row = { id: v.id };
+    for (const [cnt, name] of lods) {
+      const g = fernGeometry(cnt, 99);
+      const acc = (type, arr) => d.createAccessor().setType(type).setArray(arr).setBuffer(buffer);
+      const prim = d.createPrimitive().setMaterial(mat).setIndices(acc('SCALAR', g.I)).setAttribute('POSITION', acc('VEC3', g.P)).setAttribute('NORMAL', acc('VEC3', g.N)).setAttribute('TEXCOORD_0', acc('VEC2', g.UV));
+      scene.addChild(d.createNode(`Leaves_${name}`).setMesh(d.createMesh(`Leaves_${name}`).addPrimitive(prim)));
+      row[name] = g.I.length / 3;
+    }
+    summary.push(row);
+    writeFileSync(new URL(`${v.id}.glb`, OUT), Buffer.from(await new NodeIO().writeBinary(d)));
+    continue;
+  }
   const buffer = d.getRoot().listBuffers()[0];
   const barkMat = d.createMaterial(`${v.id}-bark`).setBaseColorFactor([1, 1, 1, 1]).setRoughnessFactor(1).setMetallicFactor(0);
   const leafTex = d.createTexture(`${v.id}-leaf`).setImage(readFileSync(new URL(`leaf_${v.leaf}.png`, OUT))).setMimeType('image/png');
@@ -125,7 +175,22 @@ for (const v of VARIANTS) {
     for (let i = 1; i < branches.P.length; i += 3) maxY = Math.max(maxY, branches.P[i]);
     for (let i = 0; i < branches.P.length / 3; i++) {
       const c = srgbToLinear(lerpC(v.bark[1], v.bark[0], Math.min(1, branches.P[i * 3 + 1] / (maxY * 0.8)) * 0.45 + 0.4 + (branches.UV[i * 2 + 1] > 0.5 ? 0.06 : 0)));
-      bh.set(c, i * 3);
+      if (v.birch) {
+        // Birch-like bark: pale but warm, with dark horizontal dashes (lenticels) and soft vertical shading, instead of a flat white pole.
+        const hs = (n) => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
+        const seg = Math.floor(branches.UV[i * 2] * 7.001);
+        const dash = hs(seg * 7.3 + Math.floor(branches.P[i * 3 + 1] * 9)) > 0.72 ? 0.32 : 1;
+        const shade = 0.82 + 0.22 * hs(seg + 3.1);
+        bh.set([c[0] * dash * shade, c[1] * dash * shade, c[2] * dash * shade * 0.97], i * 3);
+      } else if (v.dead) {
+        // Weathered wood: vertical grain streaks (one tone per ring segment), cracks and dark patches along the trunk, a silvery-brown cast.
+        const seg = Math.floor(branches.UV[i * 2] * 7.001);
+        const hs = (n) => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
+        const streak = 0.72 + 0.5 * hs(seg + Math.floor(branches.P[i * 3 + 1] * 1.3) * 0.37);
+        const patch = 0.82 + 0.3 * hs(Math.floor(branches.P[i * 3 + 1] * 5) * 1.7 + seg * 3.1);
+        const k = streak * patch;
+        bh.set([c[0] * k * 1.05, c[1] * k * 0.98, c[2] * k * 0.9], i * 3);
+      } else bh.set(c, i * 3);
     }
     const mkMesh = (name, g, mat, extra) => {
       const prim = d

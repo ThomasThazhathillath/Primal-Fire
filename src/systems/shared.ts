@@ -140,6 +140,14 @@ export const glowMaterial = new MeshBasicMaterial({
   blending: AdditiveBlending,
 });
 /** Brighter version for what you are aiming at. */
+// Not a flat disc: a soft pool with a faint ring at its edge (the circle geometry is 0.22 m across its radius), so pickups read as a gentle halo.
+glowMaterial.onBeforeCompile = (sh) => {
+  sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 vLp;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvLp = position.xy;');
+  sh.fragmentShader = sh.fragmentShader
+    .replace('#include <common>', '#include <common>\nvarying vec2 vLp;')
+    .replace('#include <color_fragment>', '#include <color_fragment>\n{ float gr = length(vLp) / 0.22; float ring = smoothstep(0.5, 0.82, gr) * smoothstep(1.0, 0.86, gr); diffuseColor.a *= 0.22 * (1.0 - smoothstep(0.0, 1.0, gr)) + 0.95 * ring; }');
+};
+glowMaterial.customProgramCacheKey = () => 'soft-glow';
 export const glowMaterialHot = glowMaterial.clone();
 glowMaterialHot.color.setHex(0x40ff70);
 glowMaterialHot.opacity = 0.7;

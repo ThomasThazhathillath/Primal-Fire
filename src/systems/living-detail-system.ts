@@ -4,6 +4,7 @@
 // - insects: fireflies drift and blink around you at night (one additive Points), and gnats hang in small
 //   clouds above the stream by day when it is dry (one Points).
 
+import { roundPoints } from './round-points.js';
 import {
   AdditiveBlending,
   BoxGeometry,
@@ -74,7 +75,7 @@ export class LivingDetailSystem extends createSystem({}) {
     const fg = new BufferGeometry();
     fg.setAttribute('position', new BufferAttribute(new Float32Array(FIREFLIES * 3), 3));
     fg.setAttribute('color', new BufferAttribute(this.flyCol, 3));
-    this.flyMat = new PointsMaterial({ size: 0.12, vertexColors: true, transparent: true, depthWrite: false, blending: AdditiveBlending, sizeAttenuation: true });
+    this.flyMat = roundPoints(new PointsMaterial({ size: 0.12, vertexColors: true, transparent: true, depthWrite: false, blending: AdditiveBlending, sizeAttenuation: true }));
     this.flies = new Points(fg, this.flyMat);
     this.flies.name = 'Fireflies';
     this.flies.frustumCulled = false;
@@ -84,7 +85,7 @@ export class LivingDetailSystem extends createSystem({}) {
     this.gnatPos = new Float32Array(GNATS * 3);
     const gg = new BufferGeometry();
     gg.setAttribute('position', new BufferAttribute(this.gnatPos, 3));
-    this.gnatMat = new PointsMaterial({ size: 0.04, color: 0x2a2620, transparent: true, opacity: 0.85, depthWrite: false, sizeAttenuation: true });
+    this.gnatMat = roundPoints(new PointsMaterial({ size: 0.04, color: 0x2a2620, transparent: true, opacity: 0.85, depthWrite: false, sizeAttenuation: true }));
     this.gnats = new Points(gg, this.gnatMat);
     this.gnats.name = 'Gnats';
     this.gnats.frustumCulled = false;

@@ -29,7 +29,7 @@ import {
   type World,
 } from '@iwsdk/core';
 import { Sky } from 'three/addons/objects/Sky.js';
-import { AssetManager, type Texture } from '@iwsdk/core';
+import { AssetManager, PMREMGenerator, Scene, type Texture, type WebGLRenderTarget, type WebGLRenderer } from '@iwsdk/core';
 import type { Environment } from '../game/environment.js';
 import { mulberry32 } from '../game/rng.js';
 import { cloudCoverage, cloudLight, starVisibility } from '../game/sky.js';
@@ -245,6 +245,13 @@ export class SkyFx {
   private photoMat!: ShaderMaterial;
   private photo!: Mesh;
   private readonly tint = new Color();
+  private pmrem: PMREMGenerator | null = null;
+  private envScene = new Scene();
+  private envSky!: Sky;
+  private envRT: WebGLRenderTarget | null = null;
+  private envT = 99;
+  private threeScene: Scene | null = null;
+  private renderer: WebGLRenderer | null = null;
   private t = 0;
   private offX = 0.13;
   private offY = 0.41;
@@ -355,6 +362,18 @@ export class SkyFx {
     this.physical.frustumCulled = false;
     world.createTransformEntity(this.physical);
 
+    // Image-based light from the same sky: a second (unpatched, HDR) Sky is baked into a PMREM environment every few seconds,
+    // so materials that use the environment (ground, rocks) are lit by the real sky colours and the sun's side.
+    this.renderer = world.renderer;
+    this.threeScene = world.scene;
+    this.pmrem = new PMREMGenerator(world.renderer);
+    this.envSky = new Sky();
+    this.envSky.scale.setScalar(1000);
+    (this.envSky.material as ShaderMaterial).uniforms.showSunDisc.value = 0;
+    (this.envSky.material as ShaderMaterial).uniforms.cloudCoverage.value = 0;
+    (this.envSky.material as ShaderMaterial).uniforms.cloudDensity.value = 0;
+    this.envScene.add(this.envSky);
+
     // --- photographed clouds: Poly Haven's partly cloudy sky, as an alpha mask on a dome, tinted by the sun and faded with night
     this.photoMat = new ShaderMaterial({
       vertexShader: CLOUD_VERT,
@@ -433,6 +452,21 @@ export class SkyFx {
     pu.uAlpha.value = (1 - smooth(0.3, 0.9, env.night)) * (1 - env.fog * 0.6);
     this.physical.visible = pu.uAlpha.value > 0.01;
     this.physical.position.copy(head);
+
+    // Environment light from the sky, rebuilt every 6 s (a 128 px cube: cheap).
+    if (this.pmrem && this.threeScene && (this.envT += delta) > 6) {
+      this.envT = 0;
+      const eu = (this.envSky.material as ShaderMaterial).uniforms;
+      for (const k of ['turbidity', 'rayleigh', 'mieCoefficient']) eu[k].value = pu[k].value;
+      eu.sunPosition.value.copy(pu.sunPosition.value);
+      const rt = this.pmrem.fromScene(this.envScene, 0, 0.1, 2000);
+      this.envRT?.dispose();
+      this.envRT = rt;
+    }
+    if (this.envRT && this.threeScene) {
+      this.threeScene.environment = this.envRT.texture;
+      this.threeScene.environmentIntensity = 0.04 + 0.12 * (1 - env.night) * (1 - env.cloud * 0.4);
+    }
 
     // Photo clouds: white by day, warm at sunrise and sunset, gone at night; thicker with the weather's cloud cover.
     const pc = this.photoMat.uniforms;

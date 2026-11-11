@@ -181,7 +181,7 @@ export class WildlifeSystem extends createSystem({}) {
         d.scale.set(sz, 1, sz);
         // Fresh: dark and crisp; old: close to the ground colour.
         const f = freshness(age);
-        this.col.setHex(f === 'fresh' ? 0x2a1c12 : f === 'recent' ? 0x4a3a2a : 0x6c5e46);
+        this.col.setHex(f === 'fresh' ? 0x5a4630 : f === 'recent' ? 0x6e5a3e : 0x806c4c);
         this.col.multiplyScalar(0.6 + 0.4 * fade);
         this.prints.setColorAt(i, this.col);
       }

@@ -26,7 +26,7 @@ import {
 } from '@iwsdk/core';
 import type { GameEvent } from '../game/game.js';
 import { mulberry32 } from '../game/rng.js';
-import { STREAM_HALF_WIDTH, streamDistance } from '../game/world-layout.js';
+import { BOULDERS, RESOURCES, STREAM_HALF_WIDTH, streamDistance } from '../game/world-layout.js';
 import { getGame } from './shared.js';
 
 const WATER_VERT = /* glsl */ `
@@ -55,6 +55,7 @@ uniform sampler2D uBed;
 uniform sampler2D uCloud;
 uniform float uCloudOp;
 uniform vec3 uCloudTint;
+uniform vec3 uRocks[12];
 varying vec2 vFlow;
 varying vec3 vWorld;
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -103,6 +104,12 @@ void main() {
   // Foam: banks and the noisy crests.
   float edge = 1.0 - abs(vFlow.y * 2.0 - 1.0);
   float foam = smoothstep(0.22, 0.0, edge + (n2 - 0.5) * 0.2) + smoothstep(0.8, 0.95, h) * 0.25 + ring;
+  // Foam rings round the rocks that break the surface (the twelve nearest to you, set from the layout).
+  for (int i = 0; i < 12; i++) {
+    float rr = uRocks[i].z;
+    float dd = length(vWorld.xz - uRocks[i].xy);
+    foam += step(0.0, rr) * smoothstep(rr + 0.42, rr + 0.05, dd) * (0.55 + 0.45 * noise(vWorld.xz * 9.0 + vec2(uTime * 0.6, 0.0)));
+  }
   col = mix(col, vec3(0.85, 0.9, 0.92) * (0.35 + 0.65 * uLight), clamp(foam, 0.0, 1.0) * 0.7);
   float fogD = length(cameraPosition - vWorld);
   col = mix(col, uFogColor, smoothstep(uFogNear, uFogFar, fogD));
@@ -126,7 +133,14 @@ export function inStream(x: number, z: number): boolean {
   return streamDistance(x, z) < STREAM_HALF_WIDTH + 0.15;
 }
 
+/** Rocks that stand in or beside the stream, with the radius their foam ring starts from. */
+const STREAM_ROCKS: Array<{ x: number; z: number; r: number }> = [
+  ...BOULDERS.filter((b) => streamDistance(b.x, b.z) < STREAM_HALF_WIDTH + b.size + 2.5).map((b) => ({ x: b.x, z: b.z, r: b.size * 0.8 })),
+  ...RESOURCES.filter((r) => r.look === 'wetStone' && streamDistance(r.x, r.z) < STREAM_HALF_WIDTH + 0.6).map((r) => ({ x: r.x, z: r.z, r: 0.14 })),
+];
+
 export class NatureSystem extends createSystem({}) {
+  private rockT = 0;
   private water: ShaderMaterial | null = null;
   private search = 0;
   private swayUniforms = { uTime: { value: 0 }, uWind: { value: new Vector2() }, uGust: { value: 0 } };
@@ -228,6 +242,7 @@ export class NatureSystem extends createSystem({}) {
         uFogColor: { value: new Color() },
         uFogNear: { value: 16 },
         uFogFar: { value: 52 },
+        uRocks: { value: Array.from({ length: 12 }, () => new Vector3(0, 0, -1)) },
         uBed: { value: null },
         uCloud: { value: null },
         uCloudOp: { value: 0 },
@@ -302,6 +317,37 @@ export class NatureSystem extends createSystem({}) {
     this.splash.visible = true;
   }
 
+  /** Every second, point the shader's twelve foam slots at the stream rocks nearest the camera (no allocation). */
+  private updateRocks(delta: number): void {
+    if ((this.rockT -= delta) > 0 || !this.water) return;
+    this.rockT = 1;
+    this.camera.getWorldPosition(this.head);
+    const slots = this.water.uniforms.uRocks.value as Vector3[];
+    let last = -1;
+    for (let k = 0; k < 12; k++) {
+      let best = -1;
+      let bd = 30 * 30;
+      for (let i = 0; i < STREAM_ROCKS.length; i++) {
+        const c = STREAM_ROCKS[i];
+        const d = (c.x - this.head.x) ** 2 + (c.z - this.head.z) ** 2;
+        if (d >= bd) continue;
+        let taken = false;
+        for (let j = 0; j < k; j++) if (slots[j].x === c.x && slots[j].y === c.z) taken = true;
+        if (!taken) {
+          bd = d;
+          best = i;
+        }
+      }
+      if (best < 0) {
+        slots[k].set(0, 0, -1);
+      } else {
+        slots[k].set(STREAM_ROCKS[best].x, STREAM_ROCKS[best].z, STREAM_ROCKS[best].r);
+        last = best;
+      }
+    }
+    void last;
+  }
+
   update(delta: number): void {
     if (!this.water && (this.search -= delta) <= 0) {
       this.search = 1.5;
@@ -330,6 +376,7 @@ export class NatureSystem extends createSystem({}) {
       (w.uFogColor.value as Color).setRGB(env.fogColor[0], env.fogColor[1], env.fogColor[2]);
       w.uFogNear.value = env.fogNear;
       w.uFogFar.value = env.fogFar;
+      this.updateRocks(delta);
       // Textures are preloaded by the manifest; pick them up once.
       w.uBed.value ??= AssetManager.getTexture('ground-mud-dr');
       w.uCloud.value ??= AssetManager.getTexture('sky-clouds');

@@ -345,27 +345,12 @@ export function createGroundDetail(): Object3D {
     return [Math.cos(a) * r, Math.sin(a) * r];
   };
 
-  // Living grass clumps (walk-through), clustered by a noise field.
-  const CLUMPS = 1200;
-  const grass = new InstancedMesh(grassClumpGeometry(), lambert(0xffffff, { side: DoubleSide }), CLUMPS);
-  grass.name = 'GrassClumps';
+  // Grass tufts are drawn around the player by GrassSystem.
   let n = 0;
-  for (let tries = 0; n < CLUMPS && tries < 20000; tries++) {
-    const [x, z] = spot(1);
-    if (streamDistance(x, z) < 0.8 || rng() > valueNoise(x * 0.5 + 7, z * 0.5 - 3) * 1.6 - 0.2) continue;
-    const sc = range(rng, 0.6, 1.4);
-    m.compose(p.set(x, groundHeight(x, z), z), q.setFromAxisAngle(up, rng() * 6), s.set(sc, sc * range(rng, 0.7, 1.3), sc));
-    grass.setMatrixAt(n, m);
-    grass.setColorAt(n, col.setHex([0x5a7a32, 0x6b8a3a, 0x4e6e2c, 0x7a8a40][n % 4]));
-    n++;
-  }
-  grass.count = n;
-  grass.frustumCulled = false;
-  root.add(grass);
 
   // (Loose pebbles and leaf flakes were removed: anything that small must be a
   // real gatherable, see SCATTER_RULES. Leaf litter now lives in the ground colour.)
-  const mossCush = new InstancedMesh(new SphereGeometry(1, 6, 3, 0, Math.PI * 2, 0, Math.PI / 2), lambert(0xffffff), 260);
+  const mossCush = new InstancedMesh(new SphereGeometry(1, 10, 4, 0, Math.PI * 2, 0, Math.PI / 2), lambert(0xffffff), 260);
   mossCush.name = 'MossCushions';
   n = 0;
   for (let tries = 0; n < 260 && tries < 3000; tries++) {

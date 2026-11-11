@@ -104,11 +104,15 @@ const builders: Record<ResourceLook, () => Object3D> = {
   twigPile: () => sticks(7, 0x7d6a55, [0.25, 0.4], 0.012),
   fallenLog: () => at(new Mesh(new CylinderGeometry(0.16, 0.19, 1.8, 9), lambert(0x5a4636)), 0, 0.17, 0, 0, 0, Math.PI / 2),
   sapling: () => {
+    // A slim trunk with soft, smooth-shaded leaf masses (no faceted solids).
     const g = new Group();
-    g.add(at(new Mesh(new CylinderGeometry(0.025, 0.035, 1.2, 6), lambert(0x6b5a3a)), 0, 0.6, 0));
-    for (const [y, s] of [[0.75, 0.22], [1.0, 0.2], [1.22, 0.15]]) {
-      g.add(at(new Mesh(new IcosahedronGeometry(s, 0), lambert(0x6fa040)), r(-0.05, 0.05), y, r(-0.05, 0.05)));
-    }
+    g.add(at(new Mesh(new CylinderGeometry(0.02, 0.035, 1.2, 8), lambert(0x6b5a3a)), 0, 0.6, 0));
+    const tones = [0x5f9a3a, 0x6fae40, 0x7cbd4c];
+    [[0.7, 0.2], [0.95, 0.18], [1.2, 0.14]].forEach(([y, s], i) => {
+      const puff = new Mesh(new SphereGeometry(s, 10, 8), lambert(tones[i]));
+      puff.scale.set(1, 0.8, 1);
+      g.add(at(puff, r(-0.05, 0.05), y, r(-0.05, 0.05)));
+    });
     return g;
   },
   mossRock: () => {

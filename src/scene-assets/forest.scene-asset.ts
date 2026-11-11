@@ -493,10 +493,10 @@ export function createGroundDetail(): Object3D {
   root.add(roots);
 
   // Forest-floor debris: fallen twigs and leaf litter scattered thickest under the trees (decor, instanced, static).
-  const TWIGS = 450;
+  const TWIGS = 300;
   const twigs = new InstancedMesh(new CylinderGeometry(0.007, 0.011, 1, 4).rotateZ(Math.PI / 2), lambert(0xffffff), TWIGS);
   twigs.name = 'Twigs';
-  const LEAVES = 1000;
+  const LEAVES = 700;
   const litter = new InstancedMesh(new PlaneGeometry(0.07, 0.11).rotateX(-Math.PI / 2), lambert(0xffffff, { side: DoubleSide }), LEAVES);
   litter.name = 'LeafLitter';
   let nt = 0;

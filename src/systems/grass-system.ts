@@ -10,11 +10,18 @@ import { groundHeight, inClearing, nearestTreeDistance, streamDistance } from '.
 import { getGame } from './shared.js';
 
 const CELL = 0.7;
-const RADIUS = 8.5;
-const FADE_FROM = 5;
-const NEAR = 4.5;
+const RADIUS = 6.2;
+const FADE_FROM = 4.2;
+const NEAR = 4.0;
+/** Mid-distance layer: low, dense clumps of single-triangle blades from about 4 m out to the treeline. */
+const MID_CELL = 0.8;
+const MID_FROM = 3.8;
+const MID_R = 15;
+const MID_FADE = 11;
+const MID_PER = 4;
+const MID_MAX = 1900;
 const PER_CELL = 7;
-const MAX = 1450;
+const MAX = 1000;
 const FLOWERS = 450;
 /** Colour families (linear tint) a patch can be: fresh, yellow-green, dry, dark. */
 const PATCH = [
@@ -69,6 +76,36 @@ function tuftGeometry(): BufferGeometry {
   return g;
 }
 
+/** A clump: nine single-triangle blades splayed from a point (9 triangles), dark at the base and light at the tip. */
+function clumpGeometry(): BufferGeometry {
+  const P: number[] = [];
+  const C: number[] = [];
+  const I: number[] = [];
+  for (let b = 0; b < 9; b++) {
+    const a = b * 2.4 + 0.5;
+    const r0 = 0.02 + (b % 3) * 0.035;
+    const h = 0.12 + ((b * 5) % 7) * 0.02;
+    const w = 0.024;
+    const lean = 0.05 + (b % 4) * 0.025;
+    const dx = Math.cos(a);
+    const dz = Math.sin(a);
+    const px = -dz;
+    const pz = dx;
+    const bx = dx * r0;
+    const bz = dz * r0;
+    const base = P.length / 3;
+    P.push(bx + px * w, 0, bz + pz * w, bx - px * w, 0, bz - pz * w, bx + dx * lean, h, bz + dz * lean);
+    C.push(0.2, 0.3, 0.1, 0.2, 0.3, 0.1, 0.62, 0.8, 0.34);
+    I.push(base, base + 1, base + 2);
+  }
+  const g = new BufferGeometry();
+  g.setAttribute('position', new BufferAttribute(new Float32Array(P), 3));
+  g.setAttribute('color', new BufferAttribute(new Float32Array(C), 3));
+  g.setAttribute('normal', new BufferAttribute(new Float32Array(P.length).fill(0).map((_, i) => (i % 3 === 1 ? 1 : 0)), 3));
+  g.setIndex(I);
+  return g;
+}
+
 function flowerGeometry(): BufferGeometry {
   // A thin stem and a six-petal head (flat star), one bloom colour per instance (the stem goes dark under it).
   const P: number[] = [];
@@ -100,6 +137,7 @@ function flowerGeometry(): BufferGeometry {
 export class GrassSystem extends createSystem({}) {
   private mesh!: InstancedMesh;
   private flowers!: InstancedMesh;
+  private mid!: InstancedMesh;
   private uniforms = { uTime: { value: 0 }, uWind: { value: 0.2 } };
   private acc = 1;
   private head = new Vector3();
@@ -131,6 +169,13 @@ export class GrassSystem extends createSystem({}) {
     this.mesh.count = 0;
     this.mesh.name = 'GrassTufts';
     this.scene.add(this.mesh);
+    this.mid = new InstancedMesh(clumpGeometry(), mat, MID_MAX);
+    this.mid.instanceMatrix.setUsage(DynamicDrawUsage);
+    this.mid.instanceColor = new InstancedBufferAttribute(new Float32Array(MID_MAX * 3), 3).setUsage(DynamicDrawUsage);
+    this.mid.frustumCulled = false;
+    this.mid.count = 0;
+    this.mid.name = 'GrassClumps';
+    this.scene.add(this.mid);
     this.flowers = new InstancedMesh(flowerGeometry(), mat, FLOWERS);
     this.flowers.instanceMatrix.setUsage(DynamicDrawUsage);
     this.flowers.instanceColor = new InstancedBufferAttribute(new Float32Array(FLOWERS * 3), 3).setUsage(DynamicDrawUsage);
@@ -141,6 +186,8 @@ export class GrassSystem extends createSystem({}) {
     this.cleanupFuncs.push(() => {
       this.scene.remove(this.mesh);
       this.scene.remove(this.flowers);
+      this.scene.remove(this.mid);
+      this.mid.geometry.dispose();
       this.flowers.geometry.dispose();
       this.mesh.geometry.dispose();
       mat.dispose();
@@ -180,7 +227,7 @@ export class GrassSystem extends createSystem({}) {
         const px = (ix + 0.5) * CELL;
         const pz = (iz + 0.5) * CELL;
         const patch = valueNoise(px * 0.3 + 7, pz * 0.3 - 3) * 0.65 + valueNoise(px * 1.1, pz * 1.1) * 0.35;
-        const dens = Math.min(1, Math.max(0, (patch - 0.33) / 0.14) * thin);
+        const dens = Math.min(1, Math.max(0, (patch - 0.26) / 0.14) * thin);
         if (dens <= 0) continue;
         const fam = Math.floor(valueNoise(px * 0.11 + 3, pz * 0.11 + 9) * 4) % 4;
         for (let k = 0; k < (pass === 0 ? PER_CELL + 3 : PER_CELL) && n < MAX; k++) {
@@ -232,6 +279,56 @@ export class GrassSystem extends createSystem({}) {
         }
       }
     }
+    // Mid-distance layer: broad patches, shorter and denser, with dry yellow-green families, all the way out to the treeline.
+    const marr = this.mid.instanceMatrix.array as Float32Array;
+    const mcol = this.mid.instanceColor!.array as Float32Array;
+    const m0x = Math.floor(cx / MID_CELL);
+    const m0z = Math.floor(cz / MID_CELL);
+    const mspan = Math.ceil(MID_R / MID_CELL);
+    let nm = 0;
+    for (let dz = -mspan; dz <= mspan && nm < MID_MAX; dz++) {
+      for (let dx = -mspan; dx <= mspan && nm < MID_MAX; dx++) {
+        const ix = m0x + dx;
+        const iz = m0z + dz;
+        const px = (ix + 0.5) * MID_CELL;
+        const pz = (iz + 0.5) * MID_CELL;
+        const cd = Math.hypot(px - cx, pz - cz);
+        if (cd < MID_FROM || cd > MID_R) continue;
+        const patch = valueNoise(px * 0.16 + 21, pz * 0.16 - 11) * 0.6 + valueNoise(px * 0.7, pz * 0.7) * 0.4;
+        const dens = Math.min(1, Math.max(0, (patch - 0.24) / 0.2));
+        if (dens <= 0) continue;
+        const fam = Math.floor(valueNoise(px * 0.09 + 3, pz * 0.09 + 9) * 4) % 4;
+        for (let k = 0; k < MID_PER && nm < MID_MAX; k++) {
+          if (hash(ix, iz, k * 7 + 41) > dens) continue;
+          const x = (ix + hash(ix, iz, k * 3 + 43)) * MID_CELL;
+          const z = (iz + hash(ix, iz, k * 3 + 44)) * MID_CELL;
+          if (streamDistance(x, z) < 0.95 || nearestTreeDistance(x, z, 0.5) < 0.45) continue;
+          let built = false;
+          for (let q = 0; q < structs.length; q++) if (Math.hypot(structs[q].x - x, structs[q].z - z) < BLUEPRINTS[structs[q].kind].radius + 0.55) built = true;
+          if (built) continue;
+          const fade = cd < MID_FADE ? 1 : 1 - (cd - MID_FADE) / (MID_R - MID_FADE);
+          const sc = (1.0 + hash(ix, iz, k * 3 + 45) * 0.9 + dens * 0.4) * fade;
+          if (sc < 0.08) continue;
+          const a = hash(ix, iz, k * 3 + 46) * 6.2832;
+          const co = Math.cos(a) * sc;
+          const si = Math.sin(a) * sc;
+          const o = nm * 16;
+          marr[o] = co; marr[o + 1] = 0; marr[o + 2] = -si; marr[o + 3] = 0;
+          marr[o + 4] = 0; marr[o + 5] = sc; marr[o + 6] = 0; marr[o + 7] = 0;
+          marr[o + 8] = si; marr[o + 9] = 0; marr[o + 10] = co; marr[o + 11] = 0;
+          marr[o + 12] = x; marr[o + 13] = groundHeight(x, z) - 0.01; marr[o + 14] = z; marr[o + 15] = 1;
+          const t = 0.7 + hash(ix, iz, k * 3 + 47) * 0.55;
+          const tone = PATCH[fam];
+          mcol[nm * 3] = tone[0] * t;
+          mcol[nm * 3 + 1] = tone[1] * t;
+          mcol[nm * 3 + 2] = tone[2] * t;
+          nm++;
+        }
+      }
+    }
+    this.mid.count = nm;
+    this.mid.instanceMatrix.needsUpdate = true;
+    this.mid.instanceColor!.needsUpdate = true;
     this.mesh.count = n;
     this.mesh.instanceMatrix.needsUpdate = true;
     this.mesh.instanceColor!.needsUpdate = true;

@@ -9,10 +9,10 @@ import { groundHeight, inClearing, nearestTreeDistance, streamDistance } from '.
 import { getGame } from './shared.js';
 
 const CELL = 0.7;
-const RADIUS = 10;
-const FADE_FROM = 5.5;
+const RADIUS = 9;
+const FADE_FROM = 5;
 const PER_CELL = 7;
-const MAX = 2200;
+const MAX = 1700;
 const FLOWERS = 450;
 /** Colour families (linear tint) a patch can be: fresh, yellow-green, dry, dark. */
 const PATCH = [

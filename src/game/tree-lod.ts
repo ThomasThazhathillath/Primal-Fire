@@ -11,7 +11,7 @@ export type TreeVariant = (typeof TREE_VARIANTS)[number];
 /** Level of detail: 0 full, 1 medium, 2 low, 3 billboard. */
 export type Lod = 0 | 1 | 2 | 3;
 /** Distances (m) at which a tree drops to the next level; hysteresis stops flicker at a boundary. */
-export const LOD_DISTANCE = [6, 14, 26] as const;
+export const LOD_DISTANCE = [5, 11.5, 21] as const;
 export const LOD_HYSTERESIS = 2;
 /** Beyond this distance a tree behind you (angle past ~105 degrees) is not drawn at all. */
 export const CULL_NEAR = 9;

@@ -319,8 +319,8 @@ export function createMountains(): Object3D {
   ];
   // Each ridge is a grid (SEG around, ROWS up) with ridged-noise crags, a treeline of dark green on the lower slopes of the nearer ranges and
   // snow on the high peaks of the farther ones, all in vertex colours (still one unlit draw call per ridge).
-  const SEG = 160;
-  const ROWS = 5;
+  const SEG = 112;
+  const ROWS = 4;
   layers.forEach(([radius, peak, freq, seed, haze, stone], li) => {
     const V = (SEG + 1) * (ROWS + 1);
     const verts = new Float32Array(V * 3);

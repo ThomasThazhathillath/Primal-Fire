@@ -222,3 +222,8 @@ parts, drawn by a second small InstancedMesh (one extra draw call). Ground textu
 procedural patch and grain variation in the shader. Mountains gain strata, grain and a hazy foot in their fragment shader (no extra geometry). Fallen trunks use
 Poly Haven bark_brown_02 (1K, packed like the ground set) on 16-sided knobbly geometry. The stream fades to nothing at its banks, is lighter and clearer in the shallows,
 and has sharper sun glints. Dusk clouds can no longer be darker than most of the horizon glow.
+
+### Polish pass 2, item 1: back within budget
+
+Cuts, cheapest detail first: tree LOD distances 6/14/26 m to 5/11.5/21 m, mountain ridges from 160 x 5 to 112 x 4 cells, grass ring from 10 m / 2,200 tufts to 9 m / 1,700 tufts.
+Standard viewpoint (UI hidden): 213 draw calls, **232,134 triangles** (was 253,902), CPU 4.76 ms. The headroom is spent on denser grass near the player in item 3.

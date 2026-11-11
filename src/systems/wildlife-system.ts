@@ -12,6 +12,8 @@ import {
   MeshLambertMaterial,
   Object3D,
 } from '@iwsdk/core';
+import { Color } from '@iwsdk/core';
+import { freshness, TRACK_CAP, TRACK_LIFE } from '../game/tracks.js';
 import type { Animal, Species } from '../game/wildlife.js';
 import { getGame } from './shared.js';
 
@@ -86,6 +88,10 @@ const SCALE: Record<Species, number> = { deer: 1, rabbit: 1, bird: 1 };
 export class WildlifeSystem extends createSystem({}) {
   private meshes = new Map<Species, InstancedMesh>();
   private dummy!: Object3D;
+  private prints!: InstancedMesh;
+  private printVersion = -1;
+  private printT = 0;
+  private col = new Color();
 
   init() {
     this.dummy = new Object3D();
@@ -101,6 +107,24 @@ export class WildlifeSystem extends createSystem({}) {
       this.scene.add(mesh);
       this.meshes.set(sp, mesh);
     }
+    // Footprints: a cloven pair of flat marks per print, tinted by age.
+    const pm = new MeshLambertMaterial({ color: 0xffffff });
+    const printGeo = buildGeometry([
+      [-0.045, 0, 0, 0.05, 0.012, 0.13, 0xffffff],
+      [0.045, 0, 0, 0.05, 0.012, 0.13, 0xffffff],
+    ]);
+    this.prints = new InstancedMesh(printGeo, pm, TRACK_CAP);
+    this.prints.instanceMatrix.setUsage(DynamicDrawUsage);
+    this.prints.frustumCulled = false;
+    this.prints.name = 'Tracks';
+    this.prints.count = TRACK_CAP;
+    this.scene.add(this.prints);
+    this.cleanupFuncs.push(() => {
+      this.scene.remove(this.prints);
+      printGeo.dispose();
+      pm.dispose();
+      this.prints.dispose();
+    });
     this.cleanupFuncs.push(() => {
       for (const m of this.meshes.values()) {
         this.scene.remove(m);
@@ -132,6 +156,40 @@ export class WildlifeSystem extends createSystem({}) {
       mesh.setMatrixAt(i, d.matrix);
     }
     for (const m of this.meshes.values()) m.instanceMatrix.needsUpdate = true;
+    this.updatePrints(_delta, game);
+  }
+
+  /** Rebuild the print instances when one was added/removed, and re-tint for age every couple of seconds. */
+  private updatePrints(delta: number, game: ReturnType<typeof getGame>): void {
+    this.printT += delta;
+    const tr = game.tracks;
+    if (tr.version === this.printVersion && this.printT < 2) return;
+    this.printVersion = tr.version;
+    this.printT = 0;
+    const d = this.dummy;
+    for (let i = 0; i < tr.prints.length; i++) {
+      const p = tr.prints[i];
+      if (!p.live) {
+        d.position.set(0, -50, 0);
+        d.scale.setScalar(0.0001);
+      } else {
+        const age = game.time - p.born;
+        const fade = Math.max(0, 1 - age / TRACK_LIFE);
+        d.position.set(p.x + Math.cos(p.heading) * (p.side ? 0.12 : -0.12), tr.y(p), p.z - Math.sin(p.heading) * (p.side ? 0.12 : -0.12));
+        d.rotation.set(0, p.heading, 0);
+        const sz = p.species === 'deer' ? 1 : 0.55;
+        d.scale.set(sz, 1, sz);
+        // Fresh: dark and crisp; old: close to the ground colour.
+        const f = freshness(age);
+        this.col.setHex(f === 'fresh' ? 0x2a1c12 : f === 'recent' ? 0x4a3a2a : 0x6c5e46);
+        this.col.multiplyScalar(0.6 + 0.4 * fade);
+        this.prints.setColorAt(i, this.col);
+      }
+      d.updateMatrix();
+      this.prints.setMatrixAt(i, d.matrix);
+    }
+    this.prints.instanceMatrix.needsUpdate = true;
+    if (this.prints.instanceColor) this.prints.instanceColor.needsUpdate = true;
   }
 
   /** Whole-body pose for the state: bob when walking, hop, head-down graze, lying when asleep. */

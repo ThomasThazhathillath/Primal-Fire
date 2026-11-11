@@ -76,6 +76,10 @@ export const SCIENCE_EVENTS = {
 
   // --- hunting and nature
   'hunt.track.found': 'Animal tracks were found.',
+  'hunt.track.deer': 'A deer track was identified.',
+  'hunt.track.rabbit': 'A rabbit track was identified.',
+  'hunt.track.fresh': 'Two tracks of different ages were compared.',
+  'hunt.track.followed': 'A trail of tracks was followed.',
   'hunt.bow.drawn': 'The bow was drawn.',
   'hunt.arrow.made': 'An arrow was made.',
   'hunt.fletch.made': 'Feathers were added to an arrow.',

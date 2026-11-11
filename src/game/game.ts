@@ -3,6 +3,8 @@
 
 import { type StorySave, StoryTracker } from './story.js';
 import { Wildlife } from './wildlife.js';
+import { freshness, Tracks } from './tracks.js';
+import { livingProgress } from './living-quests.js';
 import { Environment, type EnvironmentSave } from './environment.js';
 import { actionFor } from './actions.js';
 import { BENCH_BY_ID, BenchSession, canStart, missingText, type BenchMotion } from './bench.js';
@@ -206,6 +208,12 @@ export class Game {
   readonly env = new Environment();
   /** Deer, rabbits and birds (deterministic, not saved). */
   readonly wildlife = new Wildlife();
+  readonly tracks = new Tracks();
+  /** Ids of finished Phase 3 quests (saved). */
+  readonly living = new Set<string>();
+  private trackSeen = new Set<number>();
+  private trackAges = new Set<string>();
+  private trackT = 0;
   private wildSeen = new Set<string>();
   /** Calls and splashes for the ambience system to voice (drained there). */
   readonly wildAudio: import('./wildlife.js').WildEvent[] = [];
@@ -696,10 +704,29 @@ export class Game {
     } else this.heavyTime = 0;
   }
 
+  /** Standing over a print reads it: what animal, how fresh, and a trail once you have read several. */
+  private inspectTracks(): void {
+    const hit = this.tracks.nearest(this.player.x, this.player.z, 1.8, this.time);
+    if (!hit) return;
+    this.science('hunt.track.found');
+    this.science(hit.print.species === 'deer' ? 'hunt.track.deer' : 'hunt.track.rabbit');
+    this.trackAges.add(freshness(hit.age));
+    // Telling fresh from old needs two different ages to compare.
+    if (this.trackAges.size >= 2) this.science('hunt.track.fresh');
+    this.trackSeen.add(hit.index);
+    if (this.trackSeen.size >= 5) this.science('hunt.track.followed');
+  }
+
   /** Step the animals and turn what you watch of them into science events. */
   private tickWildlife(dt: number): void {
     const w = this.wildlife;
     w.update(dt, { px: this.player.x, pz: this.player.z, hour: this.env.hour });
+    for (const a of w.animals) this.tracks.note(a, this.time);
+    if ((this.trackT += dt) >= 0.5) {
+      this.trackT = 0;
+      this.tracks.expire(this.time);
+      this.inspectTracks();
+    }
     for (const a of w.animals) {
       if (!a.active || a.hidden) continue;
       const d = Math.hypot(a.x - this.player.x, a.z - this.player.z);
@@ -1683,6 +1710,17 @@ export class Game {
     this.log.add(`event: ${event}`, 'ok');
     for (const id of observationsForEvent(event)) this.observe(id);
     this.checkQuests();
+    this.checkLiving();
+  }
+
+  /** The non-linear Phase 3 quests: judged from state whenever something happens. */
+  checkLiving(): void {
+    for (const q of livingProgress(this)) {
+      this.log.add(`quest complete: ${q.title}`, 'ok');
+      this.addXp(100);
+      this.toast(`Quest complete: ${q.title}`, 'good');
+      if (q.recap) this.toast(q.recap, 'note');
+    }
   }
 
   hasEvent(event: string): boolean {
@@ -1819,6 +1857,7 @@ export class Game {
       gathered: Object.fromEntries(this.gathered),
       notebook: [...this.notebook],
       events: [...this.events],
+      living: [...this.living],
       guide: this.guide.snapshot(),
       structures: this.structures.map((s) => ({
         ...s,
@@ -1857,6 +1896,7 @@ export class Game {
     for (const [k, v] of Object.entries(data.gathered)) g.gathered.set(k as ItemId, v);
     g.notebook.push(...data.notebook);
     for (const e of data.events ?? []) g.events.add(e);
+    for (const q of data.living ?? []) g.living.add(q);
     if (data.guide) g.guide.restore(data.guide);
     g.structures.push(...data.structures);
     g.nextStructureId = Math.max(0, ...data.structures.map((s) => s.id)) + 1;
@@ -1910,6 +1950,7 @@ export interface SaveData {
   gathered: Partial<Record<ItemId, number>>;
   notebook: string[];
   events?: string[];
+  living?: string[];
   guide?: GuideSave;
   structures: PlacedStructure[];
   discovered: string[];

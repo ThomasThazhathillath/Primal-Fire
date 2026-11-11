@@ -326,7 +326,7 @@ export function createMountains(): Object3D {
     const verts = new Float32Array(V * 3);
     const cols = new Float32Array(V * 3);
     const index: number[] = [];
-    const snowLine = li === 0 ? 2 : li === 1 ? 0.86 : 0.72;
+    const snowLine = li === 0 ? 2 : li === 1 ? 1.05 : 0.95;
     for (let i = 0; i <= SEG; i++) {
       const a = (i / SEG) * Math.PI * 2;
       // Wrap noise seamlessly by sampling on a circle.
@@ -383,13 +383,20 @@ export function createMountains(): Object3D {
     // Rock texture without a texture: strata (horizontal bands bent by noise) and a fine grain in the fragment shader, a lighter hazy foot,
     // so the ridges read as layered, weathered mountain faces instead of flat polygons. Layers farther away get less contrast.
     const contrast = 0.55 + 0.45 * (1 - li / 3);
+    // Snow brightness and tint are driven from the clock (EnvironmentSystem): it only catches the low sun, and goes dark blue at night.
+    const snow = { uSnow: { value: 1 }, uSnowTint: { value: new Color(1, 1, 1) } };
+    mat.userData.snow = snow;
     mat.onBeforeCompile = (sh) => {
+      sh.uniforms.uSnow = snow.uSnow;
+      sh.uniforms.uSnowTint = snow.uSnowTint;
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vMp;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvMp = position;');
       sh.fragmentShader = sh.fragmentShader
         .replace(
           '#include <common>',
           `#include <common>
           varying vec3 vMp;
+          uniform float uSnow;
+          uniform vec3 uSnowTint;
           float mh(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
           float mn(vec2 p) { vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f); return mix(mix(mh(i), mh(i + vec2(1.0, 0.0)), u.x), mix(mh(i + vec2(0.0, 1.0)), mh(i + vec2(1.0, 1.0)), u.x), u.y); }`,
         )
@@ -403,6 +410,9 @@ export function createMountains(): Object3D {
             float crag = mn(vec2(vMp.x * 0.35 - vMp.z * 0.2, vMp.y * 0.6));
             float k = 0.78 + ${contrast.toFixed(2)} * (0.32 * strata + 0.34 * grain + 0.2 * crag);
             diffuseColor.rgb *= k;
+            // Snow (vertex colours above 1) takes the sun's tint and strength; rock does not.
+            float snowy = smoothstep(1.05, 1.25, dot(vColor.rgb, vec3(0.3333)));
+            diffuseColor.rgb *= mix(vec3(1.0), uSnowTint * uSnow, snowy);
             // Hazy foot: the lowest part of the face washes toward a light grey-blue.
             float foot = 1.0 - smoothstep(-6.0, 14.0, vMp.y);
             diffuseColor.rgb = mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(0.33)) + 0.22), foot * 0.5);

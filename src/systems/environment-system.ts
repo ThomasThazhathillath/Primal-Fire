@@ -237,12 +237,39 @@ export class WorldEnvironmentSystem extends createSystem({
     // Ridges belong to the sky: stony colours that darken with night (the ground stays lit), hazed
     // toward the live fog colour by distance (atmospheric perspective), and centred on you, so
     // walking to the edge never brings one looming overhead.
-    const lum = 0.22 + 0.78 * (1 - env.night);
+    // The ridges are lit by the sky model: the sun's colour and strength by day, a cool twilight tint as it sets, deep blue-grey at night, and
+    // hazed toward the horizon glow (the fog colour) so they sit in the sky instead of glowing against it.
+    const day = 1 - env.night;
+    const sunY = env.sunDir[1];
+    const sunUp = Math.min(1, Math.max(0, sunY / 0.3));
+    const lum = 0.09 + 0.91 * day * day;
+    const lc = env.lightColor;
+    const lmax = Math.max(lc[0], lc[1], lc[2], 0.001);
+    const tr = 0.62 + (lc[0] / lmax - 0.62) * sunUp;
+    const tg = 0.7 + (lc[1] / lmax - 0.7) * sunUp;
+    const tb = 1.0 + (lc[2] / lmax - 1.0) * sunUp;
+    // Low sun: warm light on the snow only.
+    const low = Math.min(1, Math.max(0, 1 - Math.abs(sunY) / 0.28)) * (sunY > -0.14 ? 1 : 0);
     for (const r of this.ridges) {
       r.mesh.position.x = this.head.x;
       r.mesh.position.z = this.head.z;
       r.mat.color.copy(r.stone).multiplyScalar(lum);
-      r.mat.color.lerp(this.fog.color, Math.min(0.9, r.haze + env.fog * 0.5 + env.rain * 0.2));
+      r.mat.color.r *= tr;
+      r.mat.color.g *= tg;
+      r.mat.color.b *= tb;
+      const sn = r.mat.userData.snow as { uSnow: { value: number }; uSnowTint: { value: Color } } | undefined;
+      if (sn) {
+        sn.uSnow.value = (0.3 + 0.7 * Math.min(1, Math.max(0, (sunY + 0.12) / 0.3))) * (1 + 0.5 * low) / Math.max(0.18, lum);
+        sn.uSnowTint.value.setRGB(1 + 0.1 * low, 1 - 0.32 * low, 1 - 0.5 * low);
+      }
+      {
+        // Haze toward the horizon glow, but a darkened glow at dusk and night, or the ridges shine against the sky.
+        const k = Math.min(0.92, r.haze * (0.6 + 0.4 * sunUp) + env.fog * 0.5 + env.rain * 0.2);
+        const dim = (0.42 + 0.58 * sunUp) * (0.5 + 0.5 * day);
+        r.mat.color.r += (this.fog.color.r * dim - r.mat.color.r) * k;
+        r.mat.color.g += (this.fog.color.g * dim - r.mat.color.g) * k;
+        r.mat.color.b += (this.fog.color.b * dim - r.mat.color.b) * k;
+      }
     }
     // The ground's material may be swapped at run time (GroundSystem), so read it from the mesh each frame.
     if (this.groundMesh) (this.groundMesh.material as MeshLambertMaterial).color.setScalar(1 - env.wet * 0.32);

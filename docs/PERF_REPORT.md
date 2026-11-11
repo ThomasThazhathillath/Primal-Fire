@@ -227,3 +227,9 @@ and has sharper sun glints. Dusk clouds can no longer be darker than most of the
 
 Cuts, cheapest detail first: tree LOD distances 6/14/26 m to 5/11.5/21 m, mountain ridges from 160 x 5 to 112 x 4 cells, grass ring from 10 m / 2,200 tufts to 9 m / 1,700 tufts.
 Standard viewpoint (UI hidden): 213 draw calls, **232,134 triangles** (was 253,902), CPU 4.76 ms. The headroom is spent on denser grass near the player in item 3.
+
+### Polish pass 2, items 2 and 3
+
+Item 2 changes colours and one fragment tweak only (no geometry). Item 3: grass is laid out in two passes (cells within 4.5 m first, with 3 extra tufts per cell and 1.45x patch density;
+then the ring out to 8.5 m, thinning with distance), 1,450 tufts at most; forest-floor debris is 450 twigs and 1,000 leaf cards (static, chunk-culled); the ground is darker under the
+canopy. Tree LOD distances 4.5/10.5/19.5 m. Standard viewpoint: 214 draw calls, **230,148 triangles**, CPU 4.72 ms (budget 240k). Mountain tessellation 112 x 4.

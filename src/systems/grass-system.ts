@@ -9,17 +9,18 @@ import { groundHeight, inClearing, nearestTreeDistance, streamDistance } from '.
 import { getGame } from './shared.js';
 
 const CELL = 0.7;
-const RADIUS = 9;
+const RADIUS = 8.5;
 const FADE_FROM = 5;
+const NEAR = 4.5;
 const PER_CELL = 7;
-const MAX = 1700;
+const MAX = 1450;
 const FLOWERS = 450;
 /** Colour families (linear tint) a patch can be: fresh, yellow-green, dry, dark. */
 const PATCH = [
-  [0.55, 0.9, 0.35],
-  [0.78, 0.92, 0.38],
-  [0.9, 0.82, 0.45],
-  [0.4, 0.7, 0.3],
+  [0.45, 0.78, 0.3],
+  [0.62, 0.8, 0.32],
+  [0.78, 0.72, 0.38],
+  [0.34, 0.6, 0.26],
 ] as const;
 /** Flower heads (linear): white, yellow, pink, violet. */
 const BLOOM = [
@@ -165,18 +166,22 @@ export class GrassSystem extends createSystem({}) {
     const span = Math.ceil(RADIUS / CELL);
     let n = 0;
     let nf = 0;
-    for (let dz = -span; dz <= span && n < MAX; dz++) {
+    // Two passes so the budget goes to what is near you: first the cells within NEAR m (thick, with extra tufts per cell), then the ring beyond (thinning out with distance).
+    for (let pass = 0; pass < 2; pass++) for (let dz = -span; dz <= span && n < MAX; dz++) {
       for (let dx = -span; dx <= span && n < MAX; dx++) {
         const ix = n0x + dx;
         const iz = n0z + dz;
+        const cd = Math.hypot((ix + 0.5) * CELL - cx, (iz + 0.5) * CELL - cz);
+        if ((pass === 0) !== (cd < NEAR)) continue;
+        const thin = pass === 0 ? 1.45 : Math.pow(Math.max(0.12, 1 - (cd - NEAR) / (RADIUS - NEAR + 1)), 1.3);
         // Patches: a coarse noise says where grass grows thick (clumps and meadows), where it thins out and where the ground is bare.
         const px = (ix + 0.5) * CELL;
         const pz = (iz + 0.5) * CELL;
         const patch = valueNoise(px * 0.3 + 7, pz * 0.3 - 3) * 0.65 + valueNoise(px * 1.1, pz * 1.1) * 0.35;
-        const dens = Math.min(1, Math.max(0, (patch - 0.33) / 0.14));
+        const dens = Math.min(1, Math.max(0, (patch - 0.33) / 0.14) * thin);
         if (dens <= 0) continue;
         const fam = Math.floor(valueNoise(px * 0.11 + 3, pz * 0.11 + 9) * 4) % 4;
-        for (let k = 0; k < PER_CELL && n < MAX; k++) {
+        for (let k = 0; k < (pass === 0 ? PER_CELL + 3 : PER_CELL) && n < MAX; k++) {
           if (hash(ix, iz, k * 7 + 11) > dens) continue;
           const x = (ix + hash(ix, iz, k * 3 + 1)) * CELL;
           const z = (iz + hash(ix, iz, k * 3 + 2)) * CELL;

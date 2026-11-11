@@ -98,6 +98,8 @@ export class GroundSystem extends createSystem({}) {
           vec3 patchTint = mix(vec3(0.78, 0.92, 0.62), vec3(1.18, 1.04, 0.84), smoothstep(0.3, 0.7, big));
           patchTint = mix(patchTint, vec3(0.82, 0.78, 0.74), smoothstep(0.62, 0.8, gn(vWUv * 0.13 + 31.0)) * 0.6);
           diffuseColor.rgb *= patchTint * (0.86 + 0.28 * mid) * (0.82 + 0.36 * fine);
+          // Under the canopy the floor is darker (the leaf-litter zone).
+          diffuseColor.rgb *= 1.0 - 0.26 * zw.y * (0.6 + 0.4 * mid);
           // Wet banks: the mud zone is darker and glossier.
           diffuseColor.rgb *= 1.0 - 0.38 * zw.z;`,
         )

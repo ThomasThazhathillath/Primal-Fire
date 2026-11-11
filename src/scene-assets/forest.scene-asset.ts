@@ -491,5 +491,40 @@ export function createGroundDetail(): Object3D {
   roots.count = n;
   roots.frustumCulled = false;
   root.add(roots);
+
+  // Forest-floor debris: fallen twigs and leaf litter scattered thickest under the trees (decor, instanced, static).
+  const TWIGS = 450;
+  const twigs = new InstancedMesh(new CylinderGeometry(0.007, 0.011, 1, 4).rotateZ(Math.PI / 2), lambert(0xffffff), TWIGS);
+  twigs.name = 'Twigs';
+  const LEAVES = 1000;
+  const litter = new InstancedMesh(new PlaneGeometry(0.07, 0.11).rotateX(-Math.PI / 2), lambert(0xffffff, { side: DoubleSide }), LEAVES);
+  litter.name = 'LeafLitter';
+  let nt = 0;
+  let nl = 0;
+  for (let tries = 0; (nt < TWIGS || nl < LEAVES) && tries < 14000; tries++) {
+    const [x, z] = spot(2);
+    if (streamDistance(x, z) < 1.0) continue;
+    const under = nearestTreeDistance(x, z, 3) < 3;
+    const open = inClearing(x, z, -1);
+    if (nt < TWIGS && (under ? 1 : 0.3) * (open ? 0.3 : 1) > rng() * 1.4) {
+      const len = range(rng, 0.22, 0.7);
+      m.compose(p.set(x, groundHeight(x, z) + 0.012, z), q.setFromAxisAngle(up, rng() * 6.28), s.set(len, 1, 1));
+      twigs.setMatrixAt(nt, m);
+      twigs.setColorAt(nt, col.setHex([0x5a4630, 0x6b5638, 0x4a3a28, 0x7a6848][nt % 4]));
+      nt++;
+    }
+    if (nl < LEAVES && (under ? 1 : 0.35) * (open ? 0.4 : 1) > rng()) {
+      const sc = range(rng, 0.7, 1.5);
+      m.compose(p.set(x, groundHeight(x, z) + 0.01 + rng() * 0.01, z), q.setFromAxisAngle(up, rng() * 6.28), s.set(sc, 1, sc));
+      litter.setMatrixAt(nl, m);
+      litter.setColorAt(nl, col.setHex([0xa8793a, 0x8c6230, 0x6a4a24, 0x7a5528, 0x9a7a30, 0x5f6b2c][nl % 6]));
+      nl++;
+    }
+  }
+  twigs.count = nt;
+  litter.count = nl;
+  twigs.frustumCulled = false;
+  litter.frustumCulled = false;
+  root.add(twigs, litter);
   return root;
 }

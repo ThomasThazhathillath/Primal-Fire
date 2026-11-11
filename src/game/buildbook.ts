@@ -51,6 +51,9 @@ const DESCRIPTIONS: Record<StructureKind, string> = {
   shelter: 'A lean-to of branches, twigs and a roof cover.',
   leanTo: 'A real shelter, built in stages: poles, a ridge, ribs, lashings, small branches, then a layered roof.',
   drainage: 'A channel dug around the shelter so rain runs past it.',
+  dryingRack: 'Sticks and cord hold fish and berries in the air to dry and keep.',
+  woodStack: 'Logs off the ground with a bark cover keep firewood dry through the rain.',
+  bedding: 'Leaves and grass layered thick keep the cold ground off you.',
 };
 
 const UNLOCKS: Record<StructureKind, Unlock> = {
@@ -61,6 +64,9 @@ const UNLOCKS: Record<StructureKind, Unlock> = {
   shelter: { level: 3, gathered: ['twigs'], events: ['shelter.site.chosen'], hint: 'Gather twigs, or reach the Camp level.' },
   leanTo: { events: ['story.ch2.begin'], gathered: ['pole'], hint: 'Chapter 2: find long straight poles in the forest.' },
   drainage: { events: ['shelter.rain.begin'], hint: 'Dug during the rain test.' },
+  dryingRack: { level: 3, events: ['food.fish.caught', 'farm.harvested'], hint: 'Catch a fish or bring in a harvest, or reach the Camp level.' },
+  woodStack: { level: 3, events: ['story.ch2.begin'], hint: 'Begin Chapter 2, or reach the Camp level.' },
+  bedding: { level: 3, events: ['story.ch2.begin'], hint: 'Begin Chapter 2, or reach the Camp level.' },
 };
 
 const RECIPE_UNLOCK: Unlock = { built: 'workbench', hint: 'Build a workbench first.' };

@@ -11,6 +11,7 @@
 
 import type { Game } from './game.js';
 import type { ItemId } from './items.js';
+import { FORAGE_PATCHES, FORAGE_REGROW } from './forage.js';
 import { mulberry32, type Rng } from './rng.js';
 import { nearestTreeDistance, STREAM, STREAM_BANK, STREAM_HALF_WIDTH, streamDistance } from './world-layout.js';
 
@@ -38,6 +39,8 @@ export interface Fish {
   turn: number;
   /** Seconds of fright after a miss (darts fast, ignores you). */
   scared: number;
+  /** 0 small, 1 medium, 2 large: bigger fish are slower to scare and feed more. */
+  size: number;
 }
 
 /**
@@ -101,6 +104,13 @@ export const MOIST_SECONDS = 60;
 export const SHADE_DISTANCE = 1.6;
 export const SHADE_FACTOR = 0.35;
 
+export type CropStage = 'seed' | 'sprout' | 'young' | 'mature' | 'harvestable';
+export const CROP_STAGES: CropStage[] = ['seed', 'sprout', 'young', 'mature', 'harvestable'];
+/** The growth stage of a plant (growth runs 0..1; shown differently at each stage). */
+export function cropStage(growth: number): CropStage {
+  return growth >= 1 ? 'harvestable' : growth >= 0.65 ? 'mature' : growth >= 0.3 ? 'young' : growth >= 0.08 ? 'sprout' : 'seed';
+}
+
 export interface Plot {
   id: number;
   x: number;
@@ -132,13 +142,17 @@ export const COOK_SECONDS = 8;
 export interface FoodSave {
   plots: Plot[];
   wild?: number[];
+  /** Seconds until each foraging patch regrows. */
+  forage?: number[];
   cook: number;
   nextId: number;
 }
 
 export interface FoodAction {
-  id: 'digPlot' | 'plant' | 'water' | 'harvest' | 'cook' | 'eat' | 'eatRaw' | 'gatherWild';
+  id: 'digPlot' | 'plant' | 'water' | 'harvest' | 'cook' | 'eat' | 'eatRaw' | 'gatherWild' | 'inspect' | 'forage' | 'eatItem' | 'cleanFish' | 'hang' | 'collectDried' | 'stackWood' | 'takeWood' | 'rest';
   wildIndex?: number;
+  patchId?: number;
+  structureId?: number;
   label: string;
   at: { x: number; z: number };
   plotId?: number;
@@ -154,6 +168,11 @@ export class FoodState {
   cook = 0;
   /** Seconds until each wild tuber plant has regrown (0 = ready). */
   readonly wild: number[] = WILD_TUBERS.map(() => 0);
+  /** Foraging patches: seconds until regrown. */
+  readonly forage: number[] = FORAGE_PATCHES.map(() => 0);
+  /** Patches you have looked at closely this session. */
+  private inspected = new Set<number>();
+  private seenStage = new Map<number, number>();
   private nextId = 1;
   private rng: Rng = mulberry32(77);
 
@@ -168,21 +187,35 @@ export class FoodState {
       if (!near(this.fish[i], p, FISH_RANGE * 1.6)) this.fish.splice(i, 1);
     }
     if (streamDistance(p.x, p.z) < FISH_RANGE) {
+      // Fish come in small schools: a few together, facing about the same way.
       while (this.fish.length < FISH_COUNT) {
         const s = streamPointNear(p.x + (this.rng() - 0.5) * 8, p.z + (this.rng() - 0.5) * 8, this.rng);
-        this.fish.push({
-          id: this.nextId++,
-          x: s.x,
-          z: s.z,
-          depth: 0.3 + this.rng() * 0.15,
-          heading: this.rng() * Math.PI * 2,
-          speed: 0.15 + this.rng() * 0.2,
-          turn: 1 + this.rng() * 3,
-          scared: 0,
-        });
+        const heading = this.rng() * Math.PI * 2;
+        const n = Math.min(FISH_COUNT - this.fish.length, 1 + Math.floor(this.rng() * 3));
+        for (let k = 0; k < n; k++) {
+          const x = s.x + (this.rng() - 0.5) * 0.5;
+          const z = s.z + (this.rng() - 0.5) * 0.5;
+          this.fish.push({
+            id: this.nextId++,
+            x: streamDistance(x, z) < STREAM_HALF_WIDTH * 0.45 ? x : s.x,
+            z: streamDistance(x, z) < STREAM_HALF_WIDTH * 0.45 ? z : s.z,
+            depth: 0.3 + this.rng() * 0.15,
+            heading: heading + (this.rng() - 0.5) * 0.4,
+            speed: 0.15 + this.rng() * 0.2,
+            turn: 1 + this.rng() * 3,
+            scared: 0,
+            size: this.rng() < 0.2 ? 2 : this.rng() < 0.5 ? 1 : 0,
+          });
+        }
       }
     }
+    const loud = this.g.wildlife.playerSpeed;
     for (const f of this.fish) {
+      // A fish bolts when you rush the bank beside it (big fish are bolder).
+      if (loud > 1.6 && f.scared <= 0 && near(f, p, 2.2 - f.size * 0.4)) {
+        f.scared = 1.5;
+        this.g.science('food.fish.startled');
+      }
       f.turn -= dt;
       f.scared = Math.max(0, f.scared - dt);
       if (f.turn <= 0) {
@@ -218,9 +251,10 @@ export class FoodState {
     if (!best || best.r.miss > 1.2) return 'miss';
     if (best.r.hit && best.f.scared <= 0) {
       this.fish.splice(this.fish.indexOf(best.f), 1);
-      g.addItem('fish');
+      g.addItem('fish', best.f.size === 2 ? 2 : 1);
       g.science('food.fish.caught');
-      g.toast('Got one! A fish flaps on the spear.', 'good');
+      if (best.f.size === 2) g.science('food.fish.large');
+      g.toast(best.f.size === 2 ? 'A big one! Plenty of meat on it.' : 'Got one! A fish flaps on the spear.', 'good');
       g.checkQuests();
       return 'hit';
     }
@@ -233,6 +267,149 @@ export class FoodState {
     }
     g.toast('Missed. The fish darts away.', 'bad');
     return 'miss';
+  }
+
+  // -------------------------------------------------------------- crops and camp
+
+  /** Announce each growth stage once as a plant reaches it. */
+  private tickStages(): void {
+    for (const p of this.plots) {
+      if (!p.crop) continue;
+      const k = CROP_STAGES.indexOf(cropStage(p.growth));
+      const was = this.seenStage.get(p.id) ?? 0;
+      if (k > was) {
+        this.seenStage.set(p.id, k);
+        const st = CROP_STAGES[k];
+        if (st === 'sprout') this.g.toast('A green shoot pushes through the soil.', 'info');
+        if (st === 'young') this.g.toast('The plant is putting out leaves.', 'info');
+        if (st === 'mature') this.g.toast('Nearly grown: stems thick, the tubers filling.', 'info');
+        this.g.science(`farm.stage.${st}` as 'farm.stage.sprout');
+      }
+    }
+  }
+
+  private campStructure(kind: 'dryingRack' | 'woodStack' | 'bedding', at: { x: number; z: number }, r = 1.8) {
+    return this.g.structures.find((s) => s.kind === kind && s.complete && near(s, at, r)) ?? null;
+  }
+
+  private static DRYABLE: ItemId[] = ['fish', 'berries'];
+  private static WOOD: ItemId[] = ['logs', 'dryBranch', 'twigs'];
+  static readonly RACK_SLOTS = 6;
+  static readonly WOOD_SLOTS = 12;
+  static readonly DRY_SECONDS = 90;
+
+  private campAction(at: { x: number; z: number }, held: ItemId | null): FoodAction | null {
+    const rack = this.campStructure('dryingRack', at);
+    if (rack) {
+      const dry = rack.store?.driedFish ?? 0;
+      if (!held && dry > 0) return { id: 'collectDried', label: 'Take the dried fish', at: rack, structureId: rack.id };
+      if (held && FoodState.DRYABLE.includes(held) && this.g.storedCount(rack) < FoodState.RACK_SLOTS) {
+        return { id: 'hang', label: `Hang the ${held === 'fish' ? 'fish' : 'berries'} on the rack to dry`, at: rack, structureId: rack.id };
+      }
+    }
+    const wood = this.campStructure('woodStack', at);
+    if (wood) {
+      if (held && FoodState.WOOD.includes(held) && this.g.storedCount(wood) < FoodState.WOOD_SLOTS) {
+        return { id: 'stackWood', label: 'Stack it on the woodpile', at: wood, structureId: wood.id };
+      }
+      if (!held && this.g.storedCount(wood) > 0) return { id: 'takeWood', label: 'Take firewood from the stack', at: wood, structureId: wood.id };
+    }
+    const bed = this.campStructure('bedding', at, 1.6);
+    if (bed && !held) return { id: 'rest', label: 'Lie down on the bed', at: bed, structureId: bed.id };
+    return null;
+  }
+
+  private performCamp(a: FoodAction): boolean {
+    const g = this.g;
+    const st = g.structures.find((s) => s.id === a.structureId);
+    if (!st) return false;
+    switch (a.id) {
+      case 'hang': {
+        const h = g.held;
+        if (!h || !FoodState.DRYABLE.includes(h)) return false;
+        g.useItem(h);
+        st.store ??= {};
+        st.store[h] = (st.store[h] ?? 0) + 1;
+        g.science('food.rack.loaded');
+        g.toast('Hung in the open air. Dry food keeps because there is no water left for germs to grow in.', 'note');
+        g.checkQuests();
+        return true;
+      }
+      case 'collectDried': {
+        const n = st.store?.driedFish ?? 0;
+        if (!n || g.held) return false;
+        delete st.store!.driedFish;
+        g.addItem('driedFish', n);
+        g.takeOut('driedFish');
+        g.toast(`You take ${n} strip${n > 1 ? 's' : ''} of dried fish.`, 'good');
+        return true;
+      }
+      case 'stackWood': {
+        const h = g.held;
+        if (!h || !FoodState.WOOD.includes(h)) return false;
+        g.useItem(h);
+        st.store ??= {};
+        st.store[h] = (st.store[h] ?? 0) + 1;
+        g.science('camp.wood.stored');
+        g.checkQuests();
+        return true;
+      }
+      case 'takeWood': {
+        if (g.held || !st.store) return false;
+        const id = FoodState.WOOD.find((w) => (st.store?.[w] ?? 0) > 0);
+        if (!id) return false;
+        st.store[id] = (st.store[id] ?? 0) - 1;
+        if (st.store[id] === 0) delete st.store[id];
+        g.addItem(id);
+        g.takeOut(id);
+        return true;
+      }
+      case 'rest':
+        g.science('camp.bed.rested');
+        g.toast('Off the cold ground, you can rest properly. Soft layers trap warm air.', 'note');
+        g.checkQuests();
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  /** Drying progresses in the open air and stops in rain; an uncovered woodpile gets wet in rain. */
+  private campT = 0;
+  private rackT = new Map<number, number>();
+  private tickCamp(dt: number): void {
+    if ((this.campT += dt) < 1) return;
+    const step = this.campT;
+    this.campT = 0;
+    const g = this.g;
+    const raining = g.env.rain > 0.3;
+    for (const s of g.structures) {
+      if (!s.complete) continue;
+      if (s.kind === 'dryingRack' && s.store) {
+        const wet = (s.store.fish ?? 0) + (s.store.berries ?? 0);
+        if (wet > 0 && !raining && g.env.night < 0.6) {
+          const t = (this.rackT.get(s.id) ?? 0) + step;
+          if (t >= FoodState.DRY_SECONDS) {
+            const fish = s.store.fish ?? 0;
+            if (fish) {
+              s.store.driedFish = (s.store.driedFish ?? 0) + fish;
+              delete s.store.fish;
+              g.science('food.fish.dried');
+              g.toast('The fish on your rack has dried hard and light.', 'good');
+            }
+            if (s.store.berries) {
+              g.science('food.berries.dried');
+              // Dried berries are still berries: they just last. (Counted as berries again so the bag stays simple.)
+            }
+            this.rackT.set(s.id, 0);
+          } else this.rackT.set(s.id, t);
+        }
+      }
+      if (s.kind === 'woodStack' && raining && this.g.storedCount(s) > 0) {
+        const roofed = !!s.spots[2];
+        g.science(roofed ? 'camp.wood.kept.dry' : 'camp.wood.wet');
+      }
+    }
   }
 
   // -------------------------------------------------------------- farm
@@ -265,6 +442,9 @@ export class FoodState {
       }
     }
     for (let i = 0; i < this.wild.length; i++) this.wild[i] = Math.max(0, this.wild[i] - dt);
+    for (let i = 0; i < this.forage.length; i++) this.forage[i] = Math.max(0, this.forage[i] - dt);
+    this.tickStages();
+    this.tickCamp(dt);
     // Cooking only counts while the fish is held over the fire.
     if (this.g.held !== 'fish') this.cook = 0;
   }
@@ -289,6 +469,13 @@ export class FoodState {
   available(at = this.g.player, held: ItemId | null = this.g.held): FoodAction | null {
     const plot = this.plotNear(at);
     if (held === 'cookedFish') return { id: 'eat', label: 'Eat the cooked fish', at };
+    if (held === 'driedFish') return { id: 'eatItem', label: 'Eat the dried fish', at };
+    if (held === 'berries' || held === 'nuts') return { id: 'eatItem', label: `Eat the ${held === 'berries' ? 'berries' : 'nuts'}`, at };
+    const camp = this.campAction(at, held);
+    if (camp) return camp;
+    if (held === 'fish' && !this.g.water.burningFireNear(at) && this.g.count('knife') + this.g.count('flake') > 0 && streamDistance(at.x, at.z) < STREAM_BANK + 1.5) {
+      return { id: 'cleanFish', label: 'Gut and wash the fish in the stream', at };
+    }
     if (held === 'fish') {
       if (this.g.water.burningFireNear(at)) return { id: 'cook', label: 'Hold the fish over the fire to cook it', at };
       return { id: 'eatRaw', label: 'Eat the fish raw?', at };
@@ -302,6 +489,14 @@ export class FoodState {
     if (held === 'diggingStick' && this.canDig(at)) return { id: 'digPlot', label: 'Dig a planting plot', at };
     const wi = WILD_TUBERS.findIndex((w, i) => this.wild[i] === 0 && near(w, at, USE_RADIUS));
     if (wi >= 0) return { id: 'gatherWild', label: 'Dig up the wild tuber plant', at: WILD_TUBERS[wi], wildIndex: wi };
+    if (!held) {
+      const fp = FORAGE_PATCHES.find((q) => this.forage[q.id] === 0 && near(q, at, USE_RADIUS));
+      if (fp) {
+        return this.inspected.has(fp.id)
+          ? { id: 'forage', label: fp.edible ? `Pick the ${fp.kind === 'berry' ? 'berries' : fp.kind === 'nut' ? 'nuts' : 'root'}` : 'Pick it anyway?', at: fp, patchId: fp.id }
+          : { id: 'inspect', label: 'Look closely at this plant', at: fp, patchId: fp.id };
+      }
+    }
     return null;
   }
 
@@ -339,7 +534,10 @@ export class FoodState {
       case 'harvest':
         if (!plot || !plot.crop || plot.growth < 1) return false;
         g.addItem('tuber', plot.crop === 'tuber' ? 3 : 2);
-        if (plot.crop === 'seeds') g.addItem('seeds', 2);
+        // Keep some for next season: seeds come back from every harvest.
+        g.addItem('seeds', plot.crop === 'seeds' ? 2 : 1);
+        g.science('farm.seeds.saved');
+        this.seenStage.delete(plot.id);
         plot.crop = null;
         plot.growth = 0;
         g.science('farm.harvested');
@@ -367,6 +565,54 @@ export class FoodState {
         g.checkQuests();
         return true;
       }
+      case 'inspect': {
+        const fp = FORAGE_PATCHES.find((q) => q.id === a.patchId);
+        if (!fp) return false;
+        this.inspected.add(fp.id);
+        g.toast(fp.look, fp.edible ? 'note' : 'bad');
+        g.science('food.forage.inspected');
+        g.science(fp.edible ? 'food.forage.identified' : 'food.forage.avoided');
+        g.checkQuests();
+        return true;
+      }
+      case 'forage': {
+        const fp = FORAGE_PATCHES.find((q) => q.id === a.patchId);
+        if (!fp || this.forage[fp.id] > 0) return false;
+        if (!fp.edible) {
+          g.science('food.forage.avoided');
+          g.toast('You leave it. Not knowing is reason enough: a wrong guess here can kill you.', 'bad');
+          return true;
+        }
+        this.forage[fp.id] = FORAGE_REGROW;
+        g.addItem(fp.yield, 2);
+        g.gathered.set(fp.yield, (g.gathered.get(fp.yield) ?? 0) + 2);
+        g.science('food.forage.picked');
+        g.toast('Picked what you could name. It will regrow in time.', 'good');
+        g.checkQuests();
+        return true;
+      }
+      case 'eatItem': {
+        const h = g.held;
+        if (h !== 'berries' && h !== 'nuts' && h !== 'driedFish') return false;
+        g.useItem(h);
+        g.science('body.eat');
+        if (h === 'driedFish') g.science('food.preserved.eaten');
+        g.toast(h === 'driedFish' ? 'Chewy and salty-smoky: dried fish keeps and still feeds.' : 'A small, sweet, filling handful.', 'good');
+        g.checkQuests();
+        return true;
+      }
+      case 'cleanFish':
+        if (g.held !== 'fish') return false;
+        g.science('food.fish.cleaned');
+        g.toast('Gutted with a sharp edge and rinsed in running water: the guts spoil first, and they carry the germs.', 'note');
+        g.checkQuests();
+        return true;
+      case 'hang':
+      case 'collectDried':
+      case 'stackWood':
+      case 'takeWood':
+      case 'rest':
+        return this.performCamp(a);
       case 'eatRaw':
         g.science('food.raw.refused');
         g.toast('Raw fish can carry parasites and bacteria. Cook it first.', 'bad');
@@ -375,12 +621,15 @@ export class FoodState {
   }
 
   snapshot(): FoodSave {
-    return { plots: this.plots.map((p) => ({ ...p })), wild: [...this.wild], cook: 0, nextId: this.nextId };
+    return { plots: this.plots.map((p) => ({ ...p })), wild: [...this.wild], forage: [...this.forage], cook: 0, nextId: this.nextId };
   }
 
   restore(s: FoodSave): void {
     this.plots.push(...s.plots.map((p) => ({ ...p })));
     this.nextId = Math.max(this.nextId, s.nextId);
     s.wild?.forEach((v, i) => i < this.wild.length && (this.wild[i] = v));
+    s.forage?.forEach((v, i) => i < this.forage.length && (this.forage[i] = v));
+    // Plants already past a stage in the save do not re-announce it.
+    for (const p of this.plots) this.seenStage.set(p.id, CROP_STAGES.indexOf(cropStage(p.growth)));
   }
 }

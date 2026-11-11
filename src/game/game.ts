@@ -558,6 +558,7 @@ export class Game {
     s.store ??= {};
     s.store[id] = (s.store[id] ?? 0) + moved;
     this.satchel.set(id, this.count(id) - moved);
+    if (ITEMS[id].cats.includes('food')) this.science('camp.food.stored');
     this.emit({ type: 'satchel' });
     return moved;
   }
@@ -744,6 +745,7 @@ export class Game {
     }
     for (const e of w.events) {
       if (e.species === 'deer' && e.kind === 'flee') this.science('wild.deer.fled');
+      if (e.species === 'deer' && e.kind === 'drink' && Math.hypot(e.x - this.player.x, e.z - this.player.z) < 30) this.science('wild.deer.drank');
       if ((e.kind === 'call' || e.kind === 'startle') && this.wildAudio.length < 8) this.wildAudio.push(e);
     }
     w.events.length = 0;

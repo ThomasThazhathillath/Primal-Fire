@@ -13,7 +13,7 @@ import {
   WORLD_RADIUS,
 } from './world-layout.js';
 
-export type StructureKind = 'firePit' | 'workbench' | 'filter' | 'shelter' | 'storage' | 'leanTo' | 'drainage';
+export type StructureKind = 'firePit' | 'workbench' | 'filter' | 'shelter' | 'storage' | 'leanTo' | 'drainage' | 'dryingRack' | 'woodStack' | 'bedding';
 
 export interface SnapSpotDef {
   /** Offset from the structure origin, in the structure's local frame. */
@@ -197,6 +197,50 @@ export const BLUEPRINTS: Record<StructureKind, BlueprintDef> = {
     radius: 0.5,
     xp: 30,
     groundAdvice: 'Beside your fire and shelter.',
+  },
+  // Living camp (Phase 3, milestone E).
+  dryingRack: {
+    kind: 'dryingRack',
+    name: 'Drying rack',
+    keyAccepts: ['spindle'],
+    key: { x: -0.45, y: 0.5, z: 0 },
+    spots: [
+      { x: 0.45, z: 0, y: 0.5, accepts: ['spindle'], label: 'Second upright' },
+      { x: 0, z: 0, y: 1.0, accepts: ['spindle'], label: 'Crossbar' },
+      { x: -0.45, z: 0, y: 1.0, accepts: ['cord'], label: 'Lash the crossbar' },
+    ],
+    radius: 0.7,
+    xp: 30,
+    groundAdvice: 'In the open and the breeze, near the fire but upwind of its smoke.',
+  },
+  woodStack: {
+    kind: 'woodStack',
+    name: 'Firewood stack',
+    keyAccepts: ['logs'],
+    key: { x: -0.2, y: 0.12, z: 0 },
+    spots: [
+      { x: 0.2, z: 0, y: 0.12, accepts: ['logs', 'pole'], label: 'Second log' },
+      { x: 0, z: 0, y: 0.34, accepts: ['logs', 'pole'], label: 'Log on top' },
+      { x: 0, z: 0, y: 0.6, accepts: ['bark'], label: 'Bark cover', role: 'roofBark' },
+    ],
+    radius: 0.6,
+    xp: 30,
+    groundAdvice: 'Beside the shelter, on raised, dry ground.',
+  },
+  bedding: {
+    kind: 'bedding',
+    name: 'Sleeping bed',
+    keyAccepts: ['leafLitter', 'dryGrass'],
+    key: { x: 0, y: 0.04, z: 0 },
+    spots: [
+      { x: 0.3, z: 0, y: 0.05, accepts: ['leafLitter', 'dryGrass'], label: 'Soft layer' },
+      { x: -0.3, z: 0, y: 0.05, accepts: ['leafLitter', 'dryGrass'], label: 'Soft layer' },
+      { x: 0, z: 0.3, y: 0.08, accepts: ['dryGrass', 'leafLitter'], label: 'Top layer' },
+      { x: 0, z: -0.3, y: 0.08, accepts: ['dryGrass', 'leafLitter'], label: 'Top layer' },
+    ],
+    radius: 0.9,
+    xp: 30,
+    groundAdvice: 'Under or beside the shelter, on level, dry ground off the cold earth.',
   },
 };
 

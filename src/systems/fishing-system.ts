@@ -71,7 +71,8 @@ export class FishingSystem extends createSystem({}) {
         continue;
       }
       m.position.set(px, SURFACE_Y, pz);
-      m.scale.set(0.55 * t, 0.12, 1.4 * t);
+      const sz = 0.8 + f.size * 0.3;
+      m.scale.set(0.55 * t * sz, 0.12, 1.4 * t * sz);
       m.rotation.y = f.heading;
     }
     this.cooldown = Math.max(0, this.cooldown - delta);

@@ -5,6 +5,7 @@
 // branch with both hands, rub, and strike. Impacts nudge the camera and
 // spit a few sparks.
 
+import { roundPoints } from './round-points.js';
 import {
   BoxGeometry,
   BufferAttribute,
@@ -70,7 +71,7 @@ export class HandsSystem extends createSystem({}) {
     this.camera.add(this.rig);
     const geo = new BufferGeometry();
     geo.setAttribute('position', new BufferAttribute(this.sparkPos, 3));
-    this.sparks = new Points(geo, new PointsMaterial({ color: 0xffd98a, size: 0.012, transparent: true, depthWrite: false }));
+    this.sparks = new Points(geo, roundPoints(new PointsMaterial({ color: 0xffd98a, size: 0.012, transparent: true, depthWrite: false })));
     this.sparks.frustumCulled = false;
     this.rig.add(this.sparks);
     for (let i = 0; i < SPARKS; i++) this.sparkPos[i * 3 + 1] = -10;

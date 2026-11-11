@@ -5,6 +5,7 @@
 // The first press drops the lines waiting; a press with nothing waiting mutes
 // or unmutes thoughts (saved). Not used in the opening (it has its own story).
 
+import { rockGeometry } from '../scene-assets/item-meshes.js';
 import {
   NormalBlending,
   PlaneGeometry,
@@ -275,7 +276,9 @@ export class StorySystem extends createSystem({}, { tutorial: { type: Types.Bool
     const coal = new MeshStandardMaterial({ color: 0x1a1817, roughness: 1, flatShading: true });
     const ash = new MeshStandardMaterial({ color: 0x55504a, roughness: 1, transparent: true, opacity: 0.85 });
     const wood = new MeshStandardMaterial({ color: 0x8e7656, roughness: 0.9, flatShading: true });
-    const rock = new DodecahedronGeometry(0.1, 0);
+    // The baked rock shape (Poly Haven Rock Moss Set 01) instead of a faceted dodecahedron; smooth-shaded.
+    const rock = rockGeometry(0).clone().scale(0.21, 0.21, 0.21);
+    for (const m of [scorched, coal, wood, stone]) m.flatShading = false;
     const root = new Group();
     root.name = 'StoryClues';
 

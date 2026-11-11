@@ -3,6 +3,7 @@
 // pooled meshes + 24 ember sparks + one light; nothing allocates per frame).
 // Browser fallback: tap the pit to add fuel / saw a stroke / fan a puff.
 
+import { roundPoints } from './round-points.js';
 import {
   AdditiveBlending,
   BufferAttribute,
@@ -147,7 +148,7 @@ export class FireSystem extends createSystem({
     const geo = new BufferGeometry();
     this.sparkPos = new Float32Array(SPARKS * 3);
     geo.setAttribute('position', new BufferAttribute(this.sparkPos, 3));
-    this.sparks = new Points(geo, new PointsMaterial({ color: 0xffa040, size: 0.012, blending: AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.9 }));
+    this.sparks = new Points(geo, roundPoints(new PointsMaterial({ color: 0xffa040, size: 0.012, blending: AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.9 })));
     this.sparks.frustumCulled = false;
     this.root.add(this.sparks);
 

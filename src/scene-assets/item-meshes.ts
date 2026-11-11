@@ -48,7 +48,7 @@ function sticks(count: number, color: number, len: [number, number], radius: num
 
 const stoneGeos: BufferGeometry[] = [];
 /** One of the six baked rock shapes (Poly Haven Rock Moss Set 01, about 110 triangles), vertex-coloured from its texture. */
-function rockGeometry(i: number): BufferGeometry {
+export function rockGeometry(i: number): BufferGeometry {
   if (!stoneGeos[i]) {
     const d = ROCK_STONES[i % ROCK_STONES.length];
     const g = new BufferGeometry();
@@ -113,7 +113,7 @@ const builders: Record<ResourceLook, () => Object3D> = {
   },
   mossRock: () => {
     const g = new Group();
-    g.add(at(new Mesh(new DodecahedronGeometry(0.22), lambert(0x77736b)), 0, 0.13, 0));
+    g.add(at(stone(0xb0aca0, 0.11, 3), 0, 0, 0));
     g.add(at(new Mesh(new SphereGeometry(0.21, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2.4), lambert(0x3f6a33)), 0, 0.17, 0));
     return g;
   },
@@ -132,7 +132,7 @@ const builders: Record<ResourceLook, () => Object3D> = {
   },
   gravelBed: () => {
     const g = new Group();
-    for (let i = 0; i < 14; i++) g.add(at(new Mesh(new DodecahedronGeometry(r(0.025, 0.05)), lambert([0x8c8c8c, 0x777570, 0xa09a90][i % 3])), r(-0.25, 0.25), 0.02, r(-0.18, 0.18)));
+    for (let i = 0; i < 9; i++) g.add(at(stone([0xc8c8c8, 0xa8a49c, 0xe0dacc][i % 3], r(0.014, 0.026), i % 6), r(-0.25, 0.25), 0, r(-0.18, 0.18)));
     return g;
   },
   cloth: () => at(new Mesh(new BoxGeometry(0.34, 0.01, 0.24), lambert(0xe8e2d0)), 0, 0.03, 0, 0.1, 0.5, 0.05),

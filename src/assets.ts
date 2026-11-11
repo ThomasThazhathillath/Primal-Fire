@@ -44,6 +44,7 @@ export default defineAssets({
   'tree-snag': tree('snag'),
   // Baked Poly Haven Rock Moss Set 01 (CC0): six boulders at three detail levels, drawn by RockSystem.
   'rocks-set': { url: publicAssetUrl('rocks/rocks.glb'), type: AssetType.GLTF, name: 'Rocks', priority: 'critical' as const },
+  'tree-fern': tree('fern'),
   'tree-bush1': tree('bush1'),
   'tree-bush2': tree('bush2'),
   'tree-bush3': tree('bush3'),

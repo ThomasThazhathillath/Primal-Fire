@@ -18,7 +18,5 @@ Each `_dr.webp` is 1024 px with diffuse in RGB and roughness in alpha (about 0.7
 | kloofendal_48d_partly_cloudy_puresky 2K HDR (https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/kloofendal_48d_partly_cloudy_puresky_2k.hdr), converted by `scripts/sky/bake.mjs` to a 2048x1024 cloud-alpha WebP (0.25 MB) | Photographed clouds over the physical sky | https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky | CC0 1.0 | `public/sky/clouds.webp` |
 | three.js `Sky` (Preetham daylight model), `three/addons/objects/Sky.js` | Sky colour | https://threejs.org | MIT | imported by `src/systems/sky-fx.ts` |
 
-Poly Haven assets planned for the rest of this round (not yet downloaded):
 
-| Asset | Stage | Source |
-|---|---|---|
+EZ-Tree's leaf textures also drive the fern cards (ash leaf sprig). No other third-party assets are used.

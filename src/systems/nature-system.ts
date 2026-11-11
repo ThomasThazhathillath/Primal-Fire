@@ -7,6 +7,7 @@
 // - a few leaves drift down around the player.
 // Cost: +2 draw calls (splash, leaves) and 2 extra shader programs. No per-frame allocation.
 
+import { roundPoints } from './round-points.js';
 import {
   AssetManager,
   BufferAttribute,
@@ -157,7 +158,7 @@ export class NatureSystem extends createSystem({}) {
     this.splashLife = new Float32Array(SPLASH_N);
     const sg = new BufferGeometry();
     sg.setAttribute('position', new BufferAttribute(this.splashPos, 3));
-    this.splash = new Points(sg, new PointsMaterial({ color: 0xdfeef5, size: 0.07, transparent: true, opacity: 0.85, depthWrite: false }));
+    this.splash = new Points(sg, roundPoints(new PointsMaterial({ color: 0xdfeef5, size: 0.07, transparent: true, opacity: 0.85, depthWrite: false })));
     this.splash.frustumCulled = false;
     this.splash.visible = false;
     this.world.createTransformEntity(this.splash);
@@ -179,7 +180,7 @@ export class NatureSystem extends createSystem({}) {
     const lg = new BufferGeometry();
     lg.setAttribute('position', new BufferAttribute(this.leafPos, 3));
     lg.setAttribute('color', new BufferAttribute(colors, 3));
-    this.leaves = new Points(lg, new PointsMaterial({ size: 0.07, vertexColors: true }));
+    this.leaves = new Points(lg, roundPoints(new PointsMaterial({ size: 0.07, vertexColors: true })));
     this.leaves.frustumCulled = false;
     this.world.createTransformEntity(this.leaves);
   }

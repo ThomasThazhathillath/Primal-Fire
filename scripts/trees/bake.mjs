@@ -27,6 +27,8 @@ const VARIANTS = [
   { id: 'bush1', preset: 'Bush 1', seed: 61061, height: 1.1, leaf: 'ash', lk: 1.0, bk: 0.35, bark: [0x6e5b47, 0x4a3b2c] },
   { id: 'bush2', preset: 'Bush 2', seed: 62062, height: 1.0, leaf: 'aspen', lk: 1.0, bk: 0.5, bark: [0x6e5b47, 0x4a3b2c] },
   { id: 'bush3', preset: 'Bush 3', seed: 63063, height: 1.2, leaf: 'pine', lk: 1.0, bk: 0.3, bark: [0x6e4e39, 0x4a3426] },
+  // Ferns: arching cards textured with the ash leaf sprig (placed by tree-lod.ts ferns()). Built by hand, not by EZ-Tree.
+  { id: 'fern', fern: true, height: 0.7, leaf: 'ash', bark: [0, 0] },
   { id: 'snag', trunk: 1.9, preset: 'Oak Small', seed: 55055, height: 3.6, leaf: 'oak', bark: [0x8a8174, 0x625b52], dead: true },
 ];
 
@@ -96,9 +98,53 @@ const lerpC = (a, b, t) => {
 };
 const srgbToLinear = (c) => c.map((x) => (x <= 0.04045 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4)));
 
+/** Hand-built fern: arching leaf cards radiating from a point. Same output nodes as a tree (Leaves_LOD0..2). */
+function fernGeometry(count, seed) {
+  let a = seed;
+  const rnd = () => { a = (a * 1664525 + 1013904223) >>> 0; return a / 4294967296; };
+  const P = [], N = [], UV = [], I = [];
+  for (let k = 0; k < count; k++) {
+    const yaw = (k / count) * Math.PI * 2 + rnd() * 0.5;
+    const tilt = 0.9 + rnd() * 0.55; // from vertical, radians
+    const L = 0.55 + rnd() * 0.4;
+    const W = L * 0.7;
+    const base = P.length / 3;
+    const corners = [[-W / 2, L], [-W / 2, 0], [W / 2, 0], [W / 2, L]];
+    corners.forEach(([x, y], j) => {
+      // tilt the card outward about X, bend its tip down a little, then rotate by yaw
+      const bend = (y / L) * (y / L) * 0.12;
+      let px = x, py = y * Math.cos(tilt) - bend, pz = y * Math.sin(tilt);
+      const cx = px * Math.cos(yaw) - pz * Math.sin(yaw);
+      const cz = px * Math.sin(yaw) + pz * Math.cos(yaw);
+      P.push(cx, py + 0.02, cz);
+      N.push(Math.sin(yaw) * 0.25, 0.9, Math.cos(yaw) * 0.25);
+      UV.push(j < 2 ? 0 : 1, j === 0 || j === 3 ? 0 : 1);
+    });
+    I.push(base, base + 1, base + 2, base, base + 2, base + 3);
+  }
+  return { P: new Float32Array(P), N: new Float32Array(N), UV: new Float32Array(UV), I: Uint16Array.from(I) };
+}
+
 const summary = [];
 for (const v of VARIANTS) {
   const { d, scene } = doc(v);
+  if (v.fern) {
+    const buffer = d.getRoot().listBuffers()[0];
+    const tex = d.createTexture(`${v.id}-leaf`).setImage(readFileSync(new URL(`leaf_${v.leaf}.png`, OUT))).setMimeType('image/png');
+    const mat = d.createMaterial(`${v.id}-leaf`).setBaseColorTexture(tex).setAlphaMode('MASK').setAlphaCutoff(0.5).setDoubleSided(true).setRoughnessFactor(1).setMetallicFactor(0);
+    const lods = [[9, 'LOD0'], [6, 'LOD1'], [4, 'LOD2']];
+    const row = { id: v.id };
+    for (const [cnt, name] of lods) {
+      const g = fernGeometry(cnt, 99);
+      const acc = (type, arr) => d.createAccessor().setType(type).setArray(arr).setBuffer(buffer);
+      const prim = d.createPrimitive().setMaterial(mat).setIndices(acc('SCALAR', g.I)).setAttribute('POSITION', acc('VEC3', g.P)).setAttribute('NORMAL', acc('VEC3', g.N)).setAttribute('TEXCOORD_0', acc('VEC2', g.UV));
+      scene.addChild(d.createNode(`Leaves_${name}`).setMesh(d.createMesh(`Leaves_${name}`).addPrimitive(prim)));
+      row[name] = g.I.length / 3;
+    }
+    summary.push(row);
+    writeFileSync(new URL(`${v.id}.glb`, OUT), Buffer.from(await new NodeIO().writeBinary(d)));
+    continue;
+  }
   const buffer = d.getRoot().listBuffers()[0];
   const barkMat = d.createMaterial(`${v.id}-bark`).setBaseColorFactor([1, 1, 1, 1]).setRoughnessFactor(1).setMetallicFactor(0);
   const leafTex = d.createTexture(`${v.id}-leaf`).setImage(readFileSync(new URL(`leaf_${v.leaf}.png`, OUT))).setMimeType('image/png');

@@ -4,6 +4,7 @@
 // exposed fire. Sky (sky-fx.ts): 4 draw calls; rain: 1, no per-frame allocation.
 
 import {
+  ACESFilmicToneMapping,
   BufferAttribute,
   BufferGeometry,
   Color,
@@ -83,6 +84,9 @@ export class WorldEnvironmentSystem extends createSystem({
   private fireExposed = true;
 
   init(): void {
+    // Final lighting pass: filmic tone mapping so bright sky and sun roll off instead of clipping (materials that opt out, like the sky shaders, are unaffected).
+    this.renderer.toneMapping = ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.05;
     this.fog = new Fog(new Color(0.62, 0.72, 0.76), 16, 52);
     this.scene.fog = this.fog;
 

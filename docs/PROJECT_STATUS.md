@@ -97,6 +97,21 @@ Spec [RESOURCE_OVERHAUL_SPEC](RESOURCE_OVERHAUL_SPEC.md); audit and plan [RESOUR
 - **Quest-verified:** nothing.
 - **Not done:** berries are still the Phase 3 forage patches (6 berry and 4 nut patches now, with identification), not plain collectible cluster items; no pickup sound beyond the existing contact sound; stones are not InstancedMesh.
 
+### Modern look round (branch `claude/modern-look`, from main 4499b6e, not merged)
+
+Per stage commit, clean screenshots in `docs/shots-revamp/<stage>-*.jpg`, numbers in `docs/PERF_REPORT.md`, assets in `docs/ASSETS.md`.
+
+| Stage | Done |
+|---|---|
+| 1 Bushes | Yes: EZ-Tree bush presets, LOD0-2 and billboards, instanced |
+| 2 Rocks | Yes: Poly Haven Rock Moss Set 01 boulders (3 LODs) and matching collectible stones (110 triangles, tinted; decor stays big and textured) |
+| 3 Ground | Yes: three Poly Haven textures blended by zone with normal and roughness, instanced grass tufts that fade out |
+| 4 Sky | Mostly: three.js physical Sky and Poly Haven photo clouds, tinted by time and faded at night. Not done: the scene's image-based light is still the gradient, not a PMREM of the physical sky |
+| 5 Stream | Mostly: dual scrolling normals, sky and cloud reflection, bed and depth tint, wet banks. Not done: foam rings round rocks |
+| 6 Everything else | Partial. Done: ferns, story and misc rocks, round soft particles, ACES tone mapping. **Not done:** mountains and horizon, logs/sticks/items in the hand, hands and arms, ruins/mast/Roadmap wall, built structures (workbench, fire pit, shelter, rack), fire/smoke/rain effects beyond round points, animals, moss cushions and grass clumps, saplings, track prints (look like black squares at a distance) |
+
+Verified: typecheck, 679 unit tests, production build, emulator screenshots and perf samples at each stage. Not verified: a headset, chapters 1 to 3 replayed end to end in the emulator after the round (unit tests pass), texture memory on Quest (about 19 MB for the ground set).
+
 ### Docs index
 
 | Doc | What it is |

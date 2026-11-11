@@ -245,47 +245,15 @@ export function createUndergrowth(): Object3D {
   const p = new Vector3();
   const col = new Color();
 
-  // The shrubs moved to TreeSystem; this loop only replays their random draws so everything after it keeps its layout.
-  let n = 0;
-  for (let tries = 0; n < 260 && tries < 6000; tries++) {
-    const a = rng() * Math.PI * 2;
-    const r = 6 + rng() * (WORLD_RADIUS + 4);
-    const x = Math.cos(a) * r;
-    const z = Math.sin(a) * r;
-    if (inClearing(x, z, -0.5) || streamDistance(x, z) < 1.6) continue;
-    range(rng, 0.25, 0.6);
-    rng();
-    n++;
-  }
-
   // Boulders are drawn by RockSystem (baked Poly Haven rocks, see scripts/rocks/bake.mjs).
 
-  // Ferns: a merged 6-frond tuft, instanced.
-  const FERNS = 700;
-  const ferns = new InstancedMesh(fernGeometry(), lambert(0xffffff, { side: DoubleSide }), FERNS);
-  ferns.name = 'Ferns';
-  n = 0;
-  for (let tries = 0; n < FERNS && tries < 12000; tries++) {
-    const a = rng() * Math.PI * 2;
-    const r = 4 + Math.sqrt(rng()) * (WORLD_RADIUS + 6);
-    const x = Math.cos(a) * r;
-    const z = Math.sin(a) * r;
-    if (inClearing(x, z, 0) || streamDistance(x, z) < 1.2) continue;
-    const sc = range(rng, 0.6, 1.3);
-    m.compose(p.set(x, 0, z), q.setFromAxisAngle(up, rng() * 6), s.set(sc, sc, sc));
-    ferns.setMatrixAt(n, m);
-    ferns.setColorAt(n, col.setHex([0x3f7a2e, 0x4e8a34, 0x356a2a, 0x5a9a3c][n % 4]));
-    n++;
-  }
-  ferns.count = n;
-  ferns.frustumCulled = false;
-  root.add(ferns);
+  // Ferns are drawn by TreeSystem (arching leaf cards).
 
   // Fallen logs: decorative trunks lying in the leaf litter.
   const LOGS = FALLEN_TRUNKS.length;
   const logs = new InstancedMesh(new CylinderGeometry(0.16, 0.2, 1, 7).rotateZ(Math.PI / 2), lambert(0xffffff), LOGS);
   logs.name = 'FallenTrunks';
-  n = 0;
+  let n = 0;
   for (const t of FALLEN_TRUNKS) {
     m.compose(p.set(t.x, 0.16 * t.thick, t.z), q.setFromAxisAngle(up, t.rotY), s.set(t.length, t.thick, t.thick));
     logs.setMatrixAt(n, m);

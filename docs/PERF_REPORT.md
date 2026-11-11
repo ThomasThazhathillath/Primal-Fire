@@ -184,3 +184,11 @@ Stage 5: look only. The water shader gains a second counter-scrolling normal lay
 (sampled by the reflected ray from the cloud texture, no second scene render), the mud texture as a bed seen through the shallows with a depth tint toward
 the middle, and variable transparency; the ground shader darkens and glosses the mud zone for wet banks. The stream mesh, its path and every water hook are
 untouched. No new draw calls. Not done: foam rings round individual rocks (the bank foam and crest foam are the old ones).
+| 6 Fern cards, baked-rock leftovers, round particles, ACES tone mapping | before (= stage 5 after) | 213 | 235,488 | 4.55 |
+| | after | 209 | 222,650 | 4.68 |
+
+Stage 6 (partial, see PROJECT_STATUS): the 700 spiky faceted ferns became arching leaf cards (9/6/4 cards by distance, 2-triangle billboards far away) drawn by
+`TreeSystem`; the story clue stones, mossy rocks and gravel beds use the baked rock shapes; every `PointsMaterial` particle is now a soft round point (one
+shared fragment tweak); the renderer uses ACES filmic tone mapping at exposure 1.05. Fewer triangles than before the stage (the spiky ferns were more geometry
+than the cards), draw calls 209. Total over the whole round (stage 1 before to stage 6 after): draw calls 189 to 209, triangles 201,686 to 222,650, CPU
+4.58 to 4.68 ms in the IWER browser. Not measured on a Quest. No real-time shadows were added.

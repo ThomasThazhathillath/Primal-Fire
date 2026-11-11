@@ -4,6 +4,7 @@
 // wets the shelter's wood and leaves, and darkens and quietens things while you are inside.
 // Everything is pooled: 3 wet patches, one flood disc, 24 drip points, 6 splash rings.
 
+import { roundPoints } from './round-points.js';
 import {
   AdditiveBlending,
   BufferAttribute,
@@ -65,7 +66,7 @@ export class ShelterSystem extends createSystem({}) {
     this.root.add(this.flood);
     const geo = new BufferGeometry();
     geo.setAttribute('position', new BufferAttribute(this.dripPos, 3));
-    this.drips = new Points(geo, new PointsMaterial({ color: 0xbfe3f5, size: 0.035, transparent: true, opacity: 0.9, depthWrite: false, blending: AdditiveBlending }));
+    this.drips = new Points(geo, roundPoints(new PointsMaterial({ color: 0xbfe3f5, size: 0.035, transparent: true, opacity: 0.9, depthWrite: false, blending: AdditiveBlending })));
     this.drips.frustumCulled = false;
     this.drips.visible = false;
     for (let i = 0; i < DROPS; i++) this.dripPos[i * 3 + 1] = -10;

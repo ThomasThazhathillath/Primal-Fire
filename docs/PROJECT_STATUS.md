@@ -4,6 +4,87 @@ Meta VR Start Developer Competition 2026 · Gaming track · New Experience divis
 **Deadline:** Nov 19, 01:30 IST (treat as end of **Nov 18**)
 **Engine:** **Immersive Web SDK (IWSDK)**, confirmed Oct 27. The official rules explicitly accept IWSDK/WebXR entries, which are submitted as a hosted link. The Unity guide ([SETUP_UNITY.md](SETUP_UNITY.md)) is kept for reference only.
 
+## Current state (Nov 11, main `3763eca`)
+
+**Built and merged:** Chapter 1 end to end, the tutorial, the Chapter 1 story and Chapter 2's shelter. Checked in the IWER emulator: typecheck, 597 unit tests, the production build and emulated-hand play-tests.
+
+- **Hands-only VR:**
+  - pinch grab and release with a short hold
+  - two-hand carry for slabs and logs
+  - sticky tools
+  - knapping and cutting
+  - bow-drill sawing
+  - fanning
+  - digging
+  - twist lashing
+  - a gesture teleport that is blocked near the menu
+- **Gaze + pinch:** look at something and pinch to act on it.
+  - Gaze uses your eyes where the browser allows it, otherwise the direction your head faces.
+  - It covers resources, snap points, the workbench and UI buttons.
+  - It has a LOOK AND PINCH tutorial lesson.
+- **Guidance:**
+  - one objective at a time on a card at the top
+  - hints at three levels, with picture hints
+  - a light pillar plus a glow on the ground marking the exact item
+  - intent detection: the game picks the one sensible action for what you hold and where you are
+  - adaptive help: snap areas widen if you keep missing
+  - an easy bag: auto-refill, and pinch a mark to fill it from the bag
+- **UI:**
+  - a folding icon grid on the right with a Menu button, used by fingertip tap or gaze + pinch
+  - the Lab Notebook
+  - the build book
+  - a restart icon (double tap)
+- **Story:**
+  - **The First Steps** is the opening.
+  - **Chapter 1's acts** run from waking up to the first camp, then a teaser at the ruins.
+  - Story thoughts can be skipped or muted, play once, are saved, and old saves migrate safely.
+- **Chapter 2, The Living Camp:**
+  - poles, cross-supports and lashing
+  - a roof built in layers
+  - a rain test with leaks, patching and a drainage channel
+  - an interior you can rest in
+  - new observations and Roadmap nodes
+- **World:**
+  - a sky spec with a day and night cycle
+  - clouds and stars
+  - rain
+  - flint spawns
+  - fishing, farming and the hunt as extra quests
+- **Content:** 15 main quests plus 5 extra quests, and 80 Lab Notebook observations.
+- **Performance:** see [PERF_REPORT.md](PERF_REPORT.md).
+  - In the emulator, a Quest 3 profile renders about 250 draw calls and about 240k triangles per eye.
+  - The game requests 90 Hz only when the headset supports it, and uses fixed foveation.
+  - There is a `?perf` developer overlay.
+
+**Not verified on a real Quest:**
+- frame rate (60 fps minimum is required, 90 fps is the goal)
+- the feel of gaze
+- fingertip taps after the gaze change
+- two-wrist lashing
+- the rain drips
+- the mast glint by day
+
+**Still to do before the deadline:**
+1. A Quest performance pass, measured with the `?perf` overlay and OVR Metrics Tool.
+2. Hand-feel tuning from play-tests.
+3. The demo video, under 3 minutes.
+4. A final GitHub Pages build, kept frozen until about Dec 11.
+5. The Devpost entry, submitted by **Nov 18, 12:00 PM PT**.
+
+### Docs index
+
+| Doc | What it is |
+|---|---|
+| [DESIGN.md](DESIGN.md) | Science-first design, the Chapter 1 chain, build-from-scratch rules |
+| [SCIENCE.md](SCIENCE.md) | Science content and accuracy notes |
+| [PERF_REPORT.md](PERF_REPORT.md) | Measured performance, before and after, and the Quest checklist |
+| [SETUP.md](SETUP.md) | Setup and hosting |
+| Specs (the user's briefs, verbatim) | [HANDS_ONLY_SPEC](HANDS_ONLY_SPEC.md) · [QUEST_GUIDANCE_SPEC](QUEST_GUIDANCE_SPEC.md) · [SKY_SPEC](SKY_SPEC.md) · [CORE_GAMEPLAY_SPEC](CORE_GAMEPLAY_SPEC.md) · [TUTORIAL_USABILITY_SPEC](TUTORIAL_USABILITY_SPEC.md) · [STORY_CHAPTER1_SPEC](STORY_CHAPTER1_SPEC.md) · [GAZE_PINCH_90FPS_SPEC](GAZE_PINCH_90FPS_SPEC.md) · [CHAPTER2_SHELTER_SPEC](CHAPTER2_SHELTER_SPEC.md) |
+| Implementation plans | [STORY_CHAPTER1_PLAN](STORY_CHAPTER1_PLAN.md) · [GAZE_PINCH_90FPS_PLAN](GAZE_PINCH_90FPS_PLAN.md) · [CHAPTER2_SHELTER_PLAN](CHAPTER2_SHELTER_PLAN.md) |
+| Historical | [NEXT_PROMPT.md](NEXT_PROMPT.md) (the Oct prototype brief), [SETUP_UNITY.md](SETUP_UNITY.md) (Unity path, not used), `shots-*/` (verification screenshots) |
+
+The milestone table and lists below are the original Oct 27–28 plan, kept for history.
+
 ## What the official rules require ([Devpost rules](https://start-developer-competition-26.devpost.com/rules), read Oct 27)
 
 - **Deadline:** Nov 18, 2026, 12:00 PM PT, which is Nov 19, 01:30 IST. **You can't change the entry after the deadline.**
@@ -53,15 +134,15 @@ Meta VR Start Developer Competition 2026 · Gaming track · New Experience divis
   - The Quest browser has a tighter performance budget, so the forest must get lighter.
   - Eligibility still needs confirming.
 
-## Milestones (IWSDK)
+## Milestones (IWSDK, original plan)
 
 | Milestone | Dates | Scope | Status |
 |---|---|---|---|
 | **M0 Setup** | Oct 27–28 | ~~Check the rules~~ ✅ web allowed · apply to Start · ~~`npm create @iwsdk@latest`~~ ✅ in the [Primal-Fire](https://github.com/ThomasThazhathillath/Primal-Fire) repo · ~~run it in the IWER emulator~~ ✅ · host on an https URL: Pages workflow ready, needs Pages switched on ([SETUP.md](SETUP.md)) | **Almost done** (Start membership + Pages switch-on left) |
-| **M1 Vertical slice** | Oct 29–Nov 2 | ~~Port the shared logic out of the prototype into modules (`items`, `observations`, `quests`, `hints`, `log`)~~ ✅ · ~~a small forest (ground, stream, instanced trees, ~100 × 100 m)~~ ✅ · hand teleport (built into IWSDK; needs a device test) · ~~gather into a **hip-pouch satchel**~~ ✅ · ~~**the generic Blueprint system** (ghost outline, snap spots, placement rules) proven on the **fire pit**~~ ✅ and the workbench ✅ · ~~start in an empty clearing~~ ✅ · ~~quest panel and XP~~ ✅ · litter sweeping and wet stones bursting move to M2 (they need fire) | **Mostly done** (Oct 28) |
-| **M2 First Fire** | Nov 3–7 | Workbench blueprint (slab + 3 stone legs) · bow drill placed at the pit · cord and bow-drill crafting · fire lay · bow-drill **sawing with hand motion** · ember transfer · fanning with an open palm · fire effects · notebook panel | Not started |
-| **M3 Chain + finale** | Nov 8–12 | Pottery (temper, dry, fire) · charcoal pit (dig, water table, cover, mound) · filter tripod (forked sticks, cord, cane) and layers · lens view · Roadmap wall and mast in the ruins · Split Rock · nightfall finale · all 31 observations ([DESIGN.md](DESIGN.md)) | Not started |
-| **M4 Polish** | Nov 13–15 | **Quest-browser performance pass** · save in the browser · pause/resume · fast start (something satisfying within 10 minutes) · **real-device test** | Not started |
+| **M1 Vertical slice** | Oct 29–Nov 2 | ~~Port the shared logic out of the prototype into modules (`items`, `observations`, `quests`, `hints`, `log`)~~ ✅ · ~~a small forest (ground, stream, instanced trees, ~100 × 100 m)~~ ✅ · hand teleport (built into IWSDK; needs a device test) · ~~gather into a **hip-pouch satchel**~~ ✅ · ~~**the generic Blueprint system** (ghost outline, snap spots, placement rules) proven on the **fire pit**~~ ✅ and the workbench ✅ · ~~start in an empty clearing~~ ✅ · ~~quest panel and XP~~ ✅ · litter sweeping and wet stones bursting move to M2 (they need fire) | ✅ Done |
+| **M2 First Fire** | Nov 3–7 | Workbench blueprint (slab + 3 stone legs) · bow drill placed at the pit · cord and bow-drill crafting · fire lay · bow-drill **sawing with hand motion** · ember transfer · fanning with an open palm · fire effects · notebook panel | ✅ Done |
+| **M3 Chain + finale** | Nov 8–12 | Pottery (temper, dry, fire) · charcoal pit (dig, water table, cover, mound) · filter tripod (forked sticks, cord, cane) and layers · lens view · Roadmap wall and mast in the ruins · Split Rock · nightfall finale · all 31 observations ([DESIGN.md](DESIGN.md)) | ✅ Done |
+| **M4 Polish** | Nov 13–15 | **Quest-browser performance pass** · save in the browser · pause/resume · fast start (something satisfying within 10 minutes) · **real-device test** | In progress (save, pause, emulator perf done; Quest test left) |
 | **M5 Ship** | Nov 16–18 | **Demo video under 3 min** on YouTube or Vimeo · final build on **GitHub Pages** (frozen from then until ~Dec 11) · Devpost entry with an English description and testing instructions, Gaming / New Experience · **submit by Nov 18, 12:00 PM PT** | Not started |
 
 **Rule for the prototype:** from M1 on, the browser prototype is frozen. New design ideas (like v4 "build everything from scratch") go straight into the IWSDK build as snap-to-blueprint structures, instead of being built twice.

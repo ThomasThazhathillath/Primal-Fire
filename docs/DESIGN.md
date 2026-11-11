@@ -117,7 +117,7 @@ Each later quest begins by gathering what it needs: clay for the mound; lens, cl
 
 ## What changed from the original plan
 
-- **Shelter quest → Charcoal quest.** Shelter was engineering plus physics-wobble work. Charcoal reuses the fire VFX and stations, builds a real chemistry chain, and costs about the same.
+- **Shelter quest → Charcoal quest (Chapter 1).** Shelter was engineering plus physics-wobble work, so it moved to **Chapter 2, The Living Camp**, which is now built (see [CHAPTER2_SHELTER_SPEC.md](CHAPTER2_SHELTER_SPEC.md)). Charcoal reuses the fire VFX and stations, builds a real chemistry chain, and costs about the same.
 - **Nothing is pre-built (Oct 27).** The old "camp shelter is already standing" idea is gone. The player builds every structure; see "Build everything from scratch" below.
 - **New:** the Science Roadmap wall and the Lab Notebook format.
 
@@ -194,3 +194,13 @@ That's **8 new observations, 31 in total.**
 - Never say a homemade filter makes water safe.
 - Boiling: a rolling boil for about 1 minute (CDC guidance; longer at high altitude).
 - Every Lab Notebook entry has three lines: **Observation → Principle → Real-world limit.**
+
+## Built since this design (Nov)
+
+- **Story:** "The First Steps" is the tutorial opening. Chapter 1's story acts run from waking up to the first camp and end with the ruins teaser. See [STORY_CHAPTER1_SPEC.md](STORY_CHAPTER1_SPEC.md) and [TUTORIAL_USABILITY_SPEC.md](TUTORIAL_USABILITY_SPEC.md).
+- **Interaction:**
+  - hands-only VR ([HANDS_ONLY_SPEC.md](HANDS_ONLY_SPEC.md))
+  - physical motions ([CORE_GAMEPLAY_SPEC.md](CORE_GAMEPLAY_SPEC.md))
+  - gaze + pinch ([GAZE_PINCH_90FPS_SPEC.md](GAZE_PINCH_90FPS_SPEC.md))
+- **Chapter 2, The Living Camp:** build a lean-to shelter by hand, then test it in rain. It adds observations on triangles, tension and compression, load, roof slope, layering and drainage.
+- The observation count has grown from 31 to **80**. The rule still holds: Observation → Principle → Real-world limit.

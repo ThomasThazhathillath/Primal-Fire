@@ -23,6 +23,7 @@ import {
 } from '@iwsdk/core';
 import { type Environment, fireExposed, RAIN_BURN_LOSS, type WeatherKind } from '../game/environment.js';
 import { mulberry32 } from '../game/rng.js';
+import { quality } from '../game/quality.js';
 import { getGame } from './shared.js';
 import { SkyFx } from './sky-fx.js';
 
@@ -175,7 +176,7 @@ export class WorldEnvironmentSystem extends createSystem({
     // in slow steps (every few seconds), not every frame.
     this.iblTimer -= delta;
     if (this.iblTimer <= 0) {
-      this.iblTimer = IBL_PERIOD;
+      this.iblTimer = Math.max(IBL_PERIOD, quality.cfg.iblPeriod);
       this.updateIbl(env);
     }
 

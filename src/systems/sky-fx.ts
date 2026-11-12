@@ -33,6 +33,7 @@ import { AssetManager, PMREMGenerator, Scene, type Texture, type WebGLRenderTarg
 import type { Environment } from '../game/environment.js';
 import { mulberry32 } from '../game/rng.js';
 import { cloudCoverage, cloudLight, starVisibility } from '../game/sky.js';
+import { quality } from '../game/quality.js';
 
 const STARS = 2000;
 const SKY_RADIUS = 280;
@@ -450,6 +451,8 @@ export class SkyFx {
       Math.max(fog.b * 0.75, mixTo(this.shade[2], 0.5, duskK * 0.9)),
     );
     (u.uFog.value as Color).copy(fog);
+    // Quality: the procedural cloud dome is a second full-sky fragment layer under the photo clouds; below 'high' only the photo layer stays (when it has loaded).
+    this.clouds.visible = quality.cfg.proceduralClouds || !this.photo.visible;
     this.clouds.position.copy(head);
 
     // Physical sky: follows the sun, fades out as it gets dark (the gradient dome and stars take over).
@@ -459,11 +462,11 @@ export class SkyFx {
     pu.rayleigh.value = 1.2 + 1.5 * (1 - smooth(0.0, 0.35, sd[1]));
     pu.mieCoefficient.value = 0.004 + env.fog * 0.02;
     pu.uAlpha.value = (1 - smooth(0.3, 0.9, env.night)) * (1 - env.fog * 0.6);
-    this.physical.visible = pu.uAlpha.value > 0.01;
+    this.physical.visible = pu.uAlpha.value > 0.01 && quality.cfg.physicalSky;
     this.physical.position.copy(head);
 
     // Environment light from the sky, rebuilt every 6 s (a 128 px cube: cheap).
-    if (this.pmrem && this.threeScene && (this.envT += delta) > 6) {
+    if (this.pmrem && this.threeScene && (this.envT += delta) > quality.cfg.skyEnvPeriod) {
       this.envT = 0;
       const eu = (this.envSky.material as ShaderMaterial).uniforms;
       for (const k of ['turbidity', 'rayleigh', 'mieCoefficient']) eu[k].value = pu[k].value;

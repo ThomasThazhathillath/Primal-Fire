@@ -32,6 +32,7 @@ import {
   type Material,
   type Texture,
 } from '@iwsdk/core';
+import { quality } from '../game/quality.js';
 import { allTrees, lodFor, TREE_VARIANTS, worthDrawing, type Lod, type TreeInstance, type TreeVariant } from '../game/tree-lod.js';
 import { getGame } from './shared.js';
 
@@ -375,7 +376,7 @@ export class TreeSystem extends createSystem({}) {
       const d2 = dx * dx + dz * dz;
       const d = Math.sqrt(d2);
       if (this.solo >= 0 && i !== this.solo) continue;
-      const lod = this.solo >= 0 ? 0 : this.force >= 0 ? (this.force as Lod) : lodFor(d2 * t.bias * t.bias, this.lod[i]);
+      const lod = this.solo >= 0 ? 0 : this.force >= 0 ? (this.force as Lod) : lodFor(d2 * t.bias * t.bias * quality.cfg.lodScale * quality.cfg.lodScale, this.lod[i]);
       this.lod[i] = lod;
       if (!worthDrawing(d, (dx * fx + dz * fz) / (d || 1))) continue;
       const key = `${t.variant}:${lod}`;

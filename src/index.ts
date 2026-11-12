@@ -28,6 +28,7 @@ import { RockSystem } from './systems/rock-system.js';
 import { GroundSystem } from './systems/ground-system.js';
 import { GrassSystem } from './systems/grass-system.js';
 import { WildlifeSystem } from './systems/wildlife-system.js';
+import { QualitySystem } from './systems/quality-system.js';
 import { LivingDetailSystem } from './systems/living-detail-system.js';
 import { ResourceDebugSystem } from './systems/resource-debug-system.js';
 import { AmbienceSystem } from './systems/ambience-system.js';
@@ -75,6 +76,7 @@ World.create(
     // Frame timing probe for the dev perf overlay: first system of every frame.
     .registerSystem(PerfProbeSystem, { priority: -100 })
     .registerSystem(WorldSystem)
+    .registerSystem(QualitySystem, { priority: -90 })
     .registerSystem(WorldEnvironmentSystem)
     .registerSystem(NatureSystem)
     .registerSystem(TreeSystem)

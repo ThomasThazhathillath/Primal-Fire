@@ -4,7 +4,8 @@
 // vertex attribute baked from the world layout; the old vertex colours still tint the result so meadow, scorch marks and
 // paths keep their character. World-space UVs, so nothing stretches on slopes.
 
-import { AssetManager, createSystem, MeshStandardMaterial, NoColorSpace, RepeatWrapping, SRGBColorSpace, type Mesh, type Texture } from '@iwsdk/core';
+import { quality, type Tier } from '../game/quality.js';
+import { AssetManager, createSystem, MeshLambertMaterial, MeshStandardMaterial, NoColorSpace, RepeatWrapping, SRGBColorSpace, type Mesh, type Texture } from '@iwsdk/core';
 
 /** Metres per texture repeat. */
 const TILE = { ground: 1.3, leaves: 1.0, mud: 0.9 };
@@ -16,6 +17,9 @@ export class GroundSystem extends createSystem({}) {
   private loading = false;
   private search = 0;
   private tex: Texture[] = [];
+  private ground: Mesh | null = null;
+  private mats = new Map<number, MeshStandardMaterial | MeshLambertMaterial>();
+  private seen = -1;
 
   init(): void {
     void this.load();
@@ -39,6 +43,7 @@ export class GroundSystem extends createSystem({}) {
   }
 
   update(delta: number): void {
+    if (this.done) this.apply();
     if (this.done || this.tex.length < 8 || this.loading) return;
     if ((this.search -= delta) > 0) return;
     this.search = 1;
@@ -52,7 +57,28 @@ export class GroundSystem extends createSystem({}) {
       const old = trunks.material as MeshStandardMaterial;
       trunks.material = new MeshStandardMaterial({ map: bdr, normalMap: bn, roughness: 0.95, metalness: 0, vertexColors: true, color: old.color });
     }
-    const mat = new MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0 });
+    this.ground = ground;
+    this.done = true;
+    this.apply();
+  }
+
+  /** The ground material for the current quality tier (built once per tier; the three share the textures). */
+  private apply(): void {
+    if (!this.ground || this.seen === quality.version) return;
+    this.seen = quality.version;
+    const lvl = quality.cfg.ground;
+    let mat = this.mats.get(lvl);
+    if (!mat) {
+      mat = this.build(lvl);
+      this.mats.set(lvl, mat);
+    }
+    this.ground.material = mat;
+  }
+
+  private build(lvl: 0 | 1 | 2): MeshStandardMaterial | MeshLambertMaterial {
+    const [gdr, gn, ldr, ln, mdr, mn] = this.tex;
+    // Lowest tier: a Lambert material (no specular, no image-based light): the ground is rough and matte anyway.
+    const mat = lvl === 0 ? new MeshLambertMaterial({ vertexColors: true }) : new MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0 });
     mat.onBeforeCompile = (sh) => {
       sh.uniforms.tGdr = { value: gdr };
       sh.uniforms.tGn = { value: gn };
@@ -85,22 +111,20 @@ export class GroundSystem extends createSystem({}) {
           `vec2 uvA = vWUv / ${TILE.ground.toFixed(2)}; vec2 uvB = vWUv / ${TILE.leaves.toFixed(2)}; vec2 uvC = vWUv / ${TILE.mud.toFixed(2)};
           // A second, rotated and rescaled sample breaks up the repeat.
           vec2 uvA2 = mat2(0.8, -0.6, 0.6, 0.8) * uvA * 0.37; vec2 uvB2 = mat2(0.8, -0.6, 0.6, 0.8) * uvB * 0.41; vec2 uvC2 = mat2(0.8, -0.6, 0.6, 0.8) * uvC * 0.43;
-          gA = mix(texture2D(tGdr, uvA), texture2D(tGdr, uvA2), 0.4);
-          gB = mix(texture2D(tLdr, uvB), texture2D(tLdr, uvB2), 0.4);
-          gC = mix(texture2D(tMdr, uvC), texture2D(tMdr, uvC2), 0.4);
+          ${lvl === 2 ? 'gA = mix(texture2D(tGdr, uvA), texture2D(tGdr, uvA2), 0.4); gB = mix(texture2D(tLdr, uvB), texture2D(tLdr, uvB2), 0.4); gC = mix(texture2D(tMdr, uvC), texture2D(tMdr, uvC2), 0.4);' : 'gA = texture2D(tGdr, uvA); gB = texture2D(tLdr, uvB); gC = texture2D(tMdr, uvC);'}
           vec3 zw = vZone / max(vZone.x + vZone.y + vZone.z, 1e-3);
           diffuseColor.rgb = gA.rgb * zw.x + gB.rgb * zw.y + gC.rgb * zw.z;
           // Break up the repeat and the flat brown: large soft colour patches (moss, dry earth, dark soil) and a fine detail grain that
           // keeps the surface sharp close up, both from cheap noise.
           float big = gn(vWUv * 0.07) * 0.6 + gn(vWUv * 0.21 + 9.0) * 0.4;
           float mid = gn(vWUv * 0.9);
-          float fine = gn(vWUv * 7.0) * 0.5 + gn(vWUv * 19.0) * 0.5;
+          float fine = ${lvl === 2 ? 'gn(vWUv * 7.0) * 0.5 + gn(vWUv * 19.0) * 0.5' : '0.5'};
           vec3 patchTint = mix(vec3(0.78, 0.92, 0.62), vec3(1.18, 1.04, 0.84), smoothstep(0.3, 0.7, big));
-          patchTint = mix(patchTint, vec3(0.82, 0.78, 0.74), smoothstep(0.62, 0.8, gn(vWUv * 0.13 + 31.0)) * 0.6);
+          ${lvl === 2 ? 'patchTint = mix(patchTint, vec3(0.82, 0.78, 0.74), smoothstep(0.62, 0.8, gn(vWUv * 0.13 + 31.0)) * 0.6);' : ''}
           diffuseColor.rgb *= patchTint * (0.86 + 0.28 * mid) * (0.82 + 0.36 * fine);
           // Mid-distance meadow: beyond the tufts (about 5 m) the open ground takes on blades and clumps in the shader, so the meadow
           // reads lush all the way to the treeline without any geometry. Green clumps and darker gaps, speckled with light blade tips.
-          {
+          ${lvl === 2 ? `          {
             float dm = length(vViewPosition);
             float far = smoothstep(1.0, 5.0, dm);
             float meadow = far * zw.x * smoothstep(0.1, 0.32, gn(vWUv * 0.14 + 5.0) * 0.7 + gn(vWUv * 0.7) * 0.3);
@@ -112,6 +136,15 @@ export class GroundSystem extends createSystem({}) {
             grassTint = mix(grassTint, vec3(0.5, 0.48, 0.18) * (0.8 + 0.4 * clump), smoothstep(0.55, 0.75, gn(vWUv * 0.11 + 17.0)) * 0.7);
             diffuseColor.rgb = mix(diffuseColor.rgb, grassTint, meadow * 0.88);
           }
+` : lvl === 1 ? `          {
+            float dm = length(vViewPosition);
+            float far = smoothstep(1.0, 5.0, dm);
+            float meadow = far * zw.x * smoothstep(0.1, 0.32, gn(vWUv * 0.14 + 5.0));
+            float clump = gn(vWUv * 2.3);
+            vec3 grassTint = mix(vec3(0.1, 0.23, 0.06), vec3(0.3, 0.45, 0.11), clump);
+            diffuseColor.rgb = mix(diffuseColor.rgb, grassTint, meadow * 0.88);
+          }
+` : ''}
           // Under the canopy the floor is darker (the leaf-litter zone).
           diffuseColor.rgb *= 1.0 - 0.26 * zw.y * (0.6 + 0.4 * mid);
           // Wet banks: the mud zone is darker and glossier.
@@ -121,13 +154,14 @@ export class GroundSystem extends createSystem({}) {
         .replace('#include <roughnessmap_fragment>', 'float roughnessFactor = clamp(gA.a * zw.x + gB.a * zw.y + gC.a * zw.z, 0.35, 1.0) * (1.0 - 0.45 * zw.z);')
         .replace(
           '#include <normal_fragment_maps>',
-          `vec3 nA = texture2D(tGn, uvA).xyz * 2.0 - 1.0; vec3 nB = texture2D(tLn, uvB).xyz * 2.0 - 1.0; vec3 nC = texture2D(tMn, uvC).xyz * 2.0 - 1.0;
+          lvl === 2
+            ? `vec3 nA = texture2D(tGn, uvA).xyz * 2.0 - 1.0; vec3 nB = texture2D(tLn, uvB).xyz * 2.0 - 1.0; vec3 nC = texture2D(tMn, uvC).xyz * 2.0 - 1.0;
           vec3 nm = normalize(nA * zw.x + nB * zw.y + nC * zw.z); nm.xy *= 0.85;
-          normal = perturbGround(-vViewPosition, normal, nm, vWUv);`,
+          normal = perturbGround(-vViewPosition, normal, nm, vWUv);`
+            : '',
         );
     };
-    mat.customProgramCacheKey = () => 'ground-zones';
-    ground.material = mat;
-    this.done = true;
+    mat.customProgramCacheKey = () => `ground-zones-${lvl}`;
+    return mat;
   }
 }

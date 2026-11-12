@@ -179,6 +179,10 @@ export class ObjectiveCardSystem extends createSystem({}) {
     show('obj-cele', cele);
     this.panel.requireElementById('obj-hint').setProperties({ display: v.id === 'quest' || cele ? 'none' : 'flex' });
     if (cele) {
+      // The action was done: the 'How?' demo ends now, so the next objective's own clip (often the same grab) does not keep playing.
+      this.howOpen = false;
+      this.howFor = '';
+      ghost.how = null;
       text('obj-cele-text', v.celebrating!.message);
       this.lastHeight = 0;
       this.panel.requireElementById('obj-root').setProperties({ height: 190 } as never);

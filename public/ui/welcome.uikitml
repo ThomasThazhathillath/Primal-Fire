@@ -27,6 +27,7 @@
   .heading { color: #2d1f12; font-size: 34px; font-weight: 700; line-height: 40px; }
   .body { color: #2d1f12; font-size: 18px; line-height: 25px; }
   .how { color: #2d1f12; font-size: 15px; line-height: 22px; }
+  .btntext { color: #f6ecd2; font-size: 22px; font-weight: 700; }
   .button { justify-content: flex-start; margin-left: 24px; margin-right: 24px; margin-bottom: 14px; }
 </style>
 <div class="panel-root t-root">
@@ -38,15 +39,15 @@
     <div class="how">Stuck? Ask for a hint - ask again for a clearer one.</div>
   </div>
   <Button class="t-btn" id="xr-button" class="button">
-    <ButtonIcon><RectangleGoggles></RectangleGoggles></ButtonIcon>
-    <ButtonLabel>Enter VR</ButtonLabel>
+    <ButtonIcon class="btntext"><RectangleGoggles></RectangleGoggles></ButtonIcon>
+    <ButtonLabel class="btntext">Enter VR</ButtonLabel>
   </Button>
   <Button class="t-btn" id="tutorial-button" class="button">
-    <ButtonIcon><GraduationCap></GraduationCap></ButtonIcon>
-    <ButtonLabel id="tutorial-label">Learn the basics</ButtonLabel>
+    <ButtonIcon class="btntext"><GraduationCap></GraduationCap></ButtonIcon>
+    <ButtonLabel id="tutorial-label" class="btntext">Learn the basics</ButtonLabel>
   </Button>
   <Button class="t-btn" id="begin-button" class="button">
-    <ButtonIcon><Sunrise></Sunrise></ButtonIcon>
-    <ButtonLabel id="begin-label">Wake up</ButtonLabel>
+    <ButtonIcon class="btntext"><Sunrise></Sunrise></ButtonIcon>
+    <ButtonLabel id="begin-label" class="btntext">Wake up</ButtonLabel>
   </Button>
 </div>

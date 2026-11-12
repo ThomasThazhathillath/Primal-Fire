@@ -267,7 +267,8 @@ export class TutorialSystem extends createSystem({}, { tutorial: { type: Types.B
       el?.setProperties({
         display: 'flex',
         text: `${done ? '[x]' : i === next ? '>' : '[ ]'} ${uiText(t.text)}`,
-        color: done ? '#86dc97' : i === next ? '#ffc283' : '#d3c4a6',
+        // Dark, saturated colours: the card is parchment, so the old pale tones were nearly invisible.
+        color: done ? '#2c7a3e' : i === next ? '#b2511a' : '#6a5740',
       });
     }
     if (!x) return;

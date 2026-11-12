@@ -70,3 +70,14 @@ export class RejectLog {
 export function rejectLine(panel: string, target: string, reason: string, hand: number): string {
   return `tap rejected: ${reason} on ${panel}/${target} (${hand === 0 ? 'left' : 'right'} hand)`;
 }
+
+/** Icons that leave the unfolded row open when tapped: Menu itself, the snap turns and the page arrows (the rest act or open a panel, which folds it). */
+export const KEEP_GRID_OPEN: readonly string[] = ['menu', 'turn-left', 'turn-right', 'prev', 'next'];
+export const keepsGridOpen = (id: string): boolean => KEEP_GRID_OPEN.includes(id);
+
+/** The VR menu row is paged: `count` icons (besides Menu) shown `size` at a time. */
+export function pageLayout(count: number, page: number, size: number): { pages: number; page: number; start: number; end: number; hasPrev: boolean; hasNext: boolean } {
+  const pages = Math.max(1, Math.ceil(count / size));
+  const p = Math.max(0, Math.min(page, pages - 1));
+  return { pages, page: p, start: p * size, end: Math.min(count, p * size + size), hasPrev: p > 0, hasNext: p < pages - 1 };
+}

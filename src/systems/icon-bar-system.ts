@@ -17,6 +17,7 @@ import {
 } from '@iwsdk/core';
 import { fitsPouch } from '../game/items.js';
 import { PanelTouch } from './panel-touch.js';
+import { keepsGridOpen, pageLayout } from '../game/menu.js';
 import { getGame, getUi, hidePanel, menu, StaticAnchor } from './shared.js';
 import { clearSave, WorldSystem } from './world-system.js';
 
@@ -209,8 +210,14 @@ export class IconBarSystem extends createSystem({}) {
     const def = DEFS[i];
     // Misclick guard: a tap right after another tap, or right after the grid unfolded, is a stray touch, not a choice.
     const now = performance.now();
-    if (now - this.lastTapAt < 300) return;
-    if (def.id !== 'menu' && now - this.gridOpenedAt < 350) return;
+    if (now - this.lastTapAt < 300) {
+      getGame(this.world).log.add(`tap rejected: stray (another tap ${Math.round(now - this.lastTapAt)} ms ago) on menu/${def.id}`);
+      return;
+    }
+    if (def.id !== 'menu' && now - this.gridOpenedAt < 350) {
+      getGame(this.world).log.add(`tap rejected: grid just opened on menu/${def.id}`);
+      return;
+    }
     this.lastTapAt = now;
     // Leaving the game needs a deliberate second tap on the same icon.
     if (this.vr && (def.id === 'exit' || def.id === 'reload')) {
@@ -227,7 +234,7 @@ export class IconBarSystem extends createSystem({}) {
     this.shrunk.push({ i, left: 0.12 });
     this.menuIdle = 0;
     def.run(this);
-    if (!['menu', 'turn-left', 'turn-right'].includes(def.id) && menu.current === null) menu.gridOpen = false;
+    if (!keepsGridOpen(def.id) && menu.current === null) menu.gridOpen = false;
   }
 
   private restartArmedAt = -1e9;
@@ -296,14 +303,14 @@ export class IconBarSystem extends createSystem({}) {
       const pi = DEFS.findIndex((d) => d.id === 'prev');
       const ni = DEFS.findIndex((d) => d.id === 'next');
       const others = this.visible.filter((i) => i !== mi);
-      const pages = Math.max(1, Math.ceil(others.length / PAGE));
-      if (this.page >= pages) this.page = pages - 1;
-      const row = others.slice(this.page * PAGE, this.page * PAGE + PAGE);
+      const pg = pageLayout(others.length, this.page, PAGE);
+      this.page = pg.page;
+      const row = others.slice(pg.start, pg.end);
       this.visible.length = 0;
       this.visible.push(mi);
-      if (this.page > 0) this.visible.push(pi);
+      if (pg.hasPrev) this.visible.push(pi);
       this.visible.push(...row);
-      if (this.page < pages - 1) this.visible.push(ni);
+      if (pg.hasNext) this.visible.push(ni);
     } else this.page = 0;
     this.layout();
 

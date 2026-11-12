@@ -30,7 +30,8 @@
   .root { flex-direction: column; width: 520px; padding-top: 16px; padding-bottom: 16px; padding-left: 20px; padding-right: 20px; gap: 8px; }
   .row { flex-direction: row; gap: 8px; align-items: center; flex-wrap: wrap; }
   .tasks { flex-direction: column; gap: 6px; }
-  .task { width: 480px; }
+  .task { width: 480px; font-size: 24px; font-weight: 700; line-height: 1.25; }
+  .btntext { color: #f6ecd2; font-weight: 700; }
   .wide { width: 480px; }
   .num { width: 38px; height: 38px; }
   .cele { flex-direction: column; gap: 10px; background-color: #2c6a3d; border-radius: 12px; padding: 14px; display: none; }
@@ -47,29 +48,29 @@
     <div id="tut-body-3" class="task t-body">-</div>
     <div id="tut-tip" class="wide t-muted">-</div>
     <div id="tut-ctrl" class="row">
-      <Button id="tut-repeat" class="t-btn" size="sm" variant="secondary"><ButtonLabel>Do again</ButtonLabel></Button>
-      <Button id="tut-skip" class="t-btn" size="sm" variant="secondary"><ButtonLabel>Skip this</ButtonLabel></Button>
-      <Button id="tut-leave" class="t-btn" size="sm" variant="secondary"><ButtonLabel>Skip to survival</ButtonLabel></Button>
+      <Button id="tut-repeat" class="t-btn" size="sm" variant="secondary"><ButtonLabel class="btntext">Do again</ButtonLabel></Button>
+      <Button id="tut-skip" class="t-btn" size="sm" variant="secondary"><ButtonLabel class="btntext">Skip this</ButtonLabel></Button>
+      <Button id="tut-leave" class="t-btn" size="sm" variant="secondary"><ButtonLabel class="btntext">Skip to survival</ButtonLabel></Button>
     </div>
     <div id="tut-nums" class="row">
-      <Button id="tut-l0" class="num t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-l0-t">1</ButtonLabel></Button>
-      <Button id="tut-l1" class="num t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-l1-t">2</ButtonLabel></Button>
-      <Button id="tut-l2" class="num t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-l2-t">3</ButtonLabel></Button>
-      <Button id="tut-l3" class="num t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-l3-t">4</ButtonLabel></Button>
-      <Button id="tut-l4" class="num t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-l4-t">5</ButtonLabel></Button>
-      <Button id="tut-l5" class="num t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-l5-t">6</ButtonLabel></Button>
-      <Button id="tut-l6" class="num t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-l6-t">7</ButtonLabel></Button>
-      <Button id="tut-l7" class="num t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-l7-t">8</ButtonLabel></Button>
-      <Button id="tut-l8" class="num t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-l8-t">9</ButtonLabel></Button>
-      <Button id="tut-l9" class="num t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-l9-t">10</ButtonLabel></Button>
-      <Button id="tut-l10" class="num t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-l10-t">11</ButtonLabel></Button>
+      <Button id="tut-l0" class="num t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-l0-t" class="btntext">1</ButtonLabel></Button>
+      <Button id="tut-l1" class="num t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-l1-t" class="btntext">2</ButtonLabel></Button>
+      <Button id="tut-l2" class="num t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-l2-t" class="btntext">3</ButtonLabel></Button>
+      <Button id="tut-l3" class="num t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-l3-t" class="btntext">4</ButtonLabel></Button>
+      <Button id="tut-l4" class="num t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-l4-t" class="btntext">5</ButtonLabel></Button>
+      <Button id="tut-l5" class="num t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-l5-t" class="btntext">6</ButtonLabel></Button>
+      <Button id="tut-l6" class="num t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-l6-t" class="btntext">7</ButtonLabel></Button>
+      <Button id="tut-l7" class="num t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-l7-t" class="btntext">8</ButtonLabel></Button>
+      <Button id="tut-l8" class="num t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-l8-t" class="btntext">9</ButtonLabel></Button>
+      <Button id="tut-l9" class="num t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-l9-t" class="btntext">10</ButtonLabel></Button>
+      <Button id="tut-l10" class="num t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-l10-t" class="btntext">11</ButtonLabel></Button>
     </div>
   </div>
   <div id="tut-cele" class="cele">
     <div id="tut-cele-text" class="celetext">You can survive out here.</div>
     <div class="row">
-      <Button id="tut-start" class="t-go" size="sm"><ButtonLabel id="tut-start-t">Start survival</ButtonLabel></Button>
-      <Button id="tut-again" class="t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-again-t">Stay and practise</ButtonLabel></Button>
+      <Button id="tut-start" class="t-go" size="sm"><ButtonLabel id="tut-start-t" class="btntext">Start survival</ButtonLabel></Button>
+      <Button id="tut-again" class="t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-again-t" class="btntext">Stay and practise</ButtonLabel></Button>
     </div>
   </div>
 </div>

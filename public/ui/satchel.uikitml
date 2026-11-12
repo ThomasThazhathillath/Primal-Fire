@@ -28,7 +28,10 @@
   .root { flex-direction: column; width: 480px; padding-top: 22px; padding-bottom: 22px; padding-left: 26px; padding-right: 26px; gap: 12px; }
   .grid { flex-direction: row; flex-wrap: wrap; gap: 10px; }
   .item { width: 134px; }
-  .bagrow { width: 430px; height: 56px; padding-left: 66px; }
+  .irow { flex-direction: row; gap: 6px; width: 430px; }
+  .bagrow { width: 338px; height: 56px; padding-left: 66px; }
+  .delbtn { width: 86px; height: 56px; background-color: #8a4a1c; border-radius: 12px; }
+  .deltext { font-size: 14px; color: #f6ecd2; font-weight: 700; }
   .bagtext { font-size: 16px; }
   .row { flex-direction: row; gap: 12px; }
   .back { width: 190px; height: 60px; }
@@ -37,24 +40,24 @@
   <div class="t-title">Bag</div>
   <div id="satchel-sub" class="t-muted">Tap an item to take it in hand. Tap Back to return to the icons.</div>
   <div class="grid">
-    <Button id="item-0" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-0-label" class="bagtext">-</ButtonLabel></Button>
-    <Button id="item-1" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-1-label" class="bagtext">-</ButtonLabel></Button>
-    <Button id="item-2" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-2-label" class="bagtext">-</ButtonLabel></Button>
-    <Button id="item-3" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-3-label" class="bagtext">-</ButtonLabel></Button>
-    <Button id="item-4" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-4-label" class="bagtext">-</ButtonLabel></Button>
-    <Button id="item-5" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-5-label" class="bagtext">-</ButtonLabel></Button>
-    <Button id="item-6" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-6-label" class="bagtext">-</ButtonLabel></Button>
-    <Button id="item-7" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-7-label" class="bagtext">-</ButtonLabel></Button>
-    <Button id="item-8" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-8-label" class="bagtext">-</ButtonLabel></Button>
-    <Button id="item-9" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-9-label" class="bagtext">-</ButtonLabel></Button>
-    <Button id="item-10" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-10-label" class="bagtext">-</ButtonLabel></Button>
-    <Button id="item-11" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-11-label" class="bagtext">-</ButtonLabel></Button>
-    <Button id="item-12" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-12-label" class="bagtext">-</ButtonLabel></Button>
-    <Button id="item-13" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-13-label" class="bagtext">-</ButtonLabel></Button>
-    <Button id="item-14" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-14-label" class="bagtext">-</ButtonLabel></Button>
-    <Button id="item-15" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-15-label" class="bagtext">-</ButtonLabel></Button>
-    <Button id="item-16" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-16-label" class="bagtext">-</ButtonLabel></Button>
-    <Button id="item-17" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-17-label" class="bagtext">-</ButtonLabel></Button>
+    <div id="irow-0" class="irow"><Button id="item-0" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-0-label" class="bagtext">-</ButtonLabel></Button><Button id="del-0" class="delbtn" variant="secondary" size="sm"><ButtonLabel id="del-0-label" class="deltext">Discard</ButtonLabel></Button></div>
+    <div id="irow-1" class="irow"><Button id="item-1" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-1-label" class="bagtext">-</ButtonLabel></Button><Button id="del-1" class="delbtn" variant="secondary" size="sm"><ButtonLabel id="del-1-label" class="deltext">Discard</ButtonLabel></Button></div>
+    <div id="irow-2" class="irow"><Button id="item-2" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-2-label" class="bagtext">-</ButtonLabel></Button><Button id="del-2" class="delbtn" variant="secondary" size="sm"><ButtonLabel id="del-2-label" class="deltext">Discard</ButtonLabel></Button></div>
+    <div id="irow-3" class="irow"><Button id="item-3" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-3-label" class="bagtext">-</ButtonLabel></Button><Button id="del-3" class="delbtn" variant="secondary" size="sm"><ButtonLabel id="del-3-label" class="deltext">Discard</ButtonLabel></Button></div>
+    <div id="irow-4" class="irow"><Button id="item-4" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-4-label" class="bagtext">-</ButtonLabel></Button><Button id="del-4" class="delbtn" variant="secondary" size="sm"><ButtonLabel id="del-4-label" class="deltext">Discard</ButtonLabel></Button></div>
+    <div id="irow-5" class="irow"><Button id="item-5" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-5-label" class="bagtext">-</ButtonLabel></Button><Button id="del-5" class="delbtn" variant="secondary" size="sm"><ButtonLabel id="del-5-label" class="deltext">Discard</ButtonLabel></Button></div>
+    <div id="irow-6" class="irow"><Button id="item-6" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-6-label" class="bagtext">-</ButtonLabel></Button><Button id="del-6" class="delbtn" variant="secondary" size="sm"><ButtonLabel id="del-6-label" class="deltext">Discard</ButtonLabel></Button></div>
+    <div id="irow-7" class="irow"><Button id="item-7" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-7-label" class="bagtext">-</ButtonLabel></Button><Button id="del-7" class="delbtn" variant="secondary" size="sm"><ButtonLabel id="del-7-label" class="deltext">Discard</ButtonLabel></Button></div>
+    <div id="irow-8" class="irow"><Button id="item-8" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-8-label" class="bagtext">-</ButtonLabel></Button><Button id="del-8" class="delbtn" variant="secondary" size="sm"><ButtonLabel id="del-8-label" class="deltext">Discard</ButtonLabel></Button></div>
+    <div id="irow-9" class="irow"><Button id="item-9" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-9-label" class="bagtext">-</ButtonLabel></Button><Button id="del-9" class="delbtn" variant="secondary" size="sm"><ButtonLabel id="del-9-label" class="deltext">Discard</ButtonLabel></Button></div>
+    <div id="irow-10" class="irow"><Button id="item-10" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-10-label" class="bagtext">-</ButtonLabel></Button><Button id="del-10" class="delbtn" variant="secondary" size="sm"><ButtonLabel id="del-10-label" class="deltext">Discard</ButtonLabel></Button></div>
+    <div id="irow-11" class="irow"><Button id="item-11" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-11-label" class="bagtext">-</ButtonLabel></Button><Button id="del-11" class="delbtn" variant="secondary" size="sm"><ButtonLabel id="del-11-label" class="deltext">Discard</ButtonLabel></Button></div>
+    <div id="irow-12" class="irow"><Button id="item-12" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-12-label" class="bagtext">-</ButtonLabel></Button><Button id="del-12" class="delbtn" variant="secondary" size="sm"><ButtonLabel id="del-12-label" class="deltext">Discard</ButtonLabel></Button></div>
+    <div id="irow-13" class="irow"><Button id="item-13" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-13-label" class="bagtext">-</ButtonLabel></Button><Button id="del-13" class="delbtn" variant="secondary" size="sm"><ButtonLabel id="del-13-label" class="deltext">Discard</ButtonLabel></Button></div>
+    <div id="irow-14" class="irow"><Button id="item-14" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-14-label" class="bagtext">-</ButtonLabel></Button><Button id="del-14" class="delbtn" variant="secondary" size="sm"><ButtonLabel id="del-14-label" class="deltext">Discard</ButtonLabel></Button></div>
+    <div id="irow-15" class="irow"><Button id="item-15" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-15-label" class="bagtext">-</ButtonLabel></Button><Button id="del-15" class="delbtn" variant="secondary" size="sm"><ButtonLabel id="del-15-label" class="deltext">Discard</ButtonLabel></Button></div>
+    <div id="irow-16" class="irow"><Button id="item-16" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-16-label" class="bagtext">-</ButtonLabel></Button><Button id="del-16" class="delbtn" variant="secondary" size="sm"><ButtonLabel id="del-16-label" class="deltext">Discard</ButtonLabel></Button></div>
+    <div id="irow-17" class="irow"><Button id="item-17" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-17-label" class="bagtext">-</ButtonLabel></Button><Button id="del-17" class="delbtn" variant="secondary" size="sm"><ButtonLabel id="del-17-label" class="deltext">Discard</ButtonLabel></Button></div>
   </div>
   <div id="make-title" class="t-muted">Make by hand (you have the parts):</div>
   <div class="grid">

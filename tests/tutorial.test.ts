@@ -307,7 +307,9 @@ describe('tutorial and survival saves stay separate', () => {
   it('a first-time player has not made the choice; ?tutorial forces the tutorial', () => {
     const s = store();
     expect(choiceMade(s)).toBe(false);
-    expect(currentMode(s, '')).toBe('survival');
+    expect(currentMode(s, '')).toBe('tutorial'); // a new player starts in The First Steps
+    s.setItem(SURVIVAL_SAVE_KEY, '{"survival":true}');
+    expect(currentMode(s, '')).toBe('survival'); // an existing save keeps going
     expect(currentMode(s, '?tutorial')).toBe('tutorial');
     chooseTutorial(s);
     expect(s.getItem(TUTORIAL_SAVE_KEY)).toBeNull(); // starts fresh

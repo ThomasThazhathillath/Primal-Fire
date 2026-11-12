@@ -50,7 +50,10 @@ export function browserStore(): KeyStore | null {
 /** The mode this page load runs. A `?tutorial` URL forces the tutorial (handy for testing). */
 export function currentMode(store: KeyStore | null = browserStore(), search = typeof location === 'undefined' ? '' : location.search): PlayMode {
   if (/[?&]tutorial(=1|=true)?(&|$)/.test(search)) return 'tutorial';
-  return safeGet(store, MODE_KEY) === 'tutorial' ? 'tutorial' : 'survival';
+  const saved = safeGet(store, MODE_KEY);
+  if (saved === 'tutorial' || saved === 'survival') return saved;
+  // A brand-new player (no choice made, no survival save) always starts in the guided tutorial, "The First Steps". They can skip it from its card.
+  return choiceMade(store) ? 'survival' : 'tutorial';
 }
 
 /** Has the player ever made the start choice (tutorial or skip)? */

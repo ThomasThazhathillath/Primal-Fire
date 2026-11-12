@@ -14,7 +14,7 @@ export const TOUCH_CONFIG = {
   /** Fingertip this far (m) in front of the surface and over an icon = "approaching". */
   approachDepth: 0.07,
   /** Must have been this far in front (m) before crossing, or it is not a tap. */
-  armDepth: 0.03,
+  armDepth: 0.02,
   /** Crossing z <= this (m) counts as touching the surface. */
   touchDepth: 0.004,
   /** Past this depth behind the surface (m) the fingertip is no longer in the icon. */
@@ -31,18 +31,18 @@ export const TOUCH_CONFIG = {
   leaveMargin: 0.03,
   /** Seconds the "activated" visual lasts. */
   flash: 0.22,
-  /** Thumb-index tip distance (m) below which the hand counts as pinching: no UI taps. */
-  pinchOn: 0.03,
+  /** Thumb-index tip distance (m) below which the hand counts as pinching: no UI taps. A relaxed hand rests at 2-4 cm, so only touching tips (< 2 cm) count. */
+  pinchOn: 0.02,
   /** ...and it stays "pinching" until the tips are this far apart (hysteresis). */
-  pinchOff: 0.045,
+  pinchOff: 0.032,
   /**
    * Max sideways travel per unit of forward travel. Applies to the crossing
    * frame and to the whole approach from the last time the tip was in front,
-   * so diagonal or sideways slides across icons never fire. 0.8 ≈ 39° off normal.
+   * so sideways slides across icons never fire. 1.4 ≈ 54° off normal: a real hand drifts while it pokes (Quest log: 37 'slide' refusals at 0.9).
    */
-  maxSlideRatio: 0.9,
+  maxSlideRatio: 1.4,
   /** The approach (tip last seen >= armDepth in front) must be this recent (s). */
-  approachWindow: 0.5,
+  approachWindow: 0.8,
   /**
    * A fingertip that moves farther than this (m) in one frame is a tracking
    * jump, not a hand: that frame can never tap, and a fresh approach is

@@ -50,6 +50,7 @@
   <div class="head t-banner">
     <div id="bench-eyebrow" class="eyebrow t-bannertext">WORKBENCH</div>
     <div class="headright">
+      <Button id="bench-more" class="t-btn" variant="secondary" size="sm"><ButtonLabel id="bench-more-label">More (1/2)</ButtonLabel></Button>
       <Button id="bench-lift" class="t-btn" variant="secondary" size="sm"><ButtonLabel>Lift slab off</ButtonLabel></Button>
       <Button id="bench-close" class="back t-btn" variant="secondary" size="lg"><ButtonIcon><ArrowLeft></ArrowLeft></ButtonIcon><ButtonLabel>Back</ButtonLabel></Button>
     </div>

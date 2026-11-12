@@ -77,6 +77,7 @@ export type GameEvent =
   | { type: 'levelUp'; level: number }
   | { type: 'satchel' }
   | { type: 'held'; item: ItemId | null }
+  | { type: 'plan'; kind: StructureKind | null }
   | { type: 'structure'; structure: PlacedStructure }
   | { type: 'quest'; index: number }
   | { type: 'objective'; id: string | null }
@@ -169,6 +170,8 @@ export class Game {
   level = 1;
   questIndex = 0;
   held: ItemId | null = null;
+  /** A structure picked in the build book: its outline follows your aim until you pinch to place it (or cancel). */
+  armedPlan: StructureKind | null = null;
   readonly player = { x: 0, z: 0 };
   /** Head yaw in radians (0 = towards -Z); set each frame by the UI so directions can say "to your left". Not saved. */
   facingYaw = 0;
@@ -850,6 +853,20 @@ export class Game {
     return true;
   }
 
+  /**
+   * Throw an item away for good: the whole stack leaves the satchel and the world (it is not dropped on the
+   * ground). Returns how many were removed. The caller asks the player to confirm first.
+   */
+  discardItem(id: ItemId): number {
+    const n = this.count(id);
+    if (n <= 0) return 0;
+    this.satchel.delete(id);
+    this.log.add(`discarded ${id} x${n}`);
+    this.toast(`Discarded ${n > 1 ? `${n} ` : ''}${itemName(id).toLowerCase()}.`, 'note');
+    this.emit({ type: 'satchel' });
+    return n;
+  }
+
   /** Put the held item back in the satchel. */
   stow(): void {
     if (!this.held) return;
@@ -958,7 +975,7 @@ export class Game {
       return check;
     }
     // A keyLast part (the slab) stays in your hand: the outline is only the plan.
-    const key = fromBook ? def.keyAccepts[0] : def.keyLast ? this.held! : this.consumeHeld()!;
+    const key = fromBook ? (def.keyLast ? (this.held ?? def.keyAccepts[0]) : def.keyAccepts[0]) : def.keyLast ? this.held! : this.consumeHeld()!;
     const structure: PlacedStructure = {
       id: this.nextStructureId++,
       kind,
@@ -972,6 +989,7 @@ export class Game {
       ...(fromBook && !def.keyLast ? { keyOpen: true } : {}),
     };
     this.structures.push(structure);
+    if (fromBook) this.armPlan(null);
     this.planPlacedAt = this.time;
     this.log.add(`placed ${kind} #${structure.id} at ${x.toFixed(1)},${z.toFixed(1)} key=${key}`, 'ok');
     this.toast(
@@ -1034,6 +1052,35 @@ export class Game {
       return { ok: false, reason: 'trees', message: msg };
     }
     return this.placeBlueprint(kind, spot.x, spot.z, spot.rotY, true);
+  }
+
+  /**
+   * Pick a structure in the build book: nothing is placed yet. The outline (ghost) follows
+   * where you aim and a pinch puts it down. Returns false (with a message) if it is locked or not allowed.
+   */
+  armPlan(kind: StructureKind | null): void {
+    if (this.armedPlan === kind) return;
+    this.armedPlan = kind;
+    this.log.add(kind ? `plan armed: ${kind}` : 'plan cleared', 'ok');
+    this.emit({ type: 'plan', kind });
+  }
+
+  armFromBook(id: string): { ok: boolean; message?: string } {
+    const entry = bookEntries(this).find((e) => e.id === id);
+    if (!entry || entry.kind !== 'structure') return { ok: false, message: 'That is made at the workbench.' };
+    if (!entry.unlocked) {
+      this.toast(entry.hint, 'note');
+      return { ok: false, message: entry.hint };
+    }
+    const kind = entry.structure!;
+    if (!this.allowsBuild(kind)) {
+      const message = `Not now - this lesson is not about the ${BLUEPRINTS[kind].name.toLowerCase()}.`;
+      this.toast(message, 'note');
+      return { ok: false, message };
+    }
+    this.armPlan(kind);
+    this.toast(`${BLUEPRINTS[kind].name}: point where you want it (green = fine) and pinch to place.`, 'note');
+    return { ok: true };
   }
 
   /**

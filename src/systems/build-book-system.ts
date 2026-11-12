@@ -93,8 +93,7 @@ export class BuildBookSystem extends createSystem({}) {
       game.toast(entry.unlocked ? `${entry.name}: made at the workbench - press the finished bench to choose it.` : entry.hint, 'note');
       return;
     }
-    this.camera.getWorldDirection(this.dir);
-    const res = game.placeFromBook(entry.id, this.dir.x, this.dir.z);
+    const res = game.armFromBook(entry.id);
     if (res.ok) this.setOpen(false);
     else this.refresh(); // stay open: the message line says why
   }
@@ -104,6 +103,7 @@ export class BuildBookSystem extends createSystem({}) {
     this.open = open;
     if (open) {
       menu.open('book');
+      getGame(this.world).armPlan(null);
       this.page = 0;
       this.refresh();
       this.panel.visible = true;

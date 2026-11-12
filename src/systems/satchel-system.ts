@@ -152,6 +152,14 @@ export class SatchelSystem extends createSystem({
       this.touch.add(`item-${i}`, onClick);
       this.cleanupFuncs.push(() => button.removeEventListener('click', onClick));
     }
+    // Discard: a first tap asks "Sure?" on that row, a second tap within a few seconds removes the stack for good.
+    for (let i = 0; i < SLOTS; i++) {
+      const onDiscard = () => this.discard(i);
+      const del = this.panel.requireElementById(`del-${i}`);
+      del.addEventListener('click', onDiscard);
+      this.touch.add(`del-${i}`, onDiscard);
+      this.cleanupFuncs.push(() => del.removeEventListener('click', onDiscard));
+    }
     for (let i = 0; i < MAKE_SLOTS; i++) {
       const button = this.panel.requireElementById(`make-${i}`);
       const onClick = () => {
@@ -196,6 +204,25 @@ export class SatchelSystem extends createSystem({
     this.refresh();
   }
 
+  private discardAsk: { item: ItemId; left: number } | null = null;
+
+  /** Two-step discard of the stack in row `i` (public for tests). */
+  discard(i: number): boolean {
+    const item = this.slotItems[i];
+    if (!item) return false;
+    const game = getGame(this.world);
+    if (this.discardAsk?.item !== item) {
+      this.discardAsk = { item, left: 5 };
+      game.log.add(`discard ask: ${item}`);
+      this.refresh();
+      return false;
+    }
+    this.discardAsk = null;
+    const n = game.discardItem(item);
+    if (n > 0) getUi(this.world).saveNow?.();
+    return n > 0;
+  }
+
   /** The item in bag slot `i` (for tooltips). */
   bagItemAt(i: number): ItemId | null {
     return this.slotItems[i] ?? null;
@@ -235,6 +262,7 @@ export class SatchelSystem extends createSystem({
     this.open = open;
     if (open) {
       menu.open('bag');
+      this.discardAsk = null;
       this.refresh();
       this.panel.visible = true;
       // A plain list card straight ahead, a little below eye level, in seated reach for a fingertip.
@@ -287,6 +315,10 @@ export class SatchelSystem extends createSystem({
     }
   }
 
+  private count1(id: ItemId): number {
+    return getGame(this.world).count(id);
+  }
+
   get isOpen(): boolean {
     return this.open;
   }
@@ -304,7 +336,11 @@ export class SatchelSystem extends createSystem({
       const entry = contents[i];
       this.slotItems[i] = entry?.id ?? null;
       // The list card is the bag now: one row per kind of item you carry.
+      this.panel.requireElementById(`irow-${i}`).setProperties({ display: entry ? 'flex' : 'none' });
       this.panel.requireElementById(`item-${i}`).setProperties({ display: entry ? 'flex' : 'none' });
+      const asking = !!entry && this.discardAsk?.item === entry.id;
+      this.panel.requireElementById<UIKit.Text>(`del-${i}-label`).setProperties({ text: asking ? 'Sure?' : 'Discard' });
+      this.panel.requireElementById(`del-${i}`).setProperties({ backgroundColor: asking ? '#a8301c' : '#8a4a1c' } as never);
       if (entry) {
         this.panel
           .requireElementById<UIKit.Text>(`item-${i}-label`)
@@ -327,7 +363,10 @@ export class SatchelSystem extends createSystem({
       if (m) this.panel.requireElementById<UIKit.Text>(`make-${i}-label`).setProperties({ text: m.label });
     }
     this.panel.requireElementById('make-title').setProperties({ display: this.makeItems.length ? 'flex' : 'none' });
-    const sub = contents.length
+    const asked = this.discardAsk && this.count1(this.discardAsk.item);
+    const sub = asked
+      ? `Throw away ${asked > 1 ? `all ${asked} ` : 'the '}${itemName(this.discardAsk!.item).toLowerCase()} for good? Tap Sure? to confirm.`
+      : contents.length
       ? `${load}${lim === 'light' ? '' : lim === 'loaded' ? ' - heavy, no running' : ' - OVERLOADED, slow'}. Tap an item to take it.`
       : 'Empty. Point at things in the forest and pinch to gather them.';
     this.panel.requireElementById<UIKit.Text>('satchel-sub').setProperties({ text: sub });
@@ -344,6 +383,10 @@ export class SatchelSystem extends createSystem({
     if (this.vr && this.panel?.visible) {
       this.anchor.update(this.panel, this.camera);
       if (!this.anchor.dragging) this.swipe.update(this.panel);
+      if (this.discardAsk && (this.discardAsk.left -= delta) <= 0) {
+        this.discardAsk = null; // no answer: nothing is thrown away
+        this.refresh();
+      }
     }
     if (this.open && this.bagT < 1) {
       this.bagT = Math.min(1, this.bagT + delta / 0.45);

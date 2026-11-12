@@ -193,7 +193,7 @@ export const pickupFrom = { valid: false, pos: new Vector3(), time: 0 };
 const MAX_RISE = 0.15;
 
 /** Where the hands are, set once by HandInputSystem (shared.ts must not import it: it imports this file). */
-export const handSource: { frames: Array<{ tracked: boolean; grip: boolean; gripDown: boolean; gripUp: boolean; pinchPos: Vector3 }> | null } = { frames: null };
+export const handSource: { frames: Array<{ tracked: boolean; grip: boolean; gripDown: boolean; gripUp: boolean; pinchPos: Vector3; tipPos?: Vector3; tipTracked?: boolean }> | null } = { frames: null };
 
 /** A user-chosen spot for a card: sideways, down and distance from the head (yaw-aligned), remembered between sessions. */
 export interface PanelSpot {
@@ -253,11 +253,19 @@ export class SwipePager {
   private hand = -1;
   private startY = 0;
   private local = new Vector3();
+  /** Index-finger swipe: which hand is brushing the card, and where its drag started. */
+  private fHand = -1;
+  private fStart = 0;
+  private fDz = 0;
+  /** Set after a swipe paged: a tap that follows the same touch should be ignored by callers. */
+  lastPagedAt = -1;
   constructor(
     private step: (d: number) => void,
     private widthUnits: number,
     private heightUnits: number,
     private headerUnits = 90,
+    /** 'y': lists scroll up/down. 'x': a single row (the menu) scrolls left/right. */
+    private axis: 'x' | 'y' = 'y',
   ) {}
 
   /** Mouse wheel; call once from init and register the returned remover in cleanupFuncs. */
@@ -275,37 +283,85 @@ export class SwipePager {
     return () => window.removeEventListener('wheel', on);
   }
 
-  /** VR pinch-drag; call every frame while the card is open. */
+  /** Panel-local position of a world point; true if it is inside the scrollable body (and near the card plane within `depth` m). */
+  private inBody(panel: Object3D, world: Vector3, depth: number): boolean {
+    panel.updateWorldMatrix(true, false);
+    this.local.copy(world);
+    panel.worldToLocal(this.local);
+    const sy = panel.scale.y || 1;
+    const hw = this.widthUnits * 0.005;
+    const hh = this.heightUnits * 0.005;
+    return Math.abs(this.local.x) <= hw && Math.abs(this.local.z) <= depth / sy && this.local.y <= hh - this.headerUnits * 0.01 && this.local.y >= -hh;
+  }
+
+  /** The drag coordinate: up (world y) for lists, to the left (panel-local -x, in metres) for a row. */
+  private coord(panel: Object3D, world: Vector3): number {
+    if (this.axis === 'y') return world.y;
+    panel.updateWorldMatrix(true, false);
+    this.local.copy(world);
+    panel.worldToLocal(this.local);
+    return -this.local.x * (panel.scale.x || 1);
+  }
+
+  /**
+   * VR scrolling; call every frame while the card is open. Two gestures page it:
+   * a pinch inside the card dragged along it, or an index fingertip brushed along the card
+   * (close to its face, not pressed through it). Dragging up (or left) shows later items, like a phone.
+   */
   update(panel: Object3D): void {
     const frames = handSource.frames;
     if (!frames) return;
+    // Pinch-drag.
     if (this.hand < 0) {
       for (let h = 0; h < frames.length; h++) {
         const f = frames[h];
         if (!f.tracked || !f.gripDown) continue;
-        panel.updateWorldMatrix(true, false);
-        this.local.copy(f.pinchPos);
-        panel.worldToLocal(this.local);
-        const sy = panel.scale.y || 1;
-        const hw = this.widthUnits * 0.005;
-        const hh = this.heightUnits * 0.005;
-        if (Math.abs(this.local.x) <= hw && Math.abs(this.local.z) <= 0.06 / sy && this.local.y <= hh - this.headerUnits * 0.01 && this.local.y >= -hh) {
+        if (this.inBody(panel, f.pinchPos, 0.06)) {
           this.hand = h;
-          this.startY = f.pinchPos.y;
+          this.startY = this.coord(panel, f.pinchPos);
+          break;
+        }
+      }
+    } else {
+      const f = frames[this.hand];
+      if (!f.tracked || !f.grip || f.gripUp) this.hand = -1;
+      else {
+        const c = this.coord(panel, f.pinchPos);
+        if (Math.abs(c - this.startY) > 0.05) {
+          this.step(c > this.startY ? 1 : -1);
+          this.startY = c;
+          this.lastPagedAt = performance.now();
+        }
+      }
+    }
+    // Finger swipe: a tracked index tip hovering 1-4 cm off the card face and sliding along it.
+    if (this.hand >= 0) return;
+    if (this.fHand < 0) {
+      for (let h = 0; h < frames.length; h++) {
+        const f = frames[h];
+        if (!f.tracked || f.grip || !f.tipTracked) continue;
+        if (this.inBody(panel, f.tipPos!, 0.045)) {
+          this.fHand = h;
+          this.fStart = this.coord(panel, f.tipPos!);
+          this.fDz = this.local.z;
           break;
         }
       }
       return;
     }
-    const f = frames[this.hand];
-    if (!f.tracked || !f.grip || f.gripUp) {
-      this.hand = -1;
+    const f = frames[this.fHand];
+    if (!f.tracked || f.grip || !f.tipTracked || !this.inBody(panel, f.tipPos!, 0.06)) {
+      this.fHand = -1;
       return;
     }
-    const dy = f.pinchPos.y - this.startY;
-    if (Math.abs(dy) > 0.05) {
-      this.step(dy > 0 ? 1 : -1); // dragging the card up (hand moves up) shows later rows, like a phone
-      this.startY = f.pinchPos.y;
+    const c = this.coord(panel, f.tipPos!);
+    // Pushing straight through the face is a tap, not a swipe: restart the drag when the tip is moving mostly in depth.
+    if (Math.abs(this.local.z - this.fDz) > Math.abs(c - this.fStart) * 20) this.fStart = c;
+    this.fDz = this.local.z;
+    if (Math.abs(c - this.fStart) > 0.06) {
+      this.step(c > this.fStart ? 1 : -1);
+      this.fStart = c;
+      this.lastPagedAt = performance.now();
     }
   }
 }

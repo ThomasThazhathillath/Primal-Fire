@@ -18,7 +18,7 @@ import {
 import { fitsPouch } from '../game/items.js';
 import { PanelTouch } from './panel-touch.js';
 import { keepsGridOpen, pageLayout } from '../game/menu.js';
-import { getGame, getUi, hidePanel, menu, StaticAnchor } from './shared.js';
+import { getGame, getUi, hidePanel, menu, StaticAnchor, SwipePager } from './shared.js';
 import { clearSave, WorldSystem } from './world-system.js';
 
 const SLOT = 68;
@@ -91,6 +91,8 @@ export class IconBarSystem extends createSystem({}) {
   private touch!: PanelTouch;
   benchNear = false;
   private page = 0;
+  /** Pinch-drag or finger swipe along the row pages it (the Back / More arrows stay as the fallback). */
+  private swipe = new SwipePager((d) => this.turnPage(d), 520, 90, 0, 'x');
   turnPage(d: number): void {
     this.page = Math.max(0, this.page + d);
     this.lastVisible = '';
@@ -335,6 +337,7 @@ export class IconBarSystem extends createSystem({}) {
     if (this.vr) {
       this.anchor.update(this.bar, this.camera);
       this.touch.update(delta);
+      if (this.vr && menu.gridVisible) this.swipe.update(this.bar);
     }
   }
 }

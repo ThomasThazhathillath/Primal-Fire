@@ -17,7 +17,7 @@ import {
   Vector3,
   VisibilityState,
 } from '@iwsdk/core';
-import { ghost, headYaw } from './shared.js';
+import { assistFx, ghost, headYaw } from './shared.js';
 
 export type GhostClip = 'pinch' | 'grab' | 'hold' | 'release' | 'point' | 'teleport' | 'turn' | 'carry' | 'knap' | 'saw' | 'twist' | 'fan';
 
@@ -157,7 +157,10 @@ export class GhostHandSystem extends createSystem({}) {
   }
 
   update(delta: number): void {
-    const clip = this.vr ? ((ghost.clip ?? ghost.how) as GhostClip | null) : null;
+    if (assistFx.signFor > 0) assistFx.signFor -= delta;
+    const help = assistFx.signFor > 0 ? assistFx.sign : null;
+    // Help for what the player is stuck on right now wins over the lesson's own sign while it lasts (NPE C).
+    const clip = this.vr ? ((help ?? ghost.clip ?? ghost.how) as GhostClip | null) : null;
     if (!clip || !this.hands) {
       this.root.visible = false;
       return;

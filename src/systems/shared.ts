@@ -296,6 +296,16 @@ export const cards: Record<string, Object3D> = {};
 export const ghost: { clip: string | null; card: string | null; how: string | null } = { clip: null, card: null, how: null };
 
 /**
+ * Progressive assistance output (NPE C), written by AssistanceSystem: a hand sign to show for a while, and one
+ * thing to pulse softly (the stone you keep looking at, the workbench you have not used). Cleared on success.
+ */
+export const assistFx = {
+  sign: null as string | null,
+  signFor: 0,
+  pulse: null as { id: string; x: number; y: number; z: number } | null,
+};
+
+/**
  * Scroll a paged list: the mouse wheel (flat view) or a pinch-drag up/down anywhere on the card body (VR; the header strip
  * stays the move handle). Calls `step(+1)` for "later" (drag up / wheel down) and `step(-1)` for "earlier".
  */

@@ -174,6 +174,13 @@ export type BenchEvent = 'progress' | 'step' | 'done' | 'wrong' | null;
 const WRONG_LIMIT: Record<BenchMotion, number> = { scrape: 0.4, wrap: 3, strike: 2, twist: 4, saw: 0.8, press: 0.2 };
 
 /**
+ * Category C tolerance (NPE C): after this many "wrong motion" refusals on one step, a vigorous wrong motion still
+ * moves the step on (each refusal's worth of motion gives `forgiveRate` of the step). The physical motion is still needed; a near miss stops being a
+ * wall. Set by the assistance mode (settings.ts): Guided forgives sooner, Explorer later.
+ */
+export const BENCH_ASSIST = { forgiveAfter: 3, forgiveRate: 0.25 };
+
+/**
  * One craft in progress at a bench. Parts are taken out of the satchel when
  * it starts (they lie on the bench) and returned on cancel.
  */
@@ -183,6 +190,8 @@ export class BenchSession {
   progress = 0;
   done = false;
   private wrong = 0;
+  /** "Wrong motion" refusals on the current step (NPE C). */
+  misses = 0;
 
   constructor(
     readonly recipe: BenchRecipe,
@@ -205,18 +214,26 @@ export class BenchSession {
   work(motion: BenchMotion, effort: number): BenchEvent {
     const step = this.step;
     if (!step || this.done || effort <= 0) return null;
+    let gain = effort;
     if (motion !== step.motion) {
-      this.wrong += effort;
-      if (this.wrong >= WRONG_LIMIT[motion]) {
-        this.wrong = 0;
-        return 'wrong';
+      if (this.misses >= BENCH_ASSIST.forgiveAfter) {
+        // Struggling with this step: a near miss still counts, at a reduced rate.
+        gain = effort * BENCH_ASSIST.forgiveRate * (step.work / Math.max(1e-6, WRONG_LIMIT[motion]));
+      } else {
+        this.wrong += effort;
+        if (this.wrong >= WRONG_LIMIT[motion]) {
+          this.wrong = 0;
+          this.misses++;
+          return 'wrong';
+        }
+        return null;
       }
-      return null;
     }
     this.wrong = 0;
-    this.progress = Math.min(1, this.progress + effort / step.work);
+    this.progress = Math.min(1, this.progress + gain / step.work);
     if (this.progress < 1 - 1e-9) return 'progress';
     this.progress = 0;
+    this.misses = 0;
     this.stepIndex++;
     if (this.stepIndex >= this.recipe.steps.length) {
       this.done = true;

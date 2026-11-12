@@ -31,7 +31,7 @@ import type { GameEvent } from '../game/game.js';
 import { itemName } from '../game/items.js';
 import { groundHeight } from '../game/world-layout.js';
 import { REACH, reachCfg, ResourceSystem } from './resource-system.js';
-import { getGame, hintFx, rayPick } from './shared.js';
+import { assistFx, getGame, hintFx, rayPick } from './shared.js';
 
 const RING_POOL = ASSIST.highlightBudget;
 const SHOW_RANGE = 9;
@@ -290,6 +290,9 @@ export class HighlightSystem extends createSystem({
       }
     }
     for (const p of hintFx.pulse) this.want.push({ id: p.id, kind: 'hint', x: p.x, y: p.y, z: p.z, priority: highlightPriority('hint', Math.hypot(p.x - this.head.x, p.z - this.head.z)) });
+    // Progressive assistance (NPE C): the one thing the player seems stuck on pulses softly.
+    const ap = assistFx.pulse;
+    if (ap) this.want.push({ id: `assist_${ap.id}`, kind: 'hint', x: ap.x, y: ap.y, z: ap.z, priority: highlightPriority('hint', 0) });
     if (hintFx.exact) this.want.push({ id: hintFx.exact.id, kind: 'exact', x: hintFx.exact.x, y: hintFx.exact.y, z: hintFx.exact.z, priority: highlightPriority('exact', 0) });
     pickHighlights(this.want, ASSIST.highlightBudget, this.picked);
     const d = diffHighlights(this.shown, this.picked, this.removed, this.added);

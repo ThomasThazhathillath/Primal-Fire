@@ -45,7 +45,7 @@ const GUIDE_CODE_FOR: Partial<Record<GuideFailureCode, string>> = {
   'cord.sameDirection': 'twist.sameDirection',
 };
 import { ASSIST, needText, openMarks, resolveTarget, snapVerdict, type Candidate } from './assist.js';
-import { Adaptive, type AssistSave } from './adaptive.js';
+import { Adaptive, type AssistSave, StruggleTracker } from './adaptive.js';
 import { frameDone, inside as insideShelter, leakingPanels, RAIN_MAX, roofed, ShelterTest, type ShelterTestSave, stageCount } from './shelter.js';
 import { CONTINUOUS, type IntentAction, type IntentTarget, resolveIntent } from './intent.js';
 import { ObjectiveTracker, type ObjectivesSave } from './objectives.js';
@@ -177,6 +177,8 @@ export class Game {
   facingYaw = 0;
   /** Per-player assistance: grows with repeated misses, eases with successes, saved (adaptive.ts). */
   readonly assist = new Adaptive();
+  /** Progressive help when the player is visibly struggling (NPE C). Not saved: it describes this session only. */
+  readonly struggle = new StruggleTracker();
   /**
    * While building: after you place a part, if the build still wants it and your bag has more, the next one appears
    * in your hand. Stops with Put away (cancelRefill) or when you walk away from the build. Not saved.

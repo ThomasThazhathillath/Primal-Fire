@@ -313,6 +313,11 @@ export class GazeTargetSystem extends createSystem({
     this.updateFx(dt);
   }
 
+  /** What the gaze is on right now (NPE C reads it to notice looking without taking). */
+  get lookTarget(): GazeCandidate | null {
+    return this.target;
+  }
+
   private onPinch(h: 0 | 1): void {
     const game = getGame(this.world);
     const t = this.target;

@@ -76,3 +76,150 @@ export class Adaptive {
     }
   }
 }
+
+// ------------------------------------------------ progressive assistance (NPE milestone C)
+
+/**
+ * Situations where a player is visibly struggling. Each grows by failures (counted) or by time (seconds), then
+ * offers help in three levels, and is cleared the moment the player succeeds at it.
+ *   - look:   looking (or pointing) at something takeable for a while without picking it up
+ *   - fail:   the same failure code again and again (wrong bench motion, too heavy, knapping misses, placement)
+ *   - idle:   no progress at all for a long while
+ *   - bench:  every part of a recipe in the bag, but the workbench not used
+ */
+export type StruggleKind = 'look' | 'fail' | 'idle' | 'bench';
+
+/** Thresholds per kind for levels 1 (cue), 2 (instruction), 3 (explicit): seconds, or failure counts for 'fail'. */
+export const STRUGGLE = {
+  look: [3, 7, 14],
+  fail: [2, 3, 5],
+  idle: [40, 80, 140],
+  bench: [20, 45, 90],
+  /** Multiplier on every threshold: the hint-frequency setting (lower = sooner help). Infinity = never. */
+  delay: 1,
+} as { look: number[]; fail: number[]; idle: number[]; bench: number[]; delay: number };
+
+export type HelpLevel = 0 | 1 | 2 | 3;
+
+interface StruggleState {
+  kind: StruggleKind;
+  amount: number;
+  /** Highest level already offered (a level is offered once, then the next one waits for more struggle). */
+  shown: HelpLevel;
+}
+
+/** What to show for a struggle at a level: a cue (highlight / pulse), a short line, an explicit how-to with a hand sign. */
+export interface Help {
+  key: string;
+  kind: StruggleKind;
+  level: HelpLevel;
+}
+
+export class StruggleTracker {
+  private s = new Map<string, StruggleState>();
+
+  private get(key: string, kind: StruggleKind): StruggleState {
+    let st = this.s.get(key);
+    if (!st) {
+      st = { kind, amount: 0, shown: 0 };
+      this.s.set(key, st);
+    }
+    return st;
+  }
+
+  /** One more failure of `key` (e.g. 'fail:bench.wrongMotion'). */
+  fail(key: string): void {
+    this.get(key, 'fail').amount++;
+  }
+
+  /** `dt` seconds more of a time-based struggle (looking without taking, idle, bench unused). */
+  grow(key: string, kind: Exclude<StruggleKind, 'fail'>, dt: number): void {
+    this.get(key, kind).amount += dt;
+  }
+
+  /** The player did it: every struggle whose key starts with `prefix` is cleared, with its help. */
+  succeed(prefix: string): void {
+    for (const k of [...this.s.keys()]) if (k.startsWith(prefix)) this.s.delete(k);
+  }
+
+  /** The level a struggle has reached (0 = none yet). */
+  level(key: string): HelpLevel {
+    const st = this.s.get(key);
+    if (!st) return 0;
+    const t = STRUGGLE[st.kind];
+    const d = STRUGGLE.delay;
+    if (!Number.isFinite(d)) return 0;
+    const a = st.amount;
+    return a >= t[2] * d ? 3 : a >= t[1] * d ? 2 : a >= t[0] * d ? 1 : 0;
+  }
+
+  /**
+   * Help that is due now: the struggle whose level rose above what was already offered (highest level first).
+   * Each level is offered once; null when nothing new is due.
+   */
+  due(): Help | null {
+    let best: Help | null = null;
+    for (const [key, st] of this.s) {
+      const l = this.level(key);
+      if (l <= st.shown) continue;
+      if (!best || l > best.level) best = { key, kind: st.kind, level: l };
+    }
+    if (best) this.s.get(best.key)!.shown = best.level;
+    return best;
+  }
+
+  /** The highest level currently reached by any struggle with this prefix (for cues that last while it lasts). */
+  levelOf(prefix: string): HelpLevel {
+    let l: HelpLevel = 0;
+    for (const k of this.s.keys()) if (k.startsWith(prefix)) l = Math.max(l, this.level(k)) as HelpLevel;
+    return l;
+  }
+
+  clear(): void {
+    this.s.clear();
+  }
+}
+
+/** The hand sign (ghost-hand-system clip) that shows how to do the thing a failure code is about. */
+export const FAIL_SIGN: Record<string, string> = {
+  'grab.tooHeavy': 'carry',
+  'drag.tooHeavy': 'carry',
+  'knap.offEdge': 'knap',
+  'knap.badAngle': 'knap',
+  'knap.tooSoft': 'knap',
+  'knap.miss': 'knap',
+  'place.tooFar': 'release',
+  'place.wrongMaterial': 'release',
+};
+
+/** Bench step motion → hand sign. */
+export const MOTION_SIGN: Record<string, string> = { saw: 'saw', twist: 'twist', wrap: 'twist', press: 'point', scrape: 'saw', strike: 'knap' };
+
+/** How to do each bench motion, said plainly (level 2 and 3 help). */
+export const MOTION_HOW: Record<string, string> = {
+  saw: 'Saw: hold it and move your hand back and forth in long strokes.',
+  twist: 'Twist: hold the strands with both hands and turn your wrists in opposite directions.',
+  wrap: 'Wrap: circle your hand around the joint, again and again.',
+  press: 'Press: push straight down on it with your hand and hold for a moment.',
+  scrape: 'Scrape: drag the edge along it, short strokes away from you.',
+  strike: 'Strike: a short, sharp downward tap.',
+};
+
+/** The words for a failure struggle at level 2 (short) and 3 (explicit). */
+export function failHelp(code: string, detail: string | undefined, level: HelpLevel): string {
+  const motion = /needs: (\w+)/.exec(detail ?? '')?.[1];
+  if (code === 'bench.wrongMotion' && motion) {
+    const how = MOTION_HOW[motion] ?? `This step needs a ${motion} motion.`;
+    return level >= 3 ? `${how} Watch the hand sign: copy it slowly. Close is good enough now.` : `This step needs a ${motion}. ${how}`;
+  }
+  if (code === 'grab.tooHeavy' || code === 'drag.tooHeavy') {
+    return level >= 3 ? 'Too heavy for one hand: pinch it with BOTH hands at once, then lift or pull together. Watch the hand sign.' : 'Too heavy for one hand: use both hands.';
+  }
+  if (code.startsWith('knap.')) {
+    return level >= 3 ? 'Hold the core still in one hand. Strike near its edge with a glancing blow, not straight down. Watch the hand sign.' : 'Strike near the edge of the stone, at an angle.';
+  }
+  if (code.startsWith('place.')) {
+    return level >= 3 ? 'Carry the part right over the glowing mark the arrow points to, then open your hand.' : 'Bring it closer to the glowing mark, then let go.';
+  }
+  return level >= 3 ? 'Try a different approach: the card has hints (tap the bulb).' : 'Not quite. Try again a little differently.';
+}

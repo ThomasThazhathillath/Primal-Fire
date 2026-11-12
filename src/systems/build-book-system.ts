@@ -45,7 +45,7 @@ export class BuildBookSystem extends createSystem({}) {
     this.panelEntity.addComponent(RayInteractable);
     hidePanel(this.panel);
     this.touch = new PanelTouch(this.world, this.panel, 0.1, 'book');
-    this.thumbs = new RowThumbs(this.panel, this.renderer, ROWS);
+    this.thumbs = new RowThumbs(this.panel, this.renderer, ROWS, 'tile');
     this.pop = new PopIn(this.panel, () => (this.vr ? VR_SCALE : 0.1));
     this.cleanupFuncs.push(
       this.world.visibilityState.subscribe((v) => {
@@ -142,6 +142,11 @@ export class BuildBookSystem extends createSystem({}) {
       if (!e) continue;
       this.panel.requireElementById<UIKit.Text>(`entry-${i}-label`).setProperties({ text: uiText(label(e)) });
     }
+    // Locked tiles say only "?": how to unlock the first one on this page shows in the detail strip.
+    const locked = this.rows.slice(this.page * ROWS, this.page * ROWS + ROWS).find((e) => !e.unlocked);
+    this.panel
+      .requireElementById<UIKit.Text>('book-detail')
+      .setProperties({ text: uiText(locked ? `To unlock ?: ${locked.hint}` : 'Tap a build to place its outline.') });
     // A small picture of the build (only where a real picture exists: a locked row shows none).
     if (this.open) {
       this.thumbs.setRows(
@@ -174,9 +179,10 @@ export class BuildBookSystem extends createSystem({}) {
   }
 }
 
-/** One line: name and parts you have / need, or "?" and how to unlock. */
+/** A tile caption: the name and how many parts you have, or "?" while locked (its hint shows below the grid). */
 function label(e: BookEntry): string {
-  if (!e.unlocked) return e.kind === 'recipe' ? `? Tools and more - ${e.hint}` : `? - ${e.hint}`;
-  if (e.kind === 'recipe') return `${e.name} (at the bench): ${e.parts.map((p) => `${p.label} ${Math.min(p.have, p.need)}/${p.need}`).join(', ')}`;
-  return `${e.name}: ${e.parts.map((p) => `${p.label} ${Math.min(p.have, p.need)}/${p.need}`).join(', ')}`;
+  if (!e.unlocked) return e.kind === 'recipe' ? '? Tools' : '? Locked';
+  const have = e.parts.reduce((n, p) => n + Math.min(p.have, p.need), 0);
+  const need = e.parts.reduce((n, p) => n + p.need, 0);
+  return `${e.name}\n${have}/${need} parts`;
 }

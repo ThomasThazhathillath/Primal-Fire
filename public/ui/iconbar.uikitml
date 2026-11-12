@@ -50,4 +50,6 @@
   <div id="slot-14" class="slot"><Button class="t-btn" id="ic-menu" size="sm" variant="secondary"><ButtonIcon><LayoutGrid></LayoutGrid></ButtonIcon></Button><div id="lbl-14" class="lbl t-small">Menu</div></div>
   <div id="slot-15" class="slot"><Button class="t-btn" id="ic-bench" size="sm" variant="secondary"><ButtonIcon><Wrench></Wrench></ButtonIcon></Button><div id="lbl-15" class="lbl t-small">Bench</div></div>
   <div id="slot-16" class="slot"><Button class="t-btn" id="ic-story" size="sm" variant="secondary"><ButtonIcon><Compass></Compass></ButtonIcon></Button><div id="lbl-16" class="lbl t-small">Story</div></div>
+  <div id="slot-17" class="slot"><Button class="t-btn" id="ic-prev" size="sm" variant="secondary"><ButtonIcon><ChevronLeft></ChevronLeft></ButtonIcon></Button><div id="lbl-17" class="lbl t-small">Back</div><div id="dot-17" class="dot"></div></div>
+  <div id="slot-18" class="slot"><Button class="t-btn" id="ic-next" size="sm" variant="secondary"><ButtonIcon><ChevronRight></ChevronRight></ButtonIcon></Button><div id="lbl-18" class="lbl t-small">More</div><div id="dot-18" class="dot"></div></div>
 </div>

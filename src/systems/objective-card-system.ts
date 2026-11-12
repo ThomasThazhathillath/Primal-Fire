@@ -21,13 +21,14 @@ const CARD_W = 520;
 const CARD_H = 330;
 /** Where the card hangs in VR: above the middle of view and within a seated arm's reach, so a fingertip can poke it. */
 const DISTANCE = 0.5;
-const UP = 0.2;
+/** About 12 degrees below eye level at that distance: readable without tilting the head up. */
+const DOWN = 0.11;
 
 export class ObjectiveCardSystem extends createSystem({}) {
   private panel!: UIKitMLAsset;
   private entity!: Entity;
   private doc: ReturnType<typeof findUIKitDocument> = null;
-  private anchor = new StaticAnchor(DISTANCE, 0, -UP, 0.9, 1);
+  private anchor = new StaticAnchor(DISTANCE, 0, DOWN, 0.9, 1).movable('objective', CARD_W, CARD_H);
   private ready = false;
   private shown = false;
   private open = true;
@@ -248,7 +249,7 @@ export class ObjectiveCardSystem extends createSystem({}) {
     // The hint panel opens over the same area: hide the card while it is open, restore it on close.
     // (and in VR any open panel: the bag, build book, ... has the view to itself)
     const ui = getUi(this.world);
-    const hint = (ui.hintOpen?.() ?? false) || (ui.notebookOpen?.() ?? false) || (this.vr && menu.current !== null);
+    const hint = (ui.hintOpen?.() ?? false) || (ui.notebookOpen?.() ?? false) || menu.current !== null;
     if (hint !== this.hintOn) {
       this.hintOn = hint;
       this.touch.reset();

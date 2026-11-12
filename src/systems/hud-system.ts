@@ -310,7 +310,8 @@ export class HudSystem extends createSystem({
       // Smaller in VR so the whole card and its Back / Next buttons fit the view at arm's length.
       this.card.scale.setScalar(0.07);
       this.cardTouch.setScale(0.07);
-      placeInFront(this.card, this.camera, PANEL_DISTANCE, 0, PANEL_DOWN + 0.03);
+      this.cardAnchor.reset();
+      this.cardAnchor.update(this.card, this.camera);
     }
     else {
       this.card.scale.setScalar(0.08);
@@ -439,7 +440,10 @@ export class HudSystem extends createSystem({
     }
   }
 
+  private cardAnchor = new StaticAnchor(PANEL_DISTANCE, 0, PANEL_DOWN + 0.03, 0.9, 1).movable('notebook', 440, 500);
+
   update(delta: number): void {
+    if (this.vrNow && this.card?.visible) this.cardAnchor.update(this.card, this.camera);
     if (!this.ready) return;
     if (this.shown) {
       const vr = this.world.visibilityState.peek() !== VisibilityState.NonImmersive;

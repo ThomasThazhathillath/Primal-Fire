@@ -29,7 +29,7 @@ import { lambert } from '../scene-assets/materials.js';
 import { PanelTouch } from './panel-touch.js';
 import { itemPicture, RowThumbs } from './row-thumbs.js';
 import { PopIn } from './ui-fx.js';
-import { getGame, getUi, hidePanel, hipPosition, menu, PANEL_DISTANCE, PANEL_DOWN, placeInFront, uiText } from './shared.js';
+import { getGame, getUi, hidePanel, hipPosition, menu, PANEL_DISTANCE, PANEL_DOWN, placeInFront, StaticAnchor, uiText } from './shared.js';
 
 const SLOTS = 18;
 const MAKE_SLOTS = 8;
@@ -225,7 +225,10 @@ export class SatchelSystem extends createSystem({
       this.refresh();
       this.panel.visible = true;
       // A plain list card straight ahead, a little below eye level, in seated reach for a fingertip.
-      placeInFront(this.panel, this.camera, this.vr ? PANEL_DISTANCE : 0.62, 0, this.vr ? PANEL_DOWN : 0.12);
+      if (this.vr) {
+        this.anchor.reset();
+        this.anchor.update(this.panel, this.camera);
+      } else placeInFront(this.panel, this.camera, 0.62, 0, 0.12);
       this.touch.reset();
       this.pop.open();
     } else {
@@ -317,7 +320,10 @@ export class SatchelSystem extends createSystem({
     }
   }
 
+  private anchor = new StaticAnchor(PANEL_DISTANCE, 0, PANEL_DOWN + 0.02, 0.9, 1).movable('bag', 480, 600);
+
   update(delta: number): void {
+    if (this.vr && this.panel?.visible) this.anchor.update(this.panel, this.camera);
     if (this.open && this.bagT < 1) {
       this.bagT = Math.min(1, this.bagT + delta / 0.45);
       const t = 1 - (1 - this.bagT) * (1 - this.bagT);

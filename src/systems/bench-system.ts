@@ -34,7 +34,7 @@ import { hands, mouse, pulse } from './hand-input-system.js';
 import { PanelTouch } from './panel-touch.js';
 import { itemPicture, RowThumbs } from './row-thumbs.js';
 import { PopIn } from './ui-fx.js';
-import { getGame, getUi, handPose, hidePanel, menu, PANEL_DISTANCE, PANEL_DOWN, placeInFront, uiText } from './shared.js';
+import { getGame, getUi, handPose, hidePanel, menu, PANEL_DISTANCE, PANEL_DOWN, StaticAnchor, uiText } from './shared.js';
 
 const ROWS = 10;
 const TRACK_PX = 260;
@@ -206,8 +206,13 @@ export class BenchSystem extends createSystem({}) {
       // Choosing a recipe: the panel comes close, in reach of a fingertip.
       this.panel.scale.setScalar(VR_SCALE);
       this.touch.setScale(VR_SCALE);
-      placeInFront(this.panel, this.camera, PANEL_DISTANCE, 0, PANEL_DOWN + 0.04);
-    } else this.placeAtBench(dx, dz, d, pos);
+      this.anchor.reset();
+      this.anchor.update(this.panel, this.camera);
+      this.anchored = true;
+    } else {
+      this.anchored = false;
+      this.placeAtBench(dx, dz, d, pos);
+    }
     this.baseScale = this.panel.scale.x;
     this.refresh();
     this.pop.open();
@@ -474,7 +479,11 @@ export class BenchSystem extends createSystem({}) {
     }
   }
 
+  private anchor = new StaticAnchor(PANEL_DISTANCE, 0, PANEL_DOWN + 0.04, 0.9, 1).movable('bench', 560, 500);
+  private anchored = false;
+
   update(delta: number): void {
+    if (this.anchored && this.vrNow && this.panel?.visible) this.anchor.update(this.panel, this.camera);
     const dt = Math.min(delta, 0.05);
     this.t += dt;
     if (this.pop?.busy) this.pop.update(dt);

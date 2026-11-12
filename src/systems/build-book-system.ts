@@ -27,7 +27,7 @@ export class BuildBookSystem extends createSystem({}) {
   private vr = false;
   private open = false;
   private rows: BookEntry[] = [];
-  private anchor = new StaticAnchor(0.9, 0, 0.1);
+  private anchor = new StaticAnchor(0.9, 0, 0.1).movable('buildbook', 520, 500);
   private dir = new Vector3();
   private timer = 0;
   private page = 0;

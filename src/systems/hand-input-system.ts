@@ -7,7 +7,7 @@
 
 import { HandMotion } from '../game/handmotion.js';
 import { handSqueeze, PinchDetector } from '../game/pinch.js';
-import { handClaims } from './shared.js';
+import { handClaims, handSource } from './shared.js';
 import { createSystem, type Object3D, Quaternion, Vector3, VisibilityState } from '@iwsdk/core';
 
 export interface HandFrame {
@@ -80,6 +80,7 @@ function frame(): HandFrame {
 
 /** [left, right]. Valid in VR only (`tracked`). */
 export const hands: [HandFrame, HandFrame] = [frame(), frame()];
+handSource.frames = hands;
 
 /** Desktop pointer gesture state (CSS pixels). */
 export const mouse = {

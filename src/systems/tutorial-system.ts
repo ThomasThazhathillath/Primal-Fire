@@ -38,7 +38,7 @@ export class TutorialSystem extends createSystem({}, { tutorial: { type: Types.B
   private entity: Entity | null = null;
   private touch: PanelTouch | null = null;
   /** Up and to the left, above the working space of the hands (an accidental brush must not change steps). */
-  private anchor = new StaticAnchor(0.6, -0.42, -0.08, 1.0, 1.2);
+  private anchor = new StaticAnchor(0.6, -0.42, 0.12, 1.0, 1.2).movable('tutorial', 520, 300);
   private runner: TutorialRunner | null = null;
   private mode: CardMode = 'hidden';
   /** The Story icon unfolds the card: every task, the tip, and the replay / skip controls. */

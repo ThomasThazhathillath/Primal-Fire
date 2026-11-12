@@ -51,7 +51,7 @@ export function withTheme(text, css = themeCss()) {
   return text.replace('<style>', `<style>\n  ${css.replace(/\n/g, '\n')}`);
 }
 
-export const THEMED = ['objective', 'iconbar', 'satchel', 'buildbook', 'bench', 'hint', 'card'];
+export const THEMED = ['objective', 'iconbar', 'satchel', 'buildbook', 'bench', 'hint', 'card', 'guide', 'level', 'tip', 'tutorial', 'welcome'];
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   for (const n of THEMED) {

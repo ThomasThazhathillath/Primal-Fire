@@ -29,7 +29,7 @@ import { lambert } from '../scene-assets/materials.js';
 import { PanelTouch } from './panel-touch.js';
 import { itemPicture, RowThumbs } from './row-thumbs.js';
 import { PopIn } from './ui-fx.js';
-import { getGame, getUi, hidePanel, hipPosition, menu, PANEL_DISTANCE, PANEL_DOWN, placeInFront, StaticAnchor, uiText } from './shared.js';
+import { getGame, getUi, hidePanel, hipPosition, menu, PANEL_DISTANCE, PANEL_DOWN, placeInFront, StaticAnchor, SwipePager, uiText } from './shared.js';
 
 const SLOTS = 18;
 /** Rows of the bag list shown at once; "More" turns the page so the card stays short. */
@@ -53,6 +53,11 @@ export class SatchelSystem extends createSystem({
   private makeItems: Array<{ id: string; label: string; kind: 'bind' | 'pack' | 'store' | 'take' } | undefined> = [];
   private slotItems: Array<ItemId | null> = [];
   private page = 0;
+  private swipe = new SwipePager((d) => {
+    const n = Math.max(1, Math.ceil(getGame(this.world).satchelContents().length / PAGE_ROWS));
+    this.page = (this.page + d + n) % n;
+    this.refresh();
+  }, 480, 600);
   private hip = new Vector3();
   private craftTimer = 0;
   private bag!: Group;
@@ -175,6 +180,7 @@ export class SatchelSystem extends createSystem({
       game.stow();
     });
     wire('satchel-close', () => menu.back());
+    this.cleanupFuncs.push(this.swipe.listenWheel(() => this.open));
     wire('bag-more', () => {
       this.page++;
       this.refresh();
@@ -335,7 +341,10 @@ export class SatchelSystem extends createSystem({
   private anchor = new StaticAnchor(PANEL_DISTANCE, 0, PANEL_DOWN + 0.02, 0.9, 1).movable('bag', 480, 600);
 
   update(delta: number): void {
-    if (this.vr && this.panel?.visible) this.anchor.update(this.panel, this.camera);
+    if (this.vr && this.panel?.visible) {
+      this.anchor.update(this.panel, this.camera);
+      if (!this.anchor.dragging) this.swipe.update(this.panel);
+    }
     if (this.open && this.bagT < 1) {
       this.bagT = Math.min(1, this.bagT + delta / 0.45);
       const t = 1 - (1 - this.bagT) * (1 - this.bagT);

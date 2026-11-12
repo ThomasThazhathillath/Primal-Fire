@@ -245,6 +245,71 @@ export const cards: Record<string, Object3D> = {};
 /** What the ghost hand should demonstrate right now (null = nothing), and next to which card. Set by the teaching cards. */
 export const ghost: { clip: string | null; card: string | null; how: string | null } = { clip: null, card: null, how: null };
 
+/**
+ * Scroll a paged list: the mouse wheel (flat view) or a pinch-drag up/down anywhere on the card body (VR; the header strip
+ * stays the move handle). Calls `step(+1)` for "later" (drag up / wheel down) and `step(-1)` for "earlier".
+ */
+export class SwipePager {
+  private hand = -1;
+  private startY = 0;
+  private local = new Vector3();
+  constructor(
+    private step: (d: number) => void,
+    private widthUnits: number,
+    private heightUnits: number,
+    private headerUnits = 90,
+  ) {}
+
+  /** Mouse wheel; call once from init and register the returned remover in cleanupFuncs. */
+  listenWheel(isOpen: () => boolean): () => void {
+    let acc = 0;
+    const on = (e: WheelEvent): void => {
+      if (!isOpen()) return;
+      acc += e.deltaY;
+      if (Math.abs(acc) >= 60) {
+        this.step(acc > 0 ? 1 : -1);
+        acc = 0;
+      }
+    };
+    window.addEventListener('wheel', on, { passive: true });
+    return () => window.removeEventListener('wheel', on);
+  }
+
+  /** VR pinch-drag; call every frame while the card is open. */
+  update(panel: Object3D): void {
+    const frames = handSource.frames;
+    if (!frames) return;
+    if (this.hand < 0) {
+      for (let h = 0; h < frames.length; h++) {
+        const f = frames[h];
+        if (!f.tracked || !f.gripDown) continue;
+        panel.updateWorldMatrix(true, false);
+        this.local.copy(f.pinchPos);
+        panel.worldToLocal(this.local);
+        const sy = panel.scale.y || 1;
+        const hw = this.widthUnits * 0.005;
+        const hh = this.heightUnits * 0.005;
+        if (Math.abs(this.local.x) <= hw && Math.abs(this.local.z) <= 0.06 / sy && this.local.y <= hh - this.headerUnits * 0.01 && this.local.y >= -hh) {
+          this.hand = h;
+          this.startY = f.pinchPos.y;
+          break;
+        }
+      }
+      return;
+    }
+    const f = frames[this.hand];
+    if (!f.tracked || !f.grip || f.gripUp) {
+      this.hand = -1;
+      return;
+    }
+    const dy = f.pinchPos.y - this.startY;
+    if (Math.abs(dy) > 0.05) {
+      this.step(dy < 0 ? 1 : -1); // dragging the card up shows later rows, like a phone
+      this.startY = f.pinchPos.y;
+    }
+  }
+}
+
 export class StaticAnchor {
   private placedYaw = 0;
   private placedX = 0;

@@ -200,8 +200,28 @@ export class IconBarSystem extends createSystem({}) {
     location.reload();
   }
   /** A fingertip tap on slot `i`: run it, then fold the grid unless it opened a panel or is a repeatable turn. */
+  private lastTapAt = -1e9;
+  private lastGridOpen = false;
+  private gridOpenedAt = -1e9;
+  private armedId = '';
+  private armedAt = -1e9;
   private activate(i: number): void {
     const def = DEFS[i];
+    // Misclick guard: a tap right after another tap, or right after the grid unfolded, is a stray touch, not a choice.
+    const now = performance.now();
+    if (now - this.lastTapAt < 300) return;
+    if (def.id !== 'menu' && now - this.gridOpenedAt < 350) return;
+    this.lastTapAt = now;
+    // Leaving the game needs a deliberate second tap on the same icon.
+    if (this.vr && (def.id === 'exit' || def.id === 'reload')) {
+      if (this.armedId !== def.id || now - this.armedAt > RESTART_CONFIRM_MS) {
+        this.armedId = def.id;
+        this.armedAt = now;
+        getGame(this.world).toast(`Tap ${def.id === 'exit' ? 'Exit' : 'Reload'} again to confirm.`, 'note');
+        return;
+      }
+      this.armedId = '';
+    }
     // A quick shrink on the tapped icon (PanelTouch adds the flash and the sound).
     this.btns[i].setProperties({ width: 38, height: 38 } as never);
     this.shrunk.push({ i, left: 0.12 });
@@ -263,6 +283,10 @@ export class IconBarSystem extends createSystem({}) {
       this.benchNear = !!game.nearbyWorkbench();
     }
     this.visible.length = 0;
+    if (menu.gridOpen !== this.lastGridOpen) {
+      this.lastGridOpen = menu.gridOpen;
+      if (menu.gridOpen) this.gridOpenedAt = performance.now();
+    }
     if (menu.gridOpen && (this.menuIdle += delta) > MENU_CONFIG.gridIdleSeconds) menu.gridOpen = false;
     // Folded (VR): only the Menu button shows, whenever the grid is not unfolded (and always while a panel is open).
     DEFS.forEach((d, i) => d.show(this) && (!this.vr || menu.gridVisible || d.id === 'menu') && this.visible.push(i));

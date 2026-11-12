@@ -193,6 +193,42 @@ export const pendingRelease = {
 export const pickupFrom = { valid: false, pos: new Vector3(), time: 0 };
 
 /**
+ * What the hand ray is aiming at, for the feedback ring and label (NPE milestone A): written by ResourceSystem
+ * each VR frame, drawn by GazeTargetSystem. `key` is '' when the ray is on nothing gatherable.
+ * `note` is a short confirmation after a pickup ("+1 Dry stone, in your pouch"), shown for `noteFor` seconds.
+ */
+export const rayPick = {
+  key: '',
+  x: 0,
+  y: 0,
+  z: 0,
+  r: 0.15,
+  label: '',
+  ok: true,
+  note: '',
+  noteFor: 0,
+  nx: 0,
+  ny: 0,
+  nz: 0,
+};
+
+/** A short vibration on the hand's controller where the platform supports it (hands have none: a no-op). */
+export function haptic(world: World, hand: 0 | 1, strength = 0.35, ms = 35): void {
+  try {
+    const session = world.renderer.xr.getSession();
+    if (!session) return;
+    const want = hand === 0 ? 'left' : 'right';
+    for (const src of session.inputSources) {
+      if (src.handedness !== want || !src.gamepad) continue;
+      const act = (src.gamepad as Gamepad & { hapticActuators?: Array<{ pulse?(v: number, t: number): Promise<boolean> }> }).hapticActuators?.[0];
+      void act?.pulse?.(strength, ms);
+    }
+  } catch {
+    // Not supported here.
+  }
+}
+
+/**
  * A VR panel that stays put. It is placed once in front of you and only
  * re-placed (instantly, no gliding) after you teleport or turn well away, so
  * nothing drifts around in view. Call update() every frame with the panel.

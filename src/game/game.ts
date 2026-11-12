@@ -791,6 +791,12 @@ export class Game {
     this.emit({ type: 'satchel' });
   }
 
+  /** Why gathering `id` would be refused right now ('hands': your hands are full for a big thing, 'pockets': no room), or null. */
+  gatherBlock(id: ItemId): 'hands' | 'pockets' | null {
+    if (!fitsPouch(id)) return this.handsFreeFor(id) ? null : 'hands';
+    return this.carriedCount >= this.capacity.pockets ? 'pockets' : null;
+  }
+
   /** Gather one item from the world into the satchel. */
   gather(id: ItemId, sourceId = 'world'): boolean {
     // Big or heavy things never go in the bag: you carry them in your hands.

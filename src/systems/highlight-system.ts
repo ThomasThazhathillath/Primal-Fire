@@ -30,8 +30,8 @@ import { BLUEPRINTS, spotWorldPosition } from '../game/blueprint.js';
 import type { GameEvent } from '../game/game.js';
 import { itemName } from '../game/items.js';
 import { groundHeight } from '../game/world-layout.js';
-import { REACH, ResourceSystem } from './resource-system.js';
-import { getGame, hintFx } from './shared.js';
+import { REACH, reachCfg, ResourceSystem } from './resource-system.js';
+import { getGame, hintFx, rayPick } from './shared.js';
 
 const RING_POOL = ASSIST.highlightBudget;
 const SHOW_RANGE = 9;
@@ -166,7 +166,10 @@ export class HighlightSystem extends createSystem({
       for (const e of set) return e;
       return null;
     };
-    const eGather = pick(this.queries.hoverGather.entities) as { object3D?: { getWorldPosition(v: Vector3): Vector3 }; getValue(c: unknown, f: string): unknown } | null;
+    let eGather = pick(this.queries.hoverGather.entities) as { object3D?: { getWorldPosition(v: Vector3): Vector3 }; getValue(c: unknown, f: string): unknown } | null;
+    // VR (NPE A): the hand ray's stable, pinch-locked target is the one that will be taken, not whichever
+    // invisible hit sphere the swinging ray touches first.
+    if (rayPick.key) eGather = (this.world.getSystem(ResourceSystem)?.entityFor(rayPick.key) as typeof eGather) ?? eGather;
     const eSpot = pick(this.queries.hoverSpot.entities) as typeof eGather;
     const eDrop = pick(this.queries.hoverDrop.entities) as typeof eGather;
     const ePart = pick(this.queries.hoverPart.entities) as typeof eGather;
@@ -190,8 +193,11 @@ export class HighlightSystem extends createSystem({
       const spot = resources?.spot((eGather.getValue(Gatherable, 'spotId') as string) ?? '');
       if (!spot || !resources) return null;
       const known = game.gatheredCount(spot.itemId) > 0;
-      const near = resources.distanceTo(spot) <= REACH;
-      this.setLabel(`${known ? itemName(spot.itemId) : spot.label}${near ? ': pinch to take' : ': too far, get closer'}`, near);
+      const near = resources.distanceTo(spot) <= REACH * reachCfg.scale;
+      const block = game.gatherBlock(spot.itemId);
+      // Name, and whether it can be taken now (the pickup indicator).
+      const verb = !near ? ': too far, step closer' : block === 'pockets' ? ': pockets full' : block === 'hands' ? ': hands full' : ': pinch to take';
+      this.setLabel(`${known ? itemName(spot.itemId) : spot.label}${verb}`, near && !block);
       this.tx = spot.x;
       this.ty = groundHeight(spot.x, spot.z);
       this.tz = spot.z;

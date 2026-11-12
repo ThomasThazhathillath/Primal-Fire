@@ -62,6 +62,24 @@ export function gazeScore(c: GazeCandidate, ox: number, oy: number, oz: number, 
   return 1 - off / halfDeg - (dist / cfg.maxDist[c.kind]) * 0.2 + cfg.priority[c.kind];
 }
 
+/** Scores closer than this are a tie between two gaze targets: the nearer one wins. */
+const GAZE_TIE = 0.04;
+
+/** Is `a` behind `b` as seen from the eye (almost the same direction, clearly farther)? */
+function behindOf(a: GazeCandidate, b: GazeCandidate, ox: number, oy: number, oz: number): boolean {
+  const ax = a.x - ox;
+  const ay = a.y - oy;
+  const az = a.z - oz;
+  const bx = b.x - ox;
+  const by = b.y - oy;
+  const bz = b.z - oz;
+  const da = Math.hypot(ax, ay, az);
+  const db = Math.hypot(bx, by, bz);
+  if (da < db + 0.3) return false;
+  const cos = (ax * bx + ay * by + az * bz) / (da * db);
+  return cos > Math.cos((3 * Math.PI) / 180);
+}
+
 /** Who answers "is the line from the eye to this target blocked?" (cheap: a 2D grid lookup). */
 export type OcclusionTest = (c: GazeCandidate) => boolean;
 
@@ -102,17 +120,22 @@ export class GazeTargeter {
     let curScore = -1;
     let best = -1;
     let bestScore = -1;
+    let bestDist = Infinity;
     for (let i = 0; i < n; i++) {
       const c = list[i];
       if (c.key === this.key) {
         cur = i;
-        curScore = gazeScore(c, ox, oy, oz, dx, dy, dz, cfg.keepDeg, cfg);
+        curScore = gazeScore(c, ox, oy, oz, dx, dy, dz, cfg.keepDeg * TOLERANCE.sensitivity, cfg);
         continue;
       }
-      const s = gazeScore(c, ox, oy, oz, dx, dy, dz, cfg.enterDeg, cfg);
-      if (s > bestScore) {
+      const s = gazeScore(c, ox, oy, oz, dx, dy, dz, cfg.enterDeg * TOLERANCE.sensitivity, cfg);
+      if (s < 0) continue;
+      // Nearest to the gaze first; when two are about equally near the gaze line, the closer one wins.
+      const d = Math.hypot(c.x - ox, c.y - oy, c.z - oz);
+      if (best < 0 || s > bestScore + GAZE_TIE || (s > bestScore - GAZE_TIE && d < bestDist)) {
         bestScore = s;
         best = i;
+        bestDist = d;
       }
     }
     if (this.locked) {
@@ -128,7 +151,7 @@ export class GazeTargeter {
     if (curScore >= 0) {
       this.lostFor = 0;
       // Overlapping targets: only a clearly better one, held for a moment, takes over.
-      if (best >= 0 && bestScore > curScore + cfg.switchMargin) {
+      if (best >= 0 && bestScore > curScore + cfg.switchMargin && !behindOf(list[best], list[cur], ox, oy, oz)) {
         if (this.challenger === list[best].key) this.challengeFor += dt;
         else {
           this.challenger = list[best].key;
@@ -285,4 +308,141 @@ export function segmentBlocked(ax: number, az: number, bx: number, bz: number, s
     if (solidAt(ax + (bx - ax) * k, az + (bz - az) * k)) return true;
   }
   return false;
+}
+
+// ------------------------------------------------- stable selection (NPE milestone A)
+
+/**
+ * Interaction tolerances shared by gaze and the hand ray (docs/NPE_PLAN.md, A). `sensitivity` is the player's
+ * setting (settings.ts): above 1 the cones and pickup radii widen, below 1 they narrow.
+ */
+export const TOLERANCE = {
+  sensitivity: 1,
+  /** Hand-ray pick cone half-angle (deg) at sensitivity 1. */
+  rayDeg: 12,
+  /** Two targets whose angular offsets differ by less than this (deg) are a tie: the nearer one wins. */
+  tieDeg: 2.5,
+  /** A target within this angle (deg) of a nearer valid one, and at least `behindGap` m farther, is behind it: never chosen. */
+  behindDeg: 3,
+  behindGap: 0.3,
+  /** A target must stay under the ray this long (s) to count as stable for the pinch lock. */
+  stableFor: 0.08,
+  /** The stable target is remembered this long (s) after the ray leaves it (the ray swings while the fingers close). */
+  stableMemory: 0.35,
+};
+
+/** One thing the hand ray could mean. `r` is its rough radius (m); `inReach` false = visible but too far to take. */
+export interface RayCandidate {
+  key: string;
+  x: number;
+  y: number;
+  z: number;
+  r: number;
+  inReach: boolean;
+}
+
+const MAX_PICK = 512;
+const offs = new Float32Array(MAX_PICK);
+const dists = new Float32Array(MAX_PICK);
+
+/**
+ * Which candidate a ray (origin o, unit direction d) means, or -1. Rules, in order: only targets inside the cone
+ * (`halfDeg`, widened by sensitivity, counted to the target's edge); in-reach targets beat out-of-reach ones; a
+ * target directly behind a nearer candidate is never chosen; the smallest angle wins, and within `tieDeg` the
+ * nearer one wins. Deterministic and allocation-free.
+ */
+export function pickByRay(list: readonly RayCandidate[], n: number, ox: number, oy: number, oz: number, dx: number, dy: number, dz: number, halfDeg = TOLERANCE.rayDeg, cfg = TOLERANCE): number {
+  const half = halfDeg * cfg.sensitivity;
+  const m = Math.min(n, MAX_PICK);
+  let anyReach = false;
+  for (let i = 0; i < m; i++) {
+    const c = list[i];
+    const vx = c.x - ox;
+    const vy = c.y - oy;
+    const vz = c.z - oz;
+    const dist = Math.hypot(vx, vy, vz);
+    dists[i] = dist;
+    offs[i] = -1;
+    if (dist < 0.05) continue;
+    const along = (vx * dx + vy * dy + vz * dz) / dist;
+    if (along <= 0) continue;
+    const ang = (Math.acos(Math.min(1, along)) * 180) / Math.PI;
+    const size = (Math.atan2(c.r * cfg.sensitivity, dist) * 180) / Math.PI;
+    const off = Math.max(0, ang - size);
+    if (off > half) continue;
+    offs[i] = off;
+    if (c.inReach) anyReach = true;
+  }
+  let best = -1;
+  for (let i = 0; i < m; i++) {
+    if (offs[i] < 0) continue;
+    const c = list[i];
+    if (anyReach && !c.inReach) continue;
+    if (isBehind(list, m, i, ox, oy, oz, cfg)) continue;
+    if (best < 0) {
+      best = i;
+      continue;
+    }
+    const tie = Math.abs(offs[i] - offs[best]) < cfg.tieDeg;
+    if (tie ? dists[i] < dists[best] : offs[i] < offs[best]) best = i;
+  }
+  return best;
+}
+
+/** Is candidate `i` hidden behind a nearer candidate along almost the same line from the eye/hand? */
+function isBehind(list: readonly RayCandidate[], m: number, i: number, ox: number, oy: number, oz: number, cfg: typeof TOLERANCE): boolean {
+  const c = list[i];
+  const di = dists[i];
+  for (let j = 0; j < m; j++) {
+    if (j === i || offs[j] < 0 || dists[j] + cfg.behindGap > di) continue;
+    const o = list[j];
+    const dj = dists[j];
+    const cos = ((c.x - ox) * (o.x - ox) + (c.y - oy) * (o.y - oy) + (c.z - oz) * (o.z - oz)) / (di * dj);
+    const sep = (Math.acos(Math.max(-1, Math.min(1, cos))) * 180) / Math.PI;
+    if (sep < cfg.behindDeg) return true;
+  }
+  return false;
+}
+
+/**
+ * Pinch-time target lock for one hand. Feed it the per-frame target under the ray (`track`); it keeps the last
+ * target that stayed put for `stableFor` seconds. At pinch start (`begin`) that stable target is locked, not
+ * whatever the swinging ray happens to be on; the lock holds until `end` (the pinch opens).
+ */
+export class PinchLock {
+  /** The last stable target (null once forgotten). */
+  stable: string | null = null;
+  /** The target this pinch acts on, from `begin` until `end`. */
+  locked: string | null = null;
+  private cand: string | null = null;
+  private candFor = 0;
+  private away = 0;
+
+  constructor(private cfg = TOLERANCE) {}
+
+  track(key: string | null, dt: number): void {
+    if (key === this.cand) this.candFor += dt;
+    else {
+      this.cand = key;
+      this.candFor = 0;
+    }
+    if (key !== null && this.candFor >= this.cfg.stableFor) {
+      this.stable = key;
+      this.away = 0;
+    } else if (this.stable !== null && key !== this.stable && (this.away += dt) > this.cfg.stableMemory) {
+      this.stable = null;
+      this.away = 0;
+    } else if (key === this.stable) this.away = 0;
+  }
+
+  /** The pinch closed: lock the stable target, or the current one when nothing was stable. */
+  begin(current: string | null): string | null {
+    this.locked = this.stable ?? current;
+    return this.locked;
+  }
+
+  /** The pinch opened (or the action resolved): release the lock cleanly. */
+  end(): void {
+    this.locked = null;
+  }
 }

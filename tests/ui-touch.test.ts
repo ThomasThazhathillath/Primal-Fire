@@ -106,9 +106,9 @@ describe('fingertip tap', () => {
 
   it('pinch hysteresis: still pinching just past pinchOn, free once clearly open', () => {
     const t = new TouchTracker();
-    t.update(DT, icons, { ...tip(0.05, 0, 0.1), pinchDist: 0.02 });
-    // 0.04 m is between pinchOn and pinchOff: still counted as pinching.
-    const still = run2(t, 0.04);
+    t.update(DT, icons, { ...tip(0.05, 0, 0.1), pinchDist: 0.015 });
+    // 0.028 m is between pinchOn and pinchOff: still counted as pinching.
+    const still = run2(t, 0.028);
     expect(still).toEqual([]);
     t.update(DT, icons, { ...tip(0.05, 0, 0.12), pinchDist: 0.09 });
     expect(run2(t, 0.09)).toEqual([1]);
@@ -195,5 +195,66 @@ describe('pointing pose', () => {
     };
     expect(poke(false)).toBe(-1);
     expect(poke(true)).toBe(0);
+  });
+});
+
+describe('tap guards tuned on Quest (relaxed hand)', () => {
+  const icons2: TouchIcon[] = [{ x: 0, y: 0, r: 0.04, enabled: true }];
+  const poke = (extra: Partial<{ pinchDist: number; pointing: boolean }>, dx = 0, approachZ = 0.05) => {
+    const t = new TouchTracker();
+    const out: number[] = [];
+    const frames: Array<[number, number]> = [[0, 0.1], [0, approachZ], [dx * 0.5, 0.01], [dx, -0.03]];
+    for (const [x, z] of frames) out.push(t.update(1 / 72, icons2, { x, y: 0, z, dz: -0.9, tracked: true, pointing: true, ...extra }));
+    return out.some((v) => v >= 0);
+  };
+  it('a relaxed thumb 2.5 cm from the index tip still taps; touching tips (1 cm) still do not', () => {
+    expect(poke({ pinchDist: 0.025 })).toBe(true);
+    expect(poke({ pinchDist: 0.01 })).toBe(false);
+  });
+  it('a small sideways drift while poking still taps; a big sweep does not', () => {
+    expect(poke({}, 0.03)).toBe(true);
+    expect(poke({}, 0.2)).toBe(false);
+  });
+  it('a hand that was only 2.5 cm out front before crossing counts as an approach', () => {
+    expect(poke({}, 0, 0.025)).toBe(true);
+  });
+  it('a resting (not pointing) hand still never taps', () => {
+    expect(poke({ pointing: false })).toBe(false);
+  });
+});
+
+describe('tap versus swipe (commit on release)', () => {
+  const icons3: TouchIcon[] = [{ x: 0, y: 0, r: 0.04, enabled: true }];
+  /** Frames: [x, y, z]; returns activations and the final tracker. */
+  const go = (frames: Array<[number, number, number]>) => {
+    const t = new TouchTracker();
+    t.commitOnRelease = true;
+    const hits: number[] = [];
+    for (const [x, y, z] of frames) hits.push(t.update(1 / 72, icons3, { x, y, z, dz: -0.9, tracked: true, pointing: true }));
+    return { t, hits: hits.filter((h) => h >= 0) };
+  };
+  const down: Array<[number, number, number]> = [[0, 0, 0.1], [0, 0, 0.05], [0, 0, 0.01], [0, 0, -0.02]];
+
+  it('a plain poke does not fire on touch-down, only when the finger comes back out', () => {
+    expect(go(down).hits).toEqual([]);
+    expect(go([...down, [0, 0, 0.005], [0, 0, 0.03]]).hits).toEqual([0]);
+  });
+
+  it('a tap with a little drift (1.5 cm) still activates', () => {
+    expect(go([...down, [0.015, 0.005, -0.02], [0.015, 0.005, 0.03]]).hits).toEqual([0]);
+  });
+
+  it('an upward swipe that starts on the target never activates it, and reports the drag', () => {
+    const { t, hits } = go([...down, [0, 0.02, -0.02], [0, 0.05, -0.02], [0, 0.09, -0.02]]);
+    expect(hits).toEqual([]);
+    expect(t.swiping).toBe(true);
+    expect(t.dragY).toBeGreaterThan(0.08);
+    const end = go([...down, [0, 0.05, -0.02], [0, 0.09, -0.02], [0, 0.09, 0.04]]);
+    expect(end.hits).toEqual([]);
+    expect(end.t.swiping).toBe(false);
+  });
+
+  it('a sideways swipe starting on the target never activates it either', () => {
+    expect(go([...down, [0.04, 0, -0.02], [0.1, 0, -0.02], [0.1, 0, 0.04]]).hits).toEqual([]);
   });
 });

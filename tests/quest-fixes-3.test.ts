@@ -97,3 +97,24 @@ describe('row (menu) swipe and finger swipe', () => {
     expect(steps).toEqual([1]);
   });
 });
+
+describe('swipe thresholds line up with the tap cancel', () => {
+  it('a finger drag of 2 cm (a tap with drift) does not page; 4 cm does', async () => {
+    const { TOUCH_CONFIG } = await import('../src/game/ui-touch.js');
+    expect(TOUCH_CONFIG.swipeStart).toBeLessThan(0.035);
+    const steps: number[] = [];
+    const sw = new SwipePager((d) => steps.push(d), 480, 600);
+    const p = new Object3D();
+    p.scale.setScalar(0.1);
+    p.updateMatrixWorld(true);
+    const at = (y: number) => [{ tracked: true, grip: false, gripDown: false, gripUp: false, pinchPos: new Vector3(), tipTracked: true, tipPos: new Vector3(0, y, 0.02) }];
+    handSource.frames = at(0);
+    sw.update(p);
+    handSource.frames = at(0.02);
+    sw.update(p);
+    expect(steps).toEqual([]);
+    handSource.frames = at(0.04);
+    sw.update(p);
+    expect(steps).toEqual([1]);
+  });
+});

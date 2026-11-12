@@ -335,7 +335,7 @@ export class SwipePager {
       if (!f.tracked || !f.grip || f.gripUp) this.hand = -1;
       else {
         const c = this.coord(panel, f.pinchPos);
-        if (Math.abs(c - this.startY) > 0.05) {
+        if (Math.abs(c - this.startY) > 0.04) {
           this.step(c > this.startY ? 1 : -1);
           this.startY = c;
           this.lastPagedAt = performance.now();
@@ -366,7 +366,7 @@ export class SwipePager {
     // Pushing straight through the face is a tap, not a swipe: restart the drag when the tip is moving mostly in depth.
     if (Math.abs(this.local.z - this.fDz) > Math.abs(c - this.fStart) * 20) this.fStart = c;
     this.fDz = this.local.z;
-    if (Math.abs(c - this.fStart) > 0.06) {
+    if (Math.abs(c - this.fStart) > 0.035) {
       this.step(c > this.fStart ? 1 : -1);
       this.fStart = c;
       this.lastPagedAt = performance.now();

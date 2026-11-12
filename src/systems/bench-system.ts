@@ -34,9 +34,11 @@ import { hands, mouse, pulse } from './hand-input-system.js';
 import { PanelTouch } from './panel-touch.js';
 import { itemPicture, RowThumbs } from './row-thumbs.js';
 import { PopIn } from './ui-fx.js';
-import { getGame, getUi, handPose, hidePanel, menu, PANEL_DISTANCE, PANEL_DOWN, StaticAnchor, uiText } from './shared.js';
+import { getGame, getUi, handPose, hidePanel, menu, PANEL_DISTANCE, PANEL_DOWN, StaticAnchor, SwipePager, uiText } from './shared.js';
 
 const ROWS = 10;
+/** Recipes shown at once: a short card, scrolled by finger swipe, pinch-drag, wheel or the More button. */
+const PER_PAGE = 5;
 const TRACK_PX = 260;
 /** Walk further than this (m) from the bench and the craft stops. */
 const LEAVE_DISTANCE = 3.5;
@@ -83,6 +85,13 @@ export class BenchSystem extends createSystem({}) {
   private pop!: PopIn;
   private baseScale = VR_SCALE;
   private thumbTimer = 0;
+  private page = 0;
+  private turn = (d: number): void => {
+    const n = Math.max(1, Math.ceil(BENCH_RECIPES.length / PER_PAGE));
+    this.page = (this.page + d + n) % n;
+    this.refresh();
+  };
+  private swipe = new SwipePager((d) => this.turn(d), 560, 560);
   private vrNow = false;
   private open = false;
   private benchId = -1;
@@ -155,9 +164,11 @@ export class BenchSystem extends createSystem({}) {
       this.touch.add(id, fn);
       this.cleanupFuncs.push(() => el.removeEventListener('click', fn));
     };
+    this.cleanupFuncs.push(this.swipe.listenWheel(() => this.open && !game.bench));
+    wire('bench-more', () => this.turn(1));
     for (let i = 0; i < ROWS; i++) {
       wire(`rec-${i}`, () => {
-        const r = BENCH_RECIPES[i];
+        const r = BENCH_RECIPES[this.page * PER_PAGE + i];
         if (!r) return;
         if (game.held) game.stow();
         game.startBench(r.id, this.benchId);
@@ -184,6 +195,7 @@ export class BenchSystem extends createSystem({}) {
 
   /** Opens the recipe panel above workbench `id`. */
   show(id: number): void {
+    this.page = 0;
     const game = getGame(this.world);
     const s = game.structures.find((t) => t.id === id);
     if (!s || !this.panel) return;
@@ -247,8 +259,14 @@ export class BenchSystem extends createSystem({}) {
     this.panel.requireElementById('bench-craft').setProperties({ display: b ? 'flex' : 'none' });
     this.panel.requireElementById('bench-lift').setProperties({ display: b ? 'none' : 'flex' });
     if (!b) {
+      const pages = Math.max(1, Math.ceil(BENCH_RECIPES.length / PER_PAGE));
+      if (this.page >= pages) this.page = 0;
+      this.panel.requireElementById('bench-more').setProperties({ display: pages > 1 ? 'flex' : 'none' });
+      this.text('bench-more-label', `More (${this.page + 1}/${pages})`);
+      const shown: Array<(typeof BENCH_RECIPES)[number] | undefined> = [];
       for (let i = 0; i < ROWS; i++) {
-        const r = BENCH_RECIPES[i];
+        const r = i < PER_PAGE ? BENCH_RECIPES[this.page * PER_PAGE + i] : undefined;
+        shown.push(r);
         this.panel.requireElementById(`rec-${i}`).setProperties({ display: r ? 'flex' : 'none' });
         if (!r) continue;
         const parts = partsStatus(game, r);
@@ -257,7 +275,7 @@ export class BenchSystem extends createSystem({}) {
         this.text(`rec-${i}-parts`, parts.map((p) => `${itemName(p.id)} ${Math.min(p.have, p.need)}/${p.need}`).join('  -  '));
         this.panel.requireElementById(`rec-${i}`).setProperties({ opacity: ready ? 1 : 0.5 });
       }
-      this.thumbs.setRows(BENCH_RECIPES.slice(0, ROWS).map((r, i) => ({ el: `rec-${i}`, pic: itemPicture(r.output) })));
+      this.thumbs.setRows(shown.map((r, i) => ({ el: `rec-${i}`, pic: r ? itemPicture(r.output) : null })));
       return;
     }
     const step = b.step;
@@ -489,6 +507,7 @@ export class BenchSystem extends createSystem({}) {
     if (this.pop?.busy) this.pop.update(dt);
     const game = getGame(this.world);
     if (this.open && this.vrNow) this.touch.update(dt);
+    if (this.open && this.vrNow && !game.bench && !this.anchor.dragging) this.swipe.update(this.panel);
     if (this.open && !game.bench && (this.thumbTimer += dt) > 0.25) {
       this.thumbTimer = 0;
       this.thumbs.update();

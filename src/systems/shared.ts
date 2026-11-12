@@ -304,7 +304,7 @@ export class SwipePager {
     }
     const dy = f.pinchPos.y - this.startY;
     if (Math.abs(dy) > 0.05) {
-      this.step(dy < 0 ? 1 : -1); // dragging the card up shows later rows, like a phone
+      this.step(dy > 0 ? 1 : -1); // dragging the card up (hand moves up) shows later rows, like a phone
       this.startY = f.pinchPos.y;
     }
   }

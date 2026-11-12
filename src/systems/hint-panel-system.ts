@@ -43,7 +43,7 @@ export class HintPanelSystem extends createSystem({}) {
   private images: HintImages | null = null;
   private pic!: Mesh;
   private picMat!: MeshBasicMaterial;
-  private anchor = new StaticAnchor(PANEL_DISTANCE, 0, PANEL_DOWN - 0.1, 0.9, 1);
+  private anchor = new StaticAnchor(PANEL_DISTANCE, 0, 0.1, 0.9, 1).movable('hint', 600, 904);
   private ready = false;
   private opened: string | null = null;
   private idle = 0;

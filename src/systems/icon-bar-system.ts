@@ -17,6 +17,7 @@ import {
 } from '@iwsdk/core';
 import { fitsPouch } from '../game/items.js';
 import { PanelTouch } from './panel-touch.js';
+import { keepsGridOpen, pageLayout } from '../game/menu.js';
 import { getGame, getUi, hidePanel, menu, StaticAnchor } from './shared.js';
 import { clearSave, WorldSystem } from './world-system.js';
 
@@ -24,7 +25,9 @@ const SLOT = 68;
 const GAP = 10;
 const SLOT_H = 80;
 /** VR: icons sit in a small grid this many wide, off to your right. */
-const COLS = 5;
+const COLS = 7;
+/** VR: one row; this many icons show at once between the Menu button and the page arrows. */
+const PAGE = 4;
 /** VR: an open menu folds itself away after this long without a tap (s). */
 /** Tunable at runtime (window.__iconbar.config): seconds before an unfolded grid folds itself. */
 export const MENU_CONFIG = { gridIdleSeconds: 20 };
@@ -62,6 +65,8 @@ const DEFS: Def[] = [
   // Only at a finished workbench: opens its recipe panel (no more poking the 3D bench).
   { id: 'bench', show: (s) => s.benchNear, run: (s) => getUi(s.world).openNearestBench?.() },
   // Only during the guided opening: the story card's steps, Do again / Skip (TutorialSystem).
+  { id: 'prev', show: () => false, run: (s) => s.turnPage(-1) },
+  { id: 'next', show: () => false, run: (s) => s.turnPage(1) },
   { id: 'story', show: (s) => !!getUi(s.world).toggleStory, run: (s) => getUi(s.world).toggleStory?.() },
 ];
 
@@ -71,9 +76,9 @@ const DEFS: Def[] = [
 export const BAR_DISTANCE = 0.4;
 // The bottom edge of the bar (the Menu button when folded) hangs this far below eye level: chest height for a
 // seated player, off to the right. An unfolded grid grows UP from there, so every row stays in view and reach.
-export const BAR_BOTTOM = 0.34;
+export const BAR_BOTTOM = 0.42;
 export const BAR_DOWN = BAR_BOTTOM;
-export const BAR_SIDE = 0.08;
+export const BAR_SIDE = 0;
 
 export class IconBarSystem extends createSystem({}) {
   private bar!: UIKitMLAsset;
@@ -85,6 +90,11 @@ export class IconBarSystem extends createSystem({}) {
   private shrunk: Array<{ i: number; left: number }> = [];
   private touch!: PanelTouch;
   benchNear = false;
+  private page = 0;
+  turnPage(d: number): void {
+    this.page = Math.max(0, this.page + d);
+    this.lastVisible = '';
+  }
   private ready = false;
   private shown = false;
   vr = false;
@@ -191,14 +201,40 @@ export class IconBarSystem extends createSystem({}) {
     location.reload();
   }
   /** A fingertip tap on slot `i`: run it, then fold the grid unless it opened a panel or is a repeatable turn. */
+  private lastTapAt = -1e9;
+  private lastGridOpen = false;
+  private gridOpenedAt = -1e9;
+  private armedId = '';
+  private armedAt = -1e9;
   private activate(i: number): void {
     const def = DEFS[i];
+    // Misclick guard: a tap right after another tap, or right after the grid unfolded, is a stray touch, not a choice.
+    const now = performance.now();
+    if (now - this.lastTapAt < 300) {
+      getGame(this.world).log.add(`tap rejected: stray (another tap ${Math.round(now - this.lastTapAt)} ms ago) on menu/${def.id}`);
+      return;
+    }
+    if (def.id !== 'menu' && now - this.gridOpenedAt < 350) {
+      getGame(this.world).log.add(`tap rejected: grid just opened on menu/${def.id}`);
+      return;
+    }
+    this.lastTapAt = now;
+    // Leaving the game needs a deliberate second tap on the same icon.
+    if (this.vr && (def.id === 'exit' || def.id === 'reload')) {
+      if (this.armedId !== def.id || now - this.armedAt > RESTART_CONFIRM_MS) {
+        this.armedId = def.id;
+        this.armedAt = now;
+        getGame(this.world).toast(`Tap ${def.id === 'exit' ? 'Exit' : 'Reload'} again to confirm.`, 'note');
+        return;
+      }
+      this.armedId = '';
+    }
     // A quick shrink on the tapped icon (PanelTouch adds the flash and the sound).
     this.btns[i].setProperties({ width: 38, height: 38 } as never);
     this.shrunk.push({ i, left: 0.12 });
     this.menuIdle = 0;
     def.run(this);
-    if (!['menu', 'turn-left', 'turn-right'].includes(def.id) && menu.current === null) menu.gridOpen = false;
+    if (!keepsGridOpen(def.id) && menu.current === null) menu.gridOpen = false;
   }
 
   private restartArmedAt = -1e9;
@@ -227,7 +263,7 @@ export class IconBarSystem extends createSystem({}) {
     DEFS.forEach((_, i) => this.slots[i].setProperties({ display: shown.has(i) ? 'flex' : 'none' }));
     const n = this.visible.length;
     // VR: a compact grid; the flat view keeps one row along the bottom.
-    const cols = this.vr ? Math.min(COLS, n) : n;
+    const cols = this.vr ? Math.min(COLS, n) : n; // VR: a single row
     const rows = Math.ceil(n / cols);
     const w = PAD * 2 + cols * SLOT + (cols - 1) * GAP;
     const h = PAD * 2 + rows * SLOT_H + (rows - 1) * GAP;
@@ -254,9 +290,28 @@ export class IconBarSystem extends createSystem({}) {
       this.benchNear = !!game.nearbyWorkbench();
     }
     this.visible.length = 0;
+    if (menu.gridOpen !== this.lastGridOpen) {
+      this.lastGridOpen = menu.gridOpen;
+      if (menu.gridOpen) this.gridOpenedAt = performance.now();
+    }
     if (menu.gridOpen && (this.menuIdle += delta) > MENU_CONFIG.gridIdleSeconds) menu.gridOpen = false;
     // Folded (VR): only the Menu button shows, whenever the grid is not unfolded (and always while a panel is open).
     DEFS.forEach((d, i) => d.show(this) && (!this.vr || menu.gridVisible || d.id === 'menu') && this.visible.push(i));
+    if (this.vr && menu.gridVisible) {
+      // One short row (Menu first), scrolled a page at a time with Back / More.
+      const mi = DEFS.findIndex((d) => d.id === 'menu');
+      const pi = DEFS.findIndex((d) => d.id === 'prev');
+      const ni = DEFS.findIndex((d) => d.id === 'next');
+      const others = this.visible.filter((i) => i !== mi);
+      const pg = pageLayout(others.length, this.page, PAGE);
+      this.page = pg.page;
+      const row = others.slice(pg.start, pg.end);
+      this.visible.length = 0;
+      this.visible.push(mi);
+      if (pg.hasPrev) this.visible.push(pi);
+      this.visible.push(...row);
+      if (pg.hasNext) this.visible.push(ni);
+    } else this.page = 0;
     this.layout();
 
     // Badges and active dots.

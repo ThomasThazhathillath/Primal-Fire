@@ -29,9 +29,11 @@ import { lambert } from '../scene-assets/materials.js';
 import { PanelTouch } from './panel-touch.js';
 import { itemPicture, RowThumbs } from './row-thumbs.js';
 import { PopIn } from './ui-fx.js';
-import { getGame, getUi, hidePanel, hipPosition, menu, PANEL_DISTANCE, PANEL_DOWN, placeInFront, uiText } from './shared.js';
+import { getGame, getUi, hidePanel, hipPosition, menu, PANEL_DISTANCE, PANEL_DOWN, placeInFront, StaticAnchor, SwipePager, uiText } from './shared.js';
 
 const SLOTS = 18;
+/** Rows of the bag list shown at once; "More" turns the page so the card stays short. */
+const PAGE_ROWS = 6;
 const MAKE_SLOTS = 8;
 
 export class SatchelSystem extends createSystem({
@@ -50,6 +52,12 @@ export class SatchelSystem extends createSystem({
   private open = false;
   private makeItems: Array<{ id: string; label: string; kind: 'bind' | 'pack' | 'store' | 'take' } | undefined> = [];
   private slotItems: Array<ItemId | null> = [];
+  private page = 0;
+  private swipe = new SwipePager((d) => {
+    const n = Math.max(1, Math.ceil(getGame(this.world).satchelContents().length / PAGE_ROWS));
+    this.page = (this.page + d + n) % n;
+    this.refresh();
+  }, 480, 600);
   private hip = new Vector3();
   private craftTimer = 0;
   private bag!: Group;
@@ -172,6 +180,11 @@ export class SatchelSystem extends createSystem({
       game.stow();
     });
     wire('satchel-close', () => menu.back());
+    this.cleanupFuncs.push(this.swipe.listenWheel(() => this.open));
+    wire('bag-more', () => {
+      this.page++;
+      this.refresh();
+    });
 
     getUi(this.world).toggleSatchel = () => this.toggle();
     // What you hold is drawn by CarrySystem.
@@ -225,7 +238,10 @@ export class SatchelSystem extends createSystem({
       this.refresh();
       this.panel.visible = true;
       // A plain list card straight ahead, a little below eye level, in seated reach for a fingertip.
-      placeInFront(this.panel, this.camera, this.vr ? PANEL_DISTANCE : 0.62, 0, this.vr ? PANEL_DOWN : 0.12);
+      if (this.vr) {
+        this.anchor.reset();
+        this.anchor.update(this.panel, this.camera);
+      } else placeInFront(this.panel, this.camera, 0.62, 0, 0.12);
       this.touch.reset();
       this.pop.open();
     } else {
@@ -278,7 +294,12 @@ export class SatchelSystem extends createSystem({
   private refresh(): void {
     if (!this.panel) return;
     const game = getGame(this.world);
-    const contents = game.satchelContents();
+    const all = game.satchelContents();
+    const pages = Math.max(1, Math.ceil(all.length / PAGE_ROWS));
+    if (this.page >= pages) this.page = 0;
+    const contents = all.slice(this.page * PAGE_ROWS, this.page * PAGE_ROWS + PAGE_ROWS);
+    this.panel.requireElementById('bag-more').setProperties({ display: pages > 1 ? 'flex' : 'none' });
+    this.panel.requireElementById<UIKit.Text>('bag-more-label').setProperties({ text: `More (${this.page + 1}/${pages})` });
     for (let i = 0; i < SLOTS; i++) {
       const entry = contents[i];
       this.slotItems[i] = entry?.id ?? null;
@@ -290,7 +311,7 @@ export class SatchelSystem extends createSystem({
           .setProperties({ text: uiText(`${itemName(entry.id)}${entry.count > 1 ? ` x${entry.count}` : ''}${game.food.freshnessOf(entry.id) === 'ageing' ? ' (going off)' : ''}: ${ITEMS[entry.id].usedFor}`) });
       }
     }
-    this.fillBag(contents);
+    this.fillBag(all);
     // A small picture of the real item beside each row.
     if (this.open) this.thumbs.setRows(contents.map((c, i) => ({ el: `item-${i}`, pic: itemPicture(c.id) })));
     const cap = game.capacity;
@@ -317,7 +338,13 @@ export class SatchelSystem extends createSystem({
     }
   }
 
+  private anchor = new StaticAnchor(PANEL_DISTANCE, 0, PANEL_DOWN + 0.02, 0.9, 1).movable('bag', 480, 600);
+
   update(delta: number): void {
+    if (this.vr && this.panel?.visible) {
+      this.anchor.update(this.panel, this.camera);
+      if (!this.anchor.dragging) this.swipe.update(this.panel);
+    }
     if (this.open && this.bagT < 1) {
       this.bagT = Math.min(1, this.bagT + delta / 0.45);
       const t = 1 - (1 - this.bagT) * (1 - this.bagT);

@@ -1,7 +1,7 @@
 // Helpers shared by the game systems: access to the Game instance, the
 // player's head/hip, and placing panels in front of the player.
 
-import { AdditiveBlending, MeshBasicMaterial, type Object3D, Quaternion, Vector3, type World } from '@iwsdk/core';
+import { AdditiveBlending, Box3, MeshBasicMaterial, type Object3D, Quaternion, Vector3, type World } from '@iwsdk/core';
 import type { Game } from '../game/game.js';
 import { MenuStack } from '../game/menu.js';
 import type { HandBusy } from '../game/priority.js';
@@ -192,6 +192,124 @@ export const pickupFrom = { valid: false, pos: new Vector3(), time: 0 };
 /** A head-height change (m) that re-places a static panel. */
 const MAX_RISE = 0.15;
 
+/** Where the hands are, set once by HandInputSystem (shared.ts must not import it: it imports this file). */
+export const handSource: { frames: Array<{ tracked: boolean; grip: boolean; gripDown: boolean; gripUp: boolean; pinchPos: Vector3 }> | null } = { frames: null };
+
+/** A user-chosen spot for a card: sideways, down and distance from the head (yaw-aligned), remembered between sessions. */
+export interface PanelSpot {
+  side: number;
+  down: number;
+  distance: number;
+}
+
+const spotKey = (k: string) => `primal.panel.${k}`;
+function loadSpot(k: string): PanelSpot | null {
+  try {
+    const raw = typeof localStorage === 'undefined' ? null : localStorage.getItem(spotKey(k));
+    const v = raw ? (JSON.parse(raw) as PanelSpot) : null;
+    return v && Number.isFinite(v.side) && Number.isFinite(v.down) && Number.isFinite(v.distance) ? v : null;
+  } catch {
+    return null;
+  }
+}
+function saveSpot(k: string, v: PanelSpot): void {
+  try {
+    if (typeof localStorage !== 'undefined') localStorage.setItem(spotKey(k), JSON.stringify(v));
+  } catch {
+    /* private mode: the card just returns to its default spot next time */
+  }
+}
+/** Forget every remembered card spot (the Restart / reset path). */
+export function clearPanelSpots(): void {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (k?.startsWith('primal.panel.')) localStorage.removeItem(k);
+    }
+  } catch {
+    /* nothing to clear */
+  }
+}
+
+/** Keeps the card where the player last left it, within comfortable bounds (distance 0.32-0.9 m, down 0.02-0.4 m, side +-0.6 m). */
+export const clampSpot = (v: PanelSpot): PanelSpot => ({
+  side: Math.max(-0.6, Math.min(0.6, v.side)),
+  down: Math.max(0.02, Math.min(0.4, v.down)),
+  distance: Math.max(0.32, Math.min(0.9, v.distance)),
+});
+
+/** Movable cards by key (debug and tests: where each one hangs now). */
+export const cards: Record<string, Object3D> = {};
+
+/** What the ghost hand should demonstrate right now (null = nothing), and next to which card. Set by the teaching cards. */
+export const ghost: { clip: string | null; card: string | null; how: string | null } = { clip: null, card: null, how: null };
+
+/**
+ * Scroll a paged list: the mouse wheel (flat view) or a pinch-drag up/down anywhere on the card body (VR; the header strip
+ * stays the move handle). Calls `step(+1)` for "later" (drag up / wheel down) and `step(-1)` for "earlier".
+ */
+export class SwipePager {
+  private hand = -1;
+  private startY = 0;
+  private local = new Vector3();
+  constructor(
+    private step: (d: number) => void,
+    private widthUnits: number,
+    private heightUnits: number,
+    private headerUnits = 90,
+  ) {}
+
+  /** Mouse wheel; call once from init and register the returned remover in cleanupFuncs. */
+  listenWheel(isOpen: () => boolean): () => void {
+    let acc = 0;
+    const on = (e: WheelEvent): void => {
+      if (!isOpen()) return;
+      acc += e.deltaY;
+      if (Math.abs(acc) >= 60) {
+        this.step(acc > 0 ? 1 : -1);
+        acc = 0;
+      }
+    };
+    window.addEventListener('wheel', on, { passive: true });
+    return () => window.removeEventListener('wheel', on);
+  }
+
+  /** VR pinch-drag; call every frame while the card is open. */
+  update(panel: Object3D): void {
+    const frames = handSource.frames;
+    if (!frames) return;
+    if (this.hand < 0) {
+      for (let h = 0; h < frames.length; h++) {
+        const f = frames[h];
+        if (!f.tracked || !f.gripDown) continue;
+        panel.updateWorldMatrix(true, false);
+        this.local.copy(f.pinchPos);
+        panel.worldToLocal(this.local);
+        const sy = panel.scale.y || 1;
+        const hw = this.widthUnits * 0.005;
+        const hh = this.heightUnits * 0.005;
+        if (Math.abs(this.local.x) <= hw && Math.abs(this.local.z) <= 0.06 / sy && this.local.y <= hh - this.headerUnits * 0.01 && this.local.y >= -hh) {
+          this.hand = h;
+          this.startY = f.pinchPos.y;
+          break;
+        }
+      }
+      return;
+    }
+    const f = frames[this.hand];
+    if (!f.tracked || !f.grip || f.gripUp) {
+      this.hand = -1;
+      return;
+    }
+    const dy = f.pinchPos.y - this.startY;
+    if (Math.abs(dy) > 0.05) {
+      this.step(dy < 0 ? 1 : -1); // dragging the card up shows later rows, like a phone
+      this.startY = f.pinchPos.y;
+    }
+  }
+}
+
 export class StaticAnchor {
   private placedYaw = 0;
   private placedX = 0;
@@ -199,6 +317,13 @@ export class StaticAnchor {
   private placedY = 0;
   private placed = false;
   private head = new Vector3();
+  /** User-moved spot (overrides the default), and the drag in progress. */
+  private spot: PanelSpot | null = null;
+  private dragHand = -1;
+  private grabOffset = new Vector3();
+  private tmp = new Vector3();
+  private key = '';
+  private local = new Vector3();
 
   constructor(
     private distance: number,
@@ -210,8 +335,29 @@ export class StaticAnchor {
     private maxMove = 1.2,
   ) {}
 
+  /**
+   * Let the player move this card by pinching its header strip and dragging (VR). `widthUnits` x `heightUnits` is the card in its own
+   * units and `headerUnits` the height of the grab strip along its top edge. The spot is remembered under `key`.
+   */
+  movable(key: string, widthUnits: number, heightUnits: number, headerUnits = 90): this {
+    this.key = key;
+    this.wUnits = widthUnits;
+    this.hUnits = heightUnits;
+    this.headerUnits = headerUnits;
+    this.spot = loadSpot(key);
+    return this;
+  }
+  private headerUnits = 90;
+  private wUnits = 400;
+  private hUnits = 300;
+
   reset(): void {
     this.placed = false;
+  }
+
+  /** True while a hand is dragging this card. */
+  get dragging(): boolean {
+    return this.dragHand >= 0;
   }
 
   /** Change how far below eye level the panel hangs (it is re-placed on the next update). */
@@ -221,7 +367,71 @@ export class StaticAnchor {
     this.placed = false;
   }
 
+  /** Put the card back at its default spot. */
+  home(): void {
+    this.spot = null;
+    this.placed = false;
+    if (this.key) {
+      try {
+        localStorage.removeItem(spotKey(this.key));
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  private drag(panel: Object3D, camera: Object3D): boolean {
+    const frames = handSource.frames;
+    if (!this.key || !frames) return false;
+    if (this.dragHand < 0) {
+      for (let h = 0; h < frames.length; h++) {
+        const f = frames[h];
+        if (!f.tracked || !f.gripDown) continue;
+        // Is the pinch inside the card's header strip (card-local units, a little in front of or behind the surface)?
+        // The strip along the card's top edge (measured from its real bounds, so cards of any height work), a little generous around it.
+        panel.updateWorldMatrix(true, false);
+        this.local.copy(f.pinchPos);
+        panel.worldToLocal(this.local);
+        const sx = panel.scale.x || 1;
+        const sy = panel.scale.y || 1;
+        // Panel units are 1 cm in the object's own (scaled) space.
+        const hw = (this.wUnits * 0.005 + 0.03 / sx);
+        const topY = this.hUnits * 0.005;
+        if (Math.abs(this.local.x) <= hw && Math.abs(this.local.z) <= 0.06 / sx && this.local.y <= topY + 0.03 / sy && this.local.y >= topY - this.headerUnits * 0.01 - 0.03 / sy) {
+          this.dragHand = h;
+          this.grabOffset.copy(panel.position).sub(f.pinchPos);
+          break;
+        }
+      }
+      if (this.dragHand < 0) return false;
+    }
+    const f = frames[this.dragHand];
+    if (!f.tracked || !f.grip || f.gripUp) {
+      // Let go: remember where the card is, relative to the head.
+      camera.getWorldPosition(this.head);
+      const yaw = headYaw(camera);
+      const dx = panel.position.x - this.head.x;
+      const dz = panel.position.z - this.head.z;
+      const fwd = dx * -Math.sin(yaw) + dz * -Math.cos(yaw);
+      const side = dx * Math.cos(yaw) + dz * -Math.sin(yaw);
+      this.spot = clampSpot({ side, down: this.head.y - panel.position.y, distance: fwd });
+      saveSpot(this.key, this.spot);
+      this.dragHand = -1;
+      this.placed = false;
+      return false;
+    }
+    panel.position.copy(f.pinchPos).add(this.grabOffset);
+    // Keep it facing you while it moves.
+    camera.getWorldPosition(this.head);
+    const dd = this.head.y - panel.position.y;
+    const dist = Math.hypot(this.head.x - panel.position.x, this.head.z - panel.position.z) || 0.01;
+    panel.rotation.set(-Math.atan2(dd, dist), Math.atan2(this.head.x - panel.position.x, this.head.z - panel.position.z), 0, 'YXZ');
+    return true;
+  }
+
   update(panel: Object3D, camera: Object3D): void {
+    if (this.key) cards[this.key] = panel;
+    if (this.drag(panel, camera)) return;
     camera.getWorldPosition(this.head);
     const yaw = headYaw(camera);
     let turn = Math.abs(yaw - this.placedYaw) % (Math.PI * 2);
@@ -231,7 +441,8 @@ export class StaticAnchor {
     // (entering VR) also re-places it, so it never ends up level with or above your eyes.
     const rose = Math.abs(this.head.y - this.placedY);
     if (this.placed && turn < this.maxTurn && moved < this.maxMove && rose < MAX_RISE) return;
-    placeInFront(panel, camera, this.distance, this.side, this.down);
+    if (this.spot) placeInFront(panel, camera, this.spot.distance, this.spot.side, this.spot.down);
+    else placeInFront(panel, camera, this.distance, this.side, this.down);
     this.placed = true;
     this.placedYaw = yaw;
     this.placedX = this.head.x;

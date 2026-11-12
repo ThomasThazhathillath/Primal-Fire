@@ -10,7 +10,7 @@ import { PanelTouch } from './panel-touch.js';
 import { structureView } from '../game/hint-info.js';
 import { RowThumbs } from './row-thumbs.js';
 import { PopIn } from './ui-fx.js';
-import { getGame, getUi, hidePanel, menu, PANEL_DISTANCE, PANEL_DOWN, placeInFront, StaticAnchor, uiText } from './shared.js';
+import { getGame, getUi, hidePanel, menu, PANEL_DISTANCE, PANEL_DOWN, placeInFront, StaticAnchor, SwipePager, uiText } from './shared.js';
 
 /** Entries per page: keeps every row a full-size fingertip target and the card on screen. */
 const ROWS = 8;
@@ -27,10 +27,14 @@ export class BuildBookSystem extends createSystem({}) {
   private vr = false;
   private open = false;
   private rows: BookEntry[] = [];
-  private anchor = new StaticAnchor(0.9, 0, 0.1);
+  private anchor = new StaticAnchor(0.9, 0, 0.1).movable('buildbook', 520, 500);
   private dir = new Vector3();
   private timer = 0;
   private page = 0;
+  private swipe = new SwipePager((d) => {
+    this.page += d;
+    this.refresh();
+  }, 520, 500);
 
   async init(): Promise<void> {
     const game = getGame(this.world);
@@ -57,6 +61,7 @@ export class BuildBookSystem extends createSystem({}) {
       this.touch.add(`entry-${i}`, onClick);
       this.cleanupFuncs.push(() => el.removeEventListener('click', onClick));
     }
+    this.cleanupFuncs.push(this.swipe.listenWheel(() => !!this.panel?.visible));
     const close = this.panel.requireElementById('book-close');
     const onClose = () => menu.back();
     close.addEventListener('click', onClose);
@@ -158,7 +163,10 @@ export class BuildBookSystem extends createSystem({}) {
       if (this.open) this.refresh();
     }
     if (this.pop.busy) this.pop.update(delta);
-    if (this.open && this.immersive()) this.touch.update(delta);
+    if (this.open && this.immersive()) {
+      this.touch.update(delta);
+      if (!this.anchor.dragging) this.swipe.update(this.panel);
+    }
     if (this.open && (this.thumbTimer += delta) > 0.25) {
       this.thumbTimer = 0;
       this.thumbs.update();

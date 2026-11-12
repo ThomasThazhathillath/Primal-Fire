@@ -48,7 +48,7 @@ export class GuideSystem extends createSystem({}) {
   private timer = 0;
   private lastKey = '';
   private visible = false;
-  private anchor = new StaticAnchor(0.55, 0.2, 0.3);
+  private anchor = new StaticAnchor(0.55, 0.2, 0.12).movable('guide', 460, 300);
   private touch!: PanelTouch;
   private vr = false;
   private nearby: ItemId[] = [];

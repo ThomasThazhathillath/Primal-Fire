@@ -100,7 +100,7 @@ const stones = rocks.map((r) => {
     // Mostly grey: the pickup tint (stone, flint, chalk, wet stone) supplies the colour, the texture supplies the mottling.
     const [cr, cg, cb] = sample(g.UV[k * 2], g.UV[k * 2 + 1]);
     const luma = 0.3 * cr + 0.59 * cg + 0.11 * cb;
-    C.push(...[cr, cg, cb].map((v) => Math.min(255, Math.max(0, Math.round(100 + (luma - 90) * 0.95 + (v - luma) * 0.8)))));
+    C.push(...[cr, cg, cb].map((v) => Math.min(255, Math.max(0, Math.round(160 + (luma - 90) * 0.7 + (v - luma) * 0.45)))));
   }
   return { P, N, C, I: Array.from(g.I) };
 });

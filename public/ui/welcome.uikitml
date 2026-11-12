@@ -1,18 +1,36 @@
 <!-- Title and onboarding: shown when you wake up. -->
 <style>
+  .theme-begin { display: flex; }
+  .t-root { background-color: rgba(238, 222, 184, 0.98); border-radius: 18px; border-width: 4px; border-color: #6e4a28; }
+  .t-head { background-color: #4f5f33; border-radius: 12px; padding: 8px; }
+  .t-headtext { color: #f6ecd2; font-size: 23px; font-weight: 700; }
+  .t-title { color: #2d1f12; font-size: 27px; font-weight: 700; }
+  .t-name { color: #2d1f12; font-size: 23px; font-weight: 700; }
+  .t-lead { color: #2d1f12; font-size: 22px; line-height: 1.25; }
+  .t-body { color: #2d1f12; font-size: 21px; line-height: 1.3; }
+  .t-muted { color: #6a5740; font-size: 18px; line-height: 1.3; }
+  .t-small { color: #2d1f12; font-size: 16px; font-weight: 700; }
+  .t-label { color: #b2511a; font-size: 14px; font-weight: 700; letter-spacing: 1.5px; }
+  .t-accent { color: #b2511a; font-size: 22px; font-weight: 700; }
+  .t-note { color: #8a4a1c; font-size: 17px; line-height: 1.25; }
+  .t-ok { color: #2c7a3e; font-size: 18px; font-weight: 700; line-height: 1.25; }
+  .t-bad { color: #a8301c; font-size: 18px; font-weight: 700; line-height: 1.25; }
+  .t-row { background-color: rgba(110, 72, 36, 0.14); border-radius: 12px; }
+  .t-btn { background-color: #4f5f33; border-radius: 12px; }
+  .t-go { background-color: #b2511a; border-radius: 12px; }
+  .t-track { background-color: rgba(90, 60, 28, 0.22); border-radius: 4px; }
+  .t-fill { background-color: #b2511a; border-radius: 4px; }
+.theme-end { display: flex; }
   .panel-root { flex-direction: column; width: 420px; }
   .panel-content { flex-direction: column; gap: 9px; padding: 24px; }
-  .eyebrow { color: #8a5a00; font-size: 14px; font-weight: 700; letter-spacing: 1.4px; }
-  .eyebrow:dark { color: #ffb547; }
-  .heading { color: #1c1d20; font-size: 34px; font-weight: 700; line-height: 40px; }
-  .heading:dark { color: #fafaf7; }
-  .body { color: #3a3b40; font-size: 18px; line-height: 25px; }
-  .body:dark { color: #e4dccd; }
-  .how { color: #55504a; font-size: 15px; line-height: 22px; }
-  .how:dark { color: #b9ab95; }
+  .eyebrow { color: #b2511a; font-size: 14px; font-weight: 700; letter-spacing: 1.4px; }
+  .heading { color: #2d1f12; font-size: 34px; font-weight: 700; line-height: 40px; }
+  .body { color: #2d1f12; font-size: 18px; line-height: 25px; }
+  .how { color: #2d1f12; font-size: 15px; line-height: 22px; }
+  .btntext { color: #f6ecd2; font-size: 22px; font-weight: 700; }
   .button { justify-content: flex-start; margin-left: 24px; margin-right: 24px; margin-bottom: 14px; }
 </style>
-<Panel class="panel-root">
+<div class="panel-root t-root">
   <div class="panel-content">
     <div class="eyebrow">CHAPTER 1</div>
     <div class="heading">PRIMAL: First Fire</div>
@@ -20,16 +38,16 @@
     <div class="how">Point and pinch to gather: it goes into the pouch at your hip. To build, pinch an empty glowing mark - a stone from the pouch fills it, and the next one comes to your hand.</div>
     <div class="how">Stuck? Ask for a hint - ask again for a clearer one.</div>
   </div>
-  <Button id="xr-button" class="button">
-    <ButtonIcon><RectangleGoggles></RectangleGoggles></ButtonIcon>
-    <ButtonLabel>Enter VR</ButtonLabel>
+  <Button class="t-btn" id="xr-button" class="button">
+    <ButtonIcon class="btntext"><RectangleGoggles></RectangleGoggles></ButtonIcon>
+    <ButtonLabel class="btntext">Enter VR</ButtonLabel>
   </Button>
-  <Button id="tutorial-button" class="button">
-    <ButtonIcon><GraduationCap></GraduationCap></ButtonIcon>
-    <ButtonLabel id="tutorial-label">Learn the basics</ButtonLabel>
+  <Button class="t-btn" id="tutorial-button" class="button">
+    <ButtonIcon class="btntext"><GraduationCap></GraduationCap></ButtonIcon>
+    <ButtonLabel id="tutorial-label" class="btntext">Learn the basics</ButtonLabel>
   </Button>
-  <Button id="begin-button" class="button">
-    <ButtonIcon><Sunrise></Sunrise></ButtonIcon>
-    <ButtonLabel id="begin-label">Wake up</ButtonLabel>
+  <Button class="t-btn" id="begin-button" class="button">
+    <ButtonIcon class="btntext"><Sunrise></Sunrise></ButtonIcon>
+    <ButtonLabel id="begin-label" class="btntext">Wake up</ButtonLabel>
   </Button>
-</Panel>
+</div>

@@ -20,7 +20,9 @@ export function themeCss(t = TOKENS) {
   const r = t.radius;
   return [
     BEGIN,
-    `  .t-root { background-color: ${c.bg}; border-radius: ${r.panel}px; }`,
+    `  .t-root { background-color: ${c.bg}; border-radius: ${r.panel}px; border-width: 4px; border-color: ${c.frame}; }`,
+    `  .t-head { background-color: ${c.head}; border-radius: ${r.control}px; padding: 8px; }`,
+    `  .t-headtext { color: ${c.headText}; font-size: ${f.name}px; font-weight: 700; }`,
     `  .t-title { color: ${c.text}; font-size: ${f.title}px; font-weight: 700; }`,
     `  .t-name { color: ${c.text}; font-size: ${f.name}px; font-weight: 700; }`,
     `  .t-lead { color: ${c.text}; font-size: ${f.lead}px; line-height: 1.25; }`,
@@ -33,7 +35,7 @@ export function themeCss(t = TOKENS) {
     `  .t-ok { color: ${c.ok}; font-size: ${f.muted}px; font-weight: 700; line-height: 1.25; }`,
     `  .t-bad { color: ${c.bad}; font-size: ${f.muted}px; font-weight: 700; line-height: 1.25; }`,
     `  .t-row { background-color: ${c.raised}; border-radius: ${r.control}px; }`,
-    `  .t-btn { background-color: ${c.raised}; border-radius: ${r.control}px; }`,
+    `  .t-btn { background-color: ${c.head}; border-radius: ${r.control}px; }`,
     `  .t-go { background-color: ${c.accent}; border-radius: ${r.control}px; }`,
     `  .t-track { background-color: ${c.track}; border-radius: 4px; }`,
     `  .t-fill { background-color: ${c.accent}; border-radius: 4px; }`,
@@ -49,7 +51,7 @@ export function withTheme(text, css = themeCss()) {
   return text.replace('<style>', `<style>\n  ${css.replace(/\n/g, '\n')}`);
 }
 
-export const THEMED = ['objective', 'iconbar', 'satchel', 'buildbook', 'bench', 'hint', 'card'];
+export const THEMED = ['objective', 'iconbar', 'satchel', 'buildbook', 'bench', 'hint', 'card', 'guide', 'level', 'tip', 'tutorial', 'welcome'];
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   for (const n of THEMED) {

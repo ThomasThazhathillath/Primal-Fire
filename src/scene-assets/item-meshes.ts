@@ -63,8 +63,9 @@ export function rockGeometry(i: number): BufferGeometry {
 }
 
 /** A collectible stone: a small rock tinted by `color` (a darker tint reads as flint, a pale one as chalk). Decor boulders are big and mossy. */
-function stone(color: number, size: number, rock = 0): Mesh {
-  const mat = new MeshLambertMaterial({ vertexColors: true, color });
+function stone(color: number, size: number, rock = 0, glow = 0x2c2c2c): Mesh {
+  // Light grey-white with a little self-light, so a pickup stands out from the dark decor boulders and the grass.
+  const mat = new MeshLambertMaterial({ vertexColors: true, color, emissive: glow });
   const m = new Mesh(rockGeometry(rock), mat);
   m.scale.setScalar(size * 2.1);
   return m;
@@ -146,8 +147,8 @@ const builders: Record<ResourceLook, () => Object3D> = {
     g.add(at(new Mesh(new CircleGeometry(0.058, 16), lambert(0xcfe8ff, { transparent: true, opacity: 0.55 })), 0, 0.07, 0, Math.PI / 2.4 - Math.PI / 2));
     return g;
   },
-  stone: () => stone(0xe6d8c2, 0.09, 0),
-  wetStone: () => stone(0x93a6b6, 0.09, 2),
+  stone: () => stone(0xf2ede4, 0.09, 0),
+  wetStone: () => stone(0xc4d0da, 0.09, 2, 0x202830),
   slab: () => at(new Mesh(weather(new BoxGeometry(0.6, 0.07, 0.42, 6, 1, 4), 0.012, 5), new MeshLambertMaterial({ color: ITEMS.slab.color, vertexColors: true })), 0, 0.035, 0),
   forkedStick: () => {
     const g = new Group();
@@ -190,8 +191,8 @@ const builders: Record<ResourceLook, () => Object3D> = {
     const m = new Mesh(new CylinderGeometry(0.1, 0.1, 0.36, 8, 1, true, 0, Math.PI * 1.1), lambert(0x6e5238, { side: DoubleSide }));
     return at(m, 0, 0.09, 0, 0, 0.6, Math.PI / 2);
   },
-  stoneDark: () => stone(0x6f7480, 0.14, 4),
-  stonePale: () => stone(0xf0e2c0, 0.11, 1),
+  stoneDark: () => stone(0x9aa0ae, 0.14, 4, 0x1c1e26),
+  stonePale: () => stone(0xfff6e0, 0.11, 1, 0x302c24),
 };
 
 /**

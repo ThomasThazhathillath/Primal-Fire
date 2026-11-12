@@ -1,33 +1,46 @@
 <!-- Step-by-step crafting guide: one compact card, low in view. Short verbs, big text. -->
 <style>
+  .theme-begin { display: flex; }
+  .t-root { background-color: rgba(238, 222, 184, 0.98); border-radius: 18px; border-width: 4px; border-color: #6e4a28; }
+  .t-head { background-color: #4f5f33; border-radius: 12px; padding: 8px; }
+  .t-headtext { color: #f6ecd2; font-size: 23px; font-weight: 700; }
+  .t-title { color: #2d1f12; font-size: 27px; font-weight: 700; }
+  .t-name { color: #2d1f12; font-size: 23px; font-weight: 700; }
+  .t-lead { color: #2d1f12; font-size: 22px; line-height: 1.25; }
+  .t-body { color: #2d1f12; font-size: 21px; line-height: 1.3; }
+  .t-muted { color: #6a5740; font-size: 18px; line-height: 1.3; }
+  .t-small { color: #2d1f12; font-size: 16px; font-weight: 700; }
+  .t-label { color: #b2511a; font-size: 14px; font-weight: 700; letter-spacing: 1.5px; }
+  .t-accent { color: #b2511a; font-size: 22px; font-weight: 700; }
+  .t-note { color: #8a4a1c; font-size: 17px; line-height: 1.25; }
+  .t-ok { color: #2c7a3e; font-size: 18px; font-weight: 700; line-height: 1.25; }
+  .t-bad { color: #a8301c; font-size: 18px; font-weight: 700; line-height: 1.25; }
+  .t-row { background-color: rgba(110, 72, 36, 0.14); border-radius: 12px; }
+  .t-btn { background-color: #4f5f33; border-radius: 12px; }
+  .t-go { background-color: #b2511a; border-radius: 12px; }
+  .t-track { background-color: rgba(90, 60, 28, 0.22); border-radius: 4px; }
+  .t-fill { background-color: #b2511a; border-radius: 4px; }
+.theme-end { display: flex; }
   .root { flex-direction: column; width: 460px; padding-top: 16px; padding-bottom: 16px; padding-left: 22px; padding-right: 22px; gap: 8px; }
   .head { flex-direction: row; justify-content: space-between; align-items: center; }
-  .eyebrow { color: #1f5f99; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
-  .eyebrow:dark { color: #8fc7ff; }
+  .eyebrow { color: #b2511a; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
   .headright { flex-direction: row; align-items: center; gap: 10px; }
-  .count { color: #55504a; font-size: 20px; font-weight: 700; }
-  .count:dark { color: #d9cfbd; }
-  .title { color: #1c1d20; font-size: 34px; font-weight: 700; line-height: 1.15; }
-  .title:dark { color: #fff7e6; }
+  .count { color: #2d1f12; font-size: 20px; font-weight: 700; }
+  .title { color: #2d1f12; font-size: 34px; font-weight: 700; line-height: 1.15; }
   .mats { flex-direction: row; gap: 8px; flex-wrap: wrap; }
-  .chip { flex-direction: row; align-items: center; gap: 6px; padding-top: 4px; padding-bottom: 4px; padding-left: 8px; padding-right: 10px; border-radius: 10px; background-color: #e9e2d4; }
-  .chip:dark { background-color: #3a352e; }
+  .chip { flex-direction: row; align-items: center; gap: 6px; padding-top: 4px; padding-bottom: 4px; padding-left: 8px; padding-right: 10px; border-radius: 10px; background-color: rgba(110, 72, 36, 0.14); }
   .swatch { width: 18px; height: 18px; border-radius: 9px; background-color: #888888; }
-  .chiptext { color: #2a2620; font-size: 20px; }
-  .chiptext:dark { color: #f3eadb; }
-  .hands { color: #8a5a00; font-size: 20px; font-weight: 700; }
-  .hands:dark { color: #ffb547; }
-  .fail { color: #b3261e; font-size: 24px; font-weight: 700; line-height: 1.25; }
-  .fail:dark { color: #ff8a80; }
-  .sci { color: #4b463f; font-size: 21px; line-height: 1.3; }
-  .sci:dark { color: #cfc5b3; }
+  .chiptext { color: #2d1f12; font-size: 20px; }
+  .hands { color: #b2511a; font-size: 20px; font-weight: 700; }
+  .fail { color: #a8301c; font-size: 24px; font-weight: 700; line-height: 1.25; }
+  .sci { color: #2d1f12; font-size: 21px; line-height: 1.3; }
 </style>
-<Panel class="root">
+<div class="root t-root">
   <div class="head">
     <div id="guide-name" class="eyebrow">GUIDE</div>
     <div class="headright">
       <div id="guide-count" class="count">1 / 1</div>
-      <Button id="guide-close" variant="secondary" size="sm"><ButtonLabel>Hide</ButtonLabel></Button>
+      <Button class="t-btn" id="guide-close" variant="secondary" size="sm"><ButtonLabel>Hide</ButtonLabel></Button>
     </div>
   </div>
   <div id="guide-title" class="title">-</div>
@@ -40,4 +53,4 @@
   <div id="guide-hands" class="hands">-</div>
   <div id="guide-fail" class="fail">-</div>
   <div id="guide-sci" class="sci">-</div>
-</Panel>
+</div>

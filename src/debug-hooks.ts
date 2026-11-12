@@ -7,6 +7,7 @@ import type { StructureKind } from './game/blueprint.js';
 import type { Recipe } from './game/game.js';
 import type { ItemId } from './game/items.js';
 import { RESOURCES } from './game/world-layout.js';
+import { cards } from './systems/shared.js';
 import { Gatherable } from './components/game-components.js';
 import { BuildSystem } from './systems/build-system.js';
 import { DesktopControlsSystem } from './systems/desktop-controls-system.js';
@@ -21,6 +22,7 @@ import { clearSave } from './systems/world-system.js';
 export function installDebugHooks(world: World): void {
   const game = getGame(world);
   const sys = <T>(c: new (...args: never[]) => T) => world.getSystem(c as never) as T;
+  (window as unknown as { __cards: unknown }).__cards = cards;
   (window as unknown as { __primal: unknown }).__primal = {
     world,
     game,

@@ -15,6 +15,8 @@
 import { createSystem, type Entity, RayInteractable, Types, type UIKit, type UIKitMLAsset, VisibilityState } from '@iwsdk/core';
 import { START_HOUR } from '../game/environment.js';
 import type { InteractionId } from '../game/objectives.js';
+import { ghost } from './shared.js';
+import { LESSON_CLIPS } from './ghost-hand-system.js';
 import { CLOSING, LESSONS, OPENING, storyHour, TutorialRunner, type TutorialSave } from '../game/tutorial-lessons.js';
 import { choiceMade, chooseSurvival, loadProgressRaw, reloadInto, saveCarry, saveProgressRaw, takeCarry } from '../game/tutorial-mode.js';
 import { PanelTouch } from './panel-touch.js';
@@ -38,7 +40,7 @@ export class TutorialSystem extends createSystem({}, { tutorial: { type: Types.B
   private entity: Entity | null = null;
   private touch: PanelTouch | null = null;
   /** Up and to the left, above the working space of the hands (an accidental brush must not change steps). */
-  private anchor = new StaticAnchor(0.6, -0.42, -0.08, 1.0, 1.2);
+  private anchor = new StaticAnchor(0.6, -0.42, 0.12, 1.0, 1.2).movable('tutorial', 520, 300);
   private runner: TutorialRunner | null = null;
   private mode: CardMode = 'hidden';
   /** The Story icon unfolds the card: every task, the tip, and the replay / skip controls. */
@@ -265,7 +267,8 @@ export class TutorialSystem extends createSystem({}, { tutorial: { type: Types.B
       el?.setProperties({
         display: 'flex',
         text: `${done ? '[x]' : i === next ? '>' : '[ ]'} ${uiText(t.text)}`,
-        color: done ? '#86dc97' : i === next ? '#ffc283' : '#d3c4a6',
+        // Dark, saturated colours: the card is parchment, so the old pale tones were nearly invisible.
+        color: done ? '#2c7a3e' : i === next ? '#b2511a' : '#6a5740',
       });
     }
     if (!x) return;
@@ -341,6 +344,10 @@ export class TutorialSystem extends createSystem({}, { tutorial: { type: Types.B
     const ui = getUi(this.world);
     const cur = game.objectives.current;
     this.runner.poll({ hintLevel: cur ? game.objectives.hintLevel(cur.id) : 0, notebookOpen: ui.notebookOpen?.() ?? false });
+    // The ghost hand shows the current lesson's gesture until its tasks are done.
+    const lc = this.runner.finished || this.mode !== 'lesson' ? undefined : LESSON_CLIPS[this.runner.lesson.id];
+    ghost.clip = lc && this.runner.nextTask() >= 0 ? lc : null;
+    ghost.card = 'tutorial';
     // The time of day on the card, every quarter hour.
     if (Math.floor(game.env.hour * 4) !== this.shownQuarter) this.dirty = true;
   }

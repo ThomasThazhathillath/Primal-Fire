@@ -18,7 +18,7 @@ import {
 import { fitsPouch } from '../game/items.js';
 import { PanelTouch } from './panel-touch.js';
 import { keepsGridOpen, pageLayout } from '../game/menu.js';
-import { getGame, getUi, hidePanel, menu, StaticAnchor } from './shared.js';
+import { getGame, getUi, hidePanel, menu, StaticAnchor, SwipePager } from './shared.js';
 import { clearSave, WorldSystem } from './world-system.js';
 
 const SLOT = 68;
@@ -53,13 +53,16 @@ const DEFS: Def[] = [
   { id: 'notebook', show: () => true, run: (s) => getUi(s.world).openNotebook?.() },
   { id: 'stow', show: (s) => !!getGame(s.world).held, run: (s) => s.stow() },
   { id: 'drop', show: (s) => !!getGame(s.world).held, run: (s) => s.dropHeld() },
-  { id: 'turn-left', show: (s) => s.vr, run: (s) => getUi(s.world).snapTurn?.(45) },
-  { id: 'turn-right', show: (s) => s.vr, run: (s) => getUi(s.world).snapTurn?.(-45) },
+  { id: 'turn-left', show: () => false, // moved to two always-visible Turn buttons (PauseSystem)
+     run: (s) => getUi(s.world).snapTurn?.(45) },
+  { id: 'turn-right', show: () => false,
+     run: (s) => getUi(s.world).snapTurn?.(-45) },
   { id: 'remove', show: (s) => s.canRemove, run: (s) => s.removeBuild() },
   { id: 'reload', show: () => true, run: (s) => s.reload() },
   { id: 'exit', show: (s) => s.vr, run: (s) => s.exitVr() },
   { id: 'book', show: () => true, run: (s) => getUi(s.world).toggleBook?.() },
-  { id: 'restart', show: () => true, run: (s) => s.restart() },
+  { id: 'restart', show: () => false, // Restart lives on the pause card now
+     run: (s) => s.restart() },
   // VR: the bar folds into this one button on your right; tap it to open the icons, tap again to fold.
   { id: 'menu', show: (s) => s.vr, run: () => menu.toggleGrid() },
   // Only at a finished workbench: opens its recipe panel (no more poking the 3D bench).
@@ -91,6 +94,8 @@ export class IconBarSystem extends createSystem({}) {
   private touch!: PanelTouch;
   benchNear = false;
   private page = 0;
+  /** Pinch-drag or finger swipe along the row pages it (the Back / More arrows stay as the fallback). */
+  private swipe = new SwipePager((d) => this.turnPage(d), 520, 90, 0, 'x');
   turnPage(d: number): void {
     this.page = Math.max(0, this.page + d);
     this.lastVisible = '';
@@ -335,6 +340,7 @@ export class IconBarSystem extends createSystem({}) {
     if (this.vr) {
       this.anchor.update(this.bar, this.camera);
       this.touch.update(delta);
+      if (this.vr && menu.gridVisible) this.swipe.update(this.bar);
     }
   }
 }

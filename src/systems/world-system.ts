@@ -91,7 +91,7 @@ export class WorldSystem extends createSystem({}) {
   }
 
   update(delta: number): void {
-    if (!this.started || this.paused) return;
+    if (!this.started || this.paused || (getUi(this.world).paused?.() ?? false)) return;
     const game = getGame(this.world);
     game.tick(delta);
     // Heavy packs slow VR sliding too (desktop walking reads moveLimits itself).

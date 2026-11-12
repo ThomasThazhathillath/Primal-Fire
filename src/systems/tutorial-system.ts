@@ -109,22 +109,14 @@ export class TutorialSystem extends createSystem({}, { tutorial: { type: Types.B
   /** Welcome panel: the guided opening (survival page) or "Skip to survival" (opening page). */
   private wireWelcome(tutorial: boolean): void {
     const welcome = this.world.getSceneObject<UIKitMLAsset>('welcome-panel');
-    const btn = welcome?.getElementById('tutorial-button');
-    if (!welcome || !btn) return;
-    welcome.getElementById<UIKit.Text>('tutorial-label')?.setProperties({ text: tutorial ? 'Skip to survival' : 'First steps (guided)' });
-    const click = () => {
-      if (tutorial) this.leave(false);
-      else reloadInto('tutorial');
+    welcome?.getElementById<UIKit.Text>('tutorial-label')?.setProperties({ text: tutorial ? 'Skip tutorial' : 'Tutorial' });
+    // The title menu (IntroSystem) calls these for fingertip, gaze and mouse alike.
+    const ui = getUi(this.world);
+    ui.titleTutorial = () => (tutorial ? this.leave(false) : reloadInto('tutorial'));
+    // Pressing Play on the survival page is the skip choice.
+    ui.titlePlay = () => {
+      if (!tutorial) chooseSurvival();
     };
-    btn.addEventListener('click', click);
-    this.cleanupFuncs.push(() => btn.removeEventListener('click', click));
-    // Pressing "Wake up" on the survival page is the skip choice.
-    if (!tutorial) {
-      const begin = welcome.getElementById('begin-button');
-      const skip = () => chooseSurvival();
-      begin?.addEventListener('click', skip);
-      this.cleanupFuncs.push(() => begin?.removeEventListener('click', skip));
-    }
   }
 
   private startRunner(): void {
@@ -268,7 +260,7 @@ export class TutorialSystem extends createSystem({}, { tutorial: { type: Types.B
         display: 'flex',
         text: `${done ? '[x]' : i === next ? '>' : '[ ]'} ${uiText(t.text)}`,
         // Dark, saturated colours: the card is parchment, so the old pale tones were nearly invisible.
-        color: done ? '#2c7a3e' : i === next ? '#b2511a' : '#6a5740',
+        color: done ? '#8fd49b' : i === next ? '#f0a54e' : '#cdb894',
       });
     }
     if (!x) return;

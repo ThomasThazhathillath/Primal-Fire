@@ -1,8 +1,8 @@
 // The training camp of "THE FIRST STEPS": a few real resource spots laid out
 // in a half ring in front of where you wake (0,0 faces -Z), all within a step
 // or two so a seated player can reach them. They are ordinary ResourceSpots,
-// gathered by the real ResourceSystem; they regrow quickly so any lesson can
-// be repeated.
+// gathered by the real ResourceSystem; they hold a few charges and regrow slowly (as in
+// the real game), so the same stone cannot be taken over and over.
 
 import type { ItemId } from './items.js';
 import type { ResourceLook, ResourceSpot } from './world-layout.js';
@@ -30,9 +30,9 @@ const CAMP: CampSpot[] = [
   { look: 'sapling', item: 'greenBranch', label: 'A young, living sapling', x: 1.9, z: -1.1 },
 ];
 
-/** Every camp spot regrows after this long (s), so lessons can be replayed. */
-export const CAMP_REGROW = 15;
-export const CAMP_CHARGES = 6;
+/** A camp spot gives a few charges, then needs a realistic wait (s of game time) for each one to grow back: never an instant refill. */
+export const CAMP_REGROW = 240;
+export const CAMP_CHARGES = 3;
 
 export function tutorialSpots(): ResourceSpot[] {
   return CAMP.map((c, i) => ({

@@ -1,4 +1,4 @@
-// "THE FIRST STEPS — Learning to Survive": the eleven lessons and the runner
+// "THE FIRST STEPS — Learning to Survive": the lessons and the runner
 // that watches the REAL game for each one. Nothing here gathers, builds or
 // crafts for you: the runner only listens to Game events and reads Game state.
 // A lesson's setup may hand the (tutorial-only) Game a few starting items so
@@ -16,6 +16,7 @@ export type LessonId =
   | 'look'
   | 'gather'
   | 'satchel'
+  | 'glide'
   | 'move'
   | 'place'
   | 'build'
@@ -184,6 +185,18 @@ export const LESSONS: Lesson[] = [
     tasks: [
       { text: 'Take a stone out of the pouch', done: (c) => c.tookOut >= 1 },
       { text: 'Put it back', done: (c) => c.putBack >= 1 },
+    ],
+  },
+  // VR MOVEMENT: the thumb-over-index micro-gesture. Detected the same way as any movement (the player's position and yaw).
+  {
+    id: 'glide',
+    title: 'Thumb moves',
+    say: 'No sticks needed. Your thumb moves you: rest it over your index finger.',
+    science: 'Small, well-practised motions are easier to repeat than big ones: that is why fine tools use the thumb.',
+    tip: 'Tap the side of your index finger with your thumb to teleport. Swipe the thumb left or right along it to turn. Or pinch and hold, aim at the ground, let go. Desktop: WASD and Q / E.',
+    tasks: [
+      { text: 'Teleport: tap thumb on index', done: (c) => c.moved >= 1.2 },
+      { text: 'Turn: swipe thumb left or right', done: (c) => c.turned >= 0.7 },
     ],
   },
   {
@@ -612,6 +625,7 @@ export const STEP_HOURS: Record<LessonId, number> = {
   look: 13.2,
   gather: 13.5,
   satchel: 14,
+  glide: 14.25,
   move: 14.5,
   place: 15,
   build: 15.5,

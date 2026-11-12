@@ -160,6 +160,7 @@ export class BuildSystem extends createSystem({
     this.cleanupFuncs.push(
       game.on((e: GameEvent) => {
         if (e.type === 'held') this.setGhost(this.ghostFor(e.item));
+        if (e.type === 'plan') this.setGhost(this.ghostFor(getGame(this.world).held));
         if (e.type === 'structure') {
           this.renderStructure(e.structure);
           this.setGhost(this.ghostFor(getGame(this.world).held));
@@ -196,8 +197,10 @@ export class BuildSystem extends createSystem({
 
   /** The blueprint a held item would start, unless an unfinished structure nearby wants it instead. */
   private ghostFor(item: ItemId | null): BlueprintDef | null {
-    if (!item) return null;
     const game = getGame(this.world);
+    // A plan picked in the build book takes precedence: no part in hand needed.
+    if (game.armedPlan) return BLUEPRINTS[game.armedPlan];
+    if (!item) return null;
     if (game.wantsItem(item, game.player.x, game.player.z)) return null;
     // A new outline replaces an unfinished one of the same kind (Game.placeBlueprint), so it may show anywhere.
     // One rule (Game.wantedStructure): inside a tutorial lesson only the lesson's structure, else the objective's.
@@ -346,7 +349,8 @@ export class BuildSystem extends createSystem({
   placeGhost(): boolean {
     if (!this.ghostKind || !this.ghostRoot.visible) return false;
     const { x, z } = this.ghostRoot.position;
-    const res = getGame(this.world).placeBlueprint(this.ghostKind, x, z, this.ghostRoot.rotation.y);
+    const g = getGame(this.world);
+    const res = g.placeBlueprint(this.ghostKind, x, z, this.ghostRoot.rotation.y, g.armedPlan === this.ghostKind);
     return res.ok;
   }
 

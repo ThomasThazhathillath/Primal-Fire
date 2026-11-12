@@ -1,31 +1,36 @@
 {
-  "name": "field journal (parchment)",
+  "name": "survival kit (dark leather and wood)",
   "color": {
-    "bg": "rgba(238, 222, 184, 0.98)",
-    "raised": "rgba(110, 72, 36, 0.14)",
-    "raisedHi": "rgba(110, 72, 36, 0.26)",
-    "text": "#2d1f12",
-    "muted": "#6a5740",
-    "accent": "#b2511a",
-    "accentSoft": "#8a4a1c",
-    "ok": "#2c7a3e",
-    "bad": "#a8301c",
-    "track": "rgba(90, 60, 28, 0.22)",
-    "frame": "#6e4a28",
-    "head": "#4f5f33",
-    "headText": "#f6ecd2"
+    "bg": "rgba(24, 16, 10, 0.98)",
+    "raised": "rgba(255, 220, 170, 0.08)",
+    "raisedHi": "rgba(255, 220, 170, 0.16)",
+    "text": "#f3e6cc",
+    "muted": "#cdb894",
+    "accent": "#f0a54e",
+    "accentSoft": "#e2b77a",
+    "ok": "#8fd49b",
+    "bad": "#ff8f73",
+    "track": "rgba(255, 225, 180, 0.16)",
+    "frame": "#6b4524",
+    "head": "#5e6e34",
+    "headText": "#fbf0d6",
+    "banner": "#5a2f16",
+    "bannerEdge": "#c4893f",
+    "slot": "#3a2716",
+    "slotEdge": "#86643c",
+    "rule": "rgba(196, 137, 63, 0.55)"
   },
   "radius": {
     "panel": 18,
     "control": 12
   },
   "font": {
-    "title": 27,
-    "name": 23,
-    "lead": 22,
-    "body": 21,
+    "title": 24,
+    "name": 20,
+    "lead": 20,
+    "body": 19,
     "muted": 18,
-    "small": 16,
-    "label": 14
+    "small": 15,
+    "label": 13
   }
 }

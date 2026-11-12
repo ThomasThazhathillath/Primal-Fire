@@ -1,53 +1,51 @@
 <!-- Title and onboarding: shown when you wake up. -->
 <style>
   .theme-begin { display: flex; }
-  .t-root { background-color: rgba(238, 222, 184, 0.98); border-radius: 18px; border-width: 4px; border-color: #6e4a28; }
-  .t-head { background-color: #4f5f33; border-radius: 12px; padding: 8px; }
-  .t-headtext { color: #f6ecd2; font-size: 23px; font-weight: 700; }
-  .t-title { color: #2d1f12; font-size: 27px; font-weight: 700; }
-  .t-name { color: #2d1f12; font-size: 23px; font-weight: 700; }
-  .t-lead { color: #2d1f12; font-size: 22px; line-height: 1.25; }
-  .t-body { color: #2d1f12; font-size: 21px; line-height: 1.3; }
-  .t-muted { color: #6a5740; font-size: 18px; line-height: 1.3; }
-  .t-small { color: #2d1f12; font-size: 16px; font-weight: 700; }
-  .t-label { color: #b2511a; font-size: 14px; font-weight: 700; letter-spacing: 1.5px; }
-  .t-accent { color: #b2511a; font-size: 22px; font-weight: 700; }
-  .t-note { color: #8a4a1c; font-size: 17px; line-height: 1.25; }
-  .t-ok { color: #2c7a3e; font-size: 18px; font-weight: 700; line-height: 1.25; }
-  .t-bad { color: #a8301c; font-size: 18px; font-weight: 700; line-height: 1.25; }
-  .t-row { background-color: rgba(110, 72, 36, 0.14); border-radius: 12px; }
-  .t-btn { background-color: #4f5f33; border-radius: 12px; }
-  .t-go { background-color: #b2511a; border-radius: 12px; }
-  .t-track { background-color: rgba(90, 60, 28, 0.22); border-radius: 4px; }
-  .t-fill { background-color: #b2511a; border-radius: 4px; }
+  .t-root { background-color: rgba(24, 16, 10, 0.98); border-radius: 18px; border-width: 8px; border-color: #6b4524; }
+  .t-banner { flex-direction: row; align-items: center; justify-content: space-between; background-color: #5a2f16; border-radius: 12px; border-bottom-width: 4px; border-color: #c4893f; padding-top: 8px; padding-bottom: 8px; padding-left: 14px; padding-right: 10px; flex-shrink: 0; }
+  .t-bannertext { color: #fbf0d6; font-size: 24px; font-weight: 700; letter-spacing: 1px; }
+  .t-head { background-color: #5e6e34; border-radius: 12px; padding: 8px; }
+  .t-headtext { color: #fbf0d6; font-size: 20px; font-weight: 700; }
+  .t-title { color: #f3e6cc; font-size: 24px; font-weight: 700; line-height: 1.15; }
+  .t-name { color: #f3e6cc; font-size: 20px; font-weight: 700; }
+  .t-lead { color: #f3e6cc; font-size: 20px; line-height: 1.25; }
+  .t-body { color: #f3e6cc; font-size: 19px; line-height: 1.3; }
+  .t-muted { color: #cdb894; font-size: 18px; line-height: 1.3; }
+  .t-small { color: #f3e6cc; font-size: 15px; font-weight: 700; }
+  .t-label { color: #f0a54e; font-size: 13px; font-weight: 700; letter-spacing: 1.5px; }
+  .t-accent { color: #f0a54e; font-size: 20px; font-weight: 700; }
+  .t-note { color: #e2b77a; font-size: 17px; line-height: 1.25; }
+  .t-ok { color: #8fd49b; font-size: 18px; font-weight: 700; line-height: 1.25; }
+  .t-bad { color: #ff8f73; font-size: 18px; font-weight: 700; line-height: 1.25; }
+  .t-row { background-color: #3a2716; border-radius: 12px; border-width: 2px; border-color: #86643c; }
+  .t-slot { background-color: #3a2716; border-radius: 12px; border-width: 2px; border-color: #86643c; }
+  .t-slottext { color: #f3e6cc; font-weight: 600; }
+  .t-tile { flex-direction: column; align-items: center; justify-content: flex-end; background-color: #3a2716; border-radius: 12px; padding-bottom: 8px; padding-left: 6px; padding-right: 6px; }
+  .t-tiletext { color: #f3e6cc; font-size: 15px; font-weight: 700; line-height: 1.2; text-align: center; }
+  .t-detail { background-color: rgba(255, 220, 170, 0.08); border-radius: 12px; padding: 10px; color: #f3e6cc; font-size: 18px; line-height: 1.3; flex-shrink: 0; }
+  .t-rule { height: 2px; background-color: rgba(196, 137, 63, 0.55); flex-shrink: 0; }
+  .t-btn { background-color: #5e6e34; border-radius: 12px; }
+  .t-go { background-color: #f0a54e; border-radius: 12px; }
+  .t-track { background-color: rgba(255, 225, 180, 0.16); border-radius: 4px; }
+  .t-fill { background-color: #f0a54e; border-radius: 4px; }
 .theme-end { display: flex; }
-  .panel-root { flex-direction: column; width: 420px; }
-  .panel-content { flex-direction: column; gap: 9px; padding: 24px; }
-  .eyebrow { color: #b2511a; font-size: 14px; font-weight: 700; letter-spacing: 1.4px; }
-  .heading { color: #2d1f12; font-size: 34px; font-weight: 700; line-height: 40px; }
-  .body { color: #2d1f12; font-size: 18px; line-height: 25px; }
-  .how { color: #2d1f12; font-size: 15px; line-height: 22px; }
-  .btntext { color: #f6ecd2; font-size: 22px; font-weight: 700; }
-  .button { justify-content: flex-start; margin-left: 24px; margin-right: 24px; margin-bottom: 14px; }
+  .panel-root { flex-direction: column; width: 520px; padding: 28px; gap: 12px; align-items: center; }
+  .eyebrow { color: #f0a54e; font-size: 18px; font-weight: 700; letter-spacing: 3px; }
+  .heading { color: #f3e6cc; font-size: 84px; font-weight: 700; letter-spacing: 10px; line-height: 1.1; }
+  .sub { color: #cdb894; font-size: 22px; line-height: 1.3; text-align: center; width: 440px; }
+  .menu { flex-direction: column; gap: 12px; width: 440px; margin-top: 10px; }
+  .big { width: 440px; height: 68px; justify-content: center; }
+  .btntext { color: #f6ecd2; font-size: 26px; font-weight: 700; }
 </style>
 <div class="panel-root t-root">
-  <div class="panel-content">
-    <div class="eyebrow">CHAPTER 1</div>
-    <div class="heading">PRIMAL: First Fire</div>
-    <div class="body">You wake on the forest floor with nothing. Every machine is gone. The science isn't.</div>
-    <div class="how">Point and pinch to gather: it goes into the pouch at your hip. To build, pinch an empty glowing mark - a stone from the pouch fills it, and the next one comes to your hand.</div>
-    <div class="how">Stuck? Ask for a hint - ask again for a clearer one.</div>
+  <div class="eyebrow">A SURVIVAL STORY</div>
+  <div class="heading">PRIMAL</div>
+  <div class="sub">You wake on the forest floor with nothing. Every machine is gone. The science isn't.</div>
+  <div class="menu">
+    <Button class="t-go big" id="begin-button" size="lg"><ButtonIcon class="btntext"><Sunrise></Sunrise></ButtonIcon><ButtonLabel id="begin-label" class="btntext">Play</ButtonLabel></Button>
+    <Button class="t-btn big" id="tutorial-button" size="lg"><ButtonIcon class="btntext"><GraduationCap></GraduationCap></ButtonIcon><ButtonLabel id="tutorial-label" class="btntext">Tutorial</ButtonLabel></Button>
+    <Button class="t-btn big" id="new-button" size="lg"><ButtonIcon class="btntext"><ListRestart></ListRestart></ButtonIcon><ButtonLabel id="new-label" class="btntext">New Game</ButtonLabel></Button>
+    <Button class="t-btn big" id="xr-button" size="lg"><ButtonIcon class="btntext"><RectangleGoggles></RectangleGoggles></ButtonIcon><ButtonLabel class="btntext">Enter VR</ButtonLabel></Button>
+    <Button class="t-btn big" id="quit-button" size="lg"><ButtonIcon class="btntext"><LogOut></LogOut></ButtonIcon><ButtonLabel id="quit-label" class="btntext">Quit</ButtonLabel></Button>
   </div>
-  <Button class="t-btn" id="xr-button" class="button">
-    <ButtonIcon class="btntext"><RectangleGoggles></RectangleGoggles></ButtonIcon>
-    <ButtonLabel class="btntext">Enter VR</ButtonLabel>
-  </Button>
-  <Button class="t-btn" id="tutorial-button" class="button">
-    <ButtonIcon class="btntext"><GraduationCap></GraduationCap></ButtonIcon>
-    <ButtonLabel id="tutorial-label" class="btntext">Learn the basics</ButtonLabel>
-  </Button>
-  <Button class="t-btn" id="begin-button" class="button">
-    <ButtonIcon class="btntext"><Sunrise></Sunrise></ButtonIcon>
-    <ButtonLabel id="begin-label" class="btntext">Wake up</ButtonLabel>
-  </Button>
 </div>

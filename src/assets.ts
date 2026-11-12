@@ -71,5 +71,8 @@ export default defineAssets({
   'guide-panel': uikitml('guide.uikitml', 'Guide Card'),
   'level-panel': uikitml('level.uikitml', 'Level Card'),
   'bench-panel': uikitml('bench.uikitml', 'Workbench Recipes'),
+  'pausebtn-panel': uikitml('pausebtn.uikitml', 'Pause Button'),
+  'pausecard-panel': uikitml('pausecard.uikitml', 'Pause Card'),
+  'turn-panel': uikitml('turn.uikitml', 'Turn Button'),
   'tutorial-panel': uikitml('tutorial.uikitml', 'Tutorial Tracker'),
 });

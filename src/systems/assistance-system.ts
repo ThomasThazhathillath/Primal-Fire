@@ -7,7 +7,7 @@
 // The rules live in game/adaptive.ts (StruggleTracker); this system feeds it four times a second and shows
 // the result through the existing channels (highlight pulse, hand sign, card line, pillar).
 
-import { createSystem, VisibilityState } from '@iwsdk/core';
+import { createSystem } from '@iwsdk/core';
 import { failHelp, FAIL_SIGN, type Help, MOTION_SIGN } from '../game/adaptive.js';
 import type { GameEvent } from '../game/game.js';
 import { itemName } from '../game/items.js';
@@ -15,7 +15,7 @@ import { nextStepLine } from '../game/objectives.js';
 import { groundHeight } from '../game/world-layout.js';
 import { GazeTargetSystem } from './gaze-target-system.js';
 import { ResourceSystem } from './resource-system.js';
-import { assistFx, getGame, getUi, rayPick, reveal } from './shared.js';
+import { assistFx, getGame, getUi, reveal } from './shared.js';
 import { WorldSystem } from './world-system.js';
 
 const TICK = 0.25;
@@ -100,9 +100,9 @@ export class AssistanceSystem extends createSystem({}) {
     const s = game.struggle;
 
     // Looking (or pointing) at something takeable without taking it.
-    const vr = this.world.visibilityState.peek() !== VisibilityState.NonImmersive;
     const look = this.world.getSystem(GazeTargetSystem)?.lookTarget;
-    const key = vr && rayPick.key ? (rayPick.ok ? `look:${rayPick.key}` : '') : look && (look.kind === 'resource' || look.kind === 'drop') && !game.held ? `look:${look.key}` : '';
+    // Only the gaze counts: a resting hand's ray lies on things for minutes without meaning anything.
+    const key = look && (look.kind === 'resource' || look.kind === 'drop') && !game.held ? `look:${look.key}` : '';
     if (key !== this.lookKey) {
       if (this.lookKey) s.succeed(this.lookKey); // looked away: that one starts over
       this.lookKey = key;

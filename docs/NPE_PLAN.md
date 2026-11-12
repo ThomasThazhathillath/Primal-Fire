@@ -159,11 +159,49 @@ camp and the current destination marked, redrawn only when the heading changes.
 ### E. Modes and accessibility
 
 `settings.ts`: mode (Guided default for a new save, Standard for an existing one, Explorer), text size, hint
-frequency, guidance visibility, interaction sensitivity, seated assist; saved in localStorage and mirrored in
-the save as an optional field (old saves load unchanged). A Settings card from the pause card and the title
+frequency, guidance visibility, interaction sensitivity, seated assist; saved in localStorage under its own key
+(never inside the game save, so old saves load unchanged). A Settings card from the pause card and the title
 menu. Every option applies at once.
 
 ### F. Tests, walkthrough, docs
 
 Unit tests for every item in spec 12, a scripted fresh-save walkthrough in IWER with timings against the spec's
 targets, README and PROJECT_STATUS updates, and a list of what needs a real Quest.
+
+## Status (Nov 12)
+
+| Milestone | Commit | Done | Not done / limits |
+|---|---|---|---|
+| A Interaction reliability | 70741f7 | `pickByRay` (angle first, distance tie-break, nothing behind a nearer target, in reach first), `PinchLock` per hand (stable target locked when the fingers close, one pinch one pickup), gaze tie-break and no switching to a target behind, pickup label with can/cannot ("pinch to take", "step closer", "pockets full", "hands full"), "+1 Dry stone, in your pouch", controller haptics, pinch-press on buttons (commits on release, never during a scroll), a menu pinch never also gathers | Hit spheres left at their size (the lock and picker stop them from swallowing neighbours); teleport destination forgiveness not changed |
+| B First five minutes | c5d534d | Lessons in the spec's stage order, the spec's opening line, gradual reveal (lesson card, then menu at the pouch, then the objective card after the first discovery), first-pickup confirmation, lessons already shown are passed, progress saved by lesson id with skills, old saves migrated | The workbench stage still builds the bench in the tutorial camp (no walk to a separate bench) |
+| C Progressive assistance | b9921f5 | `StruggleTracker` (looking without taking, repeated failures, idle, unused bench), cue / instruction / explicit with the hand sign and the pillar over an unused bench, cleared on success, configurable delay; bench near-miss tolerance after repeated wrong motions | Science-experiment hints ("what can be investigated") were not added beyond the existing objective hints |
+| D Objective card and navigation | 0e0e4c7 | "Next:" line and "Look for:" line on the card; the card's contextual lines now render (they never did before); compass tape with camp and goal, edge arrows; desktop strip | No new landmarks; resource placement unchanged |
+| E Modes and accessibility | bf7bbe4 | Guided / Standard / Explorer, text size, hint frequency, guidance markers, sensitivity, seated assist; Settings card from pause and title; persisted; applied live | Text size scales whole anchored cards, not fonts inside them |
+| F Tests, walkthrough, docs | this commit | 38 new unit tests (npe-*.test.ts), `scripts/npe-walkthrough.sh` with timings (docs/NPE_WALKTHROUGH.md), Chapter 1 story regression, README and PROJECT_STATUS | Human first-time timings need a real player |
+
+### Performance
+
+New per-frame work: the hand-ray pick and lock for both hands, about 22 microseconds per frame on the dev Mac
+with 160 candidates (a micro-benchmark of `pickByRay` + `PinchLock`); the Quest's CPU is several times slower, so
+expect roughly 0.1 ms. Pinch-press is a handful of comparisons per open panel. The assistance check runs four
+times a second, the compass redraws only when the heading moves 3 degrees or you move half a metre, and the
+candidate list is rebuilt four times a second. The compass adds one draw call in VR; the assistance pulse uses
+the existing highlight pool. Not measured on a Quest.
+
+### Needs checking on a real Quest
+
+1. Hand-ray pickups: does the lock pick the stone you meant when pinching fast at clustered stones? Watch the
+   log for `gather lock: a -> b` lines (the redirects) and for any wrong pickups.
+2. Pinch-press on buttons: presses on purpose, no presses while resting a pinching hand near the menu, and pinch
+   scrolling of the bag and book still scrolls (the press must cancel after 3 cm of travel).
+3. The pickup label and "+1 ... in your pouch" note: readable, not in the way.
+4. The gradual reveal: is the menu missed before the pouch stage? Is the lesson card enough on its own?
+5. Struggle help timings (Guided defaults): does help come too soon or too late? `assist ... level N` lines in
+   the log show when it fired.
+6. Bench near-miss forgiveness: does a struggling player finish the bow-drill steps (the Quest log had 279
+   wrong-motion refusals)?
+7. Compass tape: visible but not distracting, above the cards and below the Pause button.
+8. Settings card: every button reachable and pressable by fingertip and pinch; Large text keeps cards on screen.
+9. Seated assist: the 25% longer reach feels right from a chair.
+10. Controller haptics (hands have none).
+11. Frame time with all of the above on (the Quest perf overlay).

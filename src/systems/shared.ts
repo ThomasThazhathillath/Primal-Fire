@@ -43,6 +43,14 @@ export interface UiHooks {
   saveNow(): void;
   /** Guided opening only: open or fold the story card's steps and replay / skip controls. */
   toggleStory?(): void;
+  /** Title menu: the Tutorial button (set by TutorialSystem: start the guided steps, or leave them). */
+  titleTutorial?(): void;
+  /** Title menu: Play / Continue was pressed (TutorialSystem records the skip choice). */
+  titlePlay?(): void;
+  /** True while the title menu is up (other cards stay out of its way). */
+  titleOpen?(): boolean;
+  /** True while the pause card is up or the game is paused. */
+  paused?(): boolean;
 }
 
 export function getGame(world: World): Game {

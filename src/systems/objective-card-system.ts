@@ -204,9 +204,14 @@ export class ObjectiveCardSystem extends createSystem({}) {
     }
     const subs = v.substeps.map((s) => `${s.done ? '[x]' : '[ ]'} ${s.text}`).join('   ');
     text('obj-subs', subs);
+    // NPE D: what is still needed, and the one next action (the contextual and assistance lines appear here).
+    const parts = v.parts ?? '';
+    text('obj-parts', parts);
+    const nextLine = v.feedback ? '' : (v.nextAction ?? '');
+    text('obj-next', nextLine);
     // A failed attempt is explained first; the control lesson only until it is learned.
     text('obj-bad', v.feedback ?? '');
-    const how = v.feedback ? '' : (v.next ?? v.tip ?? '');
+    const how = v.feedback ? '' : v.next && v.next !== nextLine ? v.next : (v.tip ?? '');
     text('obj-note', how);
     text('obj-how-label', this.howOpen ? 'Hide' : 'How?');
     // Rows that have nothing to say take no room (height, not display: a display toggle left rows zero-height).
@@ -216,6 +221,8 @@ export class ObjectiveCardSystem extends createSystem({}) {
       how: how ? 44 : 0,
       note: how && this.howOpen ? 100 : 0,
       bad: v.feedback ? 40 : 0,
+      parts: parts ? 26 : 0,
+      next: nextLine ? (nextLine.length > 52 ? 52 : 28) : 0,
     };
     const set = (id: string, height: number) => this.panel.requireElementById(id).setProperties({ height } as never);
     set('obj-where', h.where);
@@ -223,7 +230,9 @@ export class ObjectiveCardSystem extends createSystem({}) {
     set('obj-howrow', h.how);
     set('obj-note', h.note);
     set('obj-bad', h.bad);
-    const total = 16 + 56 + 6 + 60 + h.where + (v.progress ? 30 : 0) + h.subs + h.how + h.note + h.bad + 14 + 6 * 5;
+    set('obj-parts', h.parts);
+    set('obj-next', h.next);
+    const total = 16 + 56 + 6 + 60 + h.where + (v.progress ? 30 : 0) + h.subs + h.how + h.note + h.bad + h.parts + h.next + 14 + 6 * 7;
     if (total !== this.lastHeight) {
       this.lastHeight = total;
       this.panel.requireElementById('obj-root').setProperties({ height: total } as never);

@@ -48,6 +48,8 @@
   .howrow { flex-direction: row; align-items: center; gap: 12px; flex-shrink: 0; height: 0px; overflow: hidden; }
   .how { height: 40px; }
   .subs { height: 0px; overflow: hidden; flex-shrink: 0; width: 480px; }
+  .parts { height: 0px; overflow: hidden; flex-shrink: 0; width: 480px; }
+  .next { height: 0px; overflow: hidden; flex-shrink: 0; width: 480px; }
   .note { height: 0px; overflow: hidden; flex-shrink: 0; width: 480px; }
   .bad { height: 0px; overflow: hidden; flex-shrink: 0; width: 480px; }
   .cele { flex-direction: row; align-items: center; gap: 14px; background-color: #2c6a3d; border-radius: 12px; padding: 12px; display: none; flex-shrink: 0; }
@@ -71,7 +73,9 @@
       <div id="obj-ptext" class="t-accent">0 / 1</div>
       <div class="bar t-track"><div id="obj-fill" class="fill t-fill"></div></div>
     </div>
+    <div id="obj-parts" class="parts t-muted">-</div>
     <div id="obj-subs" class="subs t-muted">-</div>
+    <div id="obj-next" class="next t-accent">-</div>
     <div id="obj-howrow" class="howrow">
       <Button id="obj-how" class="how t-btn" size="sm" variant="secondary"><ButtonLabel id="obj-how-label">How?</ButtonLabel></Button>
     </div>

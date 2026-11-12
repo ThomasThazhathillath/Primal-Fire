@@ -96,3 +96,40 @@ export function whereLandmark(id: string, from: { x: number; z: number }, yaw: n
   const m = Math.max(5, Math.round(d / 5) * 5);
   return `About ${m} metres ${relativeDirection(dx, dz, yaw)}${phrase ? `, ${phrase}` : ''}.`;
 }
+
+// ---------------------------------------------------------------- compass (NPE milestone D)
+
+/**
+ * Where camp is: the story's camp (a fire and a workbench together) once it exists, else your first finished
+ * workbench or fire pit, else the clearing you woke in.
+ */
+export function campOf(g: { story: { camp: { x: number; z: number } | null }; structures: ReadonlyArray<{ kind: string; complete: boolean; x: number; z: number }> }): { x: number; z: number; known: boolean } {
+  if (g.story.camp) return { x: g.story.camp.x, z: g.story.camp.z, known: true };
+  const s = g.structures.find((t) => t.complete && (t.kind === 'workbench' || t.kind === 'firePit'));
+  if (s) return { x: s.x, z: s.z, known: true };
+  return { x: 0, z: 0, known: false };
+}
+
+/** Signed bearing (deg) of a point relative to a head facing `yaw`: 0 ahead, +90 right, -90 left, +-180 behind. */
+export function bearingTo(dx: number, dz: number, yaw: number): number {
+  const fx = -Math.sin(yaw);
+  const fz = -Math.cos(yaw);
+  const rx = Math.cos(yaw);
+  const rz = -Math.sin(yaw);
+  return (Math.atan2(dx * rx + dz * rz, dx * fx + dz * fz) * 180) / Math.PI;
+}
+
+/** Compass heading (deg, 0 = north = -Z, 90 = east = +X) of a head facing `yaw`. */
+export function headingOf(yaw: number): number {
+  const h = (-yaw * 180) / Math.PI;
+  return ((h % 360) + 360) % 360;
+}
+
+/** The tape's visible half-width (deg): marks beyond it are pinned to the edge with an arrow. */
+export const COMPASS_SPAN = 60;
+
+/** Where a mark at signed bearing `b` sits on a tape of half-width `span`: -1..1, and whether it is pinned to an edge. */
+export function tapePos(b: number, span = COMPASS_SPAN): { x: number; edge: boolean } {
+  if (Math.abs(b) <= span) return { x: b / span, edge: false };
+  return { x: b > 0 ? 1 : -1, edge: true };
+}

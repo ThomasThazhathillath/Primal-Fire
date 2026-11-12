@@ -147,6 +147,29 @@ export function nextStepLine(g: Game): string | null {
   return null;
 }
 
+/** "Look for: dry grass, twigs" for an objective about finding things (null for builds: their materials line covers it). */
+export function partsLine(o: Objective, g: Game): string | null {
+  if (o.structure) return null;
+  const items = o.find?.(g) ?? [];
+  if (!items.length) return null;
+  const names = [...new Set(items)].map((id) => ITEMS[id].name.toLowerCase());
+  return `Look for: ${names.join(', ')}`;
+}
+
+/**
+ * The single next action (NPE D), so the card always says what to do now: a contextual line (assistance, "this
+ * fits here") first, then "you have everything", then the first open substep, then how to collect what is missing.
+ */
+export function nextActionLine(o: Objective, g: Game, message: string | null, next: string | null, substeps: Array<{ text: string; done: boolean }>): string | null {
+  if (message) return message;
+  if (next) return next;
+  const open = substeps.find((x) => !x.done);
+  if (open) return `Next: ${open.text.charAt(0).toLowerCase()}${open.text.slice(1)}`;
+  const items = o.find?.(g) ?? [];
+  if (items.length) return `Next: look at ${ITEMS[items[0]].name.toLowerCase()} and pinch to collect it.`;
+  return null;
+}
+
 // ------------------------------------------------------------ sequence
 
 export const OBJECTIVES: Objective[] = [
@@ -667,6 +690,10 @@ export interface ObjectiveView {
   message: string | null;
   /** Why the last build attempt failed. */
   feedback: string | null;
+  /** What to collect, when the objective is about finding things (NPE D): "Look for: dry grass, twigs". */
+  parts?: string | null;
+  /** The one next action, always phrased as a step (NPE D): the contextual line, a ready-to-build note, the first open substep, or how to collect. */
+  nextAction?: string | null;
   /** The just-finished objective's message while it is celebrated. */
   celebrating: { title: string; message: string } | null;
   /** 1-based number in the sequence, and how many there are. */
@@ -858,16 +885,21 @@ export class ObjectiveTracker {
     }
     const o = this.current;
     if (!o) return null;
+    const substeps = o.substeps ? o.substeps(g) : [];
+    const next = nextStepLine(g) ?? readyToBuild(g);
+    const message = this.gate.left > 0 ? this.gate.text : null;
     return {
       id: o.id,
       title: o.title,
       instruction: typeof o.instruction === 'function' ? o.instruction(g) : o.instruction,
       progress: o.progress ? o.progress(g, this.bases[o.id] ?? 0) : null,
-      substeps: o.substeps ? o.substeps(g) : [],
+      parts: partsLine(o, g),
+      nextAction: nextActionLine(o, g, message, next, substeps),
+      substeps,
       tip: o.howTo?.(g) ?? (o.teach && !this.learned.has(o.teach) ? TEACH[o.teach] : null),
       where: whereFor(o, g),
-      next: nextStepLine(g) ?? readyToBuild(g),
-      message: this.gate.left > 0 ? this.gate.text : null,
+      next,
+      message,
       feedback: this.feedback?.text ?? null,
       celebrating: null,
       step: this.index + 1,

@@ -64,6 +64,7 @@
       <Button id="tut-l8" class="num t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-l8-t" class="btntext">9</ButtonLabel></Button>
       <Button id="tut-l9" class="num t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-l9-t" class="btntext">10</ButtonLabel></Button>
       <Button id="tut-l10" class="num t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-l10-t" class="btntext">11</ButtonLabel></Button>
+      <Button id="tut-l11" class="num t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-l11-t" class="btntext">12</ButtonLabel></Button>
     </div>
   </div>
   <div id="tut-cele" class="cele">

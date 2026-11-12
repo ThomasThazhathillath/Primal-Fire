@@ -52,6 +52,7 @@ function playLesson(r: TutorialRunner, g: Game): void {
       g.takeOut('dryStone');
       g.stow();
       break;
+    case 'glide':
     case 'move':
       g.setPlayerPosition(1.5, 0);
       r.poll(ui);

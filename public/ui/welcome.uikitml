@@ -46,6 +46,7 @@
     <Button class="t-btn big" id="tutorial-button" size="lg"><ButtonIcon class="btntext"><GraduationCap></GraduationCap></ButtonIcon><ButtonLabel id="tutorial-label" class="btntext">Tutorial</ButtonLabel></Button>
     <Button class="t-btn big" id="new-button" size="lg"><ButtonIcon class="btntext"><ListRestart></ListRestart></ButtonIcon><ButtonLabel id="new-label" class="btntext">New Game</ButtonLabel></Button>
     <Button class="t-btn big" id="xr-button" size="lg"><ButtonIcon class="btntext"><RectangleGoggles></RectangleGoggles></ButtonIcon><ButtonLabel class="btntext">Enter VR</ButtonLabel></Button>
+    <Button class="t-btn big" id="settings-button" size="lg"><ButtonIcon class="btntext"><Settings></Settings></ButtonIcon><ButtonLabel class="btntext">Settings</ButtonLabel></Button>
     <Button class="t-btn big" id="quit-button" size="lg"><ButtonIcon class="btntext"><LogOut></LogOut></ButtonIcon><ButtonLabel id="quit-label" class="btntext">Quit</ButtonLabel></Button>
   </div>
 </div>

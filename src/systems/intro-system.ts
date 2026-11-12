@@ -56,6 +56,7 @@ export class IntroSystem extends createSystem({}) {
     wire('new-button', () => this.newGame());
     wire('xr-button', () => void this.world.launchXR());
     wire('quit-button', () => this.quit());
+    wire('settings-button', () => getUi(this.world).openSettings?.());
     (window as unknown as { __title?: unknown }).__title = { tap: (id: string) => this.touch?.tapById(id) ?? false, open: () => this.open };
     this.cleanupFuncs.push(
       this.world.visibilityState.subscribe((v) => {

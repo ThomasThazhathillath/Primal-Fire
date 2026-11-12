@@ -211,6 +211,8 @@ export class PanelTouch implements GazeUiOwner {
 
   /** Call every frame while the panel is open in VR. */
   update(dt: number): void {
+    // The card may have been resized (text size setting): hit maths follow its real scale.
+    if (this.panel.scale.x > 0) this.scale = this.panel.scale.x;
     if (this.flashing.length) {
       for (let i = this.flashing.length - 1; i >= 0; i--) {
         const f = this.flashing[i];

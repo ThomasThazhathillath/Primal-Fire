@@ -53,13 +53,16 @@ const DEFS: Def[] = [
   { id: 'notebook', show: () => true, run: (s) => getUi(s.world).openNotebook?.() },
   { id: 'stow', show: (s) => !!getGame(s.world).held, run: (s) => s.stow() },
   { id: 'drop', show: (s) => !!getGame(s.world).held, run: (s) => s.dropHeld() },
-  { id: 'turn-left', show: (s) => s.vr, run: (s) => getUi(s.world).snapTurn?.(45) },
-  { id: 'turn-right', show: (s) => s.vr, run: (s) => getUi(s.world).snapTurn?.(-45) },
+  { id: 'turn-left', show: () => false, // moved to two always-visible Turn buttons (PauseSystem)
+     run: (s) => getUi(s.world).snapTurn?.(45) },
+  { id: 'turn-right', show: () => false,
+     run: (s) => getUi(s.world).snapTurn?.(-45) },
   { id: 'remove', show: (s) => s.canRemove, run: (s) => s.removeBuild() },
   { id: 'reload', show: () => true, run: (s) => s.reload() },
   { id: 'exit', show: (s) => s.vr, run: (s) => s.exitVr() },
   { id: 'book', show: () => true, run: (s) => getUi(s.world).toggleBook?.() },
-  { id: 'restart', show: () => true, run: (s) => s.restart() },
+  { id: 'restart', show: () => false, // Restart lives on the pause card now
+     run: (s) => s.restart() },
   // VR: the bar folds into this one button on your right; tap it to open the icons, tap again to fold.
   { id: 'menu', show: (s) => s.vr, run: () => menu.toggleGrid() },
   // Only at a finished workbench: opens its recipe panel (no more poking the 3D bench).

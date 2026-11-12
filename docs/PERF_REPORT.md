@@ -255,3 +255,40 @@ at most 1,900, from about 4 m to 15 m, shrinking to nothing over the last 4 m), 
 yellow-green; the ground shader's meadow blend now starts at 1 m and adds dry patches. Twigs and leaf litter trimmed to 300 and 700 to pay for it. The ash is an unlit shader (charcoal, pale flecks,
 soft edge, faint ember glow at the centre). Standard viewpoint with the camp standing: 213 draw calls, **234,012 triangles**, CPU 4.57 ms (budget 240k). Typecheck, 679 tests, production build,
 `story-check.mjs` (workbench complete, fire lit, no errors) and `tutorial-check.mjs` pass.
+
+
+## Quest performance round (branch `claude/quest-perf`): quality tiers
+
+Evidence: the user's Quest log (`playtest.log`, "beat" lines) shows 29-49 fps and 250-350 draw calls after the visual revamp. The Mac/IWER numbers above
+(CPU about 5 ms, GPU time hidden by vsync) could not have shown this. **A real Quest session is still the only proof.**
+
+Finding the cost. This Mac's GPU hides fragment cost (render plus `gl.finish` was 2.9 ms at 756x469 and 3.9 ms at 3780x2345, no difference between settings), so
+the ablation was run on a **software renderer** (`scripts/quality-swiftshader.mjs`, `scripts/quality-ablate.mjs`: headless Chromium on SwiftShader, 640x400). Its time scales
+with shader work, so the *ratios* mean something even though the milliseconds are not a Quest's. Hiding one thing at a time at the old full-quality settings:
+
+| Hidden | ms (all = 608 to 810, noisy) |
+|---|---|
+| the ground mesh (one draw call) | about 205 to 270 (roughly two thirds of the frame) |
+| instanced scenery (145 meshes: trees, bushes, grass, rocks) | about 520 to 260, spread over many small items |
+| sky layers (7) | small (about 40) |
+
+The ground fragment shader is the biggest single cost: six diffuse samples, three normal-map samples with a derivative-based tangent frame, about 14 noise
+evaluations (each four hashes with `sin`), roughness maps and image-based light, over the whole lower half of both eyes.
+
+What changed (`src/game/quality.ts`, `QualitySystem`):
+
+| Tier | Ground | Water | Grass | Sky | Environment rebuild | Tree LOD |
+|---|---|---|---|---|---|---|
+| high (flat view) | as before | as before | 100% | all layers | every 4 s / 6 s | as before |
+| medium (headset start) | one sample per layer, no normal maps, fine noise and meadow detail trimmed | one normal layer, no cloud reflection, no rock foam | 70%, mid reach 12 m | procedural cloud dome off (photo clouds stay) | every 20 s / 30 s | 17% sooner |
+| low (automatic) | Lambert material, three samples, one noise octave | as medium | 40%, reach 9 m | also no Preetham sky box | every 60 s / 90 s | 33% sooner |
+
+The tier switches automatically: a headset session starts at medium; if the frame rate stays under 88% of the session's rate for three 1.5 s windows (after 4 s settling),
+it drops one tier and never climbs back up. Leaving the session returns to high. `?quality=high|medium|low` or `__quality.set()` forces one.
+
+Measured (software renderer, same scene and view, median of 28 frames, interleaved): **high 727 ms, medium 491 ms (-32%), low 442 ms (-39%)**. Draw calls 217 / 216 / 215, triangles 236k / 227k / 218k.
+So draw calls barely moved (they are not what the tiers trim); what moved is per-pixel work. In IWER, entering a session set medium, the headless frame rate then dropped it to low, and leaving restored high.
+
+Traded: medium loses the ground's normal-map relief and some fine texture detail (the screenshots at `/tmp` in this round look close), the second cloud layer and the water's cloud
+reflection and rock foam, 30% of the grass. Low also loses specular and image-based light on the ground (it is matte Lambert) and the daylight sky model (the gradient dome and photo clouds remain).
+Not done: lowering the XR render scale (it has to be set before the session starts), merging the UI meshes (another session owns the UI files), and the 145 instanced meshes were not individually tuned.

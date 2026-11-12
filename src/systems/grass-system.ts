@@ -4,6 +4,7 @@
 // wind is a vertex-shader sway. They are walk-through scenery: nothing gameplay-related reads them.
 
 import { BufferAttribute, BufferGeometry, createSystem, DoubleSide, DynamicDrawUsage, InstancedBufferAttribute, InstancedMesh, MeshLambertMaterial, Vector3 } from '@iwsdk/core';
+import { quality } from '../game/quality.js';
 import { BLUEPRINTS } from '../game/blueprint.js';
 import { valueNoise } from '../game/rng.js';
 import { groundHeight, inClearing, nearestTreeDistance, streamDistance } from '../game/world-layout.js';
@@ -194,6 +195,8 @@ export class GrassSystem extends createSystem({}) {
     });
   }
 
+  private qSeen = -1;
+
   update(delta: number, time: number): void {
     this.uniforms.uTime.value = time;
     this.uniforms.uWind.value += (0.2 + getGame(this.world).env.windStrength * 1.5 - this.uniforms.uWind.value) * Math.min(1, delta);
@@ -202,7 +205,15 @@ export class GrassSystem extends createSystem({}) {
     this.camera.getWorldPosition(this.head);
     const cx = this.head.x;
     const cz = this.head.z;
+    if (this.qSeen !== quality.version) {
+      this.qSeen = quality.version;
+      this.lastX = this.lastZ = 1e9;
+    }
     if (Math.hypot(cx - this.lastX, cz - this.lastZ) < 0.35) return;
+    const maxN = Math.floor(MAX * quality.cfg.grassCount);
+    const midMax = Math.floor(MID_MAX * quality.cfg.grassCount);
+    const midR = MID_R * quality.cfg.grassReach;
+    const midFade = MID_FADE * quality.cfg.grassReach;
     this.lastX = cx;
     this.lastZ = cz;
     const arr = this.mesh.instanceMatrix.array as Float32Array;
@@ -216,8 +227,8 @@ export class GrassSystem extends createSystem({}) {
     let n = 0;
     let nf = 0;
     // Two passes so the budget goes to what is near you: first the cells within NEAR m (thick, with extra tufts per cell), then the ring beyond (thinning out with distance).
-    for (let pass = 0; pass < 2; pass++) for (let dz = -span; dz <= span && n < MAX; dz++) {
-      for (let dx = -span; dx <= span && n < MAX; dx++) {
+    for (let pass = 0; pass < 2; pass++) for (let dz = -span; dz <= span && n < maxN; dz++) {
+      for (let dx = -span; dx <= span && n < maxN; dx++) {
         const ix = n0x + dx;
         const iz = n0z + dz;
         const cd = Math.hypot((ix + 0.5) * CELL - cx, (iz + 0.5) * CELL - cz);
@@ -230,7 +241,7 @@ export class GrassSystem extends createSystem({}) {
         const dens = Math.min(1, Math.max(0, (patch - 0.26) / 0.14) * thin);
         if (dens <= 0) continue;
         const fam = Math.floor(valueNoise(px * 0.11 + 3, pz * 0.11 + 9) * 4) % 4;
-        for (let k = 0; k < (pass === 0 ? PER_CELL + 3 : PER_CELL) && n < MAX; k++) {
+        for (let k = 0; k < (pass === 0 ? PER_CELL + 3 : PER_CELL) && n < maxN; k++) {
           if (hash(ix, iz, k * 7 + 11) > dens) continue;
           const x = (ix + hash(ix, iz, k * 3 + 1)) * CELL;
           const z = (iz + hash(ix, iz, k * 3 + 2)) * CELL;
@@ -284,21 +295,21 @@ export class GrassSystem extends createSystem({}) {
     const mcol = this.mid.instanceColor!.array as Float32Array;
     const m0x = Math.floor(cx / MID_CELL);
     const m0z = Math.floor(cz / MID_CELL);
-    const mspan = Math.ceil(MID_R / MID_CELL);
+    const mspan = Math.ceil(midR / MID_CELL);
     let nm = 0;
-    for (let dz = -mspan; dz <= mspan && nm < MID_MAX; dz++) {
-      for (let dx = -mspan; dx <= mspan && nm < MID_MAX; dx++) {
+    for (let dz = -mspan; dz <= mspan && nm < midMax; dz++) {
+      for (let dx = -mspan; dx <= mspan && nm < midMax; dx++) {
         const ix = m0x + dx;
         const iz = m0z + dz;
         const px = (ix + 0.5) * MID_CELL;
         const pz = (iz + 0.5) * MID_CELL;
         const cd = Math.hypot(px - cx, pz - cz);
-        if (cd < MID_FROM || cd > MID_R) continue;
+        if (cd < MID_FROM || cd > midR) continue;
         const patch = valueNoise(px * 0.16 + 21, pz * 0.16 - 11) * 0.6 + valueNoise(px * 0.7, pz * 0.7) * 0.4;
         const dens = Math.min(1, Math.max(0, (patch - 0.24) / 0.2));
         if (dens <= 0) continue;
         const fam = Math.floor(valueNoise(px * 0.09 + 3, pz * 0.09 + 9) * 4) % 4;
-        for (let k = 0; k < MID_PER && nm < MID_MAX; k++) {
+        for (let k = 0; k < MID_PER && nm < midMax; k++) {
           if (hash(ix, iz, k * 7 + 41) > dens) continue;
           const x = (ix + hash(ix, iz, k * 3 + 43)) * MID_CELL;
           const z = (iz + hash(ix, iz, k * 3 + 44)) * MID_CELL;
@@ -306,7 +317,7 @@ export class GrassSystem extends createSystem({}) {
           let built = false;
           for (let q = 0; q < structs.length; q++) if (Math.hypot(structs[q].x - x, structs[q].z - z) < BLUEPRINTS[structs[q].kind].radius + 0.55) built = true;
           if (built) continue;
-          const fade = cd < MID_FADE ? 1 : 1 - (cd - MID_FADE) / (MID_R - MID_FADE);
+          const fade = cd < midFade ? 1 : 1 - (cd - midFade) / (midR - midFade);
           const sc = (1.0 + hash(ix, iz, k * 3 + 45) * 0.9 + dens * 0.4) * fade;
           if (sc < 0.08) continue;
           const a = hash(ix, iz, k * 3 + 46) * 6.2832;

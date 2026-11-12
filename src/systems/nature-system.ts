@@ -27,6 +27,7 @@ import {
 import type { GameEvent } from '../game/game.js';
 import { mulberry32 } from '../game/rng.js';
 import { BOULDERS, RESOURCES, STREAM_HALF_WIDTH, streamDistance } from '../game/world-layout.js';
+import { quality } from '../game/quality.js';
 import { getGame } from './shared.js';
 
 const WATER_VERT = /* glsl */ `
@@ -56,6 +57,7 @@ uniform sampler2D uCloud;
 uniform float uCloudOp;
 uniform vec3 uCloudTint;
 uniform vec3 uRocks[12];
+uniform float uQ;
 varying vec2 vFlow;
 varying vec3 vWorld;
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -75,9 +77,13 @@ void main() {
   float hy = noise(q + vec2(0.0, 0.15)) * 0.65 + noise((q + vec2(0.0, 0.15)) * 2.3 + vec2(-uTime * 0.5, 1.7)) * 0.35;
   // Second normal layer scrolling the other way and across, at a different scale: the two together read as moving water, not a pattern.
   vec2 q2 = vec2(vFlow.x * 1.9 + uTime * 0.35, vFlow.y * 3.1 - uTime * 0.08);
-  float h2 = layer2(q2, uTime);
-  float h2x = layer2(q2 + vec2(0.12, 0.0), uTime);
-  float h2y = layer2(q2 + vec2(0.0, 0.12), uTime);
+  float h2 = 0.0, h2x = 0.0, h2y = 0.0;
+  // Quality: below 'high' the second normal layer is skipped (3 of the ~12 noise lookups per pixel it costs).
+  if (uQ > 1.5) {
+    h2 = layer2(q2, uTime);
+    h2x = layer2(q2 + vec2(0.12, 0.0), uTime);
+    h2y = layer2(q2 + vec2(0.0, 0.12), uTime);
+  }
   vec3 nrm = normalize(vec3((h - hx) * 2.2 + (h2 - h2x) * 1.7, 1.0, (h - hy) * 2.2 + (h2 - h2y) * 1.7));
   float n2 = noise(p * vec2(3.0, 5.0) + vec2(-uTime * 0.4, 0.0));
   // Rain rings: sparse cells that pulse.
@@ -90,8 +96,10 @@ void main() {
   // Fresnel reflection of the sky: the gradient, then the photographed clouds sampled by the reflected ray (no second scene render).
   vec3 rv = reflect(-view, nrm);
   vec3 refl = mix(uHorizon, uSky, clamp(rv.y * 1.6, 0.0, 1.0));
-  vec4 cl = texture2D(uCloud, vec2(atan(rv.z, rv.x) / 6.2831853 + 0.5, 0.5 + asin(clamp(rv.y, 0.0, 1.0)) / 3.1415927));
-  refl = mix(refl, cl.rgb * uCloudTint, cl.a * uCloudOp * smoothstep(0.02, 0.25, rv.y));
+  if (uQ > 1.5) {
+    vec4 cl = texture2D(uCloud, vec2(atan(rv.z, rv.x) / 6.2831853 + 0.5, 0.5 + asin(clamp(rv.y, 0.0, 1.0)) / 3.1415927));
+    refl = mix(refl, cl.rgb * uCloudTint, cl.a * uCloudOp * smoothstep(0.02, 0.25, rv.y));
+  }
   // Depth: the bed shows through the shallows near the banks and fades to the deep tint toward the middle.
   float bankD = 1.0 - abs(vFlow.y * 2.0 - 1.0);
   float shallow = 1.0 - smoothstep(0.04, 0.95, bankD);
@@ -106,6 +114,7 @@ void main() {
   float foam = smoothstep(0.34, 0.02, edge + (n2 - 0.5) * 0.3) * 0.55 + smoothstep(0.8, 0.95, h) * 0.25 + ring;
   // Foam rings round the rocks that break the surface (the twelve nearest to you, set from the layout).
   for (int i = 0; i < 12; i++) {
+    if (uQ < 1.5) break;
     float rr = uRocks[i].z;
     float dd = length(vWorld.xz - uRocks[i].xy);
     foam += step(0.0, rr) * smoothstep(rr + 0.42, rr + 0.05, dd) * (0.55 + 0.45 * noise(vWorld.xz * 9.0 + vec2(uTime * 0.6, 0.0)));
@@ -240,6 +249,7 @@ export class NatureSystem extends createSystem({}) {
         uSunColor: { value: new Color() },
         uLight: { value: 1 },
         uRain: { value: 0 },
+        uQ: { value: 2 },
         uFogColor: { value: new Color() },
         uFogNear: { value: 16 },
         uFogFar: { value: 52 },
@@ -374,6 +384,7 @@ export class NatureSystem extends createSystem({}) {
       (w.uSunColor.value as Color).setRGB(env.lightColor[0], env.lightColor[1], env.lightColor[2]);
       w.uLight.value = Math.min(1, 0.15 + env.lightIntensity / 2.2);
       w.uRain.value = env.rain;
+      w.uQ.value = quality.cfg.water === 2 ? 2 : 1;
       (w.uFogColor.value as Color).setRGB(env.fogColor[0], env.fogColor[1], env.fogColor[2]);
       w.uFogNear.value = env.fogNear;
       w.uFogFar.value = env.fogFar;

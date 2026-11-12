@@ -69,7 +69,7 @@ export class TutorialSystem extends createSystem({}, { tutorial: { type: Types.B
     for (const id of ['tut-label', 'tut-title', 'tut-say', 'tut-tip', 'tut-body', 'tut-ctrl', 'tut-nums', 'tut-cele', 'tut-cele-text', 'tut-start-t', 'tut-again-t']) {
       this.els[id] = panel.getElementById<UIKit.Text>(id);
     }
-    for (let i = 0; i < MAX_TASKS; i++) this.els[`t${i}`] = panel.getElementById<UIKit.Text>(`tut-task-${i}`);
+    for (let i = 0; i < MAX_TASKS; i++) this.els[`t${i}`] = panel.getElementById<UIKit.Text>(`tut-body-${i}`);
     for (let i = 0; i < LESSONS.length; i++) this.els[`l${i}`] = panel.getElementById<UIKit.Text>(`tut-l${i}`);
 
     this.touch = new PanelTouch(this.world, panel, PANEL_SCALE, 'tutorial');

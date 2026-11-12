@@ -4,47 +4,51 @@
 -->
 <style>
   .theme-begin { display: flex; }
-  .t-root { background-color: rgba(238, 222, 184, 0.98); border-radius: 18px; border-width: 4px; border-color: #6e4a28; }
+  .t-root { background-color: rgba(240, 226, 192, 0.98); border-radius: 18px; border-width: 6px; border-color: #5a3a1c; }
   .t-head { background-color: #4f5f33; border-radius: 12px; padding: 8px; }
-  .t-headtext { color: #f6ecd2; font-size: 23px; font-weight: 700; }
-  .t-title { color: #2d1f12; font-size: 27px; font-weight: 700; }
-  .t-name { color: #2d1f12; font-size: 23px; font-weight: 700; }
-  .t-lead { color: #2d1f12; font-size: 22px; line-height: 1.25; }
-  .t-body { color: #2d1f12; font-size: 21px; line-height: 1.3; }
-  .t-muted { color: #6a5740; font-size: 18px; line-height: 1.3; }
-  .t-small { color: #2d1f12; font-size: 16px; font-weight: 700; }
-  .t-label { color: #b2511a; font-size: 14px; font-weight: 700; letter-spacing: 1.5px; }
-  .t-accent { color: #b2511a; font-size: 22px; font-weight: 700; }
-  .t-note { color: #8a4a1c; font-size: 17px; line-height: 1.25; }
+  .t-headtext { color: #f6ecd2; font-size: 20px; font-weight: 700; }
+  .t-title { color: #2d1f12; font-size: 24px; font-weight: 700; line-height: 1.15; }
+  .t-name { color: #2d1f12; font-size: 20px; font-weight: 700; }
+  .t-lead { color: #2d1f12; font-size: 20px; line-height: 1.25; }
+  .t-body { color: #2d1f12; font-size: 19px; line-height: 1.3; }
+  .t-muted { color: #5a4630; font-size: 18px; line-height: 1.3; }
+  .t-small { color: #2d1f12; font-size: 15px; font-weight: 700; }
+  .t-label { color: #9c4314; font-size: 13px; font-weight: 700; letter-spacing: 1.5px; }
+  .t-accent { color: #9c4314; font-size: 20px; font-weight: 700; }
+  .t-note { color: #7a3e14; font-size: 17px; line-height: 1.25; }
   .t-ok { color: #2c7a3e; font-size: 18px; font-weight: 700; line-height: 1.25; }
   .t-bad { color: #a8301c; font-size: 18px; font-weight: 700; line-height: 1.25; }
-  .t-row { background-color: rgba(110, 72, 36, 0.14); border-radius: 12px; }
+  .t-row { background-color: rgba(255, 250, 236, 0.72); border-radius: 12px; border-width: 2px; border-color: rgba(90, 58, 28, 0.38); }
+  .t-slot { background-color: rgba(255, 250, 236, 0.72); border-radius: 12px; border-width: 2px; border-color: rgba(90, 58, 28, 0.38); }
+  .t-slottext { color: #2d1f12; font-weight: 600; }
+  .t-rule { height: 2px; background-color: rgba(90, 58, 28, 0.35); flex-shrink: 0; }
   .t-btn { background-color: #4f5f33; border-radius: 12px; }
-  .t-go { background-color: #b2511a; border-radius: 12px; }
+  .t-go { background-color: #9c4314; border-radius: 12px; }
   .t-track { background-color: rgba(90, 60, 28, 0.22); border-radius: 4px; }
-  .t-fill { background-color: #b2511a; border-radius: 4px; }
+  .t-fill { background-color: #9c4314; border-radius: 4px; }
 .theme-end { display: flex; }
   .root { flex-direction: column; width: 520px; padding-top: 20px; padding-bottom: 20px; padding-left: 24px; padding-right: 24px; gap: 10px; }
   .sub { line-height: 1.3; }
   .list { flex-direction: column; gap: 8px; flex-shrink: 0; }
   .entry { width: 470px; height: 56px; flex-shrink: 0; padding-left: 66px; }
-  .bagtext { font-size: 20px; }
+  .bagtext { font-size: 20px; line-height: 1.2; }
   .pager { flex-direction: row; gap: 10px; align-items: center; flex-shrink: 0; }
   .row { flex-direction: row; gap: 10px; flex-shrink: 0; }
   .back { width: 190px; height: 60px; }
 </style>
 <div class="root t-root">
   <div class="title t-title">Build book</div>
+  <div class="t-rule"></div>
   <div id="book-sub" class="sub t-muted">Tap a build to place its outline in front of you, then fill every mark.</div>
   <div class="list">
-    <Button id="entry-0" class="entry t-btn" variant="secondary" size="sm"><ButtonLabel id="entry-0-label" class="bagtext">-</ButtonLabel></Button>
-    <Button id="entry-1" class="entry t-btn" variant="secondary" size="sm"><ButtonLabel id="entry-1-label" class="bagtext">-</ButtonLabel></Button>
-    <Button id="entry-2" class="entry t-btn" variant="secondary" size="sm"><ButtonLabel id="entry-2-label" class="bagtext">-</ButtonLabel></Button>
-    <Button id="entry-3" class="entry t-btn" variant="secondary" size="sm"><ButtonLabel id="entry-3-label" class="bagtext">-</ButtonLabel></Button>
-    <Button id="entry-4" class="entry t-btn" variant="secondary" size="sm"><ButtonLabel id="entry-4-label" class="bagtext">-</ButtonLabel></Button>
-    <Button id="entry-5" class="entry t-btn" variant="secondary" size="sm"><ButtonLabel id="entry-5-label" class="bagtext">-</ButtonLabel></Button>
-    <Button id="entry-6" class="entry t-btn" variant="secondary" size="sm"><ButtonLabel id="entry-6-label" class="bagtext">-</ButtonLabel></Button>
-    <Button id="entry-7" class="entry t-btn" variant="secondary" size="sm"><ButtonLabel id="entry-7-label" class="bagtext">-</ButtonLabel></Button>
+    <Button id="entry-0" class="entry t-slot" variant="secondary" size="sm"><ButtonLabel id="entry-0-label" class="bagtext t-slottext">-</ButtonLabel></Button>
+    <Button id="entry-1" class="entry t-slot" variant="secondary" size="sm"><ButtonLabel id="entry-1-label" class="bagtext t-slottext">-</ButtonLabel></Button>
+    <Button id="entry-2" class="entry t-slot" variant="secondary" size="sm"><ButtonLabel id="entry-2-label" class="bagtext t-slottext">-</ButtonLabel></Button>
+    <Button id="entry-3" class="entry t-slot" variant="secondary" size="sm"><ButtonLabel id="entry-3-label" class="bagtext t-slottext">-</ButtonLabel></Button>
+    <Button id="entry-4" class="entry t-slot" variant="secondary" size="sm"><ButtonLabel id="entry-4-label" class="bagtext t-slottext">-</ButtonLabel></Button>
+    <Button id="entry-5" class="entry t-slot" variant="secondary" size="sm"><ButtonLabel id="entry-5-label" class="bagtext t-slottext">-</ButtonLabel></Button>
+    <Button id="entry-6" class="entry t-slot" variant="secondary" size="sm"><ButtonLabel id="entry-6-label" class="bagtext t-slottext">-</ButtonLabel></Button>
+    <Button id="entry-7" class="entry t-slot" variant="secondary" size="sm"><ButtonLabel id="entry-7-label" class="bagtext t-slottext">-</ButtonLabel></Button>
   </div>
   <div class="pager">
     <Button id="book-prev" class="t-btn" variant="secondary" size="sm"><ButtonLabel>Prev</ButtonLabel></Button>

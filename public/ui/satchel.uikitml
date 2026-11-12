@@ -5,56 +5,60 @@
 -->
 <style>
   .theme-begin { display: flex; }
-  .t-root { background-color: rgba(238, 222, 184, 0.98); border-radius: 18px; border-width: 4px; border-color: #6e4a28; }
+  .t-root { background-color: rgba(240, 226, 192, 0.98); border-radius: 18px; border-width: 6px; border-color: #5a3a1c; }
   .t-head { background-color: #4f5f33; border-radius: 12px; padding: 8px; }
-  .t-headtext { color: #f6ecd2; font-size: 23px; font-weight: 700; }
-  .t-title { color: #2d1f12; font-size: 27px; font-weight: 700; }
-  .t-name { color: #2d1f12; font-size: 23px; font-weight: 700; }
-  .t-lead { color: #2d1f12; font-size: 22px; line-height: 1.25; }
-  .t-body { color: #2d1f12; font-size: 21px; line-height: 1.3; }
-  .t-muted { color: #6a5740; font-size: 18px; line-height: 1.3; }
-  .t-small { color: #2d1f12; font-size: 16px; font-weight: 700; }
-  .t-label { color: #b2511a; font-size: 14px; font-weight: 700; letter-spacing: 1.5px; }
-  .t-accent { color: #b2511a; font-size: 22px; font-weight: 700; }
-  .t-note { color: #8a4a1c; font-size: 17px; line-height: 1.25; }
+  .t-headtext { color: #f6ecd2; font-size: 20px; font-weight: 700; }
+  .t-title { color: #2d1f12; font-size: 24px; font-weight: 700; line-height: 1.15; }
+  .t-name { color: #2d1f12; font-size: 20px; font-weight: 700; }
+  .t-lead { color: #2d1f12; font-size: 20px; line-height: 1.25; }
+  .t-body { color: #2d1f12; font-size: 19px; line-height: 1.3; }
+  .t-muted { color: #5a4630; font-size: 18px; line-height: 1.3; }
+  .t-small { color: #2d1f12; font-size: 15px; font-weight: 700; }
+  .t-label { color: #9c4314; font-size: 13px; font-weight: 700; letter-spacing: 1.5px; }
+  .t-accent { color: #9c4314; font-size: 20px; font-weight: 700; }
+  .t-note { color: #7a3e14; font-size: 17px; line-height: 1.25; }
   .t-ok { color: #2c7a3e; font-size: 18px; font-weight: 700; line-height: 1.25; }
   .t-bad { color: #a8301c; font-size: 18px; font-weight: 700; line-height: 1.25; }
-  .t-row { background-color: rgba(110, 72, 36, 0.14); border-radius: 12px; }
+  .t-row { background-color: rgba(255, 250, 236, 0.72); border-radius: 12px; border-width: 2px; border-color: rgba(90, 58, 28, 0.38); }
+  .t-slot { background-color: rgba(255, 250, 236, 0.72); border-radius: 12px; border-width: 2px; border-color: rgba(90, 58, 28, 0.38); }
+  .t-slottext { color: #2d1f12; font-weight: 600; }
+  .t-rule { height: 2px; background-color: rgba(90, 58, 28, 0.35); flex-shrink: 0; }
   .t-btn { background-color: #4f5f33; border-radius: 12px; }
-  .t-go { background-color: #b2511a; border-radius: 12px; }
+  .t-go { background-color: #9c4314; border-radius: 12px; }
   .t-track { background-color: rgba(90, 60, 28, 0.22); border-radius: 4px; }
-  .t-fill { background-color: #b2511a; border-radius: 4px; }
+  .t-fill { background-color: #9c4314; border-radius: 4px; }
 .theme-end { display: flex; }
   .root { flex-direction: column; width: 480px; padding-top: 22px; padding-bottom: 22px; padding-left: 26px; padding-right: 26px; gap: 12px; }
-  .grid { flex-direction: row; flex-wrap: wrap; gap: 10px; }
+  .grid { flex-direction: row; flex-wrap: wrap; gap: 8px; }
   .item { width: 134px; }
   .bagrow { width: 430px; height: 56px; padding-left: 66px; }
-  .bagtext { font-size: 16px; }
+  .bagtext { font-size: 16px; line-height: 1.2; }
   .row { flex-direction: row; gap: 12px; }
   .back { width: 190px; height: 60px; }
 </style>
 <div class="root t-root">
   <div class="t-title">Bag</div>
+  <div class="t-rule"></div>
   <div id="satchel-sub" class="t-muted">Tap an item to take it in hand. Tap Back to return to the icons.</div>
   <div class="grid">
-    <Button id="item-0" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-0-label" class="bagtext">-</ButtonLabel></Button>
-    <Button id="item-1" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-1-label" class="bagtext">-</ButtonLabel></Button>
-    <Button id="item-2" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-2-label" class="bagtext">-</ButtonLabel></Button>
-    <Button id="item-3" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-3-label" class="bagtext">-</ButtonLabel></Button>
-    <Button id="item-4" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-4-label" class="bagtext">-</ButtonLabel></Button>
-    <Button id="item-5" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-5-label" class="bagtext">-</ButtonLabel></Button>
-    <Button id="item-6" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-6-label" class="bagtext">-</ButtonLabel></Button>
-    <Button id="item-7" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-7-label" class="bagtext">-</ButtonLabel></Button>
-    <Button id="item-8" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-8-label" class="bagtext">-</ButtonLabel></Button>
-    <Button id="item-9" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-9-label" class="bagtext">-</ButtonLabel></Button>
-    <Button id="item-10" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-10-label" class="bagtext">-</ButtonLabel></Button>
-    <Button id="item-11" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-11-label" class="bagtext">-</ButtonLabel></Button>
-    <Button id="item-12" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-12-label" class="bagtext">-</ButtonLabel></Button>
-    <Button id="item-13" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-13-label" class="bagtext">-</ButtonLabel></Button>
-    <Button id="item-14" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-14-label" class="bagtext">-</ButtonLabel></Button>
-    <Button id="item-15" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-15-label" class="bagtext">-</ButtonLabel></Button>
-    <Button id="item-16" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-16-label" class="bagtext">-</ButtonLabel></Button>
-    <Button id="item-17" class="bagrow t-btn" variant="secondary" size="sm"><ButtonLabel id="item-17-label" class="bagtext">-</ButtonLabel></Button>
+    <Button id="item-0" class="bagrow t-slot" variant="secondary" size="sm"><ButtonLabel id="item-0-label" class="bagtext t-slottext">-</ButtonLabel></Button>
+    <Button id="item-1" class="bagrow t-slot" variant="secondary" size="sm"><ButtonLabel id="item-1-label" class="bagtext t-slottext">-</ButtonLabel></Button>
+    <Button id="item-2" class="bagrow t-slot" variant="secondary" size="sm"><ButtonLabel id="item-2-label" class="bagtext t-slottext">-</ButtonLabel></Button>
+    <Button id="item-3" class="bagrow t-slot" variant="secondary" size="sm"><ButtonLabel id="item-3-label" class="bagtext t-slottext">-</ButtonLabel></Button>
+    <Button id="item-4" class="bagrow t-slot" variant="secondary" size="sm"><ButtonLabel id="item-4-label" class="bagtext t-slottext">-</ButtonLabel></Button>
+    <Button id="item-5" class="bagrow t-slot" variant="secondary" size="sm"><ButtonLabel id="item-5-label" class="bagtext t-slottext">-</ButtonLabel></Button>
+    <Button id="item-6" class="bagrow t-slot" variant="secondary" size="sm"><ButtonLabel id="item-6-label" class="bagtext t-slottext">-</ButtonLabel></Button>
+    <Button id="item-7" class="bagrow t-slot" variant="secondary" size="sm"><ButtonLabel id="item-7-label" class="bagtext t-slottext">-</ButtonLabel></Button>
+    <Button id="item-8" class="bagrow t-slot" variant="secondary" size="sm"><ButtonLabel id="item-8-label" class="bagtext t-slottext">-</ButtonLabel></Button>
+    <Button id="item-9" class="bagrow t-slot" variant="secondary" size="sm"><ButtonLabel id="item-9-label" class="bagtext t-slottext">-</ButtonLabel></Button>
+    <Button id="item-10" class="bagrow t-slot" variant="secondary" size="sm"><ButtonLabel id="item-10-label" class="bagtext t-slottext">-</ButtonLabel></Button>
+    <Button id="item-11" class="bagrow t-slot" variant="secondary" size="sm"><ButtonLabel id="item-11-label" class="bagtext t-slottext">-</ButtonLabel></Button>
+    <Button id="item-12" class="bagrow t-slot" variant="secondary" size="sm"><ButtonLabel id="item-12-label" class="bagtext t-slottext">-</ButtonLabel></Button>
+    <Button id="item-13" class="bagrow t-slot" variant="secondary" size="sm"><ButtonLabel id="item-13-label" class="bagtext t-slottext">-</ButtonLabel></Button>
+    <Button id="item-14" class="bagrow t-slot" variant="secondary" size="sm"><ButtonLabel id="item-14-label" class="bagtext t-slottext">-</ButtonLabel></Button>
+    <Button id="item-15" class="bagrow t-slot" variant="secondary" size="sm"><ButtonLabel id="item-15-label" class="bagtext t-slottext">-</ButtonLabel></Button>
+    <Button id="item-16" class="bagrow t-slot" variant="secondary" size="sm"><ButtonLabel id="item-16-label" class="bagtext t-slottext">-</ButtonLabel></Button>
+    <Button id="item-17" class="bagrow t-slot" variant="secondary" size="sm"><ButtonLabel id="item-17-label" class="bagtext t-slottext">-</ButtonLabel></Button>
   </div>
   <div id="make-title" class="t-muted">Make by hand (you have the parts):</div>
   <div class="grid">

@@ -26,6 +26,8 @@ export class RowThumbs {
     private panel: UIKitMLAsset,
     private renderer: WebGLRenderer,
     private max: number,
+    /** 'row': a small picture at the row's left; 'tile': a large picture centred in the top of a grid tile. */
+    private layout: 'row' | 'tile' = 'row',
   ) {}
 
   /** Which row element shows which picture (replaces the previous set). */
@@ -52,7 +54,11 @@ export class RowThumbs {
         mat.needsUpdate = true;
       }
       const e = gm.elements;
-      m.position.set(e[12] - (size[0] / 2) * 0.01 + 0.36, e[13], 0.03);
+      if (this.layout === 'tile') {
+        const s = Math.min(size[0] * 0.01 * 0.8 / 0.5, size[1] * 0.01 * 0.62 / 0.375);
+        m.scale.setScalar(s);
+        m.position.set(e[12], e[13] + (size[1] / 2) * 0.01 - (0.375 * s) / 2 - 0.08, 0.03);
+      } else m.position.set(e[12] - (size[0] / 2) * 0.01 + 0.36, e[13], 0.03);
       m.visible = true;
     }
     for (let i = used; i < this.meshes.length; i++) this.meshes[i].visible = false;

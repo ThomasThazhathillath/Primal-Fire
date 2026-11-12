@@ -132,7 +132,7 @@ export class SatchelSystem extends createSystem({
     hidePanel(this.panel);
     // In VR the rows and buttons are fingertip targets only (no ray or pinch click).
     this.touch = new PanelTouch(this.world, this.panel, 0.1, 'bag');
-    this.thumbs = new RowThumbs(this.panel, this.renderer, SLOTS);
+    this.thumbs = new RowThumbs(this.panel, this.renderer, SLOTS, 'tile');
     this.pop = new PopIn(this.panel, () => 0.1);
     this.cleanupFuncs.push(
       this.world.visibilityState.subscribe((v) => {
@@ -308,10 +308,14 @@ export class SatchelSystem extends createSystem({
       if (entry) {
         this.panel
           .requireElementById<UIKit.Text>(`item-${i}-label`)
-          .setProperties({ text: uiText(`${itemName(entry.id)}${entry.count > 1 ? ` x${entry.count}` : ''}${game.food.freshnessOf(entry.id) === 'ageing' ? ' (going off)' : ''}: ${ITEMS[entry.id].usedFor}`) });
+          .setProperties({ text: uiText(`${itemName(entry.id)}${entry.count > 1 ? ` x${entry.count}` : ''}${game.food.freshnessOf(entry.id) === 'ageing' ? ' (going off)' : ''}`) });
       }
     }
     this.fillBag(all);
+    // What an item is for shows only for the one you picked (in hand), in the detail strip.
+    this.panel
+      .requireElementById<UIKit.Text>('bag-detail')
+      .setProperties({ text: uiText(game.held ? `${itemName(game.held)}: ${ITEMS[game.held].usedFor}` : 'Tap an item to take it in hand and read what it is for.') });
     // A small picture of the real item beside each row.
     if (this.open) this.thumbs.setRows(contents.map((c, i) => ({ el: `item-${i}`, pic: itemPicture(c.id) })));
     const cap = game.capacity;

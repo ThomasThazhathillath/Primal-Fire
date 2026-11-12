@@ -1,17 +1,31 @@
 {
-  "name": "field journal",
+  "name": "field journal (parchment)",
   "color": {
-    "bg": "rgba(62, 40, 22, 0.96)",
-    "raised": "rgba(255, 200, 140, 0.13)",
-    "raisedHi": "rgba(255, 200, 140, 0.22)",
-    "text": "#f8eedb",
-    "muted": "#d3c4a6",
-    "accent": "#ff8a3d",
-    "accentSoft": "#ffc283",
-    "ok": "#86dc97",
-    "bad": "#ff9684",
-    "track": "rgba(255, 200, 140, 0.20)"
+    "bg": "rgba(238, 222, 184, 0.98)",
+    "raised": "rgba(110, 72, 36, 0.14)",
+    "raisedHi": "rgba(110, 72, 36, 0.26)",
+    "text": "#2d1f12",
+    "muted": "#6a5740",
+    "accent": "#b2511a",
+    "accentSoft": "#8a4a1c",
+    "ok": "#2c7a3e",
+    "bad": "#a8301c",
+    "track": "rgba(90, 60, 28, 0.22)",
+    "frame": "#6e4a28",
+    "head": "#4f5f33",
+    "headText": "#f6ecd2"
   },
-  "radius": { "panel": 18, "control": 12 },
-  "font": { "title": 30, "name": 25, "lead": 22, "body": 21, "muted": 18, "small": 15, "label": 14 }
+  "radius": {
+    "panel": 18,
+    "control": 12
+  },
+  "font": {
+    "title": 27,
+    "name": 23,
+    "lead": 22,
+    "body": 21,
+    "muted": 18,
+    "small": 16,
+    "label": 14
+  }
 }

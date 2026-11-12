@@ -1,30 +1,32 @@
 <!-- A new Lab Notebook entry: Observation -> Principle -> Real-world limit. -->
 <style>
   .theme-begin { display: flex; }
-  .t-root { background-color: rgba(62, 40, 22, 0.96); border-radius: 18px; }
-  .t-title { color: #f8eedb; font-size: 30px; font-weight: 700; }
-  .t-name { color: #f8eedb; font-size: 25px; font-weight: 700; }
-  .t-lead { color: #f8eedb; font-size: 22px; line-height: 1.25; }
-  .t-body { color: #f8eedb; font-size: 21px; line-height: 1.3; }
-  .t-muted { color: #d3c4a6; font-size: 18px; line-height: 1.3; }
-  .t-small { color: #f8eedb; font-size: 15px; font-weight: 700; }
-  .t-label { color: #ff8a3d; font-size: 14px; font-weight: 700; letter-spacing: 1.5px; }
-  .t-accent { color: #ff8a3d; font-size: 22px; font-weight: 700; }
-  .t-note { color: #ffc283; font-size: 17px; line-height: 1.25; }
-  .t-ok { color: #86dc97; font-size: 18px; font-weight: 700; line-height: 1.25; }
-  .t-bad { color: #ff9684; font-size: 18px; font-weight: 700; line-height: 1.25; }
-  .t-row { background-color: rgba(255, 200, 140, 0.13); border-radius: 12px; }
-  .t-btn { background-color: rgba(255, 200, 140, 0.13); border-radius: 12px; }
-  .t-go { background-color: #ff8a3d; border-radius: 12px; }
-  .t-track { background-color: rgba(255, 200, 140, 0.20); border-radius: 4px; }
-  .t-fill { background-color: #ff8a3d; border-radius: 4px; }
+  .t-root { background-color: rgba(238, 222, 184, 0.98); border-radius: 18px; border-width: 4px; border-color: #6e4a28; }
+  .t-head { background-color: #4f5f33; border-radius: 12px; padding: 8px; }
+  .t-headtext { color: #f6ecd2; font-size: 23px; font-weight: 700; }
+  .t-title { color: #2d1f12; font-size: 27px; font-weight: 700; }
+  .t-name { color: #2d1f12; font-size: 23px; font-weight: 700; }
+  .t-lead { color: #2d1f12; font-size: 22px; line-height: 1.25; }
+  .t-body { color: #2d1f12; font-size: 21px; line-height: 1.3; }
+  .t-muted { color: #6a5740; font-size: 18px; line-height: 1.3; }
+  .t-small { color: #2d1f12; font-size: 16px; font-weight: 700; }
+  .t-label { color: #b2511a; font-size: 14px; font-weight: 700; letter-spacing: 1.5px; }
+  .t-accent { color: #b2511a; font-size: 22px; font-weight: 700; }
+  .t-note { color: #8a4a1c; font-size: 17px; line-height: 1.25; }
+  .t-ok { color: #2c7a3e; font-size: 18px; font-weight: 700; line-height: 1.25; }
+  .t-bad { color: #a8301c; font-size: 18px; font-weight: 700; line-height: 1.25; }
+  .t-row { background-color: rgba(110, 72, 36, 0.14); border-radius: 12px; }
+  .t-btn { background-color: #4f5f33; border-radius: 12px; }
+  .t-go { background-color: #b2511a; border-radius: 12px; }
+  .t-track { background-color: rgba(90, 60, 28, 0.22); border-radius: 4px; }
+  .t-fill { background-color: #b2511a; border-radius: 4px; }
 .theme-end { display: flex; }
   .root { flex-direction: column; width: 440px; padding-top: 22px; padding-bottom: 22px; padding-left: 26px; padding-right: 26px; gap: 10px; }
   .body { line-height: 1.35; }
   .btnrow { flex-direction: row; gap: 14px; }
   .back { width: 190px; height: 60px; }
 </style>
-<Panel class="root t-root">
+<div class="root t-root">
   <div id="card-eyebrow" class="eyebrow t-label t-label">NEW OBSERVATION</div>
   <div id="card-title" class="title t-title">-</div>
   <div class="label t-label">OBSERVATION</div>
@@ -39,4 +41,4 @@
     <Button id="card-back" class="back t-btn" variant="secondary" size="lg"><ButtonIcon><ArrowLeft></ArrowLeft></ButtonIcon><ButtonLabel>Back</ButtonLabel></Button>
     <Button id="card-ok" class="t-go" size="lg"><ButtonIcon><Check></Check></ButtonIcon><ButtonLabel>Next</ButtonLabel></Button>
   </div>
-</Panel>
+</div>

@@ -222,3 +222,39 @@ describe('tap guards tuned on Quest (relaxed hand)', () => {
     expect(poke({ pointing: false })).toBe(false);
   });
 });
+
+describe('tap versus swipe (commit on release)', () => {
+  const icons3: TouchIcon[] = [{ x: 0, y: 0, r: 0.04, enabled: true }];
+  /** Frames: [x, y, z]; returns activations and the final tracker. */
+  const go = (frames: Array<[number, number, number]>) => {
+    const t = new TouchTracker();
+    t.commitOnRelease = true;
+    const hits: number[] = [];
+    for (const [x, y, z] of frames) hits.push(t.update(1 / 72, icons3, { x, y, z, dz: -0.9, tracked: true, pointing: true }));
+    return { t, hits: hits.filter((h) => h >= 0) };
+  };
+  const down: Array<[number, number, number]> = [[0, 0, 0.1], [0, 0, 0.05], [0, 0, 0.01], [0, 0, -0.02]];
+
+  it('a plain poke does not fire on touch-down, only when the finger comes back out', () => {
+    expect(go(down).hits).toEqual([]);
+    expect(go([...down, [0, 0, 0.005], [0, 0, 0.03]]).hits).toEqual([0]);
+  });
+
+  it('a tap with a little drift (1.5 cm) still activates', () => {
+    expect(go([...down, [0.015, 0.005, -0.02], [0.015, 0.005, 0.03]]).hits).toEqual([0]);
+  });
+
+  it('an upward swipe that starts on the target never activates it, and reports the drag', () => {
+    const { t, hits } = go([...down, [0, 0.02, -0.02], [0, 0.05, -0.02], [0, 0.09, -0.02]]);
+    expect(hits).toEqual([]);
+    expect(t.swiping).toBe(true);
+    expect(t.dragY).toBeGreaterThan(0.08);
+    const end = go([...down, [0, 0.05, -0.02], [0, 0.09, -0.02], [0, 0.09, 0.04]]);
+    expect(end.hits).toEqual([]);
+    expect(end.t.swiping).toBe(false);
+  });
+
+  it('a sideways swipe starting on the target never activates it either', () => {
+    expect(go([...down, [0.04, 0, -0.02], [0.1, 0, -0.02], [0.1, 0, 0.04]]).hits).toEqual([]);
+  });
+});

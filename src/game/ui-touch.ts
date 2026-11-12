@@ -51,6 +51,10 @@ export const TOUCH_CONFIG = {
   maxJump: 0.3,
   /** 1 = only a pointing hand (index out, other fingers curled) can tap; a resting or lowered hand never does. */
   requirePoint: 1,
+  /** Travel along the surface (m) after touching down beyond which the touch is a swipe: it cancels the tap and scrolls instead. */
+  swipeStart: 0.03,
+  /** With commitOnRelease: the fingertip must come back this far (m) off the surface for the tap to commit. */
+  releaseMargin: 0.012,
   /** Smallest tap target (m): every button and row is at least this big, whatever it looks like (4.5 cm). */
   minTarget: 0.045,
 } satisfies Record<string, number>;
@@ -89,7 +93,7 @@ export function fitTarget<T extends TouchIcon>(t: T, minSize: number = TOUCH_CON
 }
 
 /** Why a tap that was aimed at something did not count (for the play-test log). */
-export type RejectReason = 'pinching' | 'notPointing' | 'tooSlow' | 'angle' | 'slide' | 'noApproach' | 'cooldown' | 'disabled' | 'miss' | 'jump';
+export type RejectReason = 'pinching' | 'notPointing' | 'tooSlow' | 'angle' | 'slide' | 'noApproach' | 'cooldown' | 'disabled' | 'miss' | 'jump' | 'swipe';
 
 export interface TipSample {
   x: number;
@@ -131,8 +135,22 @@ export class TouchTracker {
   rejectIcon = -1;
   /** Override TOUCH_CONFIG.requirePoint for this tracker (panels that are already open drop it). */
   requirePoint: boolean | null = null;
+  /**
+   * Commit a tap when the finger leaves the surface (and only if it did not travel along it), instead
+   * of the moment it crosses: a swipe that starts on a button then scrolls and never presses it.
+   */
+  commitOnRelease = false;
+  private pending: { icon: number; x: number; y: number } | null = null;
+  /** A touch-down that travelled past swipeStart: true while the finger is dragging; dragX/Y are its travel from the touch-down point (m, panel frame). */
+  swiping = false;
+  dragX = 0;
+  dragY = 0;
+  private swipeX = 0;
+  private swipeY = 0;
 
   reset(): void {
+    this.pending = null;
+    this.swiping = false;
     this.hadPrev = false;
     this.frontAge = Infinity;
     this.locked = -1;
@@ -195,6 +213,8 @@ export class TouchTracker {
     const needPoint = this.requirePoint ?? c.requirePoint !== 0;
     const notPointing = needPoint && s.pointing === false;
     if (this.pinching || notPointing) {
+      this.pending = null;
+      this.swiping = false;
       // Say why, but only while the finger is actually at something (not for every hand wave).
       const near = this.hit(icons, s);
       if (near >= 0 && s.z < c.approachDepth && s.z > c.throughDepth) {
@@ -220,6 +240,31 @@ export class TouchTracker {
     const fwd = this.prevZ - s.z; // + = moved towards/into the surface this frame
     const speed = this.hadPrev && dt > 0 ? fwd / dt : 0;
     let activated = -1;
+
+    // A touch-down waiting for its release: a swipe cancels it, withdrawing the finger commits it.
+    const released = s.z > c.touchDepth + c.releaseMargin;
+    if (this.pending) {
+      const pd = this.pending;
+      if (Math.hypot(s.x - pd.x, s.y - pd.y) > c.swipeStart) {
+        this.pending = null;
+        this.swiping = true;
+        this.swipeX = pd.x;
+        this.swipeY = pd.y;
+        this.reject = 'swipe';
+        this.rejectIcon = pd.icon;
+      } else if (released) {
+        this.pending = null;
+        activated = pd.icon;
+        this.cooldown = c.cooldown;
+        this.flashT = c.flash;
+        this.flashIcon = pd.icon;
+      }
+    }
+    if (this.swiping) {
+      this.dragX = s.x - this.swipeX;
+      this.dragY = s.y - this.swipeY;
+      if (released) this.swiping = false;
+    }
 
     // Re-arm once the tip has left the locked icon (sideways, or backed away in front).
     if (this.locked >= 0 && (over !== this.locked || s.z > c.armDepth + c.leaveMargin)) this.locked = -1;
@@ -271,12 +316,15 @@ export class TouchTracker {
         slideOk
       ) {
         this.reject = null;
-        activated = hit;
         this.locked = hit;
-        this.cooldown = c.cooldown;
-        this.flashT = c.flash;
-        this.flashIcon = hit;
         this.frontAge = Infinity;
+        if (this.commitOnRelease) this.pending = { icon: hit, x: s.x, y: s.y };
+        else {
+          activated = hit;
+          this.cooldown = c.cooldown;
+          this.flashT = c.flash;
+          this.flashIcon = hit;
+        }
       }
     }
 

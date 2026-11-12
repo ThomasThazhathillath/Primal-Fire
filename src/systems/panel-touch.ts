@@ -63,7 +63,11 @@ export class PanelTouch implements GazeUiOwner {
     private name: string,
   ) {
     // An open panel does not ask for a pointing pose: the depth and approach rules are enough.
-    for (const t of this.trackers) t.requirePoint = false;
+    for (const t of this.trackers) {
+      t.requirePoint = false;
+      // A tap commits when the finger leaves the button; a swipe that starts on it scrolls the list instead.
+      t.commitOnRelease = true;
+    }
     // Debug / tuning: window.__touch[name].targets() lists where every target is in the world.
     const g = window as unknown as { __touch?: Record<string, unknown> };
     gazeUi.push(this);
@@ -226,7 +230,7 @@ export class PanelTouch implements GazeUiOwner {
         handClaims.uiNear[h] = true;
         handClaims.uiNearAt[h] = performance.now() / 1000;
       }
-      if (tr.reject && tr.rejectIcon >= 0 && tr.rejectIcon < n) {
+      if (tr.reject && tr.reject !== 'swipe' && tr.rejectIcon >= 0 && tr.rejectIcon < n) {
         const id = this.active[tr.rejectIcon].id;
         if (rejectLog.shouldLog(`${this.name}:${id}:${tr.reject}:${h}`, performance.now())) {
           getGame(this.world).log.add(rejectLine(this.name, id, tr.reject, h));

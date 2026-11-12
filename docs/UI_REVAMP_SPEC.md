@@ -1,0 +1,5 @@
+# UI revamp: the user's request (Nov 12, verbatim)
+
+> Stones are not very visible. Maybe improve to a greyer color or whiter. We need to work on a complete revamp of the positions of the informations cards. Like the quest card you need to look up which is straining on the neck. Maybe make the cards movable by hand like how you can move browser cards in quest etc. Like pinch and drag. Reduce the number of cards. Improve how it looks now its just a black card with white text. Very large texts that cant even be read properly. Make the names smaller. Card look more like an actual game card. Maybe add icons or images for items in bag. Improve the menu card opening etc. Sometimes misclicks are happening on the icons fix that. Maybe make the icons a scrollable single row on the bottom. The cards as well add a scroll to it make fonts largeer and just allow users to scroll on the card
+
+Context from the Quest play log (Nov 11): the player entered survival directly and never saw the guided tutorial; no animated hand demonstrations exist; the game ran at 39–48 fps with 140–275 draw calls; many menu taps were rejected ("pinching", "miss", "notPointing").

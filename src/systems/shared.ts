@@ -242,6 +242,9 @@ export const clampSpot = (v: PanelSpot): PanelSpot => ({
 /** Movable cards by key (debug and tests: where each one hangs now). */
 export const cards: Record<string, Object3D> = {};
 
+/** What the ghost hand should demonstrate right now (null = nothing), and next to which card. Set by the teaching cards. */
+export const ghost: { clip: string | null; card: string | null; how: string | null } = { clip: null, card: null, how: null };
+
 export class StaticAnchor {
   private placedYaw = 0;
   private placedX = 0;

@@ -12,7 +12,8 @@ import { createSystem, type Entity, findUIKitDocument, RayInteractable, ScreenSp
 import { cardView, objectiveById, type ObjectiveView } from '../game/objectives.js';
 import { PanelTouch } from './panel-touch.js';
 import { PopIn } from './ui-fx.js';
-import { getGame, getUi, hidePanel, headYaw, menu, StaticAnchor, uiText } from './shared.js';
+import { OBJECTIVE_CLIPS } from './ghost-hand-system.js';
+import { ghost, getGame, getUi, hidePanel, headYaw, menu, StaticAnchor, uiText } from './shared.js';
 import { WorldSystem } from './world-system.js';
 
 /** UIKit units are ~1 cm; the panel is scaled so the 520-wide card is ~26 cm. */
@@ -163,6 +164,7 @@ export class ObjectiveCardSystem extends createSystem({}) {
 
   private toggleHow(): void {
     this.howOpen = !this.howOpen;
+    ghost.how = this.howOpen ? (OBJECTIVE_CLIPS[this.view?.id ?? ''] ?? null) : null;
     this.sig = ''; // re-render now
     this.dirty = true;
   }
@@ -186,6 +188,7 @@ export class ObjectiveCardSystem extends createSystem({}) {
     if (v.id !== this.howFor) {
       this.howFor = v.id;
       this.howOpen = false; // a new objective starts folded
+      ghost.how = null;
     }
     text('obj-instr', v.instruction);
     const where = v.where ?? '';

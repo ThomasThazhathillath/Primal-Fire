@@ -69,6 +69,7 @@
   </div>
   <div class="row">
     <Button id="stow-button" class="t-btn" variant="secondary" size="sm"><ButtonIcon><Undo2></Undo2></ButtonIcon><ButtonLabel id="stow-label">Put back</ButtonLabel></Button>
+    <Button id="bag-more" class="t-btn" variant="secondary" size="sm"><ButtonIcon><ChevronDown></ChevronDown></ButtonIcon><ButtonLabel id="bag-more-label">More</ButtonLabel></Button>
     <Button id="satchel-close" class="back t-btn" variant="secondary" size="lg"><ButtonIcon><ArrowLeft></ArrowLeft></ButtonIcon><ButtonLabel>Back</ButtonLabel></Button>
   </div>
 </div>

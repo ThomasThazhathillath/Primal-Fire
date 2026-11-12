@@ -13,7 +13,7 @@ import { cardView, objectiveById, type ObjectiveView } from '../game/objectives.
 import { PanelTouch } from './panel-touch.js';
 import { PopIn } from './ui-fx.js';
 import { OBJECTIVE_CLIPS } from './ghost-hand-system.js';
-import { ghost, getGame, getUi, hidePanel, headYaw, menu, StaticAnchor, uiText } from './shared.js';
+import { ghost, getGame, getUi, hidePanel, headYaw, menu, reveal, StaticAnchor, uiText } from './shared.js';
 import { WorldSystem } from './world-system.js';
 
 /** UIKit units are ~1 cm; the panel is scaled so the 520-wide card is ~26 cm. */
@@ -120,7 +120,7 @@ export class ObjectiveCardSystem extends createSystem({}) {
 
   private place(): void {
     if (!this.shown) return;
-    const show = this.open && this.view !== null && !this.hintOn;
+    const show = this.open && this.view !== null && !this.hintOn && reveal.objective;
     // ScreenSpace reparents the UIKit document onto the camera, so the document is hidden too.
     const was = this.wasShown;
     this.wasShown = show;

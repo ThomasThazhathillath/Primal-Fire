@@ -17,10 +17,10 @@ import { START_HOUR } from '../game/environment.js';
 import type { InteractionId } from '../game/objectives.js';
 import { ghost } from './shared.js';
 import { LESSON_CLIPS } from './ghost-hand-system.js';
-import { CLOSING, LESSONS, OPENING, storyHour, TutorialRunner, type TutorialSave } from '../game/tutorial-lessons.js';
+import { CLOSING, guidedReveal, LESSONS, OPENING, storyHour, TutorialRunner, type TutorialSave } from '../game/tutorial-lessons.js';
 import { choiceMade, chooseSurvival, loadProgressRaw, reloadInto, saveCarry, saveProgressRaw, takeCarry } from '../game/tutorial-mode.js';
 import { PanelTouch } from './panel-touch.js';
-import { getGame, getUi, hidePanel, menu, StaticAnchor, uiText } from './shared.js';
+import { getGame, getUi, hidePanel, menu, reveal, StaticAnchor, uiText } from './shared.js';
 import { clearSave, WorldSystem } from './world-system.js';
 
 const PANEL_SCALE = 0.045;
@@ -142,6 +142,15 @@ export class TutorialSystem extends createSystem({}, { tutorial: { type: Types.B
       this.runner.on((e) => {
         this.dirty = true;
         if (e.type === 'lessonDone') game.log.add(`opening step ${LESSONS[e.index].id} done`, 'ok');
+        if (e.type === 'known') {
+          // Already shown: one word instead of the whole explanation again (NPE B).
+          game.log.add(`opening step ${LESSONS[e.index].id} already known`, 'ok');
+          this.lines.push(`You already know this one (${LESSONS[e.index].title.toLowerCase()}).`);
+        }
+        if (e.type === 'task' && LESSONS[e.index].id === 'hands' && e.task === 0) {
+          // The first pickup: confirm it and say where it went (NPE B, stage 2).
+          game.toast('Got it. It is in the pouch at your right hip.', 'good');
+        }
         if (e.type === 'science') this.lines.push(e.text);
         if (e.type === 'lesson') {
           this.lines.push(LESSONS[e.index].say);
@@ -270,9 +279,26 @@ export class TutorialSystem extends createSystem({}, { tutorial: { type: Types.B
     }
   }
 
+  /**
+   * Gradual reveal (NPE B): while the guided stages run, the menu appears once the bag is taught and the objective
+   * card once the first discovery is made; before that the lesson card is the only guide on screen.
+   */
+  private applyReveal(): void {
+    const r = this.runner;
+    if (!r || r.finished || !this.config.tutorial.peek()) {
+      reveal.menu = true;
+      reveal.objective = true;
+      return;
+    }
+    const v = guidedReveal(r.current, r.done, r.finished);
+    reveal.menu = v.menu;
+    reveal.objective = v.objective;
+  }
+
   update(delta: number): void {
     const panel = this.panel;
     if (!panel) return;
+    this.applyReveal();
     const started = this.world.getSystem(WorldSystem)?.started ?? false;
     if (!started) return;
     if (!this.runner && !this.choiceDone && this.mode === 'hidden') {

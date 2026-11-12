@@ -131,12 +131,16 @@ describe('THE FIRST STEPS tutorial', () => {
     const g = new Game();
     const r = new TutorialRunner(g);
     const order = LESSONS.map((l) => l.id);
-    for (const id of order) {
-      at(r, id);
+    const seen: string[] = [];
+    for (let n = 0; n < 30 && !r.finished; n++) {
+      const id = r.lesson.id;
+      seen.push(id);
       playLesson(r, g);
       if (id !== 'final') expect(r.lesson.id, `stuck in ${id}: ticks ${r.ticks}`).not.toBe(id);
     }
     expect(r.finished).toBe(true);
+    // The spec's first five stages come first, in order.
+    expect(seen.slice(0, 7)).toEqual(['glide', 'hands', 'satchel', 'gather', 'build', 'craft', 'notebook']);
     expect([...r.done].sort()).toEqual([...order].sort());
   });
 
@@ -145,10 +149,7 @@ describe('THE FIRST STEPS tutorial', () => {
     try {
       const g = new Game();
       const r = new TutorialRunner(g);
-      for (const l of LESSONS) {
-        at(r, l.id);
-        playLesson(r, g);
-      }
+      for (let n = 0; n < 30 && !r.finished; n++) playLesson(r, g);
       expect(r.finished).toBe(true);
     } finally {
       setEasyCarry(false);
@@ -174,19 +175,19 @@ describe('THE FIRST STEPS tutorial', () => {
     const g = new Game();
     const r = new TutorialRunner(g);
     playLesson(r, g);
-    at(r, 'look');
+    at(r, 'hands');
     r.begin(0);
     expect(r.ticks.every((t) => !t)).toBe(true);
     playLesson(r, g);
-    at(r, 'look'); // goes on to the first lesson not yet done
+    at(r, 'hands'); // goes on to the first lesson not yet done
   });
 
   it('a lesson can be skipped, and the whole tutorial too', () => {
     const g = new Game();
     const r = new TutorialRunner(g);
     r.skipLesson();
-    at(r, 'look');
-    expect(r.done.has('hands')).toBe(true);
+    at(r, 'hands');
+    expect(r.done.has('glide')).toBe(true);
     r.skipAll();
     expect(r.finished).toBe(true);
     expect(r.done.size).toBe(LESSONS.length);
@@ -195,9 +196,10 @@ describe('THE FIRST STEPS tutorial', () => {
   it('a second stone counts as the second pickup', () => {
     const g = new Game();
     const r = new TutorialRunner(g);
+    r.begin(LESSONS.findIndex((l) => l.id === 'hands'));
     g.gather('dryStone');
     g.gather('dryStone');
-    at(r, 'look');
+    at(r, 'satchel');
   });
 
   it('outside building lessons no blueprint can be started; inside, only the lesson structure', () => {
@@ -236,6 +238,7 @@ describe('THE FIRST STEPS tutorial', () => {
     const r = new TutorialRunner(g);
     r.skipLesson();
     r.skipLesson();
+    r.skipLesson();
     at(r, 'gather');
     g.gather('fibers');
     g.gather('dryStone');
@@ -243,7 +246,7 @@ describe('THE FIRST STEPS tutorial', () => {
     g.gather('twigs');
     expect(r.ticks).toEqual([false, true, true, true]);
     g.gather('dryGrass');
-    at(r, 'satchel');
+    at(r, 'build');
   });
 
   it('a reload mid-lesson keeps the half-built work (setup does not run again)', () => {
@@ -268,7 +271,7 @@ describe('THE FIRST STEPS tutorial', () => {
     r.skipLesson();
     r.skipLesson();
     const r2 = new TutorialRunner(new Game(), JSON.parse(JSON.stringify(r.snapshot())));
-    at(r2, 'satchel');
+    at(r2, 'gather');
     expect(r2.done.has('hands')).toBe(true);
   });
 
@@ -350,7 +353,7 @@ describe('the opening as a story', () => {
   });
 
   it('the clock runs from early afternoon to dusk across the opening', () => {
-    expect(storyHour('hands')).toBeCloseTo(13);
+    expect(storyHour(LESSONS[0].id)).toBeCloseTo(13);
     expect(storyHour('fire')).toBeGreaterThanOrEqual(18); // dusk by the fire
     expect(storyHour(null)).toBeGreaterThan(storyHour('final'));
     for (let i = 1; i < LESSONS.length; i++) expect(storyHour(LESSONS[i].id)).toBeGreaterThan(storyHour(LESSONS[i - 1].id));

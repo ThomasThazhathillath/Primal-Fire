@@ -18,7 +18,7 @@ import {
 import { fitsPouch } from '../game/items.js';
 import { PanelTouch } from './panel-touch.js';
 import { keepsGridOpen, pageLayout } from '../game/menu.js';
-import { getGame, getUi, hidePanel, menu, StaticAnchor, SwipePager } from './shared.js';
+import { getGame, getUi, hidePanel, menu, reveal, StaticAnchor, SwipePager } from './shared.js';
 import { clearSave, WorldSystem } from './world-system.js';
 
 const SLOT = 68;
@@ -102,6 +102,8 @@ export class IconBarSystem extends createSystem({}) {
   }
   private ready = false;
   private shown = false;
+  /** Hidden by the guided opening's gradual reveal (NPE B). */
+  private revealHidden = false;
   vr = false;
   canRemove = false;
   private removeTimer = 0;
@@ -287,6 +289,22 @@ export class IconBarSystem extends createSystem({}) {
     if (!this.shown) {
       if (this.world.getSystem(WorldSystem)?.started) this.reveal();
       return;
+    }
+    // The guided opening shows the menu only once the bag has been taught (NPE B).
+    if (!reveal.menu) {
+      if (!this.revealHidden) {
+        this.revealHidden = true;
+        hidePanel(this.bar);
+        menu.gridOpen = false;
+      }
+      return;
+    }
+    if (this.revealHidden) {
+      this.revealHidden = false;
+      this.bar.visible = true;
+      this.anchor.reset();
+      this.touch.reset();
+      this.lastVisible = '';
     }
     const game = getGame(this.world);
     if ((this.removeTimer -= delta) <= 0) {

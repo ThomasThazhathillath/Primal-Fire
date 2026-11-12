@@ -193,8 +193,14 @@ export const pendingRelease = {
 export const pickupFrom = { valid: false, pos: new Vector3(), time: 0 };
 
 /**
+ * Gradual reveal of the HUD during the guided opening (NPE B): TutorialSystem turns parts on as the stages that
+ * teach them are reached. Outside the opening everything is on.
+ */
+export const reveal = { menu: true, objective: true };
+
+/**
  * What the hand ray is aiming at, for the feedback ring and label (NPE milestone A): written by ResourceSystem
- * each VR frame, drawn by GazeTargetSystem. `key` is '' when the ray is on nothing gatherable.
+ * each VR frame, drawn by HighlightSystem (label) and GazeTargetSystem (the pickup note). `key` is '' when the ray is on nothing gatherable.
  * `note` is a short confirmation after a pickup ("+1 Dry stone, in your pouch"), shown for `noteFor` seconds.
  */
 export const rayPick = {

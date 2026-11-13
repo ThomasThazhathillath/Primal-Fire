@@ -197,29 +197,29 @@ export const MOTION_SIGN: Record<string, string> = { saw: 'saw', twist: 'twist',
 
 /** How to do each bench motion, said plainly (level 2 and 3 help). */
 export const MOTION_HOW: Record<string, string> = {
-  saw: 'Saw: hold it and move your hand back and forth in long strokes.',
-  twist: 'Twist: hold the strands with both hands and turn your wrists in opposite directions.',
-  wrap: 'Wrap: circle your hand around the joint, again and again.',
-  press: 'Press: push straight down on it with your hand and hold for a moment.',
-  scrape: 'Scrape: drag the edge along it, short strokes away from you.',
-  strike: 'Strike: a short, sharp downward tap.',
+  saw: 'Move back and forth.',
+  twist: 'Turn your wrists opposite ways.',
+  wrap: 'Circle your hand around it.',
+  press: 'Push down and hold.',
+  scrape: 'Drag the edge along it.',
+  strike: 'Tap down sharply.',
 };
 
 /** The words for a failure struggle at level 2 (short) and 3 (explicit). */
 export function failHelp(code: string, detail: string | undefined, level: HelpLevel): string {
   const motion = /needs: (\w+)/.exec(detail ?? '')?.[1];
   if (code === 'bench.wrongMotion' && motion) {
-    const how = MOTION_HOW[motion] ?? `This step needs a ${motion} motion.`;
-    return level >= 3 ? `${how} Watch the hand sign: copy it slowly. Close is good enough now.` : `This step needs a ${motion}. ${how}`;
+    const how = MOTION_HOW[motion] ?? 'Copy the hand sign.';
+    return level >= 3 ? `${how} Copy the hand sign. Close is fine.` : `${motion.charAt(0).toUpperCase()}${motion.slice(1)}: ${how.toLowerCase()}`;
   }
   if (code === 'grab.tooHeavy' || code === 'drag.tooHeavy') {
-    return level >= 3 ? 'Too heavy for one hand: pinch it with BOTH hands at once, then lift or pull together. Watch the hand sign.' : 'Too heavy for one hand: use both hands.';
+    return level >= 3 ? 'Pinch it with both hands. Lift together.' : 'Too heavy. Use both hands.';
   }
   if (code.startsWith('knap.')) {
-    return level >= 3 ? 'Hold the core still in one hand. Strike near its edge with a glancing blow, not straight down. Watch the hand sign.' : 'Strike near the edge of the stone, at an angle.';
+    return level >= 3 ? 'Hold it still. Hit the edge at an angle.' : 'Hit near the edge, at an angle.';
   }
   if (code.startsWith('place.')) {
-    return level >= 3 ? 'Carry the part right over the glowing mark the arrow points to, then open your hand.' : 'Bring it closer to the glowing mark, then let go.';
+    return level >= 3 ? 'Follow the arrow. Let go over the mark.' : 'Bring it to the glowing mark.';
   }
-  return level >= 3 ? 'Try a different approach: the card has hints (tap the bulb).' : 'Not quite. Try again a little differently.';
+  return level >= 3 ? 'Tap the bulb for a hint.' : 'Try a different way.';
 }

@@ -27,12 +27,12 @@ export const FEEDBACK_SECONDS = 8;
 export type InteractionId = 'grab' | 'place' | 'build' | 'bench' | 'tool' | 'fire';
 
 export const TEACH: Record<InteractionId, string> = {
-  grab: 'HOW TO PICK UP: 1. Reach your hand to the stone until your fingers are almost touching it. 2. Press your thumb and index fingertips firmly together (a pinch) and hold them shut. 3. It goes into your satchel.',
+  grab: 'Look at it, then pinch thumb and finger together. It goes in your pouch.',
   place: 'HOW TO PLACE: 1. Tap the bag icon and tap the stone to take it in your hand. 2. Carry it over a glowing mark: it is drawn in, and letting go or touching the mark seats it. 3. The next stone appears in your hand by itself. Or, with an empty hand, just pinch or tap a glowing mark: it takes a stone from your bag. Put away stops it.',
-  build: 'Open the hammer icon in the bottom bar to place an outline, then fill each mark.',
-  bench: 'Poke the finished workbench with a finger to see what you can make.',
-  tool: 'Pinch a tool to hold it, then swing it. Strike with the edge, not the flat.',
-  fire: 'Hold the bow drill, saw it back and forth, and steady it with your other hand.',
+  build: 'Open Build in the menu and pick what to build.',
+  bench: 'Pinch your workbench to see what to make.',
+  tool: 'Pinch a tool to hold it, then swing.',
+  fire: 'Hold the bow drill at the pit and saw.',
 };
 
 /** Four escalating hints; part B shows `levels[0..hintLevel-1]` with the reference item. */
@@ -46,6 +46,8 @@ export interface HintData {
 export interface Objective {
   id: string;
   title: string;
+  /** The one instruction the card shows (NPE simplicity round): six words at most, verb first. */
+  short?: string | ((g: Game) => string);
   instruction: string | ((g: Game) => string);
   /** Shown on the card when it finishes. */
   doneMessage: string;
@@ -128,7 +130,7 @@ export function readyToBuild(g: Game): string | null {
   const line = materialsLine(o.structure, g);
   if (!line) return null;
   const ok = o.structure === 'workbench' ? /Stones 3\/3, flat stone 1\/1/.test(line) : /Stones 4\/4/.test(line);
-  return ok ? `You have everything. Ready to build: tap the grid icon, then the hammer, then ${BLUEPRINTS[o.structure].name}.` : null;
+  return ok ? `Ready! Open Build, choose ${BLUEPRINTS[o.structure].name}.` : null;
 }
 
 /**
@@ -142,7 +144,7 @@ export function nextStepLine(g: Game): string | null {
     const r = BENCH_RECIPES.find((x) => `recipe:${x.id}` === e.id);
     if (!r || g.count(r.output) > 0 || g.held === r.output) continue;
     const name = e.name.replace(/ \(.*\)$/, '');
-    return `You have everything for ${name.toLowerCase()}: go to your workbench and tap ${name}.`;
+    return `Ready: make ${name.toLowerCase()} at the bench.`;
   }
   return null;
 }
@@ -166,7 +168,7 @@ export function nextActionLine(o: Objective, g: Game, message: string | null, ne
   const open = substeps.find((x) => !x.done);
   if (open) return `Next: ${open.text.charAt(0).toLowerCase()}${open.text.slice(1)}`;
   const items = o.find?.(g) ?? [];
-  if (items.length) return `Next: look at ${ITEMS[items[0]].name.toLowerCase()} and pinch to collect it.`;
+  if (items.length) return `Pinch a ${ITEMS[items[0]].name.toLowerCase()}.`;
   return null;
 }
 
@@ -177,6 +179,7 @@ export const OBJECTIVES: Objective[] = [
     id: 'firstStone',
     find: () => ['dryStone', 'wetStone'],
     title: 'Find your first stone',
+    short: 'Pinch a glowing stone',
     instruction: 'Look around the forest floor and pick up one stone.',
     doneMessage: "Good. You've found your first resource.",
     teach: 'grab',
@@ -198,6 +201,7 @@ export const OBJECTIVES: Objective[] = [
     id: 'moreStones',
     find: () => ['dryStone', 'wetStone'],
     title: 'Gather more stones',
+    short: 'Pick up 3 more stones',
     instruction: 'Find three more stones. They will be the supports of your first workbench.',
     doneMessage: 'Great! You have enough stones to begin building. Three supports never wobble.',
     baseline: stones,
@@ -220,6 +224,7 @@ export const OBJECTIVES: Objective[] = [
     id: 'flatStone',
     find: () => ['slab'],
     title: 'Find a flat stone',
+    short: 'Pick up a flat stone',
     instruction:
       'Look for a broad, flat slab of stone. It will be the top of your workbench. It is heavy: hold it with both hands.',
     doneMessage: 'That looks like a suitable flat stone.',
@@ -241,6 +246,7 @@ export const OBJECTIVES: Objective[] = [
     id: 'workbench',
     structure: 'workbench',
     title: 'Build your first workbench',
+    short: (g) => ['Open Build, choose Workbench', 'Pinch each glowing mark', 'Put the flat stone on top', 'Put the flat stone on top'][workbenchStage(g)],
     instruction: (g) => {
       const stage = workbenchStage(g);
       if (stage === 0) return 'Tap the grid icon, then the hammer, then Workbench to put its outline on open, dry ground.';
@@ -283,6 +289,7 @@ export const OBJECTIVES: Objective[] = [
   {
     id: 'exploreBench',
     title: 'Explore your workbench',
+    short: 'Pinch your workbench',
     instruction: 'Poke your workbench with a finger and look at what you can make there.',
     doneMessage: 'This is where your tools begin.',
     teach: 'bench',
@@ -302,6 +309,7 @@ export const OBJECTIVES: Objective[] = [
     id: 'stoneTools',
     find: (g) => (g.count('flint') + (g.held === 'flint' ? 1 : 0) > 0 ? [] : ['flint']),
     title: 'Make a sharp stone',
+    short: 'Hit the flint with a stone',
     instruction: 'Hold the flint in one hand and hit its edge with a stone in the other, until a sharp flake breaks off.',
     doneMessage: 'You made your first edge. Sharp things cut.',
     teach: 'tool',
@@ -325,6 +333,7 @@ export const OBJECTIVES: Objective[] = [
     id: 'wood',
     find: (g) => (g.gatheredCount('twigs') < 3 ? ['twigs'] : ['logs']),
     title: 'Gather wood',
+    short: 'Pick up 3 twigs, 2 logs',
     instruction: 'Collect 3 twigs and 2 logs. Dead wood lying on the ground is dry and burns well.',
     doneMessage: 'Good wood. Dead wood is dry, living wood is full of water.',
     progress: (g) => ({ have: capped(g.gatheredCount('twigs'), 3) + capped(g.gatheredCount('logs'), 2), need: 5 }),
@@ -348,6 +357,7 @@ export const OBJECTIVES: Objective[] = [
     id: 'cutting',
     find: () => ['cane'],
     title: 'Cut with your edge',
+    short: 'Cut a cane with the flake',
     instruction: 'Hold the flake in one hand and pinch a cane (or a fibre plant, vine or bark) with the other: the flake cuts it free.',
     doneMessage: 'A thin edge cuts where a hand cannot.',
     teach: 'tool',
@@ -369,6 +379,7 @@ export const OBJECTIVES: Objective[] = [
     id: 'tinder',
     find: () => ['dryGrass'],
     title: 'Collect dry tinder',
+    short: 'Pick up 2 dry grass',
     instruction: 'Pick up 2 handfuls of dry grass. Fire starts in fine, dry material.',
     doneMessage: 'Dry grass catches a spark. Damp moss would smother it.',
     progress: (g) => ({ have: capped(g.gatheredCount('dryGrass'), 2), need: 2 }),
@@ -388,6 +399,7 @@ export const OBJECTIVES: Objective[] = [
     id: 'cord',
     find: (g) => (g.gatheredCount('fibers') < 3 && !g.flag('cordMade') ? ['fibers'] : []),
     title: 'Twist some cord',
+    short: 'Make cord at the workbench',
     instruction: 'Collect stringy fibres, then twist them into cord at your workbench.',
     doneMessage: 'Cord holds things together.',
     substeps: (g) => [
@@ -410,6 +422,7 @@ export const OBJECTIVES: Objective[] = [
     id: 'frictionParts',
     find: (g) => (['spindle', 'board', 'greenBranch'] as ItemId[]).filter((i) => g.gatheredCount(i) === 0),
     title: 'Find the bow drill parts',
+    short: 'Find stick, board and branch',
     instruction: 'You need a straight dry stick, a flat board and a springy green branch.',
     doneMessage: 'You have everything for a bow drill.',
     substeps: (g) => [
@@ -432,6 +445,7 @@ export const OBJECTIVES: Objective[] = [
   {
     id: 'bowDrill',
     title: 'Make the bow drill',
+    short: 'Make the bow drill',
     instruction: 'Poke your workbench, choose the bow drill and build it step by step with your hands.',
     doneMessage: 'A bow drill. Friction makes heat.',
     teach: 'bench',
@@ -451,6 +465,7 @@ export const OBJECTIVES: Objective[] = [
     id: 'firePit',
     structure: 'firePit',
     title: 'Build a fire pit',
+    short: 'Build a fire pit',
     instruction: 'Open the hammer icon, choose Fire pit and put stones on the marks to make a ring on open ground.',
     doneMessage: 'A ring of stones keeps the fire where you want it.',
     teach: 'build',
@@ -477,6 +492,7 @@ export const OBJECTIVES: Objective[] = [
   {
     id: 'fireLay',
     title: 'Lay the fire',
+    short: 'Fill the pit: tinder, twigs, logs',
     instruction: 'Put tinder in the pit, then twigs around it, then logs on the outside.',
     doneMessage: 'The finest fuel goes in first and the biggest last.',
     teach: 'fire',
@@ -500,6 +516,7 @@ export const OBJECTIVES: Objective[] = [
   {
     id: 'ember',
     title: 'Make an ember',
+    short: 'Saw the drill at the pit',
     instruction: 'Hold the bow drill at your fire pit and saw it back and forth until an ember glows. You do not put it down.',
     doneMessage: 'A glowing ember! Now keep it alive.',
     teach: 'fire',
@@ -520,6 +537,7 @@ export const OBJECTIVES: Objective[] = [
   {
     id: 'fireLit',
     title: 'Light the fire',
+    short: 'Fan the ember into flame',
     instruction: 'Carry the ember to the tinder and wave an open hand over it until flames catch.',
     doneMessage: 'Fire! You made it from nothing but friction.',
     teach: 'fire',
@@ -538,6 +556,7 @@ export const OBJECTIVES: Objective[] = [
     id: 'pot',
     find: (g) => (g.gatheredCount('clay') < 2 ? ['clay'] : g.gatheredCount('sand') === 0 ? ['sand'] : []),
     title: 'Make a clay pot',
+    short: 'Make a clay pot',
     instruction: 'Mix clay with sand, shape a pot at the workbench, let it dry, then fire it in your fire.',
     doneMessage: 'Fired clay holds water for good.',
     howTo: (g) =>
@@ -568,6 +587,7 @@ export const OBJECTIVES: Objective[] = [
   {
     id: 'charcoal',
     title: 'Make charcoal',
+    short: 'Make charcoal',
     instruction: 'Dig a pit, stack wood in it, cover it with earth and watch the smoke.',
     doneMessage: 'Charcoal: wood burned with little air.',
     howTo: (g) => {
@@ -591,6 +611,7 @@ export const OBJECTIVES: Objective[] = [
     id: 'cleanWater',
     structure: 'filter',
     title: 'Make safe water',
+    short: 'Make safe water',
     instruction: 'Build a filter, pour stream water through it, then boil it on your fire.',
     doneMessage: 'Clear is not the same as safe. Boiling did the real work.',
     teach: 'build',
@@ -618,6 +639,7 @@ export const OBJECTIVES: Objective[] = [
     id: 'shelter',
     structure: 'shelter',
     title: 'Build a shelter',
+    short: 'Build a shelter',
     instruction: 'Choose dry, flat ground, raise a sloped roof, add a bed and turn the opening from the wind.',
     doneMessage: 'A roof, a bed and a wall against the wind.',
     teach: 'build',
@@ -655,6 +677,7 @@ export const OBJECTIVES: Objective[] = [
     id: 'science',
     place: 'ruins',
     title: 'Visit the Science Roadmap',
+    short: 'Walk to the rusted mast',
     instruction: 'Follow the rusted mast to the ruins and touch the Science Roadmap.',
     doneMessage: 'Everything you did was an experiment. You can survive here.',
     done: (g) => g.flag('finale'),
@@ -696,6 +719,8 @@ export interface ObjectiveView {
   nextAction?: string | null;
   /** The just-finished objective's message while it is celebrated. */
   celebrating: { title: string; message: string } | null;
+  /** The one instruction (six words at most, verb first); the card's headline. */
+  short?: string;
   /** 1-based number in the sequence, and how many there are. */
   step: number;
   total: number;
@@ -761,7 +786,7 @@ export class ObjectiveTracker {
   observe(e: GameEvent): void {
     switch (e.type) {
       case 'gather':
-        if (e.item === 'dryStone' || e.item === 'wetStone') this.gate.say(this.game.time, 'stoneGot', 'Stone collected. You can use it to build structures.');
+        if (e.item === 'dryStone' || e.item === 'wetStone') this.gate.say(this.game.time, 'stoneGot', 'Stone collected!');
         this.learned.add('grab');
         if (e.tool) this.learned.add('tool');
         break;
@@ -841,20 +866,20 @@ export class ObjectiveTracker {
     const px = g.player.x;
     const pz = g.player.z;
     if (held === 'slab' && !g.structures.some((s) => s.kind === 'workbench')) {
-      this.gate.say(g.time, 'slabHeld', 'Find suitable ground to start building.');
+      this.gate.say(g.time, 'slabHeld', 'Find open ground.');
     }
     // Near an unfinished build: what it still needs; with a fitting part in hand: where it goes.
     for (const m of openMarks(g.structures)) {
       const d = Math.hypot(m.x - px, m.z - pz);
       if (d > 4) continue;
       if (held && m.accepts.includes(held) && d < 2.5) {
-        this.gate.say(g.time, `fits_${m.structure.id}`, `This ${ITEMS[held].name.toLowerCase()} fits here. Release or move it into position.`);
+        this.gate.say(g.time, `fits_${m.structure.id}`, 'Let go here.');
         return;
       }
       const s = m.structure;
       const open = BLUEPRINTS[s.kind].spots.filter((_, i) => s.spots[i] === null).length;
       if (open > 0 && !held) {
-        this.gate.say(g.time, `needs_${s.id}`, `Your ${BLUEPRINTS[s.kind].name.toLowerCase()} needs ${open} more ${open === 1 ? 'part' : 'parts'}.`);
+        this.gate.say(g.time, `needs_${s.id}`, `${open} more ${open === 1 ? 'part' : 'parts'} needed.`);
         return;
       }
     }
@@ -893,6 +918,7 @@ export class ObjectiveTracker {
       title: o.title,
       instruction: typeof o.instruction === 'function' ? o.instruction(g) : o.instruction,
       progress: o.progress ? o.progress(g, this.bases[o.id] ?? 0) : null,
+      short: typeof o.short === 'function' ? o.short(g) : (o.short ?? o.title),
       parts: partsLine(o, g),
       nextAction: nextActionLine(o, g, message, next, substeps),
       substeps,

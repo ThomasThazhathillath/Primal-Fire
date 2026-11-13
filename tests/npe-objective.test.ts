@@ -11,7 +11,8 @@ describe('objective card content', () => {
     expect(v.title.length).toBeGreaterThan(3);
     expect(v.instruction.length).toBeGreaterThan(10);
     expect(v.progress).toEqual({ have: 0, need: 1 });
-    expect(v.nextAction).toMatch(/^Next: look at .* and pinch to collect it\.$/);
+    expect(v.nextAction).toMatch(/^Pinch a .*\.$/);
+    expect(v.short).toBe('Pinch a glowing stone');
     expect(v.parts).toMatch(/^Look for: /);
   });
 

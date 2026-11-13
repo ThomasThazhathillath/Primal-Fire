@@ -19,13 +19,14 @@ import {
 } from '@iwsdk/core';
 import { fitsPouch, ITEM_PHYSICS, itemName, type ItemId } from '../game/items.js';
 import { pickByRay, PinchLock, type RayCandidate } from '../game/gaze.js';
+import { openMarks } from '../game/assist.js';
 import { SWING_TOOLS } from '../game/interact.js';
 import { groundHeight, RESOURCES, type ResourceSpot } from '../game/world-layout.js';
-import { afterGather, afterRegrow, loadedCharges } from '../game/resource-state.js';
+import { afterGather, afterRegrow, loadedCharges, regrowHidden } from '../game/resource-state.js';
 import { Gatherable } from '../components/game-components.js';
 import { itemMesh, resourceMesh } from '../scene-assets/item-meshes.js';
 import { hands } from './hand-input-system.js';
-import { getGame, glowMaterial, glowMaterialHot, handClaims, haptic, hipPosition, pickupFrom, rayPick } from './shared.js';
+import { getGame, getUi, glowMaterial, glowMaterialHot, handClaims, haptic, hipPosition, pickupFrom, rayPick } from './shared.js';
 
 /** Max distance (m) from your head to something you can gather. */
 export const REACH = 6;
@@ -99,6 +100,7 @@ export class ResourceSystem extends createSystem({
   private lastGatherOk = -1e9;
   private lastGather = 0;
   private tmpO = new Vector3();
+  private fwd = new Vector3();
   private tmpD = new Vector3();
   private tmpP = new Vector3();
 
@@ -147,6 +149,10 @@ export class ResourceSystem extends createSystem({
         // One pinch, one pickup: the aim assist may already have resolved this pinch a frame earlier.
         const vr = this.world.visibilityState.peek() !== VisibilityState.NonImmersive;
         if (vr && performance.now() - this.lastGatherOk < 350) return;
+        // The ray is on a glowing build mark: that pinch fills the mark (aim assist), it does not pick up loose things.
+        if (vr && openMarks(getGame(this.world).structures).length) {
+          for (let h = 0; h < 2; h++) if ((hands[h].gripDown || hands[h].grip) && this.markAimed(h)) return;
+        }
         this.tryGather(this.lockedFor(e));
       }),
     );
@@ -230,7 +236,7 @@ export class ResourceSystem extends createSystem({
     const charges = e.getValue(Gatherable, 'charges') ?? 0;
     if (!spot || charges <= 0) return false;
     if (this.distanceTo(spot) > REACH * reachCfg.scale) {
-      game.toast('Too far away to reach - step closer (tap thumb on index to teleport).', 'bad');
+      game.toast('Too far. Step closer.', 'bad');
       game.log.add(`gather ${spot.id}: out of reach`, 'bad');
       return false;
     }
@@ -262,6 +268,8 @@ export class ResourceSystem extends createSystem({
     game.contact(touched, touched === 'leaf' || touched === 'fibre' ? 'leaf' : 'soil', pickupFrom.pos.x, pickupFrom.pos.y, pickupFrom.pos.z, 0.4);
     const left = charges - 1;
     e.setValue(Gatherable, 'charges', left);
+    // Play-test evidence: how many takes the spot has left (a refill bug would show here).
+    game.log.add(`spot ${spot.id}: ${left} left`);
     if (left <= 0) {
       e.object3D!.visible = false;
       e.removeComponent(RayInteractable);
@@ -375,15 +383,23 @@ export class ResourceSystem extends createSystem({
       const nowS = performance.now() / 1000;
       // A pinch at a panel (a button press, a scroll) is never a pickup.
       const atUi = handClaims.uiNear[hand] || nowS - handClaims.uiTapAt[hand] < 0.3;
-      if (!atUi && performance.now() - this.lastGather > 150 && !getGame(this.world).held && nowS - handClaims.grabAt > 0.3) {
-        const locked = this.locks[hand].locked;
+      const heldNow = !!getGame(this.world).held;
+      // Holding something: the pinch may still seat it on a glowing mark (one-pinch building).
+      if (!atUi && heldNow && nowS - handClaims.grabAt > 0.3 && performance.now() - this.lastGather > 400) this.pinchMark(hand);
+      if (!atUi && performance.now() - this.lastGather > 150 && !heldNow && nowS - handClaims.grabAt > 0.3) {
+        // A glowing build mark under the ray wins over any loose thing near the same line.
+        const aimedMark = this.markAimed(hand) !== null;
+        const locked = aimedMark ? null : this.locks[hand].locked;
         const le = locked ? this.entityBySpot.get(locked) : undefined;
         const lspot = locked ? this.bySpot.get(locked) : undefined;
         // Out of reach: the label already says "step closer"; a failed reach is not repeated as a toast.
         if (le && lspot && (le.getValue(Gatherable, 'charges') ?? 0) > 0) {
           if (this.distanceTo(lspot) <= REACH * reachCfg.scale) this.tryGather(le);
-        }
-        else {
+        } else if (this.pinchMark(hand)) {
+          // A pinch on a glowing build mark filled it (from the hand or the bag): one pinch, done.
+        } else if (this.pinchBench(hand)) {
+          // A pinch aimed at the finished workbench opened it.
+        } else {
           const a = this.aim[hand];
           if (a.n > 0) {
             const k = (a.i - Math.min(AIM_LOOKBACK, a.n) + AIM_HISTORY) % AIM_HISTORY;
@@ -424,6 +440,76 @@ export class ResourceSystem extends createSystem({
       if (shown && (fbHand < 0 || h === 1)) fbHand = h;
     }
     this.updateRayFeedback(fbHand);
+  }
+
+  /**
+   * One-pinch building (NPE simplicity round): a pinch whose ray (as it was just before the fingers closed) points
+   * at an open build mark, or that closes right at one, fills it: the part in hand if it fits, else one from the
+   * bag. Runs only for a pinch nothing else took (no pickup, no UI, no grab).
+   */
+  private pinchMark(hand: number): boolean {
+    const game = getGame(this.world);
+    const marks = openMarks(game.structures);
+    if (!marks.length) return false;
+    const hf = hands[hand];
+    let best: (typeof marks)[number] | null = null;
+    let bestD = 0.3;
+    for (const m of marks) {
+      const d = Math.hypot(hf.pinchPos.x - m.x, hf.pinchPos.y - m.y, hf.pinchPos.z - m.z);
+      if (d < bestD) {
+        bestD = d;
+        best = m;
+      }
+    }
+    if (!best) {
+      const a = this.aim[hand];
+      if (a.n === 0) return false;
+      const k = (a.i - Math.min(AIM_LOOKBACK, a.n) + AIM_HISTORY) % AIM_HISTORY;
+      const cands: RayCandidate[] = marks.map((m, i) => ({ key: String(i), x: m.x, y: m.y, z: m.z, r: 0.18, inReach: Math.hypot(m.x - game.player.x, m.z - game.player.z) <= REACH * reachCfg.scale }));
+      const i = pickByRay(cands, cands.length, a.o[k].x, a.o[k].y, a.o[k].z, a.d[k].x, a.d[k].y, a.d[k].z, 10);
+      if (i < 0 || !cands[i].inReach) return false;
+      best = marks[i];
+    }
+    const ok = game.fillFromBag(best.structure.id, best.index);
+    game.log.add(`pinch mark ${best.structure.kind}#${best.structure.id}[${best.index}]: ${ok ? 'filled' : 'not filled'}`);
+    if (ok) {
+      haptic(this.world, hand as 0 | 1);
+      handClaims.actedAt[hand] = performance.now() / 1000;
+    }
+    return ok;
+  }
+
+  /**
+   * The open build mark this hand's ray is on (within `deg`), using the ray as it was just before the fingers closed,
+   * or null. Marks win over loose things: a glowing mark is what the player is building.
+   */
+  private markAimed(hand: number, deg = 8): ReturnType<typeof openMarks>[number] | null {
+    const game = getGame(this.world);
+    const marks = openMarks(game.structures);
+    if (!marks.length) return null;
+    const a = this.aim[hand];
+    if (a.n === 0) return null;
+    const k = (a.i - Math.min(AIM_LOOKBACK, a.n) + AIM_HISTORY) % AIM_HISTORY;
+    const cands: RayCandidate[] = marks.map((m, i) => ({ key: String(i), x: m.x, y: m.y, z: m.z, r: 0.18, inReach: Math.hypot(m.x - game.player.x, m.z - game.player.z) <= REACH * reachCfg.scale }));
+    const i = pickByRay(cands, cands.length, a.o[k].x, a.o[k].y, a.o[k].z, a.d[k].x, a.d[k].y, a.d[k].z, deg);
+    return i >= 0 && cands[i].inReach ? marks[i] : null;
+  }
+
+  /** A pinch aimed at a finished workbench (within reach) opens what it can make. */
+  private pinchBench(hand: number): boolean {
+    const game = getGame(this.world);
+    const benches = game.structures.filter((s) => s.kind === 'workbench' && s.complete);
+    if (!benches.length) return false;
+    const a = this.aim[hand];
+    if (a.n === 0) return false;
+    const k = (a.i - Math.min(AIM_LOOKBACK, a.n) + AIM_HISTORY) % AIM_HISTORY;
+    const cands: RayCandidate[] = benches.map((b) => ({ key: String(b.id), x: b.x, y: groundHeight(b.x, b.z) + 0.7, z: b.z, r: 0.5, inReach: Math.hypot(b.x - game.player.x, b.z - game.player.z) <= 3 }));
+    const i = pickByRay(cands, cands.length, a.o[k].x, a.o[k].y, a.o[k].z, a.d[k].x, a.d[k].y, a.d[k].z, 10);
+    if (i < 0 || !cands[i].inReach) return false;
+    getUi(this.world).openBench?.(benches[i].id);
+    handClaims.actedAt[hand] = performance.now() / 1000;
+    game.log.add(`pinch bench #${benches[i].id}: opened`);
+    return true;
   }
 
   /** The ring and label for what the hand ray means (drawn by GazeTargetSystem). */
@@ -502,6 +588,7 @@ export class ResourceSystem extends createSystem({
     this.regrowTimer = 0;
     const now = getGame(this.world).time;
     this.camera.getWorldPosition(this.head);
+    this.camera.getWorldDirection(this.fwd);
     for (const e of this.queries.spots.entities) {
       const at = e.getValue(Gatherable, 'regrowAt') ?? 0;
       if ((e.getValue(Gatherable, 'charges') ?? 0) > 0) {
@@ -517,6 +604,8 @@ export class ResourceSystem extends createSystem({
       if (at <= 0 || now < at) continue;
       const spot = this.bySpot.get(e.getValue(Gatherable, 'spotId') ?? '');
       if (!spot) continue;
+      // Grows back off-view only: never while you stand there looking at it.
+      if (!regrowHidden(spot.x, spot.z, this.head.x, this.head.z, this.fwd.x, this.fwd.z)) continue;
       const game = getGame(this.world);
       const prev = game.spotState.get(spot.id) ?? { c: e.getValue(Gatherable, 'charges') ?? 0, r: at };
       const res = afterRegrow(prev, spot, now);

@@ -310,6 +310,8 @@ export const assistFx = {
   sign: null as string | null,
   signFor: 0,
   pulse: null as { id: string; x: number; y: number; z: number } | null,
+  /** The exact next target (the tutorial step's thing, or the current goal's nearest need): one arrow and ring. */
+  exact: null as { id: string; x: number; y: number; z: number } | null,
 };
 
 /**
@@ -610,6 +612,8 @@ export const handClaims = {
   grabbing: [false, false],
   /** This hand's pinch is a teleport aim in progress. */
   moving: [false, false],
+  /** When (s) this hand's pinch last did something in the world (filled a mark, opened the bench): never also a move. */
+  actedAt: [-10, -10],
   /** Hand that holds the carried object, and when the last direct grab / pickup happened. */
   holdHand: 1 as 0 | 1,
   grabAt: -10,

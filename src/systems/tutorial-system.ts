@@ -20,7 +20,8 @@ import { LESSON_CLIPS } from './ghost-hand-system.js';
 import { CLOSING, guidedReveal, LESSONS, OPENING, storyHour, TutorialRunner, type TutorialSave } from '../game/tutorial-lessons.js';
 import { choiceMade, chooseSurvival, loadProgressRaw, reloadInto, saveCarry, saveProgressRaw, takeCarry } from '../game/tutorial-mode.js';
 import { PanelTouch } from './panel-touch.js';
-import { getGame, getUi, hidePanel, menu, reveal, StaticAnchor, uiText } from './shared.js';
+import { assistFx, getGame, getUi, hidePanel, menu, reveal, StaticAnchor, uiText } from './shared.js';
+import { groundHeight } from '../game/world-layout.js';
 import { clearSave, WorldSystem } from './world-system.js';
 
 const PANEL_SCALE = 0.045;
@@ -66,7 +67,7 @@ export class TutorialSystem extends createSystem({}, { tutorial: { type: Types.B
     this.entity = this.world.createTransformEntity(panel);
     this.entity.addComponent(RayInteractable);
     hidePanel(panel);
-    for (const id of ['tut-label', 'tut-title', 'tut-say', 'tut-tip', 'tut-body', 'tut-ctrl', 'tut-nums', 'tut-cele', 'tut-cele-text', 'tut-start-t', 'tut-again-t']) {
+    for (const id of ['tut-label', 'tut-title', 'tut-say', 'tut-tip', 'tut-body', 'tut-ctrl', 'tut-nums', 'tut-cele', 'tut-cele-text', 'tut-start-t', 'tut-again-t', 'tut-why-t', 'tut-repeat', 'tut-leave']) {
       this.els[id] = panel.getElementById<UIKit.Text>(id);
     }
     for (let i = 0; i < MAX_TASKS; i++) this.els[`t${i}`] = panel.getElementById<UIKit.Text>(`tut-body-${i}`);
@@ -85,6 +86,10 @@ export class TutorialSystem extends createSystem({}, { tutorial: { type: Types.B
       this.cleanupFuncs.push(() => el.removeEventListener('click', click));
       this.touch!.add(id, fn);
     };
+    wire('tut-why', () => {
+      this.expanded = !this.expanded;
+      this.dirty = true;
+    });
     wire('tut-repeat', () => this.runner?.begin(this.runner.current));
     wire('tut-skip', () => this.runner?.skipLesson());
     wire('tut-leave', () => this.leave(false));
@@ -147,9 +152,9 @@ export class TutorialSystem extends createSystem({}, { tutorial: { type: Types.B
           game.log.add(`opening step ${LESSONS[e.index].id} already known`, 'ok');
           this.lines.push(`You already know this one (${LESSONS[e.index].title.toLowerCase()}).`);
         }
-        if (e.type === 'task' && LESSONS[e.index].id === 'hands' && e.task === 0) {
+        if (e.type === 'task' && LESSONS[e.index].id === 'stone' && e.task === 0) {
           // The first pickup: confirm it and say where it went (NPE B, stage 2).
-          game.toast('Got it. It is in the pouch at your right hip.', 'good');
+          game.toast('Got it! It is in your pouch.', 'good');
         }
         if (e.type === 'science') this.lines.push(e.text);
         if (e.type === 'lesson') {
@@ -222,10 +227,10 @@ export class TutorialSystem extends createSystem({}, { tutorial: { type: Types.B
     const show = (id: string, on: boolean) => e[id]?.setProperties({ display: on ? 'flex' : 'none' });
     if (this.mode === 'choice') {
       e['tut-label']?.setProperties({ text: 'NEW HERE?' });
-      e['tut-title']?.setProperties({ text: 'THE FIRST STEPS' });
-      e['tut-cele-text']?.setProperties({ text: 'Begin with your first afternoon in the forest, guided. Your survival game is not touched.' });
-      e['tut-start-t']?.setProperties({ text: 'First steps' });
-      e['tut-again-t']?.setProperties({ text: 'Skip to survival' });
+      e['tut-title']?.setProperties({ text: 'Learn the basics?' });
+      e['tut-cele-text']?.setProperties({ text: 'Seven quick steps. Your game is not touched.' });
+      e['tut-start-t']?.setProperties({ text: 'Yes, show me' });
+      e['tut-again-t']?.setProperties({ text: 'Skip' });
       show('tut-body', false);
       show('tut-cele', true);
       return;
@@ -234,12 +239,12 @@ export class TutorialSystem extends createSystem({}, { tutorial: { type: Types.B
     if (!r) return;
     const g = getGame(this.world);
     this.shownQuarter = Math.floor(g.env.hour * 4);
-    e['tut-label']?.setProperties({ text: `DAY 1 - ${clockText(g.env.hour)}` });
     if (this.mode === 'finished') {
-      e['tut-title']?.setProperties({ text: 'Nightfall' });
-      e['tut-cele-text']?.setProperties({ text: 'You made fire from nothing. The mast is still out there.' });
-      e['tut-start-t']?.setProperties({ text: 'Follow the mast' });
-      e['tut-again-t']?.setProperties({ text: 'Stay a while' });
+      e['tut-label']?.setProperties({ text: 'DONE' });
+      e['tut-title']?.setProperties({ text: 'Well done!' });
+      e['tut-cele-text']?.setProperties({ text: 'You are ready. Your goals will guide you.' });
+      e['tut-start-t']?.setProperties({ text: 'Start the game' });
+      e['tut-again-t']?.setProperties({ text: 'Practise more' });
       show('tut-body', false);
       show('tut-cele', true);
       return;
@@ -248,35 +253,18 @@ export class TutorialSystem extends createSystem({}, { tutorial: { type: Types.B
     show('tut-cele', false);
     const l = r.lesson;
     const x = this.expanded;
+    // One instruction, verb first: the card's title. "Why?" opens the how-to; nothing else is on the card.
+    e['tut-label']?.setProperties({ text: `STEP ${r.current + 1} OF ${LESSONS.length}` });
     e['tut-title']?.setProperties({ text: uiText(l.title) });
-    e['tut-say']?.setProperties({ text: uiText(l.say) });
     e['tut-tip']?.setProperties({ text: uiText(l.tip) });
-    show('tut-say', x);
+    e['tut-why-t']?.setProperties({ text: x ? 'Hide' : 'Why?' });
+    show('tut-say', false);
     show('tut-tip', x);
-    show('tut-ctrl', x);
-    show('tut-nums', x);
-    const next = r.nextTask();
-    for (let i = 0; i < MAX_TASKS; i++) {
-      const el = e[`t${i}`];
-      const t = l.tasks[i];
-      // Folded: just the next thing to do.
-      if (!t || (!x && i !== next)) {
-        el?.setProperties({ display: 'none' });
-        continue;
-      }
-      const done = r.ticks[i];
-      el?.setProperties({
-        display: 'flex',
-        text: `${done ? '[x]' : i === next ? '>' : '[ ]'} ${uiText(t.text)}`,
-        // Dark, saturated colours: the card is parchment, so the old pale tones were nearly invisible.
-        color: done ? '#8fd49b' : i === next ? '#f0a54e' : '#cdb894',
-      });
-    }
-    if (!x) return;
-    for (let i = 0; i < LESSONS.length; i++) {
-      const doneL = r.done.has(LESSONS[i].id);
-      e[`l${i}`]?.setProperties({ backgroundColor: i === r.current ? '#ff8a3d' : doneL ? '#2c6a3d' : 'rgba(255, 200, 140, 0.13)' });
-    }
+    show('tut-ctrl', true);
+    show('tut-repeat', x);
+    show('tut-leave', x);
+    show('tut-nums', false);
+    for (let i = 0; i < MAX_TASKS; i++) e[`t${i}`]?.setProperties({ display: 'none' });
   }
 
   /**
@@ -332,7 +320,7 @@ export class TutorialSystem extends createSystem({}, { tutorial: { type: Types.B
       this.render();
     }
     // Folded, the card is only something to read: nothing on it can be tapped by accident.
-    if (this.vr && (this.expanded || this.mode !== 'lesson')) this.touch?.update(delta);
+    if (this.vr) this.touch?.update(delta);
   }
 
   /** One narration line at a time, as a toast (the HUD shows and logs it). */
@@ -361,7 +349,10 @@ export class TutorialSystem extends createSystem({}, { tutorial: { type: Types.B
     const game = getGame(this.world);
     const ui = getUi(this.world);
     const cur = game.objectives.current;
-    this.runner.poll({ hintLevel: cur ? game.objectives.hintLevel(cur.id) : 0, notebookOpen: ui.notebookOpen?.() ?? false });
+    this.runner.poll({ hintLevel: cur ? game.objectives.hintLevel(cur.id) : 0, notebookOpen: ui.notebookOpen?.() ?? false, bagOpen: menu.current === 'bag', benchOpen: menu.current === 'bench' });
+    // Always show where the next thing is: one arrow and ring on the exact target of this step.
+    const t = this.runner.finished || this.mode !== 'lesson' ? null : (this.runner.lesson.target?.(game) ?? null);
+    assistFx.exact = t ? { id: `tut_${t.id}`, x: t.x, y: groundHeight(t.x, t.z), z: t.z } : null;
     // The ghost hand shows the current lesson's gesture until its tasks are done.
     const lc = this.runner.finished || this.mode !== 'lesson' ? undefined : LESSON_CLIPS[this.runner.lesson.id];
     ghost.clip = lc && this.runner.nextTask() >= 0 ? lc : null;

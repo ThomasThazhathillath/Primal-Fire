@@ -4,10 +4,11 @@
 // or completes, when the hint is dismissed, or when you reach the target. Four checks a second.
 
 import { createSystem } from '@iwsdk/core';
-import { arrived, glowFor, planHint } from '../game/hintfx.js';
+import { arrived, glowFor, nextTargetFor, planHint } from '../game/hintfx.js';
 import { groundHeight } from '../game/world-layout.js';
 import { ResourceSystem } from './resource-system.js';
-import { getGame, getUi, hintFx } from './shared.js';
+import { assistFx, getGame, getUi, hintFx, reveal } from './shared.js';
+import { guidanceCfg } from './settings-system.js';
 
 export class HintFxSystem extends createSystem({}) {
   private timer = 0;
@@ -31,6 +32,13 @@ export class HintFxSystem extends createSystem({}) {
     const res = this.world.getSystem(ResourceSystem);
     const o = game.objectives.current;
     const level = game.objectives.hintFxLevel();
+    // Always show where the next thing is (NPE simplicity round): one arrow and ring on the goal's exact next
+    // target while the goal card is up (the tutorial sets its own while it runs).
+    if (reveal.objective) {
+      const items = o?.find?.(game) ?? [];
+      const t = guidanceCfg.nextTarget && o ? nextTargetFor(game, res && items.length ? res.liveSpots(items) : []) : null;
+      assistFx.exact = t ? { id: `next_${t.id}`, x: t.x, y: groundHeight(t.x, t.z), z: t.z } : null;
+    }
     if (!o || level === 0) {
       if (hintFx.pulse.length || hintFx.exact || this.beaconId) this.clear();
       return;

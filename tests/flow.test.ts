@@ -29,13 +29,11 @@ describe('tutorial regrowth is realistic', () => {
 });
 
 describe('VR movement is taught', () => {
-  it('has its own thumb micro-gesture lesson before the bearings lesson', () => {
+  it('has its own movement step, early, with the thumb gesture under Why?', () => {
     const ids = LESSONS.map((l) => l.id);
-    expect(ids.indexOf('glide')).toBeGreaterThan(-1);
-    expect(ids.indexOf('glide')).toBeLessThan(ids.indexOf('move'));
-    const l = LESSONS[ids.indexOf('glide')];
+    expect(ids.indexOf('ring')).toBe(1);
+    const l = LESSONS[ids.indexOf('ring')];
     expect(l.tip.toLowerCase()).toContain('thumb');
-    expect(l.tasks.length).toBeGreaterThanOrEqual(2);
   });
 });
 
@@ -49,7 +47,7 @@ describe('projected hand signs', () => {
     for (const c of [...Object.values(LESSON_CLIPS), ...Object.values(OBJECTIVE_CLIPS)]) expect(CLIP_LABEL[c], c).toBeTruthy();
     const ids = new Set(LESSONS.map((l) => l.id as string));
     for (const k of Object.keys(LESSON_CLIPS)) expect(ids.has(k), k).toBe(true);
-    expect(LESSON_CLIPS.glide).toBe('teleport');
+    expect(LESSON_CLIPS.ring).toBe('teleport');
   });
   it('the tutorial card has a lesson button for every lesson but the last', () => {
     const t = ui('tutorial');

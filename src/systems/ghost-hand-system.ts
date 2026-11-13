@@ -39,15 +39,13 @@ export const CLIP_LABEL: Record<GhostClip, string> = {
 
 /** Which sign goes with which tutorial lesson (absent = none). */
 export const LESSON_CLIPS: Record<string, GhostClip> = {
-  hands: 'pinch',
-  gather: 'grab',
-  satchel: 'point',
-  glide: 'teleport',
-  move: 'turn',
-  place: 'release',
-  build: 'carry',
-  craft: 'knap',
-  fire: 'saw',
+  stone: 'pinch',
+  ring: 'teleport',
+  marks: 'pinch',
+  slab: 'grab',
+  top: 'release',
+  bag: 'point',
+  bench: 'pinch',
 };
 /** The sign shown when a "How?" card is opened for this objective. */
 export const OBJECTIVE_CLIPS: Record<string, GhostClip> = {

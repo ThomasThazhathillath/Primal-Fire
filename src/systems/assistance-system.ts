@@ -109,8 +109,9 @@ export class AssistanceSystem extends createSystem({}) {
     }
     if (key && !game.held) s.grow(key, 'look', dt);
 
-    // No progress at all for a long while.
-    s.grow('idle', 'idle', dt);
+    // No progress at all for a long while (not during the guided first steps: their card already says what to do).
+    if (reveal.objective) s.grow('idle', 'idle', dt);
+    else s.succeed('idle');
 
     // Every part for a recipe in the bag, but the workbench not used.
     if (!game.bench && nextStepLine(game)) s.grow('bench', 'bench', dt);
@@ -145,9 +146,9 @@ export class AssistanceSystem extends createSystem({}) {
         const spot = res?.spot(id.replace(/^r:/, ''));
         if (h.level === 1 && spot) assistFx.pulse = { id: spot.id, x: spot.x, y: groundHeight(spot.x, spot.z), z: spot.z };
         const name = spot ? itemName(spot.itemId).toLowerCase() : 'it';
-        if (h.level === 2) this.say(h.key, `Pinch your thumb and finger together to pick up the ${name}.`);
+        if (h.level === 2) this.say(h.key, 'Pinch to pick it up.');
         if (h.level === 3) {
-          this.say(h.key, `Look at the ${name} (or point at it), then pinch thumb and index firmly together and hold. Watch the hand sign.`);
+          this.say(h.key, `Look at the ${name}. Pinch thumb and finger.`);
           this.sign('pinch');
         }
         return;
@@ -165,7 +166,7 @@ export class AssistanceSystem extends createSystem({}) {
       }
       case 'idle': {
         const o = game.objectives.current;
-        if (h.level === 1) this.say(h.key, 'Not sure what to do next? The card shows your goal. Tap the bulb for a hint.');
+        if (h.level === 1) this.say(h.key, 'Stuck? Tap Why? or the bulb.');
         if (h.level === 2 && o) this.say(h.key, o.hint.levels[0]);
         if (h.level === 3 && o) this.say(h.key, o.hint.levels[1]);
         return;

@@ -1,4 +1,26 @@
-# Fresh-save walkthrough (NPE milestone F)
+# Fresh-save walkthrough
+
+## Simplicity round (Nov 13): the seven first steps
+
+`scripts/npe-walkthrough.sh` on a wiped save (tutorial, Guided). The emulated right hand does the real thing for
+every step but the walk: it aims the hand ray at the step's target (where the game's arrow is) and pinches, and it
+pinches the Menu and Bag buttons where they hang. The walk into the ring uses the teleport hook. Times are from
+pressing Play and include the script's own CLI latency (each ray aim takes a few correction moves, about 3 to 6 s).
+
+| Step (the whole instruction on the card) | Done at | Took | Actions |
+|---|---:|---:|---|
+| 1 Pinch the glowing stone | 7.4 s | 7.4 s | aim, pinch |
+| 2 Walk into the glowing ring | 10.4 s | 3.0 s | one teleport |
+| 3 Pinch each glowing mark | 27.8 s | 17.4 s | three aims, three pinches (a stone from the bag on each) |
+| 4 Pinch the flat stone | 35.2 s | 7.4 s | aim, pinch |
+| 5 Put it on top | 45.0 s | 9.8 s | aim at the glowing top, pinch |
+| 6 Tap the bag | 60.7 s | 15.7 s | pinch Menu, pinch Bag (the menu appears at this step) |
+| 7 Pinch your workbench | 71.1 s | 10.4 s | aim, pinch |
+
+Every step with a place showed its arrow and ring on the exact target (the bag step has none: the menu appears for it). The menu was
+hidden until step 6. No objective card, no paragraphs: one line on one card, "Why?" for the how-to.
+
+## Earlier run (NPE milestone F, the five-stage version)
 
 Script: `scripts/npe-walkthrough.sh` (run against this checkout's own dev server and its managed IWER browser).
 It wipes that browser's PRIMAL storage, starts a brand-new game (the tutorial, Guided mode) and plays the first

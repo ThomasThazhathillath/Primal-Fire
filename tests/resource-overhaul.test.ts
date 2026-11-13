@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Game } from '../src/game/game.js';
 import { fitsPouch, ITEMS } from '../src/game/items.js';
 import { isCollectibleLook, LOOK_CLASS, WORLD_OBJECTS } from '../src/game/resource-class.js';
-import { afterGather, afterRegrow, loadedCharges } from '../src/game/resource-state.js';
+import { afterGather, afterRegrow, loadedCharges, regrowHidden } from '../src/game/resource-state.js';
 import { BOULDERS, CLUSTERS, FALLEN_TRUNKS, RESOURCES, STREAM_BANK, streamDistance, TREES } from '../src/game/world-layout.js';
 
 describe('classification', () => {
@@ -59,6 +59,17 @@ describe('spot state: gathering, regrowth, persistence', () => {
     expect(next).toEqual({ c: 2, r: 200 });
     st = next as { c: number; r: number };
     expect(afterRegrow(st, rule, 200)).toBeNull();
+  });
+  it('a stale return time (already past) starts over: a spot never refills right after it is emptied', () => {
+    const stale = { c: 1, r: 40 };
+    const st = afterGather(stale, rule, 500);
+    expect(st).toEqual({ c: 0, r: 600 });
+    expect(afterRegrow(st, rule, 501)).toBe('wait');
+  });
+  it('grows back only off-view: never in front of a player standing near it', () => {
+    expect(regrowHidden(0, -2, 0, 0, 0, -1)).toBe(false); // right in front
+    expect(regrowHidden(0, 2, 0, 0, 0, -1)).toBe(true); // behind you
+    expect(regrowHidden(0, -20, 0, 0, 0, -1)).toBe(true); // far away
   });
   it('never regrows when regrow is 0', () => {
     const st = afterGather(undefined, { charges: 1, regrow: 0 }, 5);

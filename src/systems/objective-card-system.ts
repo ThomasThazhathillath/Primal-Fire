@@ -173,8 +173,9 @@ export class ObjectiveCardSystem extends createSystem({}) {
     const text = (id: string, t: string) => this.panel.requireElementById<UIKit.Text>(id).setProperties({ text: uiText(t || ' ') });
     const show = (id: string, on: boolean) => this.panel.requireElementById(id).setProperties({ display: on ? 'flex' : 'none' });
     const cele = !!v.celebrating;
-    text('obj-step', cele ? 'DONE' : v.id === 'quest' ? 'QUEST' : `OBJECTIVE ${v.step} OF ${v.total}`);
-    text('obj-title', v.title);
+    text('obj-step', cele ? 'DONE' : v.id === 'quest' ? 'QUEST' : `GOAL ${v.step}`);
+    // One instruction, verb first (NPE simplicity round). Everything else waits behind 'Why?'.
+    text('obj-title', cele ? v.title : (v.short ?? v.title));
     show('obj-body', !cele);
     show('obj-cele', cele);
     this.panel.requireElementById('obj-hint').setProperties({ display: v.id === 'quest' || cele ? 'none' : 'flex' });
@@ -194,37 +195,39 @@ export class ObjectiveCardSystem extends createSystem({}) {
       this.howOpen = false; // a new objective starts folded
       ghost.how = null;
     }
+    const open = this.howOpen;
     text('obj-instr', v.instruction);
-    const where = v.where ?? '';
+    const where = open ? (v.where ?? '') : '';
     text('obj-where', where);
     show('obj-prow', !!v.progress);
     if (v.progress) {
       text('obj-ptext', `${v.progress.have} / ${v.progress.need}`);
       this.panel.requireElementById('obj-fill').setProperties({ width: Math.round((330 * v.progress.have) / v.progress.need) });
     }
-    const subs = v.substeps.map((s) => `${s.done ? '[x]' : '[ ]'} ${s.text}`).join('   ');
+    const subs = open ? v.substeps.map((s) => `${s.done ? '[x]' : '[ ]'} ${s.text}`).join('   ') : '';
     text('obj-subs', subs);
-    // NPE D: what is still needed, and the one next action (the contextual and assistance lines appear here).
-    const parts = v.parts ?? '';
+    const parts = open ? (v.parts ?? '') : '';
     text('obj-parts', parts);
-    const nextLine = v.feedback ? '' : (v.nextAction ?? '');
+    // Folded, only a short live line shows: help that is due, or why the last try failed.
+    const nextLine = v.feedback ? '' : (v.message ?? '');
     text('obj-next', nextLine);
-    // A failed attempt is explained first; the control lesson only until it is learned.
     text('obj-bad', v.feedback ?? '');
-    const how = v.feedback ? '' : v.next && v.next !== nextLine ? v.next : (v.tip ?? '');
+    const how = open ? (v.next ?? v.tip ?? '') : '';
     text('obj-note', how);
-    text('obj-how-label', this.howOpen ? 'Hide' : 'How?');
+    text('obj-how-label', open ? 'Hide' : 'Why?');
     // Rows that have nothing to say take no room (height, not display: a display toggle left rows zero-height).
     const h = {
+      instr: open ? 60 : 0,
       where: where ? 28 : 0,
       subs: subs ? 44 : 0,
-      how: how ? 44 : 0,
-      note: how && this.howOpen ? 100 : 0,
+      how: 44,
+      note: how ? 100 : 0,
       bad: v.feedback ? 40 : 0,
       parts: parts ? 26 : 0,
       next: nextLine ? (nextLine.length > 52 ? 52 : 28) : 0,
     };
     const set = (id: string, height: number) => this.panel.requireElementById(id).setProperties({ height } as never);
+    set('obj-instr', h.instr);
     set('obj-where', h.where);
     set('obj-subs', h.subs);
     set('obj-howrow', h.how);
@@ -232,7 +235,7 @@ export class ObjectiveCardSystem extends createSystem({}) {
     set('obj-bad', h.bad);
     set('obj-parts', h.parts);
     set('obj-next', h.next);
-    const total = 16 + 56 + 6 + 60 + h.where + (v.progress ? 30 : 0) + h.subs + h.how + h.note + h.bad + h.parts + h.next + 14 + 6 * 7;
+    const total = 16 + 56 + 6 + h.instr + h.where + (v.progress ? 30 : 0) + h.subs + h.how + h.note + h.bad + h.parts + h.next + 14 + 6 * 7;
     if (total !== this.lastHeight) {
       this.lastHeight = total;
       this.panel.requireElementById('obj-root').setProperties({ height: total } as never);

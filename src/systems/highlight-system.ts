@@ -293,7 +293,8 @@ export class HighlightSystem extends createSystem({
     // Progressive assistance (NPE C): the one thing the player seems stuck on pulses softly.
     const ap = assistFx.pulse;
     if (ap) this.want.push({ id: `assist_${ap.id}`, kind: 'hint', x: ap.x, y: ap.y, z: ap.z, priority: highlightPriority('hint', 0) });
-    if (hintFx.exact) this.want.push({ id: hintFx.exact.id, kind: 'exact', x: hintFx.exact.x, y: hintFx.exact.y, z: hintFx.exact.z, priority: highlightPriority('exact', 0) });
+    const ex = hintFx.exact ?? assistFx.exact;
+    if (ex) this.want.push({ id: ex.id, kind: 'exact', x: ex.x, y: ex.y, z: ex.z, priority: highlightPriority('exact', 0) });
     pickHighlights(this.want, ASSIST.highlightBudget, this.picked);
     const d = diffHighlights(this.shown, this.picked, this.removed, this.added);
     for (const id of d.removed) {
@@ -323,7 +324,7 @@ export class HighlightSystem extends createSystem({
       r.visible = true;
     }
     // Arrow over the one exact target.
-    this.arrow.visible = !!hintFx.exact || (!!this.assistAt && game.assist.indicator() >= 2);
+    this.arrow.visible = !!(hintFx.exact ?? assistFx.exact) || (!!this.assistAt && game.assist.indicator() >= 2);
     // The label follows the hovered target only.
     this.label.visible = !!h && this.hasTarget;
   }
@@ -352,7 +353,7 @@ export class HighlightSystem extends createSystem({
       this.pool.scale.setScalar(1 + Math.sin(this.t * 3) * 0.12);
       this.poolMat.opacity = 0.45 + Math.sin(this.t * 3) * 0.2;
     }
-    const arrowAt = hintFx.exact ?? this.assistAt;
+    const arrowAt = hintFx.exact ?? assistFx.exact ?? this.assistAt;
     if (this.arrow.visible && arrowAt) {
       this.arrow.position.set(arrowAt.x, Math.max(arrowAt.y, groundHeight(arrowAt.x, arrowAt.z)) + 0.75 + Math.sin(this.t * 4) * 0.1, arrowAt.z);
     }

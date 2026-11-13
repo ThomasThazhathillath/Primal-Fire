@@ -56,9 +56,10 @@
     <div id="tut-body-3" class="task">-</div>
     <div id="tut-tip" class="wide t-muted">-</div>
     <div id="tut-ctrl" class="row">
-      <Button id="tut-repeat" class="t-btn" size="sm" variant="secondary"><ButtonLabel class="btntext">Do again</ButtonLabel></Button>
-      <Button id="tut-skip" class="t-btn" size="sm" variant="secondary"><ButtonLabel class="btntext">Skip this</ButtonLabel></Button>
-      <Button id="tut-leave" class="t-btn" size="sm" variant="secondary"><ButtonLabel class="btntext">Skip to survival</ButtonLabel></Button>
+      <Button id="tut-why" class="t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-why-t" class="btntext">Why?</ButtonLabel></Button>
+      <Button id="tut-repeat" class="t-btn" size="sm" variant="secondary"><ButtonLabel class="btntext">Again</ButtonLabel></Button>
+      <Button id="tut-skip" class="t-btn" size="sm" variant="secondary"><ButtonLabel class="btntext">Skip</ButtonLabel></Button>
+      <Button id="tut-leave" class="t-btn" size="sm" variant="secondary"><ButtonLabel class="btntext">Skip all</ButtonLabel></Button>
     </div>
     <div id="tut-nums" class="row">
       <Button id="tut-l0" class="num t-btn" size="sm" variant="secondary"><ButtonLabel id="tut-l0-t" class="btntext">1</ButtonLabel></Button>

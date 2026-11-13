@@ -54,6 +54,8 @@ export class PanelTouch implements GazeUiOwner {
   private pinchP = new Vector3();
   /** Per hand: the button a pinch closed on (id, '' = none), where (panel frame, m) and for how long. */
   private pp = [0, 1].map(() => ({ id: '', x: 0, y: 0, t: 0 }));
+  /** Per hand: no poke taps until this time (s), right after a pinch-press. */
+  private pressBlock = [0, 0];
   /** Buttons pressed by a pinch closing on them (NPE A; debug and tests). */
   pinchPresses = 0;
   private sampleOut: TipSample = { x: 0, y: 0, z: 0, dz: 0, tracked: false };
@@ -233,7 +235,8 @@ export class PanelTouch implements GazeUiOwner {
       // Pinch-press (NPE A): a pinch that closes on a button and opens again without sliding presses it. It commits
       // on release, so a pinch-drag that scrolls a list never presses the row it started on.
       if (this.pinchPress(h as 0 | 1, dt, n)) return;
-      const hit = tr.update(dt, this.icons, s);
+      let hit = tr.update(dt, this.icons, s);
+      if (hit >= 0 && performance.now() / 1000 < this.pressBlock[h]) hit = -1;
       for (let i = 0; i < n; i++) if (tr.states[i] > merged[i]) merged[i] = tr.states[i];
       // Around the panel a pinch is never a grab or a teleport.
       if (tr.hoverIcon >= 0 || (s.tracked && this.inZone(s))) {
@@ -327,6 +330,9 @@ export class PanelTouch implements GazeUiOwner {
     this.taps.push(t.id);
     this.pinchPresses++;
     handClaims.uiTapAt[h] = performance.now() / 1000;
+    // The fingertip is on the button: its opening fingers must not also count as a poke (a second, toggling tap).
+    this.trackers[h].reset();
+    this.pressBlock[h] = performance.now() / 1000 + 0.6;
     getGame(this.world).log.add(`pinch press on ${this.name}/${t.id} (${h === 0 ? 'left' : 'right'} hand)`);
     tapSound();
     haptic(this.world, h);

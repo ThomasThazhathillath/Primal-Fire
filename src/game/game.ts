@@ -179,6 +179,8 @@ export class Game {
   readonly assist = new Adaptive();
   /** Progressive help when the player is visibly struggling (NPE C). Not saved: it describes this session only. */
   readonly struggle = new StruggleTracker();
+  /** Guided mode: a pinch on a glowing mark always fills it, the heavy top included (settings.ts). Not saved. */
+  easyBuild = false;
   /**
    * While building: after you place a part, if the build still wants it and your bag has more, the next one appears
    * in your hand. Stops with Put away (cancelRefill) or when you walk away from the build. Not saved.
@@ -315,7 +317,7 @@ export class Game {
   /** Hands free to take something big? */
   private handsFreeFor(id: ItemId): boolean {
     if (!this.held) return true;
-    this.toast(`Your hands are full - set down the ${itemName(this.held).toLowerCase()} first (G), then take the ${itemName(id).toLowerCase()}.`, 'bad');
+    this.toast(`Hands full. Put the ${itemName(this.held).toLowerCase()} down first.`, 'bad');
     return false;
   }
 
@@ -808,7 +810,7 @@ export class Game {
       return false;
     }
     if (!big && this.carriedCount >= this.capacity.pockets) {
-      this.toast('Your pockets are full - drop or use something, or make a bigger pack.', 'bad');
+      this.toast('Pockets full. Use or drop something.', 'bad');
       this.log.add(`gather ${id}: pockets full`, 'bad');
       return false;
     }
@@ -879,7 +881,7 @@ export class Game {
   stow(): void {
     if (!this.held) return;
     if (!fitsPouch(this.held)) {
-      this.toast(`Too big for the pouch - carry the ${itemName(this.held).toLowerCase()} in your hands, or set it down (G).`, 'bad');
+      this.toast('Too big for the pouch. Carry it.', 'bad');
       return;
     }
     const id = this.held;
@@ -1087,7 +1089,7 @@ export class Game {
       return { ok: false, message };
     }
     this.armPlan(kind);
-    this.toast(`${BLUEPRINTS[kind].name}: point where you want it (green = fine) and pinch to place.`, 'note');
+    this.toast('Point at open ground. Pinch to place.', 'note');
     return { ok: true };
   }
 
@@ -1154,7 +1156,7 @@ export class Game {
     if (s.spots.every((v) => v !== null)) {
       if (s.kind === 'workbench') this.guide.mark('workbench.supports.placed');
       if (s.keyOpen) this.toast(`Now the ${def.keyAccepts.map((k) => itemName(k).toLowerCase()).join(' or ')} on the first mark.`, 'note');
-      else if (def.keyLast && !s.keyPlaced) this.toast(`Supports set. Now lift the ${itemName(s.key).toLowerCase()} on with both hands.`, 'note');
+      else if (def.keyLast && !s.keyPlaced) this.toast(`Now put the ${itemName(s.key).toLowerCase()} on top.`, 'note');
       else this.completeStructure(s);
     }
     this.emit({ type: 'structure', structure: s });
@@ -1354,6 +1356,13 @@ export class Game {
     }
     if (m.index < 0) {
       // The top of a workbench is lifted on with both hands and pressed: bring it to the hand, the player does the rest.
+      // Guided mode (easyBuild): one pinch on the glowing top lays it on, from the hand or the bag.
+      if (!m.structure.keyOpen && this.easyBuild) {
+        if (this.held !== item) this.takeOut(item);
+        const okKey = this.placeKey(structureId, m.x, m.z, 2);
+        if (okKey) this.assist.success('place');
+        return okKey;
+      }
       if (!m.structure.keyOpen) {
         if (this.held !== item) this.takeOut(item);
         this.toast('Lower it onto the supports with both hands.', 'note');
@@ -1747,7 +1756,7 @@ export class Game {
   craft(id: Recipe['id']): boolean {
     const recipe = RECIPES.find((r) => r.id === id)!;
     if (!this.nearbyWorkbench()) {
-      this.toast('You need a steady surface to work on — build a workbench and stand at it.', 'bad');
+      this.toast('Build a workbench first.', 'bad');
       return false;
     }
     if (!this.canCraft(recipe)) {

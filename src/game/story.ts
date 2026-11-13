@@ -13,13 +13,13 @@ import { LANDMARK_BY_ID, streamDistance } from './world-layout.js';
 export type ActId = 'strange' | 'signs' | 'build' | 'fire' | 'camp' | 'mystery' | 'home' | 'frame' | 'roof';
 
 export const ACTS: Record<ActId, { title: string; text: string }> = {
-  strange: { title: 'A Strange Place', text: 'You wake in an unfamiliar clearing. You have nothing with you. Take a moment to understand your surroundings.' },
-  signs: { title: 'First Signs of Life', text: 'The forest is unfamiliar, but it is not empty. There is water nearby, and the ground is covered with things that might be useful.' },
+  strange: { title: 'A Strange Place', text: 'You wake in a strange clearing, with nothing.' },
+  signs: { title: 'First Signs of Life', text: 'Water is near. Useful things lie all around.' },
   build: { title: 'Something To Build Upon', text: "I can't keep working on the ground. I need a stable surface." },
   fire: { title: 'First Fire', text: 'The temperature is dropping. I need a fire before it gets dark.' },
   camp: { title: 'A Place To Return To', text: 'A fire and a workbench, close together. This could be a camp.' },
   mystery: { title: 'Someone Was Here Before', text: 'The rusted structure in the distance. Tomorrow.' },
-  home: { title: 'A Place To Call Home', text: 'You have learned to control fire. Now learn to build something that can protect you.' },
+  home: { title: 'A Place To Call Home', text: 'You have fire. Now build a shelter.' },
   frame: { title: 'The Frame', text: 'Poles push, cord pulls, and a triangle does not fold.' },
   roof: { title: 'Roof Over Your Head', text: 'Layers overlap like tiles. Then the rain will tell you the truth.' },
 };

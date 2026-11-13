@@ -40,7 +40,7 @@
   .titlebox { flex-direction: column; width: 360px; }
   .btns { flex-direction: row; gap: 8px; }
   .body { flex-direction: column; gap: 8px; flex-shrink: 0; }
-  .instr { width: 480px; }
+  .instr { width: 480px; height: 0px; overflow: hidden; flex-shrink: 0; }
   .where { width: 480px; height: 0px; overflow: hidden; flex-shrink: 0; }
   .prow { flex-direction: row; align-items: center; gap: 12px; flex-shrink: 0; }
   .bar { height: 10px; width: 330px; }
@@ -77,7 +77,7 @@
     <div id="obj-subs" class="subs t-muted">-</div>
     <div id="obj-next" class="next t-accent">-</div>
     <div id="obj-howrow" class="howrow">
-      <Button id="obj-how" class="how t-btn" size="sm" variant="secondary"><ButtonLabel id="obj-how-label">How?</ButtonLabel></Button>
+      <Button id="obj-how" class="how t-btn" size="sm" variant="secondary"><ButtonLabel id="obj-how-label">Why?</ButtonLabel></Button>
     </div>
     <div id="obj-note" class="note t-note">-</div>
     <div id="obj-bad" class="bad t-bad">-</div>

@@ -94,6 +94,12 @@ export interface Tuning {
   compass: boolean;
   /** Card scale multiplier (text size). */
   textScale: number;
+  /** Snap and catch radius multiplier for placing parts (assist.ts ASSIST). */
+  snap: number;
+  /** One pinch on a glowing mark always fills it, the heavy top included (Game.easyBuild). */
+  easyBuild: boolean;
+  /** One arrow and ring on the current goal's next target, all the time (not only after a hint). */
+  nextTarget: boolean;
 }
 
 export function tuning(s: Settings): Tuning {
@@ -111,5 +117,8 @@ export function tuning(s: Settings): Tuning {
     highlightBudget: s.mode === 'explorer' ? Math.min(budget, 4) : budget,
     compass: s.guidance === 'full' || (s.guidance === 'normal' && s.mode !== 'explorer'),
     textScale: { small: 0.85, normal: 1, large: 1.25 }[s.textSize],
+    snap: { guided: 1.4, standard: 1, explorer: 0.9 }[s.mode],
+    easyBuild: s.mode === 'guided',
+    nextTarget: s.guidance !== 'minimal' && s.mode !== 'explorer',
   };
 }

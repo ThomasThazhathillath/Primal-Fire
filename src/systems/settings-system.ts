@@ -14,9 +14,10 @@ import { browserStore, choiceMade } from '../game/tutorial-mode.js';
 import { compassCfg } from './compass-system.js';
 import { PanelTouch } from './panel-touch.js';
 import { reachCfg } from './resource-system.js';
-import { getGame, getUi, hidePanel, StaticAnchor, uiScale } from './shared.js';
+import { FAR_CARD_DISTANCE, FAR_CARD_DOWN, getGame, getUi, hidePanel, StaticAnchor, uiScale } from './shared.js';
 
-const SCALE = 0.075;
+/** Settings takes the pause card's place, out of reach (look at a button and pinch), so it is drawn larger too. */
+const SCALE = 0.1;
 const ON = '#f0a54e';
 const OFF = '#5e6e34';
 
@@ -66,7 +67,7 @@ export class SettingsSystem extends createSystem({}) {
   private panel: UIKitMLAsset | null = null;
   private entity: Entity | null = null;
   private touch: PanelTouch | null = null;
-  private anchor = new StaticAnchor(0.55, 0, -0.03, 0.9, 1);
+  private anchor = new StaticAnchor(FAR_CARD_DISTANCE, 0, FAR_CARD_DOWN, 0.9, 1);
   private settings!: Settings;
   private open = false;
   private vr = false;

@@ -27,7 +27,7 @@ import {
 import { Gatherable, SnapSpot, StructurePart, WorldDropItem } from '../components/game-components.js';
 import { needText, openMarks, type Mark } from '../game/assist.js';
 import { collisionWorld } from '../game/collision.js';
-import { GAZE, gazeAction, type GazeCandidate, type GazeKind, GazePinchGate, gazeStats, GazeTargeter, segmentBlocked } from '../game/gaze.js';
+import { GAZE, gazeAction, type GazeCandidate, type GazeKind, GazePinchGate, type GazeRect, gazeStats, GazeTargeter, segmentBlocked } from '../game/gaze.js';
 import { fitsPouch, type ItemId, itemName } from '../game/items.js';
 import { groundHeight, RESOURCES } from '../game/world-layout.js';
 import { hands, mouse } from './hand-input-system.js';
@@ -65,11 +65,25 @@ export class GazeTargetSystem extends createSystem({
   private hoverOwner: GazeUiOwner | null = null;
   private hoverId = -1;
   private hoverKey = '';
-  private addUi = (prefix: string, key: string, x: number, y: number, z: number, r: number, owner: GazeUiOwner, id: number): void => {
+  /** One preallocated rectangle per candidate slot (UI buttons). */
+  private rects: GazeRect[] = [];
+  private addUi = (prefix: string, key: string, x: number, y: number, z: number, r: number, owner: GazeUiOwner, id: number, rect?: GazeRect): void => {
     const slot = this.n;
     const c = this.push('ui', this.key(prefix, key), x, y, z, slot, true);
     if (!c) return;
     c.r = r;
+    if (rect) {
+      const own = this.rects[slot];
+      own.ux = rect.ux;
+      own.uy = rect.uy;
+      own.uz = rect.uz;
+      own.vx = rect.vx;
+      own.vy = rect.vy;
+      own.vz = rect.vz;
+      own.hw = rect.hw;
+      own.hh = rect.hh;
+      c.rect = own;
+    }
     this.uiOwner[slot] = owner;
     this.uiId[slot] = id;
   };
@@ -112,7 +126,8 @@ export class GazeTargetSystem extends createSystem({
 
   init(): void {
     for (let i = 0; i < MAX_CANDS; i++) {
-      this.cands.push({ kind: 'resource', key: '', x: 0, y: 0, z: 0, r: 0.1, ref: 0, enabled: true });
+      this.cands.push({ kind: 'resource', key: '', x: 0, y: 0, z: 0, r: 0.1, ref: 0, enabled: true, rect: null });
+      this.rects.push({ ux: 1, uy: 0, uz: 0, vx: 0, vy: 1, vz: 0, hw: 0, hh: 0 });
       this.spotIds.push('');
       this.uiOwner.push(null);
       this.uiId.push(-1);
@@ -228,6 +243,7 @@ export class GazeTargetSystem extends createSystem({
     c.r = RADIUS[kind];
     c.ref = ref;
     c.enabled = enabled;
+    c.rect = null;
     return c;
   }
 
@@ -239,6 +255,11 @@ export class GazeTargetSystem extends createSystem({
     const hz = this.origin.z;
     const near = (x: number, z: number) => Math.abs(x - hx) < GATHER_RANGE && Math.abs(z - hz) < GATHER_RANGE;
     this.n = 0;
+    // Paused or on the title menu: only the cards are targets (the world is frozen; a look past the card takes nothing).
+    if (this.menuUp()) {
+      if (this.vrNow) for (let i = 0; i < gazeUi.length; i++) gazeUi[i].collectGaze(this.addUi);
+      return;
+    }
     // Holding something: only what can take it is a target (a hand holds one thing; loose things wait).
     const held = !!game.held;
     if (res && !held) {
@@ -282,13 +303,16 @@ export class GazeTargetSystem extends createSystem({
     // An eye-gaze input source (metaVRGlasses) is itself a pointer ray in IWSDK and hovers whatever you look at: that
     // hover is this system's own target, not another handler's, so it must not hand the pinch to the ray (which
     // would gather into the bag). Head gaze has no such ray; eye gaze now behaves the same.
+    // While paused (or on the title menu) the hand ray never owns a pinch: it may rest on a stone at your feet, and the
+    // pinch must still press the card button you are looking at.
     this.rayOwns =
-      (vr && rayPick.key !== '') ||
-      (this.source !== 'eye' &&
-        (this.queries.hoverGather.entities.size > 0 ||
-          this.queries.hoverSpot.entities.size > 0 ||
-          this.queries.hoverDrop.entities.size > 0 ||
-          this.queries.hoverPart.entities.size > 0));
+      !this.menuUp() &&
+      ((vr && rayPick.key !== '') ||
+        (this.source !== 'eye' &&
+          (this.queries.hoverGather.entities.size > 0 ||
+            this.queries.hoverSpot.entities.size > 0 ||
+            this.queries.hoverDrop.entities.size > 0 ||
+            this.queries.hoverPart.entities.size > 0)));
     if ((this.rebuildIn -= dt) <= 0 && have) {
       this.rebuildIn = 0.1;
       this.rebuild();
@@ -313,6 +337,12 @@ export class GazeTargetSystem extends createSystem({
     this.updateFx(dt);
   }
 
+  /** The pause card (or Settings opened from it) or the title menu is up: a modal menu, not the world. */
+  private menuUp(): boolean {
+    const ui = getUi(this.world);
+    return (ui.paused?.() ?? false) || (ui.titleOpen?.() ?? false);
+  }
+
   /** What the gaze is on right now (NPE C reads it to notice looking without taking). */
   get lookTarget(): GazeCandidate | null {
     return this.target;
@@ -325,7 +355,10 @@ export class GazeTargetSystem extends createSystem({
     const busy = handBusy(this.world, h);
     // A near grab already took this pinch (PinchGrabSystem runs first and stamps grabAt).
     const direct = now - handClaims.grabAt < 0.05;
-    const owned = busy.held || busy.ui || direct || this.rayOwns;
+    // Paused or on the title menu, looking at one of its buttons: the pinch is that button's, even with the hand resting
+    // near another card (the goal card, the Pause button) or over a stone at your feet.
+    const menuPress = t?.kind === 'ui' && this.menuUp();
+    const owned = !menuPress && (busy.held || busy.ui || direct || this.rayOwns);
     let fits = false;
     let bagFits = false;
     if (t?.kind === 'mark') {

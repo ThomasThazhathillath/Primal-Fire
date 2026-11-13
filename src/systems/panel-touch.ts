@@ -11,6 +11,7 @@ import { RejectLog, rejectLine } from '../game/menu.js';
 import { fitTarget, IconState, pinchPressIcon, TOUCH_CONFIG, TouchTracker, type TipSample, type TouchIcon } from '../game/ui-touch.js';
 import { hands } from './hand-input-system.js';
 import { tapSound } from './ui-fx.js';
+import type { GazeRect } from '../game/gaze.js';
 import { type GazeUiAdd, type GazeUiOwner, gazeUi, getGame, handClaims, haptic } from './shared.js';
 
 /** UIKit layout units are 1/100 of a panel-scale unit: px * 0.01 * scale = metres. */
@@ -113,6 +114,10 @@ export class PanelTouch implements GazeUiOwner {
 
   private gazeIds: string[] = [];
   private gazeV = new Vector3();
+  private gazeU = new Vector3();
+  private gazeUp = new Vector3();
+  private gazeN = new Vector3();
+  private gazeRect: GazeRect = { ux: 1, uy: 0, uz: 0, vx: 0, vy: 1, vz: 0, hw: 0, hh: 0 };
 
   /** Gaze selection: offer every shown target of this panel (10 Hz, only while the panel is up). */
   collectGaze(add: GazeUiAdd): void {
@@ -120,12 +125,27 @@ export class PanelTouch implements GazeUiOwner {
     if (!this.panel.visible) return;
     this.panel.updateMatrixWorld(true);
     this.layout();
+    // The panel's right and up axes in the world; their lengths are its world scale (icon sizes are in m at `this.scale`).
+    this.panel.matrixWorld.extractBasis(this.gazeU, this.gazeUp, this.gazeN);
+    const sx = this.gazeU.length() / this.scale;
+    const sy = this.gazeUp.length() / this.scale;
+    this.gazeU.normalize();
+    this.gazeUp.normalize();
+    const rect = this.gazeRect;
+    rect.ux = this.gazeU.x;
+    rect.uy = this.gazeU.y;
+    rect.uz = this.gazeU.z;
+    rect.vx = this.gazeUp.x;
+    rect.vy = this.gazeUp.y;
+    rect.vz = this.gazeUp.z;
     for (let i = 0; i < this.active.length; i++) {
       const ic = this.icons[i];
       this.gazeV.set(ic.x / this.scale, ic.y / this.scale, 0);
       this.panel.localToWorld(this.gazeV);
       this.gazeIds.push(this.active[i].id);
-      add(`ui:${this.name}:`, this.active[i].id, this.gazeV.x, this.gazeV.y, this.gazeV.z, Math.max(ic.hw ?? ic.r, ic.hh ?? ic.r), this, i);
+      rect.hw = (ic.hw ?? ic.r) * sx;
+      rect.hh = (ic.hh ?? ic.r) * sy;
+      add(`ui:${this.name}:`, this.active[i].id, this.gazeV.x, this.gazeV.y, this.gazeV.z, Math.max(rect.hw, rect.hh), this, i, rect);
     }
   }
 

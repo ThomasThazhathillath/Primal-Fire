@@ -4,11 +4,12 @@
 
 import { createSystem, type Entity, RayInteractable, ScreenSpace, type UIKit, type UIKitMLAsset, VisibilityState } from '@iwsdk/core';
 import { PanelTouch } from './panel-touch.js';
-import { getGame, getUi, hidePanel, menu, StaticAnchor } from './shared.js';
+import { FAR_CARD_DISTANCE, FAR_CARD_DOWN, getGame, getUi, hidePanel, menu, StaticAnchor } from './shared.js';
 import { clearSave, WorldSystem } from './world-system.js';
 
 const SCALE = 0.085;
-const CARD_SCALE = 0.085;
+/** The pause card hangs out of reach (look at a button and pinch), so it is drawn larger: about 23° x 28° of the view. */
+const CARD_SCALE = 0.105;
 const CONFIRM_MS = 4000;
 /** Snap turn per tap (degrees). */
 const TURN = 45;
@@ -26,7 +27,7 @@ export class PauseSystem extends createSystem({}) {
   private right!: Part;
   // Top right of the view, just above eye level and within reach of a raised hand; turn buttons at the sides, level with the chest.
   private btnAnchor = new StaticAnchor(0.6, 0.28, -0.14, 0.9, 1);
-  private cardAnchor = new StaticAnchor(0.6, 0, 0.02, 0.9, 1);
+  private cardAnchor = new StaticAnchor(FAR_CARD_DISTANCE, 0, FAR_CARD_DOWN, 0.9, 1);
   private leftAnchor = new StaticAnchor(0.55, -0.4, 0.03, 0.9, 1);
   private rightAnchor = new StaticAnchor(0.55, 0.4, 0.03, 0.9, 1);
   private vr = false;

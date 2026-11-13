@@ -83,3 +83,28 @@ export function arrived(plan: HintPlan, px: number, pz: number): boolean {
 export function glowFor(plan: HintPlan): HintTarget | null {
   return plan.effects.beacon && plan.target ? plan.target : null;
 }
+
+/**
+ * The exact next thing for the current objective, whatever the hint level (NPE simplicity round: always show where
+ * the next thing is): the landmark, the nearest spot with what is still needed, or the build mark to fill next.
+ */
+export function nextTargetFor(g: Game, spots: readonly Spot[]): { id: string; x: number; z: number } | null {
+  const o = g.objectives.current;
+  if (!o) return null;
+  if (o.place) {
+    const l = LANDMARK_BY_ID[o.place];
+    return l ? { id: `place_${o.place}`, x: l.x, z: l.z } : null;
+  }
+  const needed = o.find?.(g) ?? [];
+  if (needed.length) {
+    const t = chooseTarget(spots, needed, g.player.x, g.player.z);
+    return t ? { id: `res_${t.id}`, x: t.x, z: t.z } : null;
+  }
+  if (o.structure) {
+    const marks = openMarks(g.structures).filter((m) => m.structure.kind === o.structure);
+    const has = (m: Mark) => m.accepts.some((i) => g.held === i || g.count(i) > 0);
+    const m = marks.find(has) ?? marks[0];
+    return m ? { id: `mark_${m.structure.id}_${m.index}`, x: m.x, z: m.z } : null;
+  }
+  return null;
+}

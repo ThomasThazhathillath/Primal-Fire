@@ -1,4 +1,4 @@
-// "THE FIRST STEPS — Learning to Survive": the lessons and the runner
+// "THE FIRST STEPS": seven one-instruction steps and the runner
 // that watches the REAL game for each one. Nothing here gathers, builds or
 // crafts for you: the runner only listens to Game events and reads Game state.
 // A lesson's setup may hand the (tutorial-only) Game a few starting items so
@@ -10,21 +10,11 @@ import type { Game, GameEvent } from './game.js';
 import { fitsPouch, type ItemId } from './items.js';
 import type { StructureKind } from './blueprint.js';
 import { gazeStats } from './gaze.js';
+import { openMarks } from './assist.js';
+import { tutorialSpots } from './tutorial-layout.js';
 
-export type LessonId =
-  | 'hands'
-  | 'look'
-  | 'gather'
-  | 'satchel'
-  | 'glide'
-  | 'move'
-  | 'place'
-  | 'build'
-  | 'craft'
-  | 'fire'
-  | 'hints'
-  | 'notebook'
-  | 'final';
+/** The seven first steps (NPE simplicity round): one short instruction each, verb first. */
+export type LessonId = 'stone' | 'ring' | 'marks' | 'slab' | 'top' | 'bag' | 'bench';
 
 /** What the runner has seen since the current lesson started. */
 export interface LessonCtx {
@@ -47,13 +37,22 @@ export interface LessonCtx {
   mistakes: Set<string>;
   hintLevel: number;
   notebookOpened: boolean;
+  /** The bag (satchel card) was opened during this step. */
+  bagOpened: boolean;
+  /** The workbench's recipe card was opened during this step. */
+  benchOpened: boolean;
 }
 
 /** UI facts the runner cannot read from the Game (set by the TutorialSystem each poll). */
 export interface UiFacts {
   hintLevel: number;
   notebookOpen: boolean;
+  bagOpen?: boolean;
+  benchOpen?: boolean;
 }
+
+/** Things a player can show they know, wherever in the tutorial they do it (NPE B). */
+export type Skill = 'teleport' | 'turn' | 'pickup' | 'takeOut' | 'putBack' | 'gazePick' | 'gazeRelease' | 'gazePlace' | 'holdBig' | 'drop2' | 'bagOpen';
 
 export interface Task {
   text: string;
@@ -74,6 +73,13 @@ export interface Lesson {
   tasks: Task[];
   /** The one structure this lesson lets you start (absent = none). Keeps stray outlines out of other lessons. */
   builds?: StructureKind;
+  /**
+   * What the lesson teaches, as skills the runner can see the player demonstrate anywhere (NPE B). A lesson whose
+   * skills are all already shown is passed with a short "you already know this" instead of being explained again.
+   */
+  skills?: readonly Skill[];
+  /** The exact thing to act on now (one arrow and ring over it), or null when the step is not about a place. */
+  target?(g: Game): { id: string; x: number; z: number } | null;
   /** Prepare the tutorial Game so the lesson can always be finished. */
   setup?(g: Game): void;
   /** Tidy up when the lesson is done or skipped (e.g. a practice outline). */
@@ -96,238 +102,179 @@ function freeHands(g: Game): void {
   else if (g.held) g.stow();
 }
 
-/** Clear finished or half-built structures of a kind, so a lesson can build it again. */
-function clearKind(g: Game, kind: string): void {
-  for (const s of [...g.structures]) {
-    if (s.kind !== kind) continue;
-    s.complete = false;
-    g.removeStructure(s.id);
+
+/** Where the walking step sends you, and where the practice workbench outline stands (just beyond it). */
+export const RING = { x: 0, z: -2.4 };
+export const BENCH_SITE = { x: 0.3, z: -3.5 };
+
+/** A camp spot of `look` that still has something to take (its saved state, else full). */
+function liveCampSpot(g: Game, look: string): { id: string; x: number; z: number } | null {
+  for (const s of tutorialSpots()) {
+    if (s.look !== look) continue;
+    const st = g.spotState.get(s.id);
+    if (!st || st.c > 0) return { id: s.id, x: s.x, z: s.z };
+  }
+  return null;
+}
+
+const bench = (g: Game) => g.structures.find((s) => s.kind === 'workbench');
+
+/** The practice workbench outline, placed by the marks step (kept if one is already there). */
+function benchOutline(g: Game): void {
+  if (bench(g)) return;
+  for (const [dx, dz] of [[0, 0], [0.8, 0], [-0.8, 0], [0, -0.8], [1.2, 0.6]]) {
+    if (g.placeBlueprint('workbench', BENCH_SITE.x + dx, BENCH_SITE.z + dz, 0, true).ok) return;
   }
 }
 
-/** A fire-pit outline a few steps ahead, so the lesson has a mark to look at (kept if one is already there). */
-function lookLessonOutline(g: Game): void {
-  if (g.structures.some((s) => s.kind === 'firePit' && !s.complete)) return;
-  const fx = -Math.sin(g.facingYaw);
-  const fz = -Math.cos(g.facingYaw);
-  for (const [f, side] of [[2.6, 0], [2.6, 1.4], [2.6, -1.4], [3.4, 0], [-2.6, 0]]) {
-    const x = g.player.x + fx * f + fz * side;
-    const z = g.player.z + fz * f - fx * side;
-    if (g.placeBlueprint('firePit', x, z, 0, true).ok) return;
+/**
+ * A replayed later step finds what the earlier steps would have built (so no step can strand you): the outline
+ * with its stone supports, and with `top` also the slab on it. Normal play arrives with these already done.
+ */
+function benchReady(g: Game, top: boolean): void {
+  benchOutline(g);
+  const b = bench(g);
+  if (!b) return;
+  b.spots.forEach((v, i) => {
+    if (v !== null) return;
+    ensure(g, { dryStone: 1 });
+    g.fillFromBag(b.id, i);
+  });
+  if (top && !b.complete) {
+    ensure(g, { slab: 1 });
+    if (g.held !== 'slab') g.takeOut('slab');
+    g.placeKey(b.id, b.x, b.z, 2);
   }
 }
 
-/** Marks of the practice fire pit already filled when the look lesson began. */
-let lookBase = 0;
-const filledPitMarks = (g: Game): number => g.structures.reduce((n, s) => n + (s.kind === 'firePit' ? s.spots.filter((x) => x).length : 0), 0);
+/** The first open mark of the practice workbench (the stone supports, then the top). */
+function nextMark(g: Game, top: boolean): { id: string; x: number; z: number } | null {
+  for (const m of openMarks(g.structures)) {
+    if (m.structure.kind !== 'workbench' || (m.index === -1) !== top) continue;
+    return { id: `mark_${m.structure.id}_${m.index}`, x: m.x, z: m.z };
+  }
+  return null;
+}
 
 export const LESSONS: Lesson[] = [
   {
-    id: 'hands',
+    id: 'stone',
     setup: freeHands,
-    title: 'Waking',
-    say: 'You wake on cold ground with nothing. Things within reach glow softly.',
-    science: 'An opposable thumb lets a hand grip what no paw can: your first tool.',
-    tip: 'Pinch thumb and finger together to grab. Open your hand to let go. Desktop: click.',
-    tasks: [
-      { text: 'Pinch something within reach to pick it up', done: (c) => c.pickups >= 1 },
-      { text: 'Pick up one more thing (anything)', done: (c) => c.pickups >= 2 },
-    ],
-  },
-  // LOOK AND PINCH (docs/GAZE_PINCH_90FPS_SPEC.md): far things by gaze. Kept as one self-contained block.
-  {
-    id: 'look',
-    builds: 'firePit',
-    title: 'Look and pinch',
-    say: 'Look at a glowing stone. Pinch.',
-    science: 'Your eyes move before your hand: you aim where you look.',
-    tip: 'No need to reach: look, then pinch either hand. Desktop: hover and click.',
-    setup: (g) => {
-      freeHands(g);
-      ensure(g, { dryStone: 2 });
-      gazeStats.reset();
-      lookLessonOutline(g);
-      lookBase = filledPitMarks(g);
-    },
-    // The practice outline goes (its stones come back); the fire lesson builds the real pit.
-    teardown: (g) => clearKind(g, 'firePit'),
-    tasks: [
-      { text: 'Look at a stone and pinch', done: () => gazeStats.picks >= 1 },
-      { text: 'Move your hand, then open it', done: () => gazeStats.releases >= 1 },
-      // A quick pinch that picks the stone and lets go over the outline seats it through the release path (not gazeStats.placed): that counts too.
-      { text: 'Look at a mark and pinch', done: (_c, g) => gazeStats.placed >= 1 || filledPitMarks(g) > lookBase },
-    ],
+    title: 'Pinch the glowing stone',
+    say: 'Pinch the glowing stone.',
+    science: 'Your thumb can press against each finger: that grip is your first tool.',
+    tip: 'Look at it or point at it, then press thumb and finger together. It goes into the pouch at your hip. Desktop: click it.',
+    skills: ['pickup'],
+    target: (g) => liveCampSpot(g, 'stone'),
+    tasks: [{ text: 'Pinch the glowing stone', done: (c) => c.pickups >= 1 }],
   },
   {
-    id: 'gather',
-    title: 'What the clearing offers',
-    say: 'Dusk will come. Fire needs tinder, kindling and stones. Point and pinch to gather.',
-    science: 'Dry, dead wood snaps cleanly: no water left inside to fight the flame.',
-    note: 'g_dead',
-    tip: 'You can reach about two steps away. Desktop: aim and click.',
-    tasks: [
-      { text: 'Gather dry grass', done: (c) => c.gathered.has('dryGrass') },
-      { text: 'Gather twigs', done: (c) => c.gathered.has('twigs') },
-      { text: 'Gather plant fibres', done: (c) => c.gathered.has('fibers') },
-      { text: 'Gather a stone', done: (c) => c.gathered.has('dryStone') },
-    ],
+    id: 'ring',
+    title: 'Walk into the glowing ring',
+    say: 'Walk into the glowing ring.',
+    science: 'Short hops are easier on your body than gliding: your eyes and ears agree.',
+    tip: 'Tap your thumb on the side of your index finger to jump. Or pinch, aim at the ring, let go. Desktop: W A S D.',
+    skills: ['teleport'],
+    target: () => ({ id: 'ring', x: RING.x, z: RING.z }),
+    tasks: [{ text: 'Walk into the glowing ring', done: (_c, g) => Math.hypot(g.player.x - RING.x, g.player.z - RING.z) < 0.9 }],
   },
   {
-    id: 'satchel',
-    title: 'The pouch at your hip',
-    say: 'Everything you gather goes into the pouch at your right hip.',
-    science: 'Carry only what you need: every extra stone is weight you pay for in effort.',
-    tip: 'Reach down to the pouch, or tap Menu > Bag. Desktop: Tab.',
-    setup: (g) => {
-      freeHands(g);
-      ensure(g, { dryStone: 1 });
-    },
-    tasks: [
-      { text: 'Take a stone out of the pouch', done: (c) => c.tookOut >= 1 },
-      { text: 'Put it back', done: (c) => c.putBack >= 1 },
-    ],
-  },
-  // VR MOVEMENT: the thumb-over-index micro-gesture. Detected the same way as any movement (the player's position and yaw).
-  {
-    id: 'glide',
-    title: 'Thumb moves',
-    say: 'No sticks needed. Your thumb moves you: rest it over your index finger.',
-    science: 'Small, well-practised motions are easier to repeat than big ones: that is why fine tools use the thumb.',
-    tip: 'Tap the side of your index finger with your thumb to teleport. Swipe the thumb left or right along it to turn. Or pinch and hold, aim at the ground, let go. Desktop: WASD and Q / E.',
-    tasks: [
-      { text: 'Teleport: tap thumb on index', done: (c) => c.moved >= 1.2 },
-      { text: 'Turn: swipe thumb left or right', done: (c) => c.turned >= 0.7 },
-    ],
-  },
-  {
-    id: 'move',
-    title: 'Bearings',
-    say: 'Far off, a rusted mast leans over old ruins. Not yet. Get your bearings first.',
-    science: 'The sun sinks in the west; its height above the trees tells you how long until dark.',
-    tip: 'Pinch and hold, aim at the ground, let go to move there. Flick your thumb sideways to turn. Desktop: WASD to walk, Q / E to turn.',
-    tasks: [
-      { text: 'Move to a new spot', done: (c) => c.moved >= 1.2 },
-      { text: 'Turn to face another way', done: (c) => c.turned >= 0.7 },
-    ],
-  },
-  {
-    id: 'place',
-    title: 'Hands full',
-    say: 'Big things stay in your hands. Set them down, or toss them aside.',
-    science: 'A thrown stone keeps moving until the ground stops it: momentum.',
-    tip: 'Open your hand low to place. Fling and open to throw. Desktop: G drops, Shift+G throws.',
-    setup: (g) => {
-      freeHands(g);
-      ensure(g, { dryStone: 2, logs: 1 });
-    },
-    tasks: [
-      { text: 'Hold a log or the stone slab', done: (c) => c.heldKinds.has('logs') || c.heldKinds.has('slab') },
-      { text: 'Set something down on the ground', done: (c) => c.drops >= 1 },
-      { text: 'Toss something (or set down another)', done: (c) => c.drops >= 2 },
-    ],
-  },
-  {
-    id: 'build',
+    id: 'marks',
     builds: 'workbench',
-    title: 'A steady surface',
-    say: 'Every machine is gone. The science is not. To make anything, you need a steady work surface.',
-    tip: 'Hold the slab over open ground; a red outline means bad ground. Then pinch an empty glowing mark: a stone from your pouch fills it, and the next one comes to your hand.',
+    title: 'Pinch each glowing mark',
+    say: 'Pinch each glowing mark.',
     science: 'Three legs always touch the ground together: a tripod never wobbles.',
     note: 'b_tripod',
+    tip: 'Each pinch puts a stone from your pouch on the mark. Three marks, three stones.',
     setup: (g) => {
-      clearKind(g, 'workbench');
+      freeHands(g);
       ensure(g, { dryStone: 3 });
+      benchOutline(g);
     },
-    tasks: [
-      { text: 'Hold the stone slab over open ground and place the plan', done: (c, g) => c.newStructures.size > 0 || g.structures.some((s) => s.kind === 'workbench') },
-      { text: 'Fill each glowing mark with a stone', done: (c, g) => g.structures.some((s) => s.kind === 'workbench' && s.spots.every((v) => v !== null)) },
-      { text: 'Lay the slab on top', done: (c, g) => g.structures.some((s) => s.kind === 'workbench' && s.complete) },
-    ],
+    target: (g) => nextMark(g, false),
+    tasks: [{ text: 'Pinch each glowing mark', done: (_c, g) => !!bench(g) && bench(g)!.spots.every((v) => v !== null) }],
   },
   {
-    id: 'craft',
+    id: 'slab',
     builds: 'workbench',
-    title: 'Cord',
-    say: 'Fire needs a bow drill, and a bow drill needs cord. Stand at the bench.',
-    science: 'Twisted fibres squeeze each other: friction locks them into one strong cord.',
-    note: 'g_cord',
-    tip: 'Twist fibres into cord with both hands. Then bind spindle, board, branch and cord.',
-    setup: (g) => {
-      if (!g.structures.some((s) => s.kind === 'workbench' && s.complete)) ensure(g, { dryStone: 3 });
-      ensure(g, { fibers: 3, spindle: 1, board: 1, greenBranch: 1 });
-    },
-    tasks: [
-      { text: 'Stand at your workbench', done: (c, g) => g.structures.some((s) => s.kind === 'workbench' && s.complete) },
-      { text: 'Twist three fibres into cord', done: (c) => c.cordMade },
-      { text: 'Make the bow drill', done: (c) => c.drillMade },
-    ],
+    title: 'Pinch the flat stone',
+    say: 'Pinch the flat stone.',
+    science: 'A flat, heavy top spreads the load over all three legs.',
+    tip: 'It is heavy: it stays in your hand, not in the pouch.',
+    setup: freeHands,
+    target: (g) => (has(g, 'slab') > 0 ? null : liveCampSpot(g, 'slab')),
+    // In hand, or in the bag (the easy-carry build bags even heavy things).
+    tasks: [{ text: 'Pinch the flat stone', done: (c, g) => c.heldKinds.has('slab') || c.gathered.has('slab') || has(g, 'slab') > 0 || !!bench(g)?.complete }],
   },
   {
-    id: 'fire',
-    builds: 'firePit',
-    title: 'Fire before nightfall',
-    say: 'The light is going. A ring of stones, then tinder, twigs, logs. Then make an ember.',
-    science: 'Fire needs heat, fuel and air. Take any one away and it dies.',
-    note: 'f_success',
-    tip: 'Try damp moss, or logs first, to see what goes wrong. Fan with an open palm.',
+    id: 'top',
+    builds: 'workbench',
+    title: 'Put it on top',
+    say: 'Put it on top.',
+    science: 'Now you have a steady surface to work on.',
+    tip: 'Carry it over the glowing top and open your hand. Or pinch the top.',
     setup: (g) => {
-      ensure(g, { dryStone: 4, dryGrass: 2, twigs: 3, logs: 2, dampMoss: 1 });
-      if (!has(g, 'bowDrill')) g.addItem('bowDrill');
+      benchReady(g, false);
+      if (g.held !== 'slab' && !bench(g)?.complete) ensure(g, { slab: 1 });
     },
-    tasks: [
-      { text: 'Build a fire pit from four stones', done: (c, g) => g.structures.some((s) => s.kind === 'firePit' && s.complete) },
-      { text: 'Lay tinder and twigs in the pit', done: (c, g) => g.flag('fireLayBuilt') },
-      { text: 'Drill an ember and fan it into flame', done: (c, g) => c.burning || g.fire.stage === 'burning' },
-    ],
+    target: (g) => nextMark(g, true),
+    tasks: [{ text: 'Put it on top', done: (_c, g) => !!bench(g)?.complete }],
   },
   {
-    id: 'hints',
-    title: 'When you are stuck',
-    say: 'The card above shows what to do next. It can give hints, if you want them.',
-    science: 'Every discovery starts the same way: a question, then a test.',
-    tip: 'Tap the bulb on the card for a hint. Tap "More help" for a clearer one.',
-    tasks: [
-      { text: 'Ask the card for a hint', done: (c) => c.hintLevel >= 1 },
-      { text: 'Ask for more help', done: (c) => c.hintLevel >= 2 },
-    ],
+    id: 'bag',
+    title: 'Tap the bag',
+    say: 'Tap the bag.',
+    science: 'Everything you gather waits in your pouch until you need it.',
+    tip: 'The bag button is in the menu up and to your left. Point and poke it, or pinch it.',
+    skills: ['bagOpen'],
+    tasks: [{ text: 'Tap the bag', done: (c) => c.bagOpened }],
   },
   {
-    id: 'notebook',
-    title: 'What you have learned',
-    say: 'Everything you notice is written down: what you saw, why, and where it stops working.',
-    science: 'Observation, principle, real-world limit: the steps every scientist uses.',
-    tip: 'Menu > Notebook. Desktop: N. New discoveries open new goals.',
-    setup: (g) => {
-      if (g.notebook.length === 0) g.observe('g_cord');
+    id: 'bench',
+    builds: 'workbench',
+    title: 'Pinch your workbench',
+    say: 'Pinch your workbench.',
+    science: 'Tools are made at the bench, one step at a time, with your hands.',
+    tip: 'It shows what you can make. You are ready: the next goals will guide you.',
+    setup: (g) => benchReady(g, true),
+    target: (g) => {
+      const b = bench(g);
+      return b ? { id: `bench_${b.id}`, x: b.x, z: b.z } : null;
     },
-    tasks: [{ text: 'Open the notebook and read an entry', done: (c) => c.notebookOpened }],
-  },
-  {
-    id: 'final',
-    builds: 'firePit',
-    title: 'Night is coming',
-    say: 'The last light is going. Show what you know.',
-    science: 'You made fire from wood, stone and understanding. That is all you will ever have out here.',
-    tip: 'Stuck? The goal card has hints.',
-    setup: (g) => {
-      // Fresh start for the challenge: use what is in the camp.
-      for (const id of ['fibers', 'cord'] as ItemId[]) g.satchel.set(id, 0);
-      clearKind(g, 'storage');
-    },
-    tasks: [
-      { text: 'Gather fibres', done: (c) => c.gathered.has('fibers') },
-      { text: 'Take something out of the pouch', done: (c) => c.tookOut >= 1 },
-      { text: 'Build a fire pit of your own', done: (c) => [...c.newStructures].some((k) => k.startsWith('firePit')) },
-      { text: 'Craft cord', done: (c) => c.cordMade },
-    ],
+    tasks: [{ text: 'Pinch your workbench', done: (c) => c.benchOpened }],
   },
 ];
 
+
 export const LESSON_IDS = LESSONS.map((l) => l.id);
+
+/**
+ * Gradual reveal of the HUD during the guided opening (NPE B): the menu once the bag is taught, the objective
+ * card once the first discovery is made. Before that the lesson card is the only guide on screen.
+ */
+export function guidedReveal(current: number, done: ReadonlySet<LessonId>, finished: boolean): { menu: boolean; objective: boolean } {
+  if (finished) return { menu: true, objective: true };
+  const bag = LESSON_IDS.indexOf('bag');
+  return { menu: current >= bag || done.has('bag'), objective: false };
+}
+
+/** Lesson ids from before the seven-step rework: a save that names one resumes at the first step. */
+export const OLD_ORDER: readonly string[] = ['hands', 'look', 'gather', 'satchel', 'glide', 'move', 'place', 'build', 'craft', 'fire', 'hints', 'notebook', 'final'];
+
+/** The saved open step as an index into today's LESSONS (by id); anything older or unknown starts at step 1. */
+export function savedLessonIndex(save: Pick<TutorialSave, 'current' | 'currentId'>): number {
+  const i = save.currentId ? LESSON_IDS.indexOf(save.currentId) : -1;
+  return i >= 0 ? i : 0;
+}
 
 export interface TutorialSave {
   done: LessonId[];
+  /** Index into LESSONS when saved. Saves before the NPE reorder used OLD_ORDER (see `currentId`). */
   current: number;
+  /** The open lesson by id (NPE B; absent in older saves). */
+  currentId?: LessonId;
+  /** Skills shown so far (NPE B; absent in older saves). */
+  skills?: Skill[];
   finished: boolean;
   /** Ticked tasks of the open lesson (kept across a reload). */
   ticks?: boolean[];
@@ -353,6 +300,8 @@ function freshCtx(): LessonCtx {
     mistakes: new Set(),
     hintLevel: 0,
     notebookOpened: false,
+    bagOpened: false,
+    benchOpened: false,
   };
 }
 
@@ -360,6 +309,8 @@ export type TutorialEvent =
   | { type: 'lesson'; index: number }
   | { type: 'task'; index: number; task: number }
   | { type: 'lessonDone'; index: number }
+  /** A lesson passed because the player already showed everything it teaches (NPE B). */
+  | { type: 'known'; index: number }
   /** The science line after a step is done (its notebook entry, if any, is already recorded). */
   | { type: 'science'; index: number; text: string }
   | { type: 'finished' };
@@ -370,6 +321,8 @@ export type TutorialEvent =
  */
 export class TutorialRunner {
   readonly done = new Set<LessonId>();
+  /** Skills the player has shown anywhere in the tutorial (NPE B): a lesson made only of these is not explained again. */
+  readonly skills = new Set<Skill>();
   current = 0;
   finished = false;
   ctx: LessonCtx = freshCtx();
@@ -394,8 +347,9 @@ export class TutorialRunner {
   ) {
     if (save) {
       for (const id of save.done) if (LESSON_IDS.includes(id)) this.done.add(id);
-      this.current = Math.max(0, Math.min(LESSONS.length - 1, save.current | 0));
+      this.current = savedLessonIndex(save);
       this.finished = !!save.finished;
+      for (const k of save.skills ?? []) this.skills.add(k);
     }
     this.off = game.on((e) => this.onEvent(e));
     // A restored lesson keeps the saved world as it is: its setup ran when the lesson first opened.
@@ -423,7 +377,7 @@ export class TutorialRunner {
   }
 
   snapshot(): TutorialSave {
-    return { done: [...this.done], current: this.current, finished: this.finished, ticks: [...this.ticks] };
+    return { done: [...this.done], current: this.current, currentId: LESSONS[this.current].id, finished: this.finished, ticks: [...this.ticks], skills: [...this.skills] };
   }
 
   /** Open lesson `index` (replay or jump). Runs its setup, clears what was seen. */
@@ -547,6 +501,8 @@ export class TutorialRunner {
     this.lastYaw = g.facingYaw;
     c.hintLevel = Math.max(c.hintLevel, ui.hintLevel);
     if (ui.notebookOpen) c.notebookOpened = true;
+    if (ui.bagOpen) c.bagOpened = true;
+    if (ui.benchOpen) c.benchOpened = true;
     for (const s of g.structures) {
       if (s.complete && !this.knownComplete.has(s.id)) {
         this.knownComplete.add(s.id);
@@ -557,7 +513,31 @@ export class TutorialRunner {
     this.evaluate();
   }
 
+  /** Record what the player has shown, wherever they showed it (NPE B). */
+  private learnSkills(): void {
+    const c = this.ctx;
+    const k = this.skills;
+    if (c.moved >= 1.2) k.add('teleport');
+    if (c.turned >= 0.7) k.add('turn');
+    if (c.pickups >= 1) k.add('pickup');
+    if (c.tookOut >= 1) k.add('takeOut');
+    if (c.putBack >= 1) k.add('putBack');
+    if (gazeStats.picks >= 1) k.add('gazePick');
+    if (gazeStats.releases >= 1) k.add('gazeRelease');
+    if (gazeStats.placed >= 1) k.add('gazePlace');
+    if (c.heldKinds.has('logs') || c.heldKinds.has('slab')) k.add('holdBig');
+    if (c.drops >= 2) k.add('drop2');
+    if (c.bagOpened) k.add('bagOpen');
+  }
+
+  /** Does the player already know everything lesson `i` teaches (and it teaches only skills)? */
+  knows(i: number): boolean {
+    const sk = LESSONS[i]?.skills;
+    return !!sk && sk.length > 0 && sk.every((x) => this.skills.has(x));
+  }
+
   private evaluate(): void {
+    this.learnSkills();
     if (this.ticks.every(Boolean)) return;
     const tasks = this.lesson.tasks;
     for (let i = 0; i < tasks.length; i++) {
@@ -589,13 +569,23 @@ export class TutorialRunner {
       }
       return;
     }
-    // Go on to the first lesson not yet done after this one (or simply the next).
-    let next = index + 1;
+    // Go on to the first lesson not yet done after this one (or simply the next). A lesson whose skills the player
+    // has already shown is passed with a word instead of being explained again (NPE B).
+    let next = -1;
     for (let i = index + 1; i < LESSONS.length; i++) {
-      if (!this.done.has(LESSONS[i].id)) {
-        next = i;
-        break;
+      if (this.done.has(LESSONS[i].id)) continue;
+      if (this.knows(i) && i < LESSONS.length - 1) {
+        this.done.add(LESSONS[i].id);
+        this.emit({ type: 'known', index: i });
+        continue;
       }
+      next = i;
+      break;
+    }
+    if (next < 0) {
+      // Everything after this one is done or known: the last lesson closes the tutorial.
+      next = LESSONS.length - 1;
+      if (this.done.has(LESSONS[next].id)) next = Math.min(index + 1, LESSONS.length - 1);
     }
     this.begin(next);
   }
@@ -607,33 +597,20 @@ export class TutorialRunner {
 }
 
 /** Opening narration, a line or two per beat, before the first step. */
-export const OPENING: string[] = [
-  'You wake on the forest floor. Cold. Nothing in your hands.',
-  'Through the trees, a rusted mast leans over ruins on the horizon.',
-  'Every machine is gone. The science is not.',
-];
+export const OPENING: string[] = ['You wake in a wild forest. Find what you need.'];
 
 /** The closing lines when the last step is done; survival carries the story on from here. */
-export const CLOSING: string[] = [
-  'Darkness settles. Your fire holds it back.',
-  'Out past the trees, the rusted mast catches the last of the light.',
-];
+export const CLOSING: string[] = ['Well done. Now the forest is yours.'];
 
 /** The hour each step plays at: early afternoon at waking, dusk by the fire, night falling at the end. */
 export const STEP_HOURS: Record<LessonId, number> = {
-  hands: 13,
-  look: 13.2,
-  gather: 13.5,
-  satchel: 14,
-  glide: 14.25,
-  move: 14.5,
-  place: 15,
-  build: 15.5,
-  craft: 16.5,
-  fire: 18.2,
-  hints: 18.6,
-  notebook: 18.9,
-  final: 19.2,
+  stone: 13,
+  ring: 13.5,
+  marks: 14.5,
+  slab: 15.5,
+  top: 16.5,
+  bag: 17.5,
+  bench: 18.5,
 };
 /** After the last step: night. */
 export const NIGHT_HOUR = 19.8;

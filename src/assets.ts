@@ -73,6 +73,7 @@ export default defineAssets({
   'bench-panel': uikitml('bench.uikitml', 'Workbench Recipes'),
   'pausebtn-panel': uikitml('pausebtn.uikitml', 'Pause Button'),
   'pausecard-panel': uikitml('pausecard.uikitml', 'Pause Card'),
+  'settings-panel': uikitml('settings.uikitml', 'Settings Card'),
   'turn-panel': uikitml('turn.uikitml', 'Turn Button'),
   'tutorial-panel': uikitml('tutorial.uikitml', 'Tutorial Tracker'),
 });

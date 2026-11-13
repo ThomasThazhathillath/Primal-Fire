@@ -112,6 +112,23 @@ Per stage commit, clean screenshots in `docs/shots-revamp/<stage>-*.jpg`, number
 
 Verified: typecheck, 679 unit tests, production build, emulator screenshots and perf samples at each stage; `scripts/story-check.mjs` (Chapter 1 story: gather, workbench, fire, camp, no errors) and `scripts/tutorial-check.mjs` (tutorial enters and reports lesson state) pass in the emulator. `scripts/playtest.mjs` (the M1-era script) stops with a script error at the workbench step; it was not run on main for comparison. Not verified: Chapter 2 and 3 replayed end to end in the emulator (their unit tests pass), a headset, texture memory on Quest (about 19 MB for the ground set), and the triangle total against the Quest budget (see PERF_REPORT).
 
+### New player experience and accessibility (branch `claude/npe-accessibility`, from main c075728, not merged)
+
+Audit and plan with Quest log evidence: [NPE_PLAN.md](NPE_PLAN.md). Walkthrough timings: [NPE_WALKTHROUGH.md](NPE_WALKTHROUGH.md).
+
+| Milestone | Done |
+|---|---|
+| A Interaction reliability | Yes: stable ray target picker, pinch-time lock, pickup feedback, pinch-press on buttons |
+| B First five minutes | Yes: lessons in the spec's five stages, gradual HUD reveal, no repeated explanations, saves migrated |
+| C Progressive assistance | Yes: cue, instruction, explicit help on struggle, cleared on success; bench near-miss tolerance |
+| D Objective card and navigation | Yes: "Next:" and "Look for:" lines, compass with camp and goal |
+| E Modes and accessibility | Yes: Guided / Standard / Explorer and five options in a Settings card, persisted, live |
+| F Tests and docs | Yes: 38 new unit tests, scripted fresh-save walkthrough, Chapter 1 story regression |
+
+Verified: typecheck, 757 unit tests, production build, IWER checks of each milestone (screenshots in
+`docs/shots-npe/`). Not verified: a headset; human first-time timings; Chapter 2 and Phase 3 replayed in the
+emulator (their unit tests pass). The Quest checklist is at the end of NPE_PLAN.md.
+
 ### Docs index
 
 | Doc | What it is |
@@ -120,8 +137,8 @@ Verified: typecheck, 679 unit tests, production build, emulator screenshots and 
 | [SCIENCE.md](SCIENCE.md) | Science content and accuracy notes |
 | [PERF_REPORT.md](PERF_REPORT.md) | Measured performance, before and after, and the Quest checklist |
 | [SETUP.md](SETUP.md) | Setup and hosting |
-| Specs (the user's briefs, verbatim) | [HANDS_ONLY_SPEC](HANDS_ONLY_SPEC.md) · [QUEST_GUIDANCE_SPEC](QUEST_GUIDANCE_SPEC.md) · [SKY_SPEC](SKY_SPEC.md) · [CORE_GAMEPLAY_SPEC](CORE_GAMEPLAY_SPEC.md) · [TUTORIAL_USABILITY_SPEC](TUTORIAL_USABILITY_SPEC.md) · [STORY_CHAPTER1_SPEC](STORY_CHAPTER1_SPEC.md) · [GAZE_PINCH_90FPS_SPEC](GAZE_PINCH_90FPS_SPEC.md) · [CHAPTER2_SHELTER_SPEC](CHAPTER2_SHELTER_SPEC.md) |
-| Implementation plans | [PHASE3_LIVING_WORLD_PLAN](PHASE3_LIVING_WORLD_PLAN.md) · [STORY_CHAPTER1_PLAN](STORY_CHAPTER1_PLAN.md) · [GAZE_PINCH_90FPS_PLAN](GAZE_PINCH_90FPS_PLAN.md) · [CHAPTER2_SHELTER_PLAN](CHAPTER2_SHELTER_PLAN.md) |
+| Specs (the user's briefs, verbatim) | [NPE_ACCESSIBILITY_SPEC](NPE_ACCESSIBILITY_SPEC.md) · [HANDS_ONLY_SPEC](HANDS_ONLY_SPEC.md) · [QUEST_GUIDANCE_SPEC](QUEST_GUIDANCE_SPEC.md) · [SKY_SPEC](SKY_SPEC.md) · [CORE_GAMEPLAY_SPEC](CORE_GAMEPLAY_SPEC.md) · [TUTORIAL_USABILITY_SPEC](TUTORIAL_USABILITY_SPEC.md) · [STORY_CHAPTER1_SPEC](STORY_CHAPTER1_SPEC.md) · [GAZE_PINCH_90FPS_SPEC](GAZE_PINCH_90FPS_SPEC.md) · [CHAPTER2_SHELTER_SPEC](CHAPTER2_SHELTER_SPEC.md) |
+| Implementation plans | [NPE_PLAN](NPE_PLAN.md) · [PHASE3_LIVING_WORLD_PLAN](PHASE3_LIVING_WORLD_PLAN.md) · [STORY_CHAPTER1_PLAN](STORY_CHAPTER1_PLAN.md) · [GAZE_PINCH_90FPS_PLAN](GAZE_PINCH_90FPS_PLAN.md) · [CHAPTER2_SHELTER_PLAN](CHAPTER2_SHELTER_PLAN.md) |
 | Historical | [NEXT_PROMPT.md](NEXT_PROMPT.md) (the Oct prototype brief), [SETUP_UNITY.md](SETUP_UNITY.md) (Unity path, not used), `shots-*/` (verification screenshots) |
 
 The milestone table and lists below are the original Oct 27–28 plan, kept for history.

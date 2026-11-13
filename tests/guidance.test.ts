@@ -115,7 +115,7 @@ describe('next step line', () => {
     expect(nextStepLine(g)).toBeNull();
     g.addItem('fibers', 3);
     const line = nextStepLine(g)!;
-    expect(line).toBe('You have everything for cord: go to your workbench and tap Cord.');
+    expect(line).toBe('Ready: make cord at the bench.');
     // Once you own the thing it stops nagging.
     g.addItem('cord');
     expect(nextStepLine(g)).toBeNull();

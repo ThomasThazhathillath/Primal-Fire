@@ -30,8 +30,8 @@ import { BLUEPRINTS, spotWorldPosition } from '../game/blueprint.js';
 import type { GameEvent } from '../game/game.js';
 import { itemName } from '../game/items.js';
 import { groundHeight } from '../game/world-layout.js';
-import { REACH, ResourceSystem } from './resource-system.js';
-import { getGame, hintFx } from './shared.js';
+import { REACH, reachCfg, ResourceSystem } from './resource-system.js';
+import { assistFx, getGame, hintFx, rayPick } from './shared.js';
 
 const RING_POOL = ASSIST.highlightBudget;
 const SHOW_RANGE = 9;
@@ -166,7 +166,10 @@ export class HighlightSystem extends createSystem({
       for (const e of set) return e;
       return null;
     };
-    const eGather = pick(this.queries.hoverGather.entities) as { object3D?: { getWorldPosition(v: Vector3): Vector3 }; getValue(c: unknown, f: string): unknown } | null;
+    let eGather = pick(this.queries.hoverGather.entities) as { object3D?: { getWorldPosition(v: Vector3): Vector3 }; getValue(c: unknown, f: string): unknown } | null;
+    // VR (NPE A): the hand ray's stable, pinch-locked target is the one that will be taken, not whichever
+    // invisible hit sphere the swinging ray touches first.
+    if (rayPick.key) eGather = (this.world.getSystem(ResourceSystem)?.entityFor(rayPick.key) as typeof eGather) ?? eGather;
     const eSpot = pick(this.queries.hoverSpot.entities) as typeof eGather;
     const eDrop = pick(this.queries.hoverDrop.entities) as typeof eGather;
     const ePart = pick(this.queries.hoverPart.entities) as typeof eGather;
@@ -190,8 +193,11 @@ export class HighlightSystem extends createSystem({
       const spot = resources?.spot((eGather.getValue(Gatherable, 'spotId') as string) ?? '');
       if (!spot || !resources) return null;
       const known = game.gatheredCount(spot.itemId) > 0;
-      const near = resources.distanceTo(spot) <= REACH;
-      this.setLabel(`${known ? itemName(spot.itemId) : spot.label}${near ? ': pinch to take' : ': too far, get closer'}`, near);
+      const near = resources.distanceTo(spot) <= REACH * reachCfg.scale;
+      const block = game.gatherBlock(spot.itemId);
+      // Name, and whether it can be taken now (the pickup indicator).
+      const verb = !near ? ': too far, step closer' : block === 'pockets' ? ': pockets full' : block === 'hands' ? ': hands full' : ': pinch to take';
+      this.setLabel(`${known ? itemName(spot.itemId) : spot.label}${verb}`, near && !block);
       this.tx = spot.x;
       this.ty = groundHeight(spot.x, spot.z);
       this.tz = spot.z;
@@ -284,7 +290,11 @@ export class HighlightSystem extends createSystem({
       }
     }
     for (const p of hintFx.pulse) this.want.push({ id: p.id, kind: 'hint', x: p.x, y: p.y, z: p.z, priority: highlightPriority('hint', Math.hypot(p.x - this.head.x, p.z - this.head.z)) });
-    if (hintFx.exact) this.want.push({ id: hintFx.exact.id, kind: 'exact', x: hintFx.exact.x, y: hintFx.exact.y, z: hintFx.exact.z, priority: highlightPriority('exact', 0) });
+    // Progressive assistance (NPE C): the one thing the player seems stuck on pulses softly.
+    const ap = assistFx.pulse;
+    if (ap) this.want.push({ id: `assist_${ap.id}`, kind: 'hint', x: ap.x, y: ap.y, z: ap.z, priority: highlightPriority('hint', 0) });
+    const ex = hintFx.exact ?? assistFx.exact;
+    if (ex) this.want.push({ id: ex.id, kind: 'exact', x: ex.x, y: ex.y, z: ex.z, priority: highlightPriority('exact', 0) });
     pickHighlights(this.want, ASSIST.highlightBudget, this.picked);
     const d = diffHighlights(this.shown, this.picked, this.removed, this.added);
     for (const id of d.removed) {
@@ -314,7 +324,7 @@ export class HighlightSystem extends createSystem({
       r.visible = true;
     }
     // Arrow over the one exact target.
-    this.arrow.visible = !!hintFx.exact || (!!this.assistAt && game.assist.indicator() >= 2);
+    this.arrow.visible = !!(hintFx.exact ?? assistFx.exact) || (!!this.assistAt && game.assist.indicator() >= 2);
     // The label follows the hovered target only.
     this.label.visible = !!h && this.hasTarget;
   }
@@ -343,7 +353,7 @@ export class HighlightSystem extends createSystem({
       this.pool.scale.setScalar(1 + Math.sin(this.t * 3) * 0.12);
       this.poolMat.opacity = 0.45 + Math.sin(this.t * 3) * 0.2;
     }
-    const arrowAt = hintFx.exact ?? this.assistAt;
+    const arrowAt = hintFx.exact ?? assistFx.exact ?? this.assistAt;
     if (this.arrow.visible && arrowAt) {
       this.arrow.position.set(arrowAt.x, Math.max(arrowAt.y, groundHeight(arrowAt.x, arrowAt.z)) + 0.75 + Math.sin(this.t * 4) * 0.1, arrowAt.z);
     }

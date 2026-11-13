@@ -1,11 +1,8 @@
-import { gazeStats } from '../src/game/gaze.js';
 import { describe, expect, it } from 'vitest';
-import { spotWorldPosition } from '../src/game/blueprint.js';
-import { LAY_NEEDS } from '../src/game/fire.js';
 import { Game } from '../src/game/game.js';
 import { setEasyCarry } from '../src/game/items.js';
 import { campItems, tutorialSpots } from '../src/game/tutorial-layout.js';
-import { LESSONS, storyHour, TutorialRunner, type LessonId } from '../src/game/tutorial-lessons.js';
+import { BENCH_SITE, LESSONS, RING, storyHour, TutorialRunner, type LessonId } from '../src/game/tutorial-lessons.js';
 import {
   chooseSurvival,
   chooseTutorial,
@@ -33,232 +30,113 @@ function at(r: TutorialRunner, id: LessonId): void {
   expect(r.lesson.id).toBe(id);
 }
 
-/** Play every lesson with real Game actions, as a player would. */
+const bench = (g: Game) => g.structures.find((s) => s.kind === 'workbench');
+
+/** Play the open step with real Game actions, as a player would. */
 function playLesson(r: TutorialRunner, g: Game): void {
   switch (r.lesson.id) {
-    case 'hands':
-      g.gather('slab', 'tutorial');
+    case 'stone':
       g.gather('dryStone', 'tutorial');
       break;
-    case 'look':
-      gazeStats.picks++;
-      gazeStats.releases++;
-      gazeStats.placed++;
+    case 'ring':
+      g.setPlayerPosition(RING.x + 0.3, RING.z);
       break;
-    case 'gather':
-      for (const id of ['dryGrass', 'twigs', 'fibers', 'dryStone'] as const) g.gather(id, 'tutorial');
+    case 'marks': {
+      const b = bench(g)!;
+      b.spots.forEach((_, i) => g.fillFromBag(b.id, i));
       break;
-    case 'satchel':
-      g.takeOut('dryStone');
-      g.stow();
-      break;
-    case 'glide':
-    case 'move':
-      g.setPlayerPosition(1.5, 0);
-      r.poll(ui);
-      g.facingYaw = 0.5;
-      r.poll(ui);
-      g.facingYaw = 1.0;
-      r.poll(ui);
-      g.setPlayerPosition(0, 0);
-      break;
-    case 'place':
-      g.takeOut('logs');
-      g.dropItem('logs', 0.5, -1);
-      g.takeOut('dryStone');
-      g.dropItem('dryStone', 0.5, -1.5);
-      break;
-    case 'build': {
-      g.gather('slab');
+    }
+    case 'slab':
+      g.gather('slab', 'tutorial');
       if (g.held !== 'slab') g.takeOut('slab'); // easy carry: it went in the bag
-      const s = g.placeBlueprint('workbench', -1, -1.5).structure!;
-      r.poll(ui);
-      for (let i = 0; i < 3; i++) {
-        const p = spotWorldPosition(s, i);
-        g.fillSpot(s.id, i, 'dryStone', { x: p.x, z: p.z });
-      }
-      r.poll(ui);
-      g.placeKey(s.id, s.x, s.z, 2);
+      break;
+    case 'top': {
+      const b = bench(g)!;
+      if (g.held !== 'slab') g.takeOut('slab');
+      g.placeKey(b.id, b.x, b.z, 2);
       break;
     }
-    case 'craft':
-      g.craft('cord');
-      g.craft('bowDrill');
-      break;
-    case 'fire': {
-      if (g.held) g.dropItem(g.held, 1, 1);
-      g.takeOut('dryStone');
-      const pit = g.placeBlueprint('firePit', 1.5, 1.5).structure!;
-      pit.spots.forEach((_, i) => g.fillSpot(pit.id, i));
-      r.poll(ui);
-      g.addItem('dryGrass', LAY_NEEDS.tinder);
-      g.addItem('twigs', LAY_NEEDS.twigs);
-      g.addItem('logs', LAY_NEEDS.logs);
-      while (!g.fire.layBuilt) g.fire.addFuel();
-      r.poll(ui);
-      g.takeOut('bowDrill');
-      for (let i = 0; i < 100 && !g.fire.carrying; i++) g.fire.saw(0.3, 0.2);
-      g.fire.transferEmber();
-      for (let i = 0; i < 20; i++) g.fire.fan(0.6, 0.25);
-      break;
-    }
-    case 'hints':
-      r.poll({ hintLevel: 1, notebookOpen: false });
-      r.poll({ hintLevel: 2, notebookOpen: false });
+    case 'bag':
+      r.poll({ ...ui, bagOpen: true });
       return;
-    case 'notebook':
-      r.poll({ hintLevel: 0, notebookOpen: true });
+    case 'bench':
+      r.poll({ ...ui, benchOpen: true });
       return;
-    case 'final': {
-      if (g.held) g.dropItem(g.held, 1, 1);
-      g.gather('fibers', 'tutorial');
-      g.gather('fibers', 'tutorial');
-      g.gather('fibers', 'tutorial');
-      g.addItem('dryStone', 4);
-      g.takeOut('dryStone');
-      const pit = g.placeBlueprint('firePit', -2, 1).structure;
-      if (pit) pit.spots.forEach((_, i) => g.fillSpot(pit.id, i));
-      r.poll(ui);
-      g.craft('cord');
-      break;
-    }
   }
   r.poll(ui);
 }
 
-describe('THE FIRST STEPS tutorial', () => {
-  it('every lesson can be completed in order with the real mechanics', () => {
-    const g = new Game();
-    const r = new TutorialRunner(g);
-    const order = LESSONS.map((l) => l.id);
-    for (const id of order) {
-      at(r, id);
-      playLesson(r, g);
-      if (id !== 'final') expect(r.lesson.id, `stuck in ${id}: ticks ${r.ticks}`).not.toBe(id);
+describe('THE FIRST STEPS: seven one-instruction steps', () => {
+  it('has 6 to 8 steps, each one instruction of at most six words, verb first', () => {
+    expect(LESSONS.length).toBeGreaterThanOrEqual(6);
+    expect(LESSONS.length).toBeLessThanOrEqual(8);
+    for (const l of LESSONS) {
+      expect(l.title.split(/\s+/).length, l.title).toBeLessThanOrEqual(6);
+      expect(l.title, l.title).toMatch(/^(Pinch|Walk|Put|Tap|Open|Turn|Look|Take|Make)\b/);
+      expect(l.tasks.length, l.id).toBe(1);
     }
-    expect(r.finished).toBe(true);
-    expect([...r.done].sort()).toEqual([...order].sort());
   });
 
-  it('every lesson can also be completed with easy carry on (the play-test build)', () => {
+  it('every step can be completed in order with the real mechanics', () => {
+    const g = new Game();
+    const r = new TutorialRunner(g);
+    for (const l of LESSONS) {
+      at(r, l.id);
+      playLesson(r, g);
+    }
+    expect(r.finished).toBe(true);
+    expect(bench(g)?.complete).toBe(true);
+  });
+
+  it('also with easy carry on (the play-test build)', () => {
     setEasyCarry(true);
     try {
       const g = new Game();
       const r = new TutorialRunner(g);
-      for (const l of LESSONS) {
-        at(r, l.id);
-        playLesson(r, g);
-      }
+      for (let n = 0; n < 12 && !r.finished; n++) playLesson(r, g);
       expect(r.finished).toBe(true);
     } finally {
       setEasyCarry(false);
     }
   });
 
-  it('each lesson can be replayed on its own from a fresh game (none can strand you)', () => {
+  it('each step can be replayed on its own from a fresh game (none can strand you)', () => {
     for (let i = 0; i < LESSONS.length; i++) {
       const g = new Game();
       const r = new TutorialRunner(g);
-      // Lessons that need a finished bench: build it first like a player would.
-      if (['craft', 'final'].includes(LESSONS[i].id)) {
-        r.begin(LESSONS.findIndex((l) => l.id === 'build'));
-        playLesson(r, g);
-      }
       r.begin(i);
       playLesson(r, g);
-      expect(r.done.has(LESSONS[i].id), `lesson ${LESSONS[i].id}`).toBe(true);
+      expect(r.done.has(LESSONS[i].id), `step ${LESSONS[i].id}`).toBe(true);
     }
   });
 
-  it('a finished lesson can be repeated and ticks again from scratch', () => {
+  it('every step but the bag points at its exact target', () => {
     const g = new Game();
     const r = new TutorialRunner(g);
-    playLesson(r, g);
-    at(r, 'look');
-    r.begin(0);
-    expect(r.ticks.every((t) => !t)).toBe(true);
-    playLesson(r, g);
-    at(r, 'look'); // goes on to the first lesson not yet done
+    for (const l of LESSONS) {
+      if (l.id !== 'bag') expect(l.target?.(g), l.id).toBeTruthy();
+      playLesson(r, g);
+    }
   });
 
-  it('a lesson can be skipped, and the whole tutorial too', () => {
+  it('the marks step lays a practice workbench outline beyond the ring, and a pinch per mark fills it', () => {
+    const g = new Game();
+    const r = new TutorialRunner(g);
+    r.begin(LESSONS.findIndex((l) => l.id === 'marks'));
+    const b = bench(g)!;
+    expect(Math.hypot(b.x - BENCH_SITE.x, b.z - BENCH_SITE.z)).toBeLessThan(1.5);
+    expect(g.fillFromBag(b.id, 0)).toBe(true);
+    expect(b.spots[0]).not.toBeNull();
+  });
+
+  it('a step can be skipped, and the whole thing too', () => {
     const g = new Game();
     const r = new TutorialRunner(g);
     r.skipLesson();
-    at(r, 'look');
-    expect(r.done.has('hands')).toBe(true);
+    at(r, 'ring');
     r.skipAll();
     expect(r.finished).toBe(true);
     expect(r.done.size).toBe(LESSONS.length);
-  });
-
-  it('a second stone counts as the second pickup', () => {
-    const g = new Game();
-    const r = new TutorialRunner(g);
-    g.gather('dryStone');
-    g.gather('dryStone');
-    at(r, 'look');
-  });
-
-  it('outside building lessons no blueprint can be started; inside, only the lesson structure', () => {
-    const g = new Game();
-    const r = new TutorialRunner(g);
-    r.begin(LESSONS.findIndex((l) => l.id === 'place'));
-    g.takeOut('dryStone');
-    expect(g.placeBlueprint('firePit', 1, 1).ok).toBe(false);
-    expect(g.structures.length).toBe(0);
-    r.begin(LESSONS.findIndex((l) => l.id === 'build'));
-    g.takeOut('dryStone');
-    expect(g.placeBlueprint('firePit', 1, 1).ok).toBe(false);
-    r.begin(LESSONS.findIndex((l) => l.id === 'fire'));
-    if (g.held !== 'dryStone') g.takeOut('dryStone');
-    expect(g.placeBlueprint('firePit', 1, 1).ok).toBe(true);
-    r.skipAll();
-    expect(g.allowsBuild('storage')).toBe(true);
-  });
-
-  it('the final challenge needs a finished structure, not just an outline', () => {
-    const g = new Game();
-    const r = new TutorialRunner(g);
-    r.begin(LESSONS.findIndex((l) => l.id === 'final'));
-    g.addItem('dryStone', 4);
-    g.takeOut('dryStone');
-    const pit = g.placeBlueprint('firePit', -2, 1).structure!;
-    r.poll(ui);
-    expect(r.ticks[2]).toBe(false);
-    pit.spots.forEach((_, i) => g.fillSpot(pit.id, i));
-    r.poll(ui);
-    expect(r.ticks[2]).toBe(true);
-  });
-
-  it('tasks tick any order and never un-tick', () => {
-    const g = new Game();
-    const r = new TutorialRunner(g);
-    r.skipLesson();
-    r.skipLesson();
-    at(r, 'gather');
-    g.gather('fibers');
-    g.gather('dryStone');
-    expect(r.ticks).toEqual([false, false, true, true]); // any order: each ticks the moment it is gathered
-    g.gather('twigs');
-    expect(r.ticks).toEqual([false, true, true, true]);
-    g.gather('dryGrass');
-    at(r, 'satchel');
-  });
-
-  it('a reload mid-lesson keeps the half-built work (setup does not run again)', () => {
-    const g = new Game();
-    const r = new TutorialRunner(g);
-    r.begin(LESSONS.findIndex((l) => l.id === 'build'));
-    g.gather('slab');
-    if (g.held !== 'slab') g.takeOut('slab');
-    g.placeBlueprint('workbench', -1, -1.5);
-    r.poll(ui);
-    const g2 = Game.restore(JSON.parse(JSON.stringify(g.snapshot())));
-    const r2 = new TutorialRunner(g2, JSON.parse(JSON.stringify(r.snapshot())));
-    at(r2, 'build');
-    expect(g2.structures.length).toBe(1);
-    expect(r2.ticks[0]).toBe(true); // the plan tick is kept
   });
 
   it('progress survives a reload', () => {
@@ -266,17 +144,25 @@ describe('THE FIRST STEPS tutorial', () => {
     const r = new TutorialRunner(g);
     r.skipLesson();
     r.skipLesson();
-    r.skipLesson();
     const r2 = new TutorialRunner(new Game(), JSON.parse(JSON.stringify(r.snapshot())));
-    at(r2, 'satchel');
-    expect(r2.done.has('hands')).toBe(true);
+    at(r2, 'marks');
+    expect(r2.done.has('stone')).toBe(true);
   });
 
-  it('every item the lessons expect you to gather is on offer in the camp, within seated reach', () => {
+  it('outside building steps no blueprint can be started', () => {
+    const g = new Game();
+    const r = new TutorialRunner(g);
+    r.begin(LESSONS.findIndex((l) => l.id === 'ring'));
+    g.addItem('dryStone', 1);
+    g.takeOut('dryStone');
+    expect(g.placeBlueprint('firePit', 1, 1).ok).toBe(false);
+    r.skipAll();
+    expect(g.allowsBuild('storage')).toBe(true);
+  });
+
+  it('every item the steps need is on offer in the camp, within seated reach', () => {
     const offered = campItems();
-    for (const id of ['dryGrass', 'twigs', 'fibers', 'dryStone', 'logs', 'slab', 'spindle', 'board', 'greenBranch', 'dampMoss'] as const) {
-      expect(offered.has(id), id).toBe(true);
-    }
+    for (const id of ['dryStone', 'slab'] as const) expect(offered.has(id), id).toBe(true);
     for (const s of tutorialSpots()) {
       expect(Math.hypot(s.x, s.z)).toBeLessThan(2.3);
       expect(s.regrow).toBeGreaterThan(0);
@@ -343,16 +229,15 @@ describe('the opening as a story', () => {
     const r = new TutorialRunner(g);
     const said: string[] = [];
     r.on((e) => e.type === 'science' && said.push(e.text));
-    r.begin(LESSONS.findIndex((l) => l.id === 'gather'));
+    r.begin(LESSONS.findIndex((l) => l.id === 'marks'));
     playLesson(r, g);
-    expect(said).toEqual([LESSONS[LESSONS.findIndex((l) => l.id === 'gather')].science]);
-    expect(g.notebook).toContain('g_dead');
+    expect(said).toEqual([LESSONS[LESSONS.findIndex((l) => l.id === 'marks')].science]);
+    expect(g.notebook).toContain('b_tripod');
   });
 
-  it('the clock runs from early afternoon to dusk across the opening', () => {
-    expect(storyHour('hands')).toBeCloseTo(13);
-    expect(storyHour('fire')).toBeGreaterThanOrEqual(18); // dusk by the fire
-    expect(storyHour(null)).toBeGreaterThan(storyHour('final'));
+  it('the clock runs from early afternoon towards dusk across the steps', () => {
+    expect(storyHour(LESSONS[0].id)).toBeCloseTo(13);
+    expect(storyHour(null)).toBeGreaterThan(storyHour(LESSONS[LESSONS.length - 1].id));
     for (let i = 1; i < LESSONS.length; i++) expect(storyHour(LESSONS[i].id)).toBeGreaterThan(storyHour(LESSONS[i - 1].id));
   });
 

@@ -1,0 +1,86 @@
+<!--
+  Settings: assistance mode and accessibility options (docs/NPE_PLAN.md, milestone E). Each row is a set of big
+  buttons; the chosen one is lit. Every change applies at once and is remembered. Opened from the pause card and
+  the title menu; SettingsSystem wires it.
+-->
+<style>
+  .theme-begin { display: flex; }
+  .t-root { background-color: rgba(24, 16, 10, 0.98); border-radius: 18px; border-width: 8px; border-color: #6b4524; }
+  .t-banner { flex-direction: row; align-items: center; justify-content: space-between; background-color: #5a2f16; border-radius: 12px; border-bottom-width: 4px; border-color: #c4893f; padding-top: 8px; padding-bottom: 8px; padding-left: 14px; padding-right: 10px; flex-shrink: 0; }
+  .t-bannertext { color: #fbf0d6; font-size: 24px; font-weight: 700; letter-spacing: 1px; }
+  .t-head { background-color: #5e6e34; border-radius: 12px; padding: 8px; }
+  .t-headtext { color: #fbf0d6; font-size: 20px; font-weight: 700; }
+  .t-title { color: #f3e6cc; font-size: 24px; font-weight: 700; line-height: 1.15; }
+  .t-name { color: #f3e6cc; font-size: 20px; font-weight: 700; }
+  .t-lead { color: #f3e6cc; font-size: 20px; line-height: 1.25; }
+  .t-body { color: #f3e6cc; font-size: 19px; line-height: 1.3; }
+  .t-muted { color: #cdb894; font-size: 18px; line-height: 1.3; }
+  .t-small { color: #f3e6cc; font-size: 15px; font-weight: 700; }
+  .t-label { color: #f0a54e; font-size: 13px; font-weight: 700; letter-spacing: 1.5px; }
+  .t-accent { color: #f0a54e; font-size: 20px; font-weight: 700; }
+  .t-note { color: #e2b77a; font-size: 17px; line-height: 1.25; }
+  .t-ok { color: #8fd49b; font-size: 18px; font-weight: 700; line-height: 1.25; }
+  .t-bad { color: #ff8f73; font-size: 18px; font-weight: 700; line-height: 1.25; }
+  .t-row { background-color: #3a2716; border-radius: 12px; border-width: 2px; border-color: #86643c; }
+  .t-slot { background-color: #3a2716; border-radius: 12px; border-width: 2px; border-color: #86643c; }
+  .t-slottext { color: #f3e6cc; font-weight: 600; }
+  .t-tile { flex-direction: column; align-items: center; justify-content: flex-end; background-color: #3a2716; border-radius: 12px; padding-bottom: 8px; padding-left: 6px; padding-right: 6px; }
+  .t-tiletext { color: #f3e6cc; font-size: 15px; font-weight: 700; line-height: 1.2; text-align: center; }
+  .t-detail { background-color: rgba(255, 220, 170, 0.08); border-radius: 12px; padding: 10px; color: #f3e6cc; font-size: 18px; line-height: 1.3; flex-shrink: 0; }
+  .t-rule { height: 2px; background-color: rgba(196, 137, 63, 0.55); flex-shrink: 0; }
+  .t-btn { background-color: #5e6e34; border-radius: 12px; }
+  .t-go { background-color: #f0a54e; border-radius: 12px; }
+  .t-track { background-color: rgba(255, 225, 180, 0.16); border-radius: 4px; }
+  .t-fill { background-color: #f0a54e; border-radius: 4px; }
+.theme-end { display: flex; }
+  .root { flex-direction: column; width: 560px; padding: 22px; gap: 8px; }
+  .head { flex-direction: row; align-items: center; justify-content: space-between; height: 52px; flex-shrink: 0; }
+  .lbl { margin-top: 4px; flex-shrink: 0; }
+  .seg { flex-direction: row; gap: 10px; flex-shrink: 0; }
+  .opt { width: 162px; height: 56px; justify-content: center; }
+  .opttext { color: #f6ecd2; font-size: 21px; font-weight: 700; }
+  .desc { width: 516px; flex-shrink: 0; }
+  .back { width: 240px; height: 60px; justify-content: center; margin-top: 8px; }
+</style>
+<div class="root t-root">
+  <div class="head t-banner">
+    <div class="t-bannertext">Settings</div>
+  </div>
+  <div id="s-desc" class="desc t-muted">Guided: help comes sooner and aiming is a little more forgiving.</div>
+  <div class="lbl t-label">ASSISTANCE</div>
+  <div class="seg">
+    <Button class="opt t-btn" id="s-mode-guided" size="sm" variant="secondary"><ButtonLabel class="opttext">Guided</ButtonLabel></Button>
+    <Button class="opt t-btn" id="s-mode-standard" size="sm" variant="secondary"><ButtonLabel class="opttext">Standard</ButtonLabel></Button>
+    <Button class="opt t-btn" id="s-mode-explorer" size="sm" variant="secondary"><ButtonLabel class="opttext">Explorer</ButtonLabel></Button>
+  </div>
+  <div class="lbl t-label">TEXT SIZE</div>
+  <div class="seg">
+    <Button class="opt t-btn" id="s-textSize-small" size="sm" variant="secondary"><ButtonLabel class="opttext">Small</ButtonLabel></Button>
+    <Button class="opt t-btn" id="s-textSize-normal" size="sm" variant="secondary"><ButtonLabel class="opttext">Normal</ButtonLabel></Button>
+    <Button class="opt t-btn" id="s-textSize-large" size="sm" variant="secondary"><ButtonLabel class="opttext">Large</ButtonLabel></Button>
+  </div>
+  <div class="lbl t-label">HINTS ON THEIR OWN</div>
+  <div class="seg">
+    <Button class="opt t-btn" id="s-hints-low" size="sm" variant="secondary"><ButtonLabel class="opttext">Fewer</ButtonLabel></Button>
+    <Button class="opt t-btn" id="s-hints-normal" size="sm" variant="secondary"><ButtonLabel class="opttext">Normal</ButtonLabel></Button>
+    <Button class="opt t-btn" id="s-hints-high" size="sm" variant="secondary"><ButtonLabel class="opttext">More</ButtonLabel></Button>
+  </div>
+  <div class="lbl t-label">GUIDANCE MARKERS</div>
+  <div class="seg">
+    <Button class="opt t-btn" id="s-guidance-minimal" size="sm" variant="secondary"><ButtonLabel class="opttext">Minimal</ButtonLabel></Button>
+    <Button class="opt t-btn" id="s-guidance-normal" size="sm" variant="secondary"><ButtonLabel class="opttext">Normal</ButtonLabel></Button>
+    <Button class="opt t-btn" id="s-guidance-full" size="sm" variant="secondary"><ButtonLabel class="opttext">Full</ButtonLabel></Button>
+  </div>
+  <div class="lbl t-label">INTERACTION SENSITIVITY</div>
+  <div class="seg">
+    <Button class="opt t-btn" id="s-sensitivity-low" size="sm" variant="secondary"><ButtonLabel class="opttext">Low</ButtonLabel></Button>
+    <Button class="opt t-btn" id="s-sensitivity-normal" size="sm" variant="secondary"><ButtonLabel class="opttext">Normal</ButtonLabel></Button>
+    <Button class="opt t-btn" id="s-sensitivity-high" size="sm" variant="secondary"><ButtonLabel class="opttext">High</ButtonLabel></Button>
+  </div>
+  <div class="lbl t-label">SEATED ASSIST (MORE REACH)</div>
+  <div class="seg">
+    <Button class="opt t-btn" id="s-seated-off" size="sm" variant="secondary"><ButtonLabel class="opttext">Off</ButtonLabel></Button>
+    <Button class="opt t-btn" id="s-seated-on" size="sm" variant="secondary"><ButtonLabel class="opttext">On</ButtonLabel></Button>
+  </div>
+  <Button class="back t-go" id="s-back" size="lg"><ButtonIcon class="opttext"><ArrowLeft></ArrowLeft></ButtonIcon><ButtonLabel class="opttext">Done</ButtonLabel></Button>
+</div>

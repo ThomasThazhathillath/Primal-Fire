@@ -32,7 +32,7 @@ import { fitsPouch, type ItemId, itemName } from '../game/items.js';
 import { groundHeight, RESOURCES } from '../game/world-layout.js';
 import { hands, mouse } from './hand-input-system.js';
 import { DRAG_LOOK, ResourceSystem } from './resource-system.js';
-import { type GazeUiOwner, gazeUi, getGame, getUi, handBusy, handClaims } from './shared.js';
+import { type GazeUiOwner, gazeUi, getGame, getUi, handBusy, handClaims, rayPick } from './shared.js';
 
 const MAX_CANDS = 96;
 /** Gaze can open the bench panel from this far (m); the panel itself closes beyond 3.5 m. */
@@ -283,11 +283,12 @@ export class GazeTargetSystem extends createSystem({
     // hover is this system's own target, not another handler's, so it must not hand the pinch to the ray (which
     // would gather into the bag). Head gaze has no such ray; eye gaze now behaves the same.
     this.rayOwns =
-      this.source !== 'eye' &&
-      (this.queries.hoverGather.entities.size > 0 ||
-      this.queries.hoverSpot.entities.size > 0 ||
-      this.queries.hoverDrop.entities.size > 0 ||
-        this.queries.hoverPart.entities.size > 0);
+      (vr && rayPick.key !== '') ||
+      (this.source !== 'eye' &&
+        (this.queries.hoverGather.entities.size > 0 ||
+          this.queries.hoverSpot.entities.size > 0 ||
+          this.queries.hoverDrop.entities.size > 0 ||
+          this.queries.hoverPart.entities.size > 0));
     if ((this.rebuildIn -= dt) <= 0 && have) {
       this.rebuildIn = 0.1;
       this.rebuild();
@@ -310,6 +311,11 @@ export class GazeTargetSystem extends createSystem({
       if (!game.held) this.onPinch(1);
     }
     this.updateFx(dt);
+  }
+
+  /** What the gaze is on right now (NPE C reads it to notice looking without taking). */
+  get lookTarget(): GazeCandidate | null {
+    return this.target;
   }
 
   private onPinch(h: 0 | 1): void {
@@ -428,9 +434,22 @@ export class GazeTargetSystem extends createSystem({
 
   private updateFx(dt: number): void {
     const game = getGame(this.world);
-    const t = this.target;
+    const note = this.vrNow && rayPick.noteFor > 0;
     // A ray already shows its own hover (HighlightSystem): never two highlights for one thing.
-    const show = !!t && !this.rayOwns && t.kind !== 'ui';
+    const t = note || this.rayOwns ? null : this.target;
+    if (note) {
+      // Just picked up: say where it went, where it lay, for a moment.
+      this.ring.visible = false;
+      this.fade = 0;
+      this.shownKey = null;
+      this.setLabel(rayPick.note, '#c8ffcf');
+      this.label.position.set(rayPick.nx, rayPick.ny + 0.3, rayPick.nz);
+      const lm = this.label.material as SpriteMaterial;
+      lm.opacity = Math.min(1, rayPick.noteFor * 2);
+      this.label.visible = true;
+      return;
+    }
+    const show = !!t && t.kind !== 'ui';
     this.fade += ((show ? 1 : 0) - this.fade) * Math.min(1, dt * (show ? 18 : 10));
     const visible = this.fade > 0.02;
     this.ring.visible = visible;
@@ -463,7 +482,10 @@ export class GazeTargetSystem extends createSystem({
       case 'resource': {
         const spot = this.world.getSystem(ResourceSystem)?.spot(this.spotIds[t.ref]);
         if (!spot) return '';
-        return game.gatheredCount(spot.itemId) > 0 ? itemName(spot.itemId) : spot.label;
+        const name = game.gatheredCount(spot.itemId) > 0 ? itemName(spot.itemId) : spot.label;
+        const block = game.gatherBlock(spot.itemId);
+        // Name, and whether (and how) it can be taken: the pickup indicator.
+        return block === 'pockets' ? `${name} - pockets full` : block === 'hands' ? `${name} - hands full` : `${name} - pinch to pick up`;
       }
       case 'drop': {
         const d = game.drops.find((x) => x.id === t.ref);

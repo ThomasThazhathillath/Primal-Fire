@@ -57,6 +57,14 @@ export const TOUCH_CONFIG = {
   releaseMargin: 0.012,
   /** Smallest tap target (m): every button and row is at least this big, whatever it looks like (4.5 cm). */
   minTarget: 0.045,
+  /**
+   * Pinch-press (NPE A): a pinch that closes ON a button presses it. The Quest log had 228 taps refused because the
+   * hand was pinching: players use the gesture they just learned. The pinch point must be over the button and
+   * between this far in front of the surface...
+   */
+  pinchFront: 0.09,
+  /** ...and this far behind it (m). */
+  pinchBehind: 0.03,
 } satisfies Record<string, number>;
 
 export const enum IconState {
@@ -353,4 +361,30 @@ export function rowCentres(n: number, size: number, gap: number): number[] {
   const out: number[] = [];
   for (let i = 0; i < n; i++) out.push(-total / 2 + size / 2 + i * (size + gap));
   return out;
+}
+
+/**
+ * Which enabled icon a pinch closing at (x, y, z) in the panel frame presses, or -1 (NPE A). The pinch point
+ * must be over the icon (its fitted size, no extra margin) and close to the surface: a pinch out in the room,
+ * or behind the panel, never presses anything.
+ */
+export function pinchPressIcon(icons: readonly TouchIcon[], x: number, y: number, z: number, cfg = TOUCH_CONFIG): number {
+  if (z > cfg.pinchFront || z < -cfg.pinchBehind) return -1;
+  let best = -1;
+  let bestD = Infinity;
+  for (let i = 0; i < icons.length; i++) {
+    const ic = icons[i];
+    if (!ic.enabled) continue;
+    const hw = ic.hw ?? ic.r;
+    const hh = ic.hh ?? ic.r;
+    const dx = Math.abs(x - ic.x);
+    const dy = Math.abs(y - ic.y);
+    if (dx > hw || dy > hh) continue;
+    const d = Math.hypot(dx, dy);
+    if (d < bestD) {
+      bestD = d;
+      best = i;
+    }
+  }
+  return best;
 }

@@ -8,10 +8,10 @@
 
 import { type Entity, RayInteractable, type UIKitMLAsset, Vector3, type World } from '@iwsdk/core';
 import { RejectLog, rejectLine } from '../game/menu.js';
-import { fitTarget, IconState, TOUCH_CONFIG, TouchTracker, type TipSample, type TouchIcon } from '../game/ui-touch.js';
+import { fitTarget, IconState, pinchPressIcon, TOUCH_CONFIG, TouchTracker, type TipSample, type TouchIcon } from '../game/ui-touch.js';
 import { hands } from './hand-input-system.js';
 import { tapSound } from './ui-fx.js';
-import { type GazeUiAdd, type GazeUiOwner, gazeUi, getGame, handClaims } from './shared.js';
+import { type GazeUiAdd, type GazeUiOwner, gazeUi, getGame, handClaims, haptic } from './shared.js';
 
 /** UIKit layout units are 1/100 of a panel-scale unit: px * 0.01 * scale = metres. */
 const UNIT = 0.01;
@@ -51,6 +51,13 @@ export class PanelTouch implements GazeUiOwner {
   private trackers = [new TouchTracker(), new TouchTracker()];
   private tip = new Vector3();
   private dir = new Vector3();
+  private pinchP = new Vector3();
+  /** Per hand: the button a pinch closed on (id, '' = none), where (panel frame, m) and for how long. */
+  private pp = [0, 1].map(() => ({ id: '', x: 0, y: 0, t: 0 }));
+  /** Per hand: no poke taps until this time (s), right after a pinch-press. */
+  private pressBlock = [0, 0];
+  /** Buttons pressed by a pinch closing on them (NPE A; debug and tests). */
+  pinchPresses = 0;
   private sampleOut: TipSample = { x: 0, y: 0, z: 0, dz: 0, tracked: false };
   private lastState: number[] = [];
   /** Ids tapped by a fingertip, newest last (debug and tests). */
@@ -206,6 +213,8 @@ export class PanelTouch implements GazeUiOwner {
 
   /** Call every frame while the panel is open in VR. */
   update(dt: number): void {
+    // The card may have been resized (text size setting): hit maths follow its real scale.
+    if (this.panel.scale.x > 0) this.scale = this.panel.scale.x;
     if (this.flashing.length) {
       for (let i = this.flashing.length - 1; i >= 0; i--) {
         const f = this.flashing[i];
@@ -223,14 +232,18 @@ export class PanelTouch implements GazeUiOwner {
       const hand = hands[h];
       const tr = this.trackers[h];
       const s = this.sample(hand.tipPos, hand.tipDir, hand.tipTracked, hand.pinchDist, hand.pointing);
-      const hit = tr.update(dt, this.icons, s);
+      // Pinch-press (NPE A): a pinch that closes on a button and opens again without sliding presses it. It commits
+      // on release, so a pinch-drag that scrolls a list never presses the row it started on.
+      if (this.pinchPress(h as 0 | 1, dt, n)) return;
+      let hit = tr.update(dt, this.icons, s);
+      if (hit >= 0 && performance.now() / 1000 < this.pressBlock[h]) hit = -1;
       for (let i = 0; i < n; i++) if (tr.states[i] > merged[i]) merged[i] = tr.states[i];
       // Around the panel a pinch is never a grab or a teleport.
       if (tr.hoverIcon >= 0 || (s.tracked && this.inZone(s))) {
         handClaims.uiNear[h] = true;
         handClaims.uiNearAt[h] = performance.now() / 1000;
       }
-      if (tr.reject && tr.reject !== 'swipe' && tr.rejectIcon >= 0 && tr.rejectIcon < n) {
+      if (tr.reject && tr.reject !== 'swipe' && !(tr.reject === 'pinching' && this.pp[h].id) && tr.rejectIcon >= 0 && tr.rejectIcon < n) {
         const id = this.active[tr.rejectIcon].id;
         if (rejectLog.shouldLog(`${this.name}:${id}:${tr.reject}:${h}`, performance.now())) {
           getGame(this.world).log.add(rejectLine(this.name, id, tr.reject, h));
@@ -245,6 +258,7 @@ export class PanelTouch implements GazeUiOwner {
         if (this.taps.length > 50) this.taps.shift();
         this.taps.push(t.id);
         tapSound();
+        haptic(this.world, h as 0 | 1);
         getGame(this.world).assist.success('tap');
         TOUCH_CONFIG.radiusScale = BASE_TAP_SCALE * getGame(this.world).assist.scale('tap');
         this.flash(t);
@@ -266,6 +280,65 @@ export class PanelTouch implements GazeUiOwner {
       this.active[i].el.setProperties(props as never);
     }
     this.lastState.length = n;
+  }
+
+  /** One hand's pinch-press; true when it pressed a button (the handler may have closed the panel). */
+  private pinchPress(h: 0 | 1, dt: number, n: number): boolean {
+    const hand = hands[h];
+    const st = this.pp[h];
+    if (!hand.tracked) {
+      st.id = '';
+      return false;
+    }
+    if (hand.gripDown && n > 0) {
+      this.pinchP.copy(hand.pinchPos);
+      this.panel.worldToLocal(this.pinchP);
+      const x = this.pinchP.x * this.scale;
+      const y = this.pinchP.y * this.scale;
+      const pi = pinchPressIcon(this.icons, x, y, this.pinchP.z * this.scale);
+      st.id = pi >= 0 ? this.active[pi].id : '';
+      st.x = x;
+      st.y = y;
+      st.t = 0;
+      if (pi >= 0) {
+        // This pinch belongs to the panel: never a grab or a teleport.
+        const now = performance.now() / 1000;
+        handClaims.uiTapAt[h] = now;
+        handClaims.uiNear[h] = true;
+        handClaims.uiNearAt[h] = now;
+      }
+      return false;
+    }
+    if (!st.id) return false;
+    st.t += dt;
+    if (hand.grip) {
+      // Travel is judged only while the tips are really together: opening the fingers moves the pinch point by itself.
+      if (hand.pinchDist < TOUCH_CONFIG.pinchOff) {
+        this.pinchP.copy(hand.pinchPos);
+        this.panel.worldToLocal(this.pinchP);
+        const travel = Math.hypot(this.pinchP.x * this.scale - st.x, this.pinchP.y * this.scale - st.y);
+        if (travel > TOUCH_CONFIG.swipeStart) st.id = ''; // a drag (scroll): not a press
+      }
+      if (st.t > 1.2) st.id = ''; // a long hold: not a press
+      return false;
+    }
+    const id = st.id;
+    st.id = '';
+    const t = this.active.find((x) => x.id === id);
+    if (!t || !this.panel.visible || !shown(t.el)) return false;
+    if (this.taps.length > 50) this.taps.shift();
+    this.taps.push(t.id);
+    this.pinchPresses++;
+    handClaims.uiTapAt[h] = performance.now() / 1000;
+    // The fingertip is on the button: its opening fingers must not also count as a poke (a second, toggling tap).
+    this.trackers[h].reset();
+    this.pressBlock[h] = performance.now() / 1000 + 0.6;
+    getGame(this.world).log.add(`pinch press on ${this.name}/${t.id} (${h === 0 ? 'left' : 'right'} hand)`);
+    tapSound();
+    haptic(this.world, h);
+    this.flash(t);
+    t.tap();
+    return true;
   }
 
   private inZone(s: TipSample): boolean {

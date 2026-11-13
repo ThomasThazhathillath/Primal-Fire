@@ -41,6 +41,15 @@ Add `?perf` to the URL for the developer performance overlay, or `?resdebug` for
 
 **Resources:** stones, flint, sticks, bark, clay, sand and gravel now lie in natural deposits (rocky deposits beside outcrops and on the stream bank, sticks and bark round fallen trunks, clay/sand/gravel beds along the water), so you never walk far for a stone or a flint. Pick them one at a time. Used spots stay used after a reload; sticks and leaves regrow within minutes, stones and flint only very slowly, clay and sand are big finite beds. Large boulders and fallen trunks stay scenery (see `src/game/resource-class.ts`).
 
+**New player experience and settings** (branch `claude/npe-accessibility`, docs/NPE_PLAN.md): the first five
+minutes follow five stages (wake and move, first find, the pouch, the workbench and cord, the notebook) and reveal
+the menu and the objective card as they are taught; pickups lock onto the thing you aimed at when you pinch and
+say whether they can be taken; a pinch on a button presses it; help grows step by step when you seem stuck and
+goes away when you succeed; the card always says the next action; a small compass points to camp. **Settings**
+(from the pause card or the title menu): Guided / Standard / Explorer, text size, hint frequency, guidance markers,
+interaction sensitivity and seated assist, applied at once and remembered (`primal-first-fire.settings.v1`).
+Checked in the emulator only, not on a headset.
+
 Progress saves in the browser automatically (`primal-first-fire.save.v1`, migrated safely between versions).
 
 Trees are baked with [EZ-Tree](https://github.com/dgreenheck/ez-tree) (MIT, Daniel Greenheck) by `npm run trees:bake` into `public/trees/`; see `docs/PERF_REPORT.md`.

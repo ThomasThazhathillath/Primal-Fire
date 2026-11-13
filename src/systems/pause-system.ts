@@ -34,6 +34,7 @@ export class PauseSystem extends createSystem({}) {
   private shown = false;
   private open = false;
   private armed: Record<string, number> = {};
+  private settingsWas = false;
 
   get userPaused(): boolean {
     return this.open;
@@ -72,6 +73,7 @@ export class PauseSystem extends createSystem({}) {
     this.wire(this.card, 'pause-restart', () => this.restart());
     this.wire(this.card, 'pause-menu', () => this.exitToMenu());
     this.wire(this.card, 'pause-quit', () => this.quit());
+    this.wire(this.card, 'pause-settings', () => getUi(this.world).openSettings?.());
     this.wire(this.left, 'turn-l', () => getUi(this.world).snapTurn?.(TURN));
     this.wire(this.right, 'turn-r', () => getUi(this.world).snapTurn?.(-TURN));
     getUi(this.world).paused = () => this.open;
@@ -110,7 +112,7 @@ export class PauseSystem extends createSystem({}) {
       if (on) p.entity.addComponent(ScreenSpace, props as never);
     };
     set(this.btn, !this.vr, { width: '150px', height: '70px', top: '12px', right: '12px', left: 'auto', bottom: 'auto', zOffset: 0.25 });
-    set(this.card, !this.vr && this.open, { width: '460px', height: '470px', top: 'calc(50% - 235px)', left: 'calc(50% - 230px)', right: 'auto', bottom: 'auto', zOffset: 0.2 });
+    set(this.card, !this.vr && this.open, { width: '460px', height: '560px', top: 'calc(50% - 280px)', left: 'calc(50% - 230px)', right: 'auto', bottom: 'auto', zOffset: 0.2 });
   }
 
   setOpen(on: boolean): void {
@@ -186,17 +188,21 @@ export class PauseSystem extends createSystem({}) {
     }
     if (!this.vr) {
       this.btn.panel.visible = true;
-      this.card.panel.visible = this.open;
+      this.card.panel.visible = this.open && !(getUi(this.world).settingsOpen?.() ?? false);
       return;
     }
     this.btn.panel.visible = true;
     this.btnAnchor.update(this.btn.panel, this.camera);
     this.btn.touch.update(delta);
-    if (this.open) {
+    // The Settings card (opened from here) takes the pause card's place while it is up.
+    const settings = getUi(this.world).settingsOpen?.() ?? false;
+    if (this.settingsWas && !settings) this.cardAnchor.reset(); // back from Settings: put the card in front again
+    this.settingsWas = settings;
+    if (this.open && !settings) {
       this.card.panel.visible = true;
       this.cardAnchor.update(this.card.panel, this.camera);
       this.card.touch.update(delta);
-    }
+    } else if (this.open && this.card.panel.visible) hidePanel(this.card.panel);
     // Turn buttons: always there while playing (hidden under the pause card).
     for (const [p, a] of [[this.left, this.leftAnchor], [this.right, this.rightAnchor]] as const) {
       p.panel.visible = !this.open;

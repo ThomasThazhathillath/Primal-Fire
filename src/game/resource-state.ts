@@ -14,7 +14,9 @@ export interface SpotRule {
 /** A charge was taken at game time `now`. */
 export function afterGather(prev: SpotState | undefined, spot: SpotRule, now: number): SpotState {
   const c = Math.max(0, (prev?.c ?? spot.charges) - 1);
-  const r = prev?.r && prev.r > 0 ? prev.r : spot.regrow > 0 ? now + spot.regrow : 0;
+  // A pending return keeps its time; a stale one (already past, e.g. from an old save or a paused clock) starts
+  // over, so a spot never refills in the same moment it was emptied.
+  const r = prev?.r && prev.r > now ? prev.r : spot.regrow > 0 ? now + spot.regrow : 0;
   return { c, r };
 }
 
@@ -27,3 +29,19 @@ export function afterRegrow(prev: SpotState, spot: SpotRule, now: number): SpotS
 
 /** Charges a spot has when the world loads: saved state wins, clamped to what the spot can hold. */
 export const loadedCharges = (saved: SpotState | undefined, spot: SpotRule): number => (saved ? Math.max(0, Math.min(spot.charges, saved.c)) : spot.charges);
+
+/**
+ * Off-view regrowth: a spot within this distance (m) of the player and in front of them (the eye can see it
+ * come back) waits until they look away or walk off. Nothing visibly refills under the player's hand.
+ */
+export const REGROW_HIDDEN = { near: 6, frontDot: 0.2 };
+
+/** May a spot at (x, z) grow back now, for a player at (px, pz) facing (fx, fz)? */
+export function regrowHidden(x: number, z: number, px: number, pz: number, fx: number, fz: number, cfg = REGROW_HIDDEN): boolean {
+  const dx = x - px;
+  const dz = z - pz;
+  const d = Math.hypot(dx, dz);
+  if (d > cfg.near) return true;
+  if (d < 0.01) return false;
+  return (dx * fx + dz * fz) / d < cfg.frontDot;
+}

@@ -51,6 +51,10 @@ export interface UiHooks {
   titleOpen?(): boolean;
   /** True while the pause card is up or the game is paused. */
   paused?(): boolean;
+  /** Open the Settings card (pause card and title menu). */
+  openSettings?(): void;
+  /** True while the Settings card is open. */
+  settingsOpen?(): boolean;
 }
 
 export function getGame(world: World): Game {
@@ -193,6 +197,51 @@ export const pendingRelease = {
 export const pickupFrom = { valid: false, pos: new Vector3(), time: 0 };
 
 /**
+ * Gradual reveal of the HUD during the guided opening (NPE B): TutorialSystem turns parts on as the stages that
+ * teach them are reached. Outside the opening everything is on.
+ */
+export const reveal = { menu: true, objective: true };
+
+/** Card size multiplier from the text-size setting (settings.ts), applied by StaticAnchor to every anchored card. */
+export const uiScale = { text: 1 };
+
+/**
+ * What the hand ray is aiming at, for the feedback ring and label (NPE milestone A): written by ResourceSystem
+ * each VR frame, drawn by HighlightSystem (label) and GazeTargetSystem (the pickup note). `key` is '' when the ray is on nothing gatherable.
+ * `note` is a short confirmation after a pickup ("+1 Dry stone, in your pouch"), shown for `noteFor` seconds.
+ */
+export const rayPick = {
+  key: '',
+  x: 0,
+  y: 0,
+  z: 0,
+  r: 0.15,
+  label: '',
+  ok: true,
+  note: '',
+  noteFor: 0,
+  nx: 0,
+  ny: 0,
+  nz: 0,
+};
+
+/** A short vibration on the hand's controller where the platform supports it (hands have none: a no-op). */
+export function haptic(world: World, hand: 0 | 1, strength = 0.35, ms = 35): void {
+  try {
+    const session = world.renderer.xr.getSession();
+    if (!session) return;
+    const want = hand === 0 ? 'left' : 'right';
+    for (const src of session.inputSources) {
+      if (src.handedness !== want || !src.gamepad) continue;
+      const act = (src.gamepad as Gamepad & { hapticActuators?: Array<{ pulse?(v: number, t: number): Promise<boolean> }> }).hapticActuators?.[0];
+      void act?.pulse?.(strength, ms);
+    }
+  } catch {
+    // Not supported here.
+  }
+}
+
+/**
  * A VR panel that stays put. It is placed once in front of you and only
  * re-placed (instantly, no gliding) after you teleport or turn well away, so
  * nothing drifts around in view. Call update() every frame with the panel.
@@ -252,6 +301,18 @@ export const cards: Record<string, Object3D> = {};
 
 /** What the ghost hand should demonstrate right now (null = nothing), and next to which card. Set by the teaching cards. */
 export const ghost: { clip: string | null; card: string | null; how: string | null } = { clip: null, card: null, how: null };
+
+/**
+ * Progressive assistance output (NPE C), written by AssistanceSystem: a hand sign to show for a while, and one
+ * thing to pulse softly (the stone you keep looking at, the workbench you have not used). Cleared on success.
+ */
+export const assistFx = {
+  sign: null as string | null,
+  signFor: 0,
+  pulse: null as { id: string; x: number; y: number; z: number } | null,
+  /** The exact next target (the tutorial step's thing, or the current goal's nearest need): one arrow and ring. */
+  exact: null as { id: string; x: number; y: number; z: number } | null,
+};
 
 /**
  * Scroll a paged list: the mouse wheel (flat view) or a pinch-drag up/down anywhere on the card body (VR; the header strip
@@ -493,8 +554,19 @@ export class StaticAnchor {
     return true;
   }
 
+  /** The scale this anchor last set (text size); a different value means the owning system set a new base. */
+  private applied = -1;
+  private base = 1;
+
   update(panel: Object3D, camera: Object3D): void {
     if (this.key) cards[this.key] = panel;
+    // Text size (settings.ts): every anchored card scales by the player's choice. Fingertip targets follow
+    // (PanelTouch reads the panel's real scale).
+    const sx = panel.scale.x;
+    if (Math.abs(sx - this.applied) > 1e-6) this.base = sx;
+    const want = this.base * uiScale.text;
+    if (Math.abs(want - sx) > 1e-6) panel.scale.setScalar(want);
+    this.applied = want;
     if (this.drag(panel, camera)) return;
     camera.getWorldPosition(this.head);
     const yaw = headYaw(camera);
@@ -540,6 +612,8 @@ export const handClaims = {
   grabbing: [false, false],
   /** This hand's pinch is a teleport aim in progress. */
   moving: [false, false],
+  /** When (s) this hand's pinch last did something in the world (filled a mark, opened the bench): never also a move. */
+  actedAt: [-10, -10],
   /** Hand that holds the carried object, and when the last direct grab / pickup happened. */
   holdHand: 1 as 0 | 1,
   grabAt: -10,

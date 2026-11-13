@@ -18,7 +18,7 @@ import {
 import { fitsPouch } from '../game/items.js';
 import { PanelTouch } from './panel-touch.js';
 import { keepsGridOpen, pageLayout } from '../game/menu.js';
-import { getGame, getUi, hidePanel, menu, StaticAnchor, SwipePager } from './shared.js';
+import { getGame, getUi, hidePanel, menu, reveal, StaticAnchor, SwipePager } from './shared.js';
 import { clearSave, WorldSystem } from './world-system.js';
 
 const SLOT = 68;
@@ -76,12 +76,13 @@ const DEFS: Def[] = [
 /** Icons that act and fold the grid (the rest open a panel, which folds it itself). */
 
 /** Where the bar hangs (m): within a seated arm's reach, below eye level, either hand. */
-export const BAR_DISTANCE = 0.4;
-// The bottom edge of the bar (the Menu button when folded) hangs this far below eye level: chest height for a
-// seated player, off to the right. An unfolded grid grows UP from there, so every row stays in view and reach.
-export const BAR_BOTTOM = 0.42;
+export const BAR_DISTANCE = 0.5;
+// Up and to the left, its bottom edge a little above eye level (NPE simplicity round): the old row at chest height
+// caught resting and gathering hands (Quest log: dozens of 'pinching on menu/slot-14' a minute). Up here only a
+// raised, deliberate hand reaches it; an unfolded row grows upward, so it never covers the ground you work on.
+export const BAR_BOTTOM = -0.06;
 export const BAR_DOWN = BAR_BOTTOM;
-export const BAR_SIDE = 0;
+export const BAR_SIDE = -0.3;
 
 export class IconBarSystem extends createSystem({}) {
   private bar!: UIKitMLAsset;
@@ -102,6 +103,8 @@ export class IconBarSystem extends createSystem({}) {
   }
   private ready = false;
   private shown = false;
+  /** Hidden by the guided opening's gradual reveal (NPE B). */
+  private revealHidden = false;
   vr = false;
   canRemove = false;
   private removeTimer = 0;
@@ -287,6 +290,22 @@ export class IconBarSystem extends createSystem({}) {
     if (!this.shown) {
       if (this.world.getSystem(WorldSystem)?.started) this.reveal();
       return;
+    }
+    // The guided opening shows the menu only once the bag has been taught (NPE B).
+    if (!reveal.menu) {
+      if (!this.revealHidden) {
+        this.revealHidden = true;
+        hidePanel(this.bar);
+        menu.gridOpen = false;
+      }
+      return;
+    }
+    if (this.revealHidden) {
+      this.revealHidden = false;
+      this.bar.visible = true;
+      this.anchor.reset();
+      this.touch.reset();
+      this.lastVisible = '';
     }
     const game = getGame(this.world);
     if ((this.removeTimer -= delta) <= 0) {

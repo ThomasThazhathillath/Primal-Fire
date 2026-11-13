@@ -56,6 +56,7 @@ export class IntroSystem extends createSystem({}) {
     wire('new-button', () => this.newGame());
     wire('xr-button', () => void this.world.launchXR());
     wire('quit-button', () => this.quit());
+    wire('settings-button', () => getUi(this.world).openSettings?.());
     (window as unknown as { __title?: unknown }).__title = { tap: (id: string) => this.touch?.tapById(id) ?? false, open: () => this.open };
     this.cleanupFuncs.push(
       this.world.visibilityState.subscribe((v) => {
@@ -126,7 +127,7 @@ export class IntroSystem extends createSystem({}) {
     const game = getGame(this.world);
     game.log.add('woke up', 'ok');
     const story = this.world.getSystem(StorySystem);
-    if (game.time > 0 || !story) game.toast(game.time > 0 ? 'Welcome back.' : 'You wake on the forest floor with nothing. Start with what you need for fire.', 'note');
+    if (game.time > 0 || !story) game.toast(game.time > 0 ? 'Welcome back.' : 'You wake with nothing. Look around.', 'note');
     // A new game: the awakening (dark fade-in and first thoughts), once.
     story?.awaken();
     game.checkQuests();

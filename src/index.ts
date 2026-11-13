@@ -55,6 +55,9 @@ import { SatchelSystem } from './systems/satchel-system.js';
 import { loadGame, setSaveKey, WorldSystem } from './systems/world-system.js';
 import { GhostHandSystem } from './systems/ghost-hand-system.js';
 import { PauseSystem } from './systems/pause-system.js';
+import { AssistanceSystem } from './systems/assistance-system.js';
+import { CompassSystem } from './systems/compass-system.js';
+import { SettingsSystem } from './systems/settings-system.js';
 import { TutorialSystem } from './systems/tutorial-system.js';
 import { StorySystem } from './systems/story-system.js';
 import { currentMode, TUTORIAL_SAVE_KEY } from './game/tutorial-mode.js';
@@ -118,6 +121,9 @@ World.create(
     .registerSystem(HudSystem)
     .registerSystem(IconBarSystem)
     .registerSystem(PauseSystem)
+    .registerSystem(AssistanceSystem)
+    .registerSystem(CompassSystem)
+    .registerSystem(SettingsSystem)
     .registerSystem(GuideSystem)
     .registerSystem(LevelSystem)
     .registerSystem(WaterSystem)

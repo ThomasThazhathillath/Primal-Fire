@@ -79,7 +79,7 @@ describe('workbench walkthrough', () => {
 
     // A bad placement keeps you on the step with specific feedback.
     const msg = g.guide.fail('support.tooFar');
-    expect(msg).toMatch(/too far/);
+    expect(msg).toMatch(/too far/i);
     expect(step()).toBe('supports');
     expect(g.guide.current()!.failure?.code).toBe('support.tooFar');
 
@@ -156,7 +156,7 @@ describe('context and hints', () => {
     g.guide.fail('knap.coarseStone');
     const h = g.guide.hintText(0)!;
     expect(h.level).toBe(2);
-    expect(h.text).toMatch(/coarse/);
+    expect(h.text).toMatch(/crumbly/i);
   });
   it('Game.hint uses the active guide step text', () => {
     const g = new Game();

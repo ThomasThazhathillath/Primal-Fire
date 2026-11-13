@@ -39,6 +39,7 @@
   <div class="ttl">Paused</div>
   <div id="pause-sub" class="sub">The world is waiting for you.</div>
   <Button class="t-go big" id="pause-resume" size="lg"><ButtonIcon class="txt"><Play></Play></ButtonIcon><ButtonLabel class="txt">Resume</ButtonLabel></Button>
+  <Button class="t-btn big" id="pause-settings" size="lg"><ButtonIcon class="txt"><Settings></Settings></ButtonIcon><ButtonLabel class="txt">Settings</ButtonLabel></Button>
   <Button class="t-btn big" id="pause-restart" size="lg"><ButtonIcon class="txt"><ListRestart></ListRestart></ButtonIcon><ButtonLabel id="pause-restart-label" class="txt">Restart</ButtonLabel></Button>
   <Button class="t-btn big" id="pause-menu" size="lg"><ButtonIcon class="txt"><House></House></ButtonIcon><ButtonLabel class="txt">Exit to Menu</ButtonLabel></Button>
   <Button class="t-btn big" id="pause-quit" size="lg"><ButtonIcon class="txt"><LogOut></LogOut></ButtonIcon><ButtonLabel id="pause-quit-label" class="txt">Quit Game</ButtonLabel></Button>

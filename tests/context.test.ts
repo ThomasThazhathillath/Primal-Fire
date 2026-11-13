@@ -14,7 +14,7 @@ describe('contextual messages', () => {
     const g = new Game();
     g.gather('dryStone');
     g.tick(3); // the first-stone celebration ends; the message is still showing
-    expect(g.objectives.view()!.message).toBe('Stone collected. You can use it to build structures.');
+    expect(g.objectives.view()!.message).toBe('Stone collected!');
     g.tick(5);
     expect(g.objectives.view()!.message).toBeNull();
   });
@@ -23,12 +23,12 @@ describe('contextual messages', () => {
     g.addItem('slab');
     g.takeOut('slab');
     g.tick(0.6);
-    expect(g.objectives.view()!.message).toMatch(/suitable ground/);
+    expect(g.objectives.view()!.message).toMatch(/open ground/);
     const h = new Game();
     h.addItem('dryStone', 3);
     h.placeFromBook('workbench', 0, -1);
     h.tick(0.6);
-    expect(h.objectives.view()!.message).toMatch(/workbench needs 3 more parts/);
+    expect(h.objectives.view()!.message).toMatch(/3 more parts needed/);
   });
   it('a fitting part held near its mark says it fits and where to put it', () => {
     const g = new Game();
@@ -40,7 +40,7 @@ describe('contextual messages', () => {
     g.takeOut('dryStone');
     g.tick(6);
     g.tick(0.6);
-    expect(g.objectives.view()!.message).toMatch(/fits here\. Release or move it into position/);
+    expect(g.objectives.view()!.message).toMatch(/Let go here/);
   });
   it('every failure reason shows on the card, on any objective, and then clears', () => {
     const g = new Game();
@@ -66,8 +66,8 @@ describe('material counts and ready to build', () => {
     expect(g.objectives.current!.id).toBe('workbench');
     expect(materialsLine('workbench', g)).toBe('Stones 3/3, flat stone 1/1');
     expect(g.objectives.view()!.where).toBe('Stones 3/3, flat stone 1/1');
-    expect(readyToBuild(g)).toMatch(/Ready to build: tap the grid icon, then the hammer, then Workbench/);
-    expect(g.objectives.view()!.next).toMatch(/Ready to build/);
+    expect(readyToBuild(g)).toMatch(/Ready! Open Build, choose Workbench/);
+    expect(g.objectives.view()!.next).toMatch(/Ready!/);
   });
   it('counts what you hold and what is already placed, and drops the note once building starts', () => {
     const g = new Game();

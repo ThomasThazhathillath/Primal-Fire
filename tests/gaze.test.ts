@@ -203,4 +203,37 @@ describe('gaze selection of UI', () => {
   it('UI is out of reach beyond a couple of metres', () => {
     expect(gazeScore(cand('u', 0, 1.6, -4, 'ui', 0.1), 0, 1.6, 0, 0, 0, -1, GAZE.enterDeg)).toBe(-1);
   });
+
+  // The pause card: five wide buttons stacked 9 cm apart, 1.2 m away, facing the eye.
+  const wide = (key: string, y: number): GazeCandidate => ({
+    ...cand(key, 0, y, -1.2, 'ui', 0.21),
+    rect: { ux: 1, uy: 0, uz: 0, vx: 0, vy: 1, vz: 0, hw: 0.21, hh: 0.038 },
+  });
+  const stack = () => [wide('ui:pause:resume', 1.78), wide('ui:pause:settings', 1.69), wide('ui:pause:restart', 1.6), wide('ui:pause:menu', 1.51), wide('ui:pause:quit', 1.42)];
+
+  it('stacked wide buttons: the one you look at is the target, not a neighbour', () => {
+    const list = stack();
+    for (let i = 0; i < list.length; i++) {
+      const t = new GazeTargeter();
+      expect(step(t, list, dir(0, list[i].y, -1.2))).toBe(i);
+    }
+    // Near a wide button's end still counts as that button.
+    expect(step(new GazeTargeter(), list, dir(0.19, 1.51, -1.2))).toBe(3);
+  });
+
+  it('stacked wide buttons: moving the gaze down the card moves the target row by row', () => {
+    const list = stack();
+    const t = new GazeTargeter();
+    expect(step(t, list, dir(0, 1.78, -1.2))).toBe(0);
+    for (let i = 1; i < list.length; i++) {
+      for (let k = 0; k < 20; k++) step(t, list, dir(0, list[i].y, -1.2));
+      expect(t.key).toBe(list[i].key);
+    }
+  });
+
+  it('a rectangle seen edge-on or behind the eye is never the target', () => {
+    const b = wide('ui:x', 1.6);
+    expect(gazeScore(b, 0, 1.6, 0, 0, 0, 1, 180)).toBe(-1);
+    expect(gazeScore(b, 0, 1.6, 0, ...dir(0.8, 1.6, -1.2), GAZE.enterDeg)).toBe(-1);
+  });
 });

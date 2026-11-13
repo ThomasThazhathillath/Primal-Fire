@@ -22,6 +22,23 @@ export interface GazeCandidate {
   ref: number;
   /** Not currently usable (e.g. a mark that does not take the held part): highlighted, never acted on as a take. */
   enabled: boolean;
+  /**
+   * A flat rectangle (a UI button) instead of a ball of radius `r`: the gaze is on it when its ray crosses the rectangle.
+   * Without this a wide button is a ball as big as its width and covers its neighbours above and below.
+   */
+  rect?: GazeRect | null;
+}
+
+/** A button's rectangle in the world: unit right (u) and up (v) axes of its panel and half sizes (m). */
+export interface GazeRect {
+  ux: number;
+  uy: number;
+  uz: number;
+  vx: number;
+  vy: number;
+  vz: number;
+  hw: number;
+  hh: number;
 }
 
 export const GAZE = {
@@ -57,7 +74,25 @@ export function gazeScore(c: GazeCandidate, ox: number, oy: number, oz: number, 
   const ang = (Math.acos(Math.min(1, along)) * 180) / Math.PI;
   // Angular radius of the target: looking at its edge counts as looking at it.
   const size = (Math.atan2(c.r, dist) * 180) / Math.PI;
-  const off = Math.max(0, ang - size);
+  let off = Math.max(0, ang - size);
+  const rc = c.rect;
+  if (rc) {
+    // Where the ray crosses the button's plane, and how far that point is outside the rectangle (0 inside it).
+    const nx = rc.uy * rc.vz - rc.uz * rc.vy;
+    const ny = rc.uz * rc.vx - rc.ux * rc.vz;
+    const nz = rc.ux * rc.vy - rc.uy * rc.vx;
+    const facing = dx * nx + dy * ny + dz * nz;
+    if (Math.abs(facing) > 0.05) {
+      const t = (vx * nx + vy * ny + vz * nz) / facing;
+      if (t <= 0) return -1;
+      const rx = ox + dx * t - c.x;
+      const ry = oy + dy * t - c.y;
+      const rz = oz + dz * t - c.z;
+      const ex = Math.max(0, Math.abs(rx * rc.ux + ry * rc.uy + rz * rc.uz) - rc.hw);
+      const ey = Math.max(0, Math.abs(rx * rc.vx + ry * rc.vy + rz * rc.vz) - rc.hh);
+      off = (Math.atan2(Math.hypot(ex, ey), t) * 180) / Math.PI;
+    }
+  }
   if (off > halfDeg) return -1;
   return 1 - off / halfDeg - (dist / cfg.maxDist[c.kind]) * 0.2 + cfg.priority[c.kind];
 }

@@ -3,6 +3,7 @@
 
 import { AdditiveBlending, Box3, MeshBasicMaterial, type Object3D, Quaternion, Vector3, type World } from '@iwsdk/core';
 import type { Game } from '../game/game.js';
+import type { GazeRect } from '../game/gaze.js';
 import { MenuStack } from '../game/menu.js';
 import type { HandBusy } from '../game/priority.js';
 
@@ -639,6 +640,12 @@ export const menu = new MenuStack();
 /** Where an open fingertip panel hangs (m): in comfortable seated reach, a little below the eyes, facing you. */
 export const PANEL_DISTANCE = 0.45;
 export const PANEL_DOWN = 0.1;
+/**
+ * Pause and Settings: out of reach of a resting or working hand (pinches there never press them by accident) and used by
+ * looking at a button and pinching; a little below eye level.
+ */
+export const FAR_CARD_DISTANCE = 1.2;
+export const FAR_CARD_DOWN = 0.08;
 
 // ---------------------------------------------------------------- gaze selection of UI
 /** Something that can run a UI element chosen by gaze + pinch (a PanelTouch panel, the objective card). */
@@ -648,6 +655,7 @@ export interface GazeUiOwner {
   /** Light (or clear) the gaze highlight on element `id`. */
   gazeHover(id: number, on: boolean): void;
 }
-export type GazeUiAdd = (prefix: string, key: string, x: number, y: number, z: number, r: number, owner: GazeUiOwner, id: number) => void;
+/** `rect` (optional, read at once and not kept) is the element's rectangle; without it the element is a ball of radius `r`. */
+export type GazeUiAdd = (prefix: string, key: string, x: number, y: number, z: number, r: number, owner: GazeUiOwner, id: number, rect?: GazeRect) => void;
 /** Every on-screen panel that can offer UI elements as gaze targets (registered once at creation). */
 export const gazeUi: Array<{ collectGaze(add: GazeUiAdd): void }> = [];

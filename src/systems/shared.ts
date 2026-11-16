@@ -73,6 +73,15 @@ export function getUi(world: World): Partial<UiHooks> {
   return (g.ui ??= {});
 }
 
+/**
+ * A modal menu covers the world: the title menu, the pause card (or Settings opened from it), or the
+ * Start Game screen after the tutorial. Pinches then belong to its buttons, never to things behind it.
+ */
+export function menuUp(world: World): boolean {
+  const ui = getUi(world);
+  return (ui.paused?.() ?? false) || (ui.titleOpen?.() ?? false) || (ui.tutorialDone?.() ?? false);
+}
+
 const tmpPos = new Vector3();
 const tmpDir = new Vector3();
 

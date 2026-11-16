@@ -27,12 +27,12 @@ import {
 import { Gatherable, SnapSpot, StructurePart, WorldDropItem } from '../components/game-components.js';
 import { needText, openMarks, type Mark } from '../game/assist.js';
 import { collisionWorld } from '../game/collision.js';
-import { GAZE, gazeAction, type GazeCandidate, type GazeKind, GazePinchGate, type GazeRect, gazeStats, GazeTargeter, segmentBlocked } from '../game/gaze.js';
+import { GAZE, gazeAction, type GazeCandidate, type GazeKind, GazePinchGate, type GazeRect, gazeScore, gazeStats, GazeTargeter, segmentBlocked } from '../game/gaze.js';
 import { fitsPouch, type ItemId, itemName } from '../game/items.js';
 import { groundHeight, RESOURCES } from '../game/world-layout.js';
 import { hands, mouse } from './hand-input-system.js';
 import { DRAG_LOOK, ResourceSystem } from './resource-system.js';
-import { type GazeUiOwner, gazeUi, getGame, getUi, handBusy, handClaims, rayPick } from './shared.js';
+import { type GazeUiOwner, gazeUi, getGame, getUi, handBusy, handClaims, menuUp, rayPick } from './shared.js';
 
 const MAX_CANDS = 96;
 /** Gaze can open the bench panel from this far (m); the panel itself closes beyond 3.5 m. */
@@ -41,6 +41,11 @@ const BENCH_GAZE_REACH = 3;
 const GATHER_RANGE = 8;
 /** Static solids that block the eye (fallen logs and structures are low enough to look over). */
 const OCCLUDERS = new Set(['tree', 'boulder', 'splitRock', 'ruinsWall', 'mast', 'shatteredTree']);
+/** A hand ray this close (degrees) to a menu button's rectangle is on it (inside it scores best). */
+const HAND_RAY_DEG = 1.5;
+/** Frames of hand-ray history per hand; a pinch uses the button from LOOKBACK frames before, since closing the fingers dips the ray. */
+const RAY_UI_FRAMES = 8;
+const RAY_UI_LOOKBACK = 4;
 const RADIUS: Record<GazeKind, number> = { resource: 0.14, drop: 0.14, mark: 0.12, bench: 0.6, firePit: 0.5, ui: 0.05 };
 
 export type GazeSource = 'eye' | 'head' | 'mouse' | 'none';
@@ -115,6 +120,12 @@ export class GazeTargetSystem extends createSystem({
   private shownKey: string | null = null;
   /** Ray hover owns targeting this frame (a hand/controller/mouse ray is on a game object). */
   private rayOwns = false;
+  // Menus in the headset: the hand ray points at buttons too, the way the Quest's own menus work.
+  private handO = new Vector3();
+  private handD = new Vector3();
+  /** Per hand, the menu button its ray was on in recent frames ('' = none). Frozen while the fingers are closed. */
+  private rayUiKeys: string[][] = [[], []];
+  private rayUiAt = [0, 0];
   private actions = 0;
   private lastVerb = 'none';
   private solidAt = (x: number, z: number): boolean => {
@@ -132,6 +143,7 @@ export class GazeTargetSystem extends createSystem({
       this.uiOwner.push(null);
       this.uiId.push(-1);
     }
+    for (let i = 0; i < RAY_UI_FRAMES; i++) this.rayUiKeys[0].push(''), this.rayUiKeys[1].push('');
     this.ringMat = new MeshBasicMaterial({ color: COLORS.take, transparent: true, opacity: 0, depthWrite: false, depthTest: false, side: DoubleSide });
     this.ring = new Mesh(ringGeo, this.ringMat);
     this.ring.name = 'GazeRing';
@@ -320,6 +332,20 @@ export class GazeTargetSystem extends createSystem({
     this.targeter.locked = this.lockHand >= 0;
     const i = have ? this.targeter.update(this.cands, this.n, this.origin.x, this.origin.y, this.origin.z, this.dir.x, this.dir.y, this.dir.z, dt, this.occluded) : -1;
     this.target = i >= 0 ? this.cands[i] : null;
+    // A menu in the headset: a hand ray on one of its buttons wins over head gaze (which lands mid-card, on
+    // New Game, while the eyes look at Continue). Head gaze still works when no hand ray is on a button.
+    if (vr && this.menuUp()) {
+      let shown: GazeCandidate | null = null;
+      for (let h = 1; h >= 0; h--) {
+        const c = this.handRayUi(h);
+        if (!hands[h].grip) {
+          this.rayUiAt[h] = (this.rayUiAt[h] + 1) % RAY_UI_FRAMES;
+          this.rayUiKeys[h][this.rayUiAt[h]] = c ? c.key : '';
+        }
+        if (c && !shown) shown = c;
+      }
+      if (shown) this.target = shown;
+    }
     this.updateUiHover();
 
     if (vr) {
@@ -337,10 +363,42 @@ export class GazeTargetSystem extends createSystem({
     this.updateFx(dt);
   }
 
-  /** The pause card (or Settings opened from it) or the title menu is up: a modal menu, not the world. */
+  /** A modal menu (title, pause card and its Settings, the Start Game screen) is up, not the world. */
   private menuUp(): boolean {
-    const ui = getUi(this.world);
-    return (ui.paused?.() ?? false) || (ui.titleOpen?.() ?? false);
+    return menuUp(this.world);
+  }
+
+  /** The menu button hand `h`'s ray points at, or null. Inside a button's rectangle beats near its edge. */
+  private handRayUi(h: number): GazeCandidate | null {
+    if (!hands[h].tracked) return null;
+    const space = this.player.raySpaces[h === 0 ? 'left' : 'right'];
+    if (!space) return null;
+    space.getWorldPosition(this.handO);
+    space.getWorldDirection(this.handD).negate(); // XR ray spaces point down -Z
+    const o = this.handO;
+    const d = this.handD;
+    let best: GazeCandidate | null = null;
+    let bestScore = -1;
+    for (let i = 0; i < this.n; i++) {
+      const c = this.cands[i];
+      if (c.kind !== 'ui' || !c.rect || !c.enabled) continue;
+      const s = gazeScore(c, o.x, o.y, o.z, d.x, d.y, d.z, HAND_RAY_DEG);
+      if (s > bestScore) {
+        bestScore = s;
+        best = c;
+      }
+    }
+    return best;
+  }
+
+  /** The button hand `h`'s ray was on just before this pinch (the ray dips as the fingers close), or null. */
+  private pinchUi(h: number): GazeCandidate | null {
+    const ring = this.rayUiKeys[h];
+    let key = ring[(this.rayUiAt[h] - RAY_UI_LOOKBACK + RAY_UI_FRAMES) % RAY_UI_FRAMES];
+    for (let k = 0; !key && k < RAY_UI_FRAMES; k++) key = ring[(this.rayUiAt[h] - k + RAY_UI_FRAMES) % RAY_UI_FRAMES];
+    if (!key) return null;
+    for (let i = 0; i < this.n; i++) if (this.cands[i].key === key && this.cands[i].kind === 'ui') return this.cands[i];
+    return null;
   }
 
   /** What the gaze is on right now (NPE C reads it to notice looking without taking). */
@@ -350,7 +408,9 @@ export class GazeTargetSystem extends createSystem({
 
   private onPinch(h: 0 | 1): void {
     const game = getGame(this.world);
-    const t = this.target;
+    // A menu in the headset: the button this hand's ray was on, else what the head looks at.
+    const rayUi = this.vrNow && this.menuUp() ? this.pinchUi(h) : null;
+    const t = rayUi ?? this.target;
     const now = performance.now() / 1000;
     const busy = handBusy(this.world, h);
     // A near grab already took this pinch (PinchGrabSystem runs first and stamps grabAt).
@@ -374,7 +434,7 @@ export class GazeTargetSystem extends createSystem({
     // Every handler later in the frame (ray press, aim assist) sees this pinch as taken.
     handClaims.grabAt = now;
     this.actions++;
-    game.log.add(`gaze ${verb} ${t.key} (hand ${h}, ${this.source})`);
+    game.log.add(`gaze ${verb} ${t.key} (hand ${h}, ${rayUi ? 'hand ray' : this.source})`);
     switch (verb) {
       case 'take': {
         const e = this.world.getSystem(ResourceSystem)?.entityFor(this.spotIds[t.ref]);

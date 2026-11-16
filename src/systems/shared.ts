@@ -54,6 +54,8 @@ export interface UiHooks {
   paused?(): boolean;
   /** Open the Settings card (pause card and title menu). */
   openSettings?(): void;
+  /** Open the pause card (the menu's Pause icon in the headset). */
+  openPause?(): void;
   /** True while the Settings card is open. */
   settingsOpen?(): boolean;
   /** Tutorial page only: the first steps are all done (the Start Game screen covers the view). */
@@ -680,18 +682,18 @@ export const menu = new MenuStack();
  * Where every card sits in the headset (the "not in your face" layout). distance (m) in front, side (m, + right),
  * down (m below the eyes; negative is above), scale (on top of the card's own VR scale, about the distance ratio so
  * text stays readable).
- *  - Low at the sides, within a seated arm's reach (tap or hand-ray pinch): Left and the Menu on the left, Pause and
- *    Right on the right.
+ *  - One short row low in front, within a seated arm's reach (tap or hand-ray pinch): Left, Menu, Right. Pause is
+ *    inside the menu; Left and Right step aside while the menu or a panel from it is open.
  *  - Away from the face, up top and beyond reach (pinch with the hand ray): the goal card in the middle, the tutorial
  *    step on the left, the crafting guide on the right, the compass above; messages low and far, like subtitles.
  *  - Opened on demand (bag, bench, notebook, hint, book) at arm's length and a little low, where a raised hand ray
  *    lands without effort; Pause, Settings, the title and Start Game farther still.
  */
 export const VR_LAYOUT = {
-  turnLeft: { distance: 0.42, side: -0.34, down: 0.33, scale: 0.8 },
-  menu: { distance: 0.42, side: -0.17, down: 0.33, scale: 1 },
+  turnLeft: { distance: 0.4, side: -0.14, down: 0.27, scale: 0.8 },
+  menu: { distance: 0.4, side: 0, down: 0.27, scale: 1 },
   pause: { distance: 0.42, side: 0.17, down: 0.33, scale: 0.75 },
-  turnRight: { distance: 0.42, side: 0.34, down: 0.33, scale: 0.8 },
+  turnRight: { distance: 0.4, side: 0.14, down: 0.27, scale: 0.8 },
   objective: { distance: 1.4, side: 0, down: -0.3, scale: 2.2 },
   tutorial: { distance: 1.4, side: -0.66, down: -0.24, scale: 1.9 },
   guide: { distance: 1.4, side: 0.68, down: -0.24, scale: 2 },

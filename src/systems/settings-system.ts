@@ -66,7 +66,7 @@ export class SettingsSystem extends createSystem({}) {
   private panel: UIKitMLAsset | null = null;
   private entity: Entity | null = null;
   private touch: PanelTouch | null = null;
-  private anchor = new StaticAnchor(FAR_CARD_DISTANCE, 0, FAR_CARD_DOWN, 0.9, 1);
+  private anchor = StaticAnchor.slot('modal');
   private settings!: Settings;
   private open = false;
   private vr = false;

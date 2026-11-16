@@ -29,7 +29,7 @@ export class CompassSystem extends createSystem({}) {
   private mesh!: Mesh;
   private ctx!: CanvasRenderingContext2D;
   private tex!: CanvasTexture;
-  private anchor = new StaticAnchor(0.6, 0, -0.15, 0.9, 1);
+  private anchor = StaticAnchor.slot('compass');
   private dom: HTMLDivElement | null = null;
   private lastHead = 999;
   private lastX = 1e9;

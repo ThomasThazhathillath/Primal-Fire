@@ -503,7 +503,7 @@ export class BenchSystem extends createSystem({}) {
     }
   }
 
-  private anchor = new StaticAnchor(PANEL_DISTANCE, 0, PANEL_DOWN + 0.04, 0.9, 1).movable('bench', 560, 500);
+  private anchor = StaticAnchor.slot('panel').movable('bench', 560, 500);
   private anchored = false;
 
   update(delta: number): void {

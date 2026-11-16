@@ -54,7 +54,7 @@ export class HudSystem extends createSystem({
   private cardScale = 0.09;
   private vrNow = false;
   /** VR: low and to the left, out of the way of rays aimed at the ground; it never drifts. */
-  private hudAnchor = new StaticAnchor(0.85, -0.42, 0.12);
+  private hudAnchor = StaticAnchor.slot('hud', 1.05, 1.2);
   private card!: UIKitMLAsset;
   private tip!: UIKitMLAsset;
   private cardQueue: string[] = [];
@@ -453,7 +453,7 @@ export class HudSystem extends createSystem({
     }
   }
 
-  private cardAnchor = new StaticAnchor(PANEL_DISTANCE, 0, PANEL_DOWN + 0.03, 0.9, 1).movable('notebook', 440, 500);
+  private cardAnchor = StaticAnchor.slot('panel').movable('notebook', 440, 500);
 
   update(delta: number): void {
     if (this.vrNow && this.card?.visible) this.cardAnchor.update(this.card, this.camera);

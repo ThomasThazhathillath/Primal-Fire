@@ -29,7 +29,7 @@ export class ObjectiveCardSystem extends createSystem({}) {
   private panel!: UIKitMLAsset;
   private entity!: Entity;
   private doc: ReturnType<typeof findUIKitDocument> = null;
-  private anchor = new StaticAnchor(DISTANCE, 0, DOWN, 0.9, 1).movable('objective', CARD_W, CARD_H);
+  private anchor = StaticAnchor.slot('objective').movable('objective', CARD_W, CARD_H);
   private ready = false;
   private shown = false;
   private open = true;

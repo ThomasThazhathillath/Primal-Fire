@@ -332,9 +332,11 @@ export class GazeTargetSystem extends createSystem({
     this.targeter.locked = this.lockHand >= 0;
     const i = have ? this.targeter.update(this.cands, this.n, this.origin.x, this.origin.y, this.origin.z, this.dir.x, this.dir.y, this.dir.z, dt, this.occluded) : -1;
     this.target = i >= 0 ? this.cands[i] : null;
-    // A menu in the headset: a hand ray on one of its buttons wins over head gaze (which lands mid-card, on
-    // New Game, while the eyes look at Continue). Head gaze still works when no hand ray is on a button.
-    if (vr && this.menuUp()) {
+    // Cards and menus in the headset answer the hand ray, the way the Quest's own menus work. Head gaze lands mid-card
+    // on the wrong button (New Game while the eyes read Continue), and pinches meant for something else pressed it
+    // (Quest log: Settings options toggled by accident). Eye gaze (Meta VR Glasses) still points at buttons itself.
+    if (vr) {
+      if (this.source === 'head' && this.target?.kind === 'ui') this.target = null;
       let shown: GazeCandidate | null = null;
       for (let h = 1; h >= 0; h--) {
         const c = this.handRayUi(h);
@@ -408,8 +410,8 @@ export class GazeTargetSystem extends createSystem({
 
   private onPinch(h: 0 | 1): void {
     const game = getGame(this.world);
-    // A menu in the headset: the button this hand's ray was on, else what the head looks at.
-    const rayUi = this.vrNow && this.menuUp() ? this.pinchUi(h) : null;
+    // In the headset: the button this hand's ray was on (just before the fingers closed), else the gaze target.
+    const rayUi = this.vrNow ? this.pinchUi(h) : null;
     const t = rayUi ?? this.target;
     const now = performance.now() / 1000;
     const busy = handBusy(this.world, h);
@@ -417,7 +419,7 @@ export class GazeTargetSystem extends createSystem({
     const direct = now - handClaims.grabAt < 0.05;
     // Paused or on the title menu, looking at one of its buttons: the pinch is that button's, even with the hand resting
     // near another card (the goal card, the Pause button) or over a stone at your feet.
-    const menuPress = t?.kind === 'ui' && this.menuUp();
+    const menuPress = t?.kind === 'ui' && (this.menuUp() || rayUi !== null);
     const owned = !menuPress && (busy.held || busy.ui || direct || this.rayOwns);
     let fits = false;
     let bagFits = false;

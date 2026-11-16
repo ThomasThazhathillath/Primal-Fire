@@ -7,7 +7,7 @@
 import { CanvasTexture, createSystem, Mesh, MeshBasicMaterial, PlaneGeometry, VisibilityState } from '@iwsdk/core';
 import { bearingTo, campOf, COMPASS_SPAN, headingOf, tapePos } from '../game/directions.js';
 import { LANDMARK_BY_ID } from '../game/world-layout.js';
-import { getGame, getUi, headYaw, hintFx, StaticAnchor } from './shared.js';
+import { cover, getGame, getUi, headYaw, hintFx, StaticAnchor } from './shared.js';
 import { WorldSystem } from './world-system.js';
 
 const W = 512;
@@ -81,7 +81,7 @@ export class CompassSystem extends createSystem({}) {
   update(delta: number): void {
     const started = this.world.getSystem(WorldSystem)?.started ?? false;
     const ui = getUi(this.world);
-    const on = compassCfg.show && started && !ui.titleOpen?.();
+    const on = compassCfg.show && started && !ui.titleOpen?.() && !cover.on;
     if (!on) {
       if (this.mesh.visible) this.mesh.visible = false;
       if (this.dom && this.dom.style.display !== 'none') this.dom.style.display = 'none';

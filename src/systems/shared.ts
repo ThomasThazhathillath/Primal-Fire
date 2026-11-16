@@ -56,6 +56,12 @@ export interface UiHooks {
   openSettings?(): void;
   /** True while the Settings card is open. */
   settingsOpen?(): boolean;
+  /** Tutorial page only: the first steps are all done (the Start Game screen covers the view). */
+  tutorialDone?(): boolean;
+  /** Start Game screen: leave the tutorial for the real game (learned controls carry over). */
+  startGame?(): void;
+  /** Start Game screen: the first steps again, from step 1. */
+  redoTutorial?(): void;
 }
 
 export function getGame(world: World): Game {
@@ -202,6 +208,9 @@ export const pickupFrom = { valid: false, pos: new Vector3(), time: 0 };
  * teach them are reached. Outside the opening everything is on.
  */
 export const reveal = { menu: true, objective: true };
+
+/** True while the Start Game screen covers the view: other UI hides and game time stands still. */
+export const cover = { on: false };
 
 /** Card size multiplier from the text-size setting (settings.ts), applied by StaticAnchor to every anchored card. */
 export const uiScale = { text: 1 };

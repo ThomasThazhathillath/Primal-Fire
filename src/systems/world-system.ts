@@ -3,7 +3,7 @@
 
 import { Color, createSystem, Fog, LocomotionSystem, Vector3, VisibilityState } from '@iwsdk/core';
 import { Game, type SaveData } from '../game/game.js';
-import { getGame, getUi } from './shared.js';
+import { cover, getGame, getUi } from './shared.js';
 
 let SAVE_KEY = 'primal-first-fire.save.v1';
 
@@ -91,7 +91,8 @@ export class WorldSystem extends createSystem({}) {
   }
 
   update(delta: number): void {
-    if (!this.started || this.paused || (getUi(this.world).paused?.() ?? false)) return;
+    // Paused, or the Start Game screen is up: the world waits.
+    if (!this.started || this.paused || (getUi(this.world).paused?.() ?? false) || cover.on) return;
     const game = getGame(this.world);
     game.tick(delta);
     // Heavy packs slow VR sliding too (desktop walking reads moveLimits itself).

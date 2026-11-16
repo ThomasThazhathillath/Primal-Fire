@@ -9,6 +9,7 @@
 import {
   createSystem,
   type Entity,
+  findUIKitDocument,
   RayInteractable,
   ScreenSpace,
   type UIKit,
@@ -302,12 +303,18 @@ export class IconBarSystem extends createSystem({}) {
         this.revealHidden = true;
         hidePanel(this.bar);
         menu.gridOpen = false;
+        // Flat view: the bar is a screen overlay (its document rides on the camera): hide that too.
+        if (this.entity.hasComponent(ScreenSpace)) this.entity.removeComponent(ScreenSpace);
+        const doc = findUIKitDocument(this.bar);
+        if (doc) doc.visible = false;
       }
       return;
     }
     if (this.revealHidden) {
       this.revealHidden = false;
       this.bar.visible = true;
+      const doc = findUIKitDocument(this.bar);
+      if (doc) doc.visible = true;
       this.anchor.reset();
       this.touch.reset();
       this.lastVisible = '';

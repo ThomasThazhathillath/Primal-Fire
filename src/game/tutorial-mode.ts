@@ -91,6 +91,16 @@ export function saveProgressRaw(raw: string, store: KeyStore | null = browserSto
   safeSet(store, TUTORIAL_PROGRESS_KEY, raw);
 }
 
+/** Forget lesson progress, so the next tutorial starts again from the first step ("Redo the tutorial"). */
+export function clearProgress(store: KeyStore | null = browserStore()): void {
+  safeSet(store, TUTORIAL_PROGRESS_KEY, null);
+}
+
+/** Is there a survival game under way (the Start Game screen then says Continue)? */
+export function hasSurvivalSave(store: KeyStore | null = browserStore()): boolean {
+  return safeGet(store, SURVIVAL_SAVE_KEY) !== null;
+}
+
 /** What finishing the opening carries into survival: the controls you learned, never items or progress. */
 export const CARRY_KEY = 'primal-first-fire.carry.v1';
 

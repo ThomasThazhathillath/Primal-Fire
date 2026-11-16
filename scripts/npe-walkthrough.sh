@@ -91,4 +91,4 @@ echo "== 7 Pinch your workbench"; aim_target; step
 sleep 1
 
 echo "== results"
-ev "(() => { const w = window.__wt; clearInterval(w.timer); const s = window.__tutorial.state(); return JSON.stringify({ marks: w.marks, finished: s.finished, targetShownFor: Object.keys(w.targetShown), log: window.__primal.game.log.lines.slice(-40).map(l => l.text.replace(/^.*· /, '')).filter(t => /pinch|gather|opening step|filled|placed|spot |tap|lock|bench/.test(t)) }); })()"
+ev "(() => { const w = window.__wt; clearInterval(w.timer); const s = window.__tutorial.state(); return JSON.stringify({ marks: w.marks, finished: s.finished, startGameScreen: window.__startGame?.shown?.(), targetShownFor: Object.keys(w.targetShown), log: window.__primal.game.log.lines.slice(-40).map(l => l.text.replace(/^.*· /, '')).filter(t => /pinch|gather|opening step|filled|placed|spot |tap|lock|bench/.test(t)) }); })()"

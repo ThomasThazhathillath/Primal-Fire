@@ -487,6 +487,21 @@ export class BuildSystem extends createSystem({
       e.addComponent(RayInteractable);
       view.spots.push(e);
     });
+    // The top (a workbench slab) once every support is in: a glowing mark of its own, so one click or pinch on it
+    // lays the top on (fillFromBag), on the desktop as in the headset.
+    if (def.keyLast && !s.keyPlaced && !s.keyOpen && !s.complete && s.spots.every((v) => v !== null)) {
+      const ring = new Mesh(new TorusGeometry(0.16, 0.025, 6, 24), spotMat);
+      const glow = new Mesh(spotGlowGeo, spotGlowMat);
+      ring.add(glow);
+      ring.rotation.x = -Math.PI / 2;
+      const p = spotWorldPosition(s, -1);
+      ring.position.set(p.x, Math.max(0.05, p.y), p.z);
+      ring.name = `SnapSpot_${s.id}_-1`;
+      const e = this.world.createTransformEntity(ring);
+      e.addComponent(SnapSpot, { structureId: s.id, index: -1 });
+      e.addComponent(RayInteractable);
+      view.spots.push(e);
+    }
     this.views.set(s.id, view);
   }
 

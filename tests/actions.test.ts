@@ -44,6 +44,21 @@ describe('hand actions', () => {
     expect(g.count('dryStone')).toBe(1);
   });
 
+  it('a wet river stone is a hammerstone too (the dry one often goes into the workbench)', () => {
+    const g = new Game();
+    g.addItem('flint');
+    g.takeOut('flint');
+    expect(g.actionMissing()).toBe('a dry stone or wet stone');
+    expect(g.work(1)).toBe(false);
+    g.addItem('wetStone');
+    expect(g.actionMissing()).toBeNull();
+    g.work(1);
+    g.work(1);
+    expect(g.count('flake')).toBe(2);
+    expect(g.count('wetStone')).toBe(1);
+    expect(g.hasEvent('tool.knap.flake')).toBe(true);
+  });
+
   it('items with no action ignore work', () => {
     const g = new Game();
     g.addItem('twigs');

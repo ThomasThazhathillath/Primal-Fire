@@ -637,8 +637,9 @@ export class Game {
   work(effort: number): boolean {
     const a = actionFor(this.held);
     if (!a || effort <= 0) return false;
-    if (a.needs?.some((n) => this.count(n) <= 0)) {
-      if (this.actionProgress === 0) this.toast(`You need ${a.needs.map((n) => itemName(n).toLowerCase()).join(' and ')} in your satchel.`, 'bad');
+    const missing = this.actionMissing();
+    if (missing) {
+      if (this.actionProgress === 0) this.toast(`You need ${missing} in your satchel.`, 'bad');
       return false;
     }
     this.actionProgress = Math.min(1, this.actionProgress + effort / a.work);
@@ -654,6 +655,20 @@ export class Game {
     if (a.science) this.science(a.science);
     this.checkQuests();
     return true;
+  }
+
+  /**
+   * What the held item's hand action still needs in the satchel ("dry stone or wet stone"),
+   * or null when it can go ahead. Callers check this before a blow so nothing is wasted.
+   */
+  actionMissing(): string | null {
+    const a = actionFor(this.held);
+    if (!a) return null;
+    const name = (n: ItemId) => itemName(n).toLowerCase();
+    const lacking = a.needs?.filter((n) => this.count(n) <= 0) ?? [];
+    if (lacking.length) return lacking.map(name).join(' and ');
+    if (a.needsOneOf && !a.needsOneOf.some((n) => this.count(n) > 0)) return `a ${a.needsOneOf.map(name).join(' or ')}`;
+    return null;
   }
 
   // ------------------------------------------------------------- queries

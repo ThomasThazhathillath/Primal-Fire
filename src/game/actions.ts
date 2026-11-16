@@ -15,6 +15,8 @@ export interface ActionDef {
   input: ItemId;
   /** Items that must also be in the satchel (kept, e.g. a hammerstone). */
   needs?: ItemId[];
+  /** At least one of these must be in the satchel (kept): any hammerstone will do. */
+  needsOneOf?: ItemId[];
   /** Effort to finish: metres of bend/rub travel, or number of strikes. */
   work: number;
   outputs: Partial<Record<ItemId, number>>;
@@ -70,7 +72,8 @@ export const ACTIONS: ActionDef[] = [
     name: 'Knap a flake',
     motion: 'knap',
     input: 'flint',
-    needs: ['dryStone'],
+    // A river cobble is the classic hammerstone: a wet stone strikes as well as a dry one.
+    needsOneOf: ['dryStone', 'wetStone'],
     work: 2,
     outputs: { flake: 2 },
     hint: 'Strike the flint with a stone, again and again, to chip off sharp flakes.',

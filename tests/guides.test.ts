@@ -141,6 +141,17 @@ describe('context and hints', () => {
     g.takeOut('greenBranch');
     expect(g.guide.select()!.id).toBe('bow');
   });
+  it('follows the objective card, not the quest list behind it (the card went blank after the flint)', () => {
+    const g = new Game();
+    g.objectives.index = g.objectives.index + 5; // firstStone → stoneTools
+    expect(g.objectives.current?.id).toBe('stoneTools');
+    expect(g.currentStep()?.step.target).toMatchObject({ items: ['dryGrass'] });
+    // Flint stowed again, nothing in hand: still the knapping guide.
+    expect(g.guide.select()!.id).toBe('knap');
+    g.addItem('flint');
+    g.addItem('wetStone');
+    expect(g.guide.current()!.step.id).not.toBe('gather');
+  });
   it('selects by nearby materials', () => {
     const g = new Game();
     expect(g.guide.select({ nearby: ['fibers'] })!.id).toBe('cord');

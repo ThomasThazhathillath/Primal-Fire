@@ -93,7 +93,15 @@ export class GuideSystem extends createSystem({}) {
     const game = getGame(this.world);
     game.guide.hidden = !game.guide.hidden;
     game.log.add(`guide ${game.guide.hidden ? 'hidden' : 'shown'}`);
-    game.toast(game.guide.hidden ? 'Guide hidden. Press J or the Guide button to show it.' : 'Guide shown (J to hide).');
+    // Shown with nothing to guide used to look like a broken button: say why the card stays away.
+    const empty = !game.guide.hidden && !game.guide.current();
+    game.toast(
+      game.guide.hidden
+        ? 'Guide hidden. Press J or the Guide button to show it.'
+        : empty
+          ? 'No step-by-step guide for this step. Tap the hint bulb for help.'
+          : 'Guide shown (J to hide).',
+    );
     this.lastKey = '';
     this.timer = REFRESH_SECONDS;
   }

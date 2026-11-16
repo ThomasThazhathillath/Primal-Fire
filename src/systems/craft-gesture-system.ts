@@ -179,6 +179,15 @@ export class CraftGestureSystem extends createSystem({}) {
 
   private resolveKnap(speed: number, edgeDist: number, angle: number, hitDir: Vector3): void {
     const game = getGame(this.world);
+    // No hammerstone in the satchel: say so and leave the core whole. (A good blow used to spend the
+    // core while the game refused the work, so the flint could never break afterwards.)
+    const missing = game.actionMissing();
+    if (missing) {
+      game.toast(`You need ${missing} in your bag to strike the flint with.`, 'bad');
+      return;
+    }
+    // The held flint is not finished yet, so it still has an edge to strike: never a dead end.
+    if (this.core.flakesLeft <= 0) this.core = new Core(2);
     // Repeated misses widen the strike edge a little (adaptive.ts); a clean flake eases it back.
     const r = this.core.strike(speed, edgeDist / game.assist.scale('knap'), angle);
     if (r.outcome === 'flake') game.assist.success('knap');

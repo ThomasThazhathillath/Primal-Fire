@@ -36,6 +36,12 @@ export class RowThumbs {
     this.update();
   }
 
+  /** Hide every picture (the rows they belong to are not on show, e.g. the bench while crafting). */
+  clear(): void {
+    this.rows = [];
+    for (const m of this.meshes) m.visible = false;
+  }
+
   /** Re-place each picture on its row (call a few times a second while the panel is open). */
   update(): void {
     let used = 0;

@@ -256,6 +256,19 @@ export class HudSystem extends createSystem({
 
   showHint(): void {
     const game = getGame(this.world);
+    // While the beginner objectives run, the hint button (and H) gives the hint for the objective on
+    // the card, exactly like the card's bulb: the quest list behind it can be on another step (it
+    // pointed at logs while the card said to knap flint).
+    const objective = game.objectives.current;
+    if (objective) {
+      const ui = getUi(this.world);
+      if (ui.openHint) ui.openHint(objective.id);
+      else {
+        const level = game.objectives.unlockHint(objective.id);
+        game.toast(`💡 ${objective.hint.levels[level - 1]}`, 'note');
+      }
+      return;
+    }
     const resources = this.world.getSystem(ResourceSystem);
     const res = game.hint((items, from) => resources?.locate(items, from) ?? null);
     if (!res) {

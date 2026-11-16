@@ -90,6 +90,20 @@ describe('hint effects follow the hint level', () => {
     expect(p.target!.id).toMatch(/^mark_/);
     expect(p.effects.exact).toBe(true);
   });
+  it('after the workbench the hint marks flint for the knapping objective, not the quest list\'s logs', () => {
+    const g = new Game();
+    g.gather('dryGrass');
+    g.gather('dryGrass');
+    g.objectives.index = OBJECTIVES.findIndex((o) => o.id === 'stoneTools');
+    expect(g.objectives.current?.id).toBe('stoneTools');
+    // The quest list behind the card is still on "twigs and logs" (what the hint button used to point at).
+    expect(g.currentStep()?.step.target).toMatchObject({ items: ['twigs', 'logs'] });
+    level(g, 3);
+    const p = planHint(g, spots);
+    expect(p.needed).toEqual(['flint']);
+    const flint = RESOURCES.filter((r) => r.itemId === 'flint');
+    expect(flint.some((r) => r.x === p.target!.x && r.z === p.target!.z)).toBe(true);
+  });
   it('the science objective points at the ruins', () => {
     const g = new Game();
     g.objectives.index = OBJECTIVES.findIndex((o) => o.id === 'science');

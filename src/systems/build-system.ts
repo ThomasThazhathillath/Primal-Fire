@@ -179,8 +179,10 @@ export class BuildSystem extends createSystem({
       // Pressing (clicking, ray-pinching) a glowing mark fills it from your bag.
       this.queries.spotPressed.subscribe('qualify', (e) => {
         const g = getGame(this.world);
-        if (g.held && g.wantsItem(g.held, g.player.x, g.player.z, 6)) return; // a held part is placed by letting go, not by this press
-        g.fillFromBag(e.getValue(SnapSpot, 'structureId') ?? 0, e.getValue(SnapSpot, 'index') ?? 0);
+        const index = e.getValue(SnapSpot, 'index') ?? 0;
+        // A held support is placed by letting go, not by this press; the top (index -1) always goes on with the press.
+        if (index >= 0 && g.held && g.wantsItem(g.held, g.player.x, g.player.z, 6)) return;
+        g.fillFromBag(e.getValue(SnapSpot, 'structureId') ?? 0, index);
       }),
     );
     const onSelectStart = (ev: XRInputSourceEvent) => this.onXRSelect(ev.inputSource.handedness);

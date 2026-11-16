@@ -354,6 +354,12 @@ export class SwipePager {
   }
 
   /** Panel-local position of a world point; true if it is inside the scrollable body (and near the card plane within `depth` m). */
+  /** Forget any drag in progress (the panel re-laid out under the hand: what moved was the panel, not the hand). */
+  reset(): void {
+    this.hand = -1;
+    this.fHand = -1;
+  }
+
   private inBody(panel: Object3D, world: Vector3, depth: number): boolean {
     panel.updateWorldMatrix(true, false);
     this.local.copy(world);

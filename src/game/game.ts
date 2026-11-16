@@ -179,8 +179,6 @@ export class Game {
   readonly assist = new Adaptive();
   /** Progressive help when the player is visibly struggling (NPE C). Not saved: it describes this session only. */
   readonly struggle = new StruggleTracker();
-  /** Guided mode: a pinch on a glowing mark always fills it, the heavy top included (settings.ts). Not saved. */
-  easyBuild = false;
   /**
    * While building: after you place a part, if the build still wants it and your bag has more, the next one appears
    * in your hand. Stops with Put away (cancelRefill) or when you walk away from the build. Not saved.
@@ -1355,18 +1353,13 @@ export class Game {
       return false;
     }
     if (m.index < 0) {
-      // The top of a workbench is lifted on with both hands and pressed: bring it to the hand, the player does the rest.
-      // Guided mode (easyBuild): one pinch on the glowing top lays it on, from the hand or the bag.
-      if (!m.structure.keyOpen && this.easyBuild) {
+      // The top of a workbench: one pinch (or click) on the glowing top lays it on, from the hand or the bag. The
+      // old two-handed lift added steps (open the bag, take the slab, carry, lower) without adding understanding.
+      if (!m.structure.keyOpen) {
         if (this.held !== item) this.takeOut(item);
         const okKey = this.placeKey(structureId, m.x, m.z, 2);
         if (okKey) this.assist.success('place');
         return okKey;
-      }
-      if (!m.structure.keyOpen) {
-        if (this.held !== item) this.takeOut(item);
-        this.toast('Lower it onto the supports with both hands.', 'note');
-        return false;
       }
     }
     const ok = m.index >= 0 ? this.fillSpot(structureId, index, item, { x: m.x, z: m.z }) : this.placeKey(structureId, m.x, m.z, 1);

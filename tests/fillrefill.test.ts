@@ -85,7 +85,7 @@ describe('fill from the mark with an empty hand', () => {
     expect(g.held).toBeNull();
     expect(g.count('dryStone')).toBe(1);
   });
-  it('fills a workbench: three supports from the bag, then the slab is brought to the hand', () => {
+  it('fills a workbench: three supports from the bag, then one pinch on the top lays the slab on', () => {
     const g = new Game();
     g.addItem('dryStone', 3);
     g.addItem('slab');
@@ -96,10 +96,9 @@ describe('fill from the mark with an empty hand', () => {
     }
     const key = openMarks(g.structures)[0];
     expect(key.index).toBe(-1);
-    // The top is lifted on with both hands: the mark brings it to the hand and says so.
-    expect(g.fillFromBag(s.id, -1)).toBe(false);
-    expect(g.held).toBe('slab');
-    expect(g.placeKey(s.id, s.x, s.z, 2)).toBe(true);
+    // One pinch (or click) on the glowing top takes the slab from the bag and seats it: no bag, no carrying.
+    expect(g.fillFromBag(s.id, -1)).toBe(true);
+    expect(g.held).toBeNull();
     expect(s.complete).toBe(true);
   });
   it('a mark with nothing in the bag that fits says what it needs and widens the help', () => {
@@ -119,5 +118,26 @@ describe('fill from the mark with an empty hand', () => {
     expect(g.fillFromBag(s.id, m.index)).toBe(true);
     expect(g.fillFromBag(s.id, m.index)).toBe(false);
     expect(g.fillFromBag(999, 0)).toBe(false);
+  });
+});
+
+describe('the workbench top is one pinch', () => {
+  it('from the hand too: a held slab goes on with a pinch on the top', () => {
+    const g = new Game();
+    g.addItem('dryStone', 3);
+    const s = g.placeFromBook('workbench', 0, -1).structure!;
+    for (let i = 0; i < 3; i++) g.fillFromBag(s.id, openMarks(g.structures)[0].index);
+    g.addItem('slab');
+    g.takeOut('slab');
+    expect(g.held).toBe('slab');
+    expect(g.fillFromBag(s.id, -1)).toBe(true);
+    expect(s.complete).toBe(true);
+  });
+  it('still needs the supports first', () => {
+    const g = new Game();
+    g.addItem('slab');
+    const s = g.placeFromBook('workbench', 0, -1).structure!;
+    expect(openMarks(g.structures).some((m) => m.index === -1)).toBe(false);
+    expect(s.complete).toBe(false);
   });
 });

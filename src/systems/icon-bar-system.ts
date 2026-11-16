@@ -45,6 +45,9 @@ interface Def {
 /** Second tap on Restart must come within this long (ms). */
 const RESTART_CONFIRM_MS = 4000;
 
+/** Icons that must be on the first page, most important last (sort key: higher index first). */
+const FIRST_PAGE = ['book', 'satchel'];
+
 const DEFS: Def[] = [
   { id: 'satchel', show: () => true, run: (s) => getUi(s.world).toggleSatchel?.() },
   { id: 'quest', show: () => true, run: (s) => getUi(s.world).toggleQuest?.() },
@@ -277,6 +280,8 @@ export class IconBarSystem extends createSystem({}) {
     const h = PAD * 2 + rows * SLOT_H + (rows - 1) * GAP;
     this.bar.requireElementById('bar').setProperties({ width: w, height: h, flexWrap: 'wrap', borderRadius: this.vr ? 20 : 32 } as never);
     this.touch.reset();
+    // The row just changed under the fingertip (it unfolds around the Menu button): that is not a swipe.
+    this.swipe.reset();
     // Keep the bottom edge where the folded button was: the grid grows upwards, not down out of view.
     this.anchor.setDown(BAR_BOTTOM - (h * PANEL_SCALE * 0.01) / 2);
     if (!this.vr) {
@@ -327,6 +332,8 @@ export class IconBarSystem extends createSystem({}) {
       const pi = DEFS.findIndex((d) => d.id === 'prev');
       const ni = DEFS.findIndex((d) => d.id === 'next');
       const others = this.visible.filter((i) => i !== mi);
+      // Bag and Build first: the first page always has them (the first steps send a new player to both).
+      others.sort((a, b) => FIRST_PAGE.indexOf(DEFS[b].id) - FIRST_PAGE.indexOf(DEFS[a].id));
       const pg = pageLayout(others.length, this.page, PAGE);
       this.page = pg.page;
       const row = others.slice(pg.start, pg.end);

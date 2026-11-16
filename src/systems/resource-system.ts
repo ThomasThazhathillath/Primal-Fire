@@ -26,7 +26,7 @@ import { afterGather, afterRegrow, loadedCharges, regrowHidden } from '../game/r
 import { Gatherable } from '../components/game-components.js';
 import { itemMesh, resourceMesh } from '../scene-assets/item-meshes.js';
 import { hands } from './hand-input-system.js';
-import { getGame, getUi, glowMaterial, glowMaterialHot, handClaims, haptic, hipPosition, pickupFrom, rayPick } from './shared.js';
+import { getGame, getUi, glowMaterial, glowMaterialHot, handClaims, haptic, hipPosition, menuUp, pickupFrom, rayPick } from './shared.js';
 
 /** Max distance (m) from your head to something you can gather. */
 export const REACH = 6;
@@ -230,6 +230,8 @@ export class ResourceSystem extends createSystem({
   }
 
   tryGather(e: Entity): boolean {
+    // A pinch on a menu button is never a pickup of what lies behind the menu.
+    if (menuUp(this.world)) return false;
     this.lastGather = performance.now();
     const game = getGame(this.world);
     const spot = this.bySpot.get(e.getValue(Gatherable, 'spotId') ?? '');
@@ -368,8 +370,10 @@ export class ResourceSystem extends createSystem({
 
   /** VR hands: per-hand ray pick and pinch lock, ray history, and a pinch that missed resolved to the locked target. */
   private updateAimAssist(dt: number): void {
-    if (this.world.visibilityState.peek() === VisibilityState.NonImmersive) {
+    // Flat view, or a menu covers the world (title, pause, Start Game): the hand ray picks nothing behind it.
+    if (this.world.visibilityState.peek() === VisibilityState.NonImmersive || menuUp(this.world)) {
       rayPick.key = '';
+      this.pendingPinch = -1;
       return;
     }
     if ((this.nearIn -= dt) <= 0) {

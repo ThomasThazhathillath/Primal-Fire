@@ -78,6 +78,7 @@ export class PauseSystem extends createSystem({}) {
     this.wire(this.left, 'turn-l', () => getUi(this.world).snapTurn?.(TURN));
     this.wire(this.right, 'turn-r', () => getUi(this.world).snapTurn?.(-TURN));
     getUi(this.world).paused = () => this.open;
+    getUi(this.world).openPause = () => this.setOpen(true);
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && this.shown) this.setOpen(!this.open);
     };
@@ -202,9 +203,8 @@ export class PauseSystem extends createSystem({}) {
       this.card.panel.visible = this.open && !(getUi(this.world).settingsOpen?.() ?? false);
       return;
     }
-    this.btn.panel.visible = true;
-    this.btnAnchor.update(this.btn.panel, this.camera);
-    this.btn.touch.update(delta);
+    // Headset: Pause is an icon in the menu, so the separate button stays away.
+    if (this.btn.panel.visible) hidePanel(this.btn.panel);
     // The Settings card (opened from here) takes the pause card's place while it is up.
     const settings = getUi(this.world).settingsOpen?.() ?? false;
     if (this.settingsWas && !settings) this.cardAnchor.reset(); // back from Settings: put the card in front again
@@ -214,13 +214,17 @@ export class PauseSystem extends createSystem({}) {
       this.cardAnchor.update(this.card.panel, this.camera);
       this.card.touch.update(delta);
     } else if (this.open && this.card.panel.visible) hidePanel(this.card.panel);
-    // Turn buttons: always there while playing (hidden under the pause card).
+    // Turn buttons: there while playing; they step aside while the pause card, the menu or a panel from it is open.
+    const hideTurns = this.open || menu.gridOpen || menu.current !== null;
     for (const [p, a] of [[this.left, this.leftAnchor], [this.right, this.rightAnchor]] as const) {
-      p.panel.visible = !this.open;
-      if (!this.open) {
-        a.update(p.panel, this.camera);
-        p.touch.update(delta);
+      if (hideTurns) {
+        if (p.panel.visible) hidePanel(p.panel);
+        a.reset(); // placed afresh in front when they come back
+        continue;
       }
+      p.panel.visible = true;
+      a.update(p.panel, this.camera);
+      p.touch.update(delta);
     }
   }
 }

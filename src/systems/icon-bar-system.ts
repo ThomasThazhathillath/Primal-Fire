@@ -24,6 +24,8 @@ import { clearSave, WorldSystem } from './world-system.js';
 
 const SLOT = 68;
 const GAP = 10;
+/** Border width of the bar card (.t-root in iconbar.uikitml). */
+const BORDER = 8;
 const SLOT_H = 80;
 /** VR: icons sit in a small grid this many wide, off to your right. */
 const COLS = 7;
@@ -47,7 +49,8 @@ interface Def {
 const RESTART_CONFIRM_MS = 4000;
 
 /** Icons that must be on the first page, most important last (sort key: higher index first). */
-const FIRST_PAGE = ['book', 'satchel'];
+// Pause, Build and Bag on the first page (Pause lives in the menu in the headset).
+const FIRST_PAGE = ['pause', 'book', 'satchel'];
 
 const DEFS: Def[] = [
   { id: 'satchel', show: () => true, run: (s) => getUi(s.world).toggleSatchel?.() },
@@ -75,18 +78,20 @@ const DEFS: Def[] = [
   { id: 'prev', show: () => false, run: (s) => s.turnPage(-1) },
   { id: 'next', show: () => false, run: (s) => s.turnPage(1) },
   { id: 'story', show: (s) => !!getUi(s.world).toggleStory, run: (s) => getUi(s.world).toggleStory?.() },
+  // Headset: Pause is in the menu (the flat view keeps its corner Pause button).
+  { id: 'pause', show: (s) => s.vr, run: (s) => getUi(s.world).openPause?.() },
 ];
 
 /** Icons that act and fold the grid (the rest open a panel, which folds it itself). */
 
 /** Where the bar hangs (m): within a seated arm's reach, below eye level, either hand. */
-export const BAR_DISTANCE = 0.42;
+export const BAR_DISTANCE = 0.4;
 // Up and to the left, its bottom edge a little above eye level (NPE simplicity round): the old row at chest height
 // caught resting and gathering hands (Quest log: dozens of 'pinching on menu/slot-14' a minute). Up here only a
 // raised, deliberate hand reaches it; an unfolded row grows upward, so it never covers the ground you work on.
-export const BAR_BOTTOM = 0.37;
+export const BAR_BOTTOM = 0.3;
 export const BAR_DOWN = BAR_BOTTOM;
-export const BAR_SIDE = -0.17;
+export const BAR_SIDE = 0;
 
 export class IconBarSystem extends createSystem({}) {
   private bar!: UIKitMLAsset;
@@ -277,8 +282,9 @@ export class IconBarSystem extends createSystem({}) {
     // VR: a compact grid; the flat view keeps one row along the bottom.
     const cols = this.vr ? Math.min(COLS, n) : n; // VR: a single row
     const rows = Math.ceil(n / cols);
-    const w = PAD * 2 + cols * SLOT + (cols - 1) * GAP;
-    const h = PAD * 2 + rows * SLOT_H + (rows - 1) * GAP;
+    // The card's 8-unit border sits inside its width: without it the last icon wrapped onto a row outside the card.
+    const w = PAD * 2 + BORDER * 2 + cols * SLOT + (cols - 1) * GAP;
+    const h = PAD * 2 + BORDER * 2 + rows * SLOT_H + (rows - 1) * GAP;
     this.bar.requireElementById('bar').setProperties({ width: w, height: h, flexWrap: 'wrap', borderRadius: this.vr ? 20 : 32 } as never);
     this.touch.reset();
     // The row just changed under the fingertip (it unfolds around the Menu button): that is not a swipe.
@@ -328,7 +334,11 @@ export class IconBarSystem extends createSystem({}) {
     this.visible.length = 0;
     if (menu.gridOpen !== this.lastGridOpen) {
       this.lastGridOpen = menu.gridOpen;
-      if (menu.gridOpen) this.gridOpenedAt = performance.now();
+      // Every unfold starts a fresh idle timer (a Back from a panel used to reopen it already timed out: it folded at once).
+      if (menu.gridOpen) {
+        this.gridOpenedAt = performance.now();
+        this.menuIdle = 0;
+      }
     }
     if (menu.gridOpen && (this.menuIdle += delta) > MENU_CONFIG.gridIdleSeconds) menu.gridOpen = false;
     // Folded (VR): only the Menu button shows, whenever the grid is not unfolded (and always while a panel is open).

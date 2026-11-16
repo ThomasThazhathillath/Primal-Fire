@@ -18,7 +18,7 @@ const CONFIRM_MS = 4000;
 export class IntroSystem extends createSystem({}) {
   private panel: UIKitMLAsset | undefined;
   private touch: PanelTouch | null = null;
-  private anchor = new StaticAnchor(0.75, 0, 0.05, 0.6, 1);
+  private anchor = StaticAnchor.slot('title', 0.6, 1);
   private vr = false;
   private newArmedAt = -1e9;
   private open = true;

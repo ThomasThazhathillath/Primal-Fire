@@ -38,7 +38,7 @@ export class StartGameSystem extends createSystem({}) {
   private shown = false;
   private head = new Vector3();
   /** Straight ahead, a little below the eyes; re-placed only after a big turn (never glued to the head). */
-  private anchor = new StaticAnchor(DISTANCE, 0, DOWN, 0.9, 1.2);
+  private anchor = StaticAnchor.slot('start', 0.9, 1.2);
 
   async init(): Promise<void> {
     // A dark shell around the head: the forest stays faintly there, but nothing in it asks for attention.

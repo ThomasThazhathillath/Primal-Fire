@@ -381,7 +381,7 @@ export class SatchelSystem extends createSystem({
     }
   }
 
-  private anchor = new StaticAnchor(PANEL_DISTANCE, 0, PANEL_DOWN + 0.02, 0.9, 1).movable('bag', 480, 600);
+  private anchor = StaticAnchor.slot('panel').movable('bag', 480, 600);
 
   update(delta: number): void {
     if (this.vr && this.panel?.visible) {

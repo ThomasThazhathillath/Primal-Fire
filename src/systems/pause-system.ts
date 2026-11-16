@@ -26,10 +26,10 @@ export class PauseSystem extends createSystem({}) {
   private left!: Part;
   private right!: Part;
   // Top right of the view, just above eye level and within reach of a raised hand; turn buttons at the sides, level with the chest.
-  private btnAnchor = new StaticAnchor(0.6, 0.28, -0.14, 0.9, 1);
-  private cardAnchor = new StaticAnchor(FAR_CARD_DISTANCE, 0, FAR_CARD_DOWN, 0.9, 1);
-  private leftAnchor = new StaticAnchor(0.55, -0.4, 0.03, 0.9, 1);
-  private rightAnchor = new StaticAnchor(0.55, 0.4, 0.03, 0.9, 1);
+  private btnAnchor = StaticAnchor.slot('pause');
+  private cardAnchor = StaticAnchor.slot('modal');
+  private leftAnchor = StaticAnchor.slot('turnLeft');
+  private rightAnchor = StaticAnchor.slot('turnRight');
   private vr = false;
   private ready = false;
   private shown = false;

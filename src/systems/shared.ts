@@ -278,7 +278,8 @@ export interface PanelSpot {
   distance: number;
 }
 
-const spotKey = (k: string) => `primal.panel.${k}`;
+// v2: the layout revamp moved every card; spots dragged under the old layout would pull cards back into your face.
+const spotKey = (k: string) => `primal.panel.v2.${k}`;
 function loadSpot(k: string): PanelSpot | null {
   try {
     const raw = typeof localStorage === 'undefined' ? null : localStorage.getItem(spotKey(k));
@@ -582,6 +583,20 @@ export class StaticAnchor {
   /** The scale this anchor last set (text size); a different value means the owning system set a new base. */
   private applied = -1;
   private base = 1;
+  /** Size multiplier from the layout (VR_LAYOUT.scale): a card moved farther away grows so its text stays readable. */
+  private scaleMul = 1;
+
+  /** Grow (or shrink) the card by `m` on top of its own scale. */
+  scaled(m: number): this {
+    this.scaleMul = m;
+    return this;
+  }
+
+  /** An anchor at one of the VR_LAYOUT slots. */
+  static slot(name: VrSlotName, maxTurn = 0.9, maxMove = 1): StaticAnchor {
+    const s = VR_LAYOUT[name];
+    return new StaticAnchor(s.distance, s.side, s.down, maxTurn, maxMove).scaled(s.scale);
+  }
 
   update(panel: Object3D, camera: Object3D): void {
     if (this.key) cards[this.key] = panel;
@@ -589,7 +604,7 @@ export class StaticAnchor {
     // (PanelTouch reads the panel's real scale).
     const sx = panel.scale.x;
     if (Math.abs(sx - this.applied) > 1e-6) this.base = sx;
-    const want = this.base * uiScale.text;
+    const want = this.base * uiScale.text * this.scaleMul;
     if (Math.abs(want - sx) > 1e-6) panel.scale.setScalar(want);
     this.applied = want;
     if (this.drag(panel, camera)) return;
@@ -660,6 +675,34 @@ export function handBusy(world: World, h: 0 | 1): HandBusy {
 
 /** Which one fingertip panel is open and whether the icon grid is unfolded (src/game/menu.ts). */
 export const menu = new MenuStack();
+
+/**
+ * Where every card sits in the headset (the "not in your face" layout). distance (m) in front, side (m, + right),
+ * down (m below the eyes; negative is above), scale (on top of the card's own VR scale, about the distance ratio so
+ * text stays readable).
+ *  - Low at the sides, within a seated arm's reach (tap or hand-ray pinch): Left and the Menu on the left, Pause and
+ *    Right on the right.
+ *  - Away from the face, up top and beyond reach (pinch with the hand ray): the goal card in the middle, the tutorial
+ *    step on the left, the crafting guide on the right, the compass above; messages low and far, like subtitles.
+ *  - Opened on demand (bag, bench, notebook, hint, book) at arm's length and a little low, where a raised hand ray
+ *    lands without effort; Pause, Settings, the title and Start Game farther still.
+ */
+export const VR_LAYOUT = {
+  turnLeft: { distance: 0.42, side: -0.34, down: 0.33, scale: 0.8 },
+  menu: { distance: 0.42, side: -0.17, down: 0.33, scale: 1 },
+  pause: { distance: 0.42, side: 0.17, down: 0.33, scale: 0.75 },
+  turnRight: { distance: 0.42, side: 0.34, down: 0.33, scale: 0.8 },
+  objective: { distance: 1.4, side: 0, down: -0.3, scale: 2.2 },
+  tutorial: { distance: 1.4, side: -0.66, down: -0.24, scale: 1.9 },
+  guide: { distance: 1.4, side: 0.68, down: -0.24, scale: 2 },
+  compass: { distance: 1.4, side: 0, down: -0.6, scale: 1.8 },
+  hud: { distance: 1.4, side: 0, down: 0.52, scale: 1.4 },
+  panel: { distance: 0.95, side: 0, down: 0.2, scale: 1.8 },
+  modal: { distance: 1.2, side: 0, down: 0.22, scale: 1 },
+  title: { distance: 1, side: 0, down: 0.16, scale: 1.25 },
+  start: { distance: 1.2, side: 0, down: 0.18, scale: 1.25 },
+} as const;
+export type VrSlotName = keyof typeof VR_LAYOUT;
 
 /** Where an open fingertip panel hangs (m): in comfortable seated reach, a little below the eyes, facing you. */
 export const PANEL_DISTANCE = 0.45;

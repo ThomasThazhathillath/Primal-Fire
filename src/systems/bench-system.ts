@@ -258,6 +258,12 @@ export class BenchSystem extends createSystem({}) {
     this.panel.requireElementById('bench-list').setProperties({ display: b ? 'none' : 'flex' });
     this.panel.requireElementById('bench-craft').setProperties({ display: b ? 'flex' : 'none' });
     this.panel.requireElementById('bench-lift').setProperties({ display: b ? 'none' : 'flex' });
+    // Paging and the recipe pictures belong to the list: while crafting neither shows (the pictures
+    // would otherwise stay where the rows were and float over the step text).
+    if (b) {
+      this.panel.requireElementById('bench-more').setProperties({ display: 'none' });
+      this.thumbs.clear();
+    }
     if (!b) {
       const pages = Math.max(1, Math.ceil(BENCH_RECIPES.length / PER_PAGE));
       if (this.page >= pages) this.page = 0;

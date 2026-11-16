@@ -861,7 +861,7 @@ export const GUIDES: Guide[] = [
         instruction: 'Find a dark, smooth, glassy stone to flake and a round stone to strike with.',
         science: 'Fine-grained, glassy stone breaks in smooth curves (conchoidal fracture), leaving thin, sharp edges.',
         place: 'Glassy flint turns up among rocks by the water and on ridges.',
-        validate: (c) => ever(c.game, 'flake') || (have(c.game, 'flint') >= 1 && have(c.game, 'dryStone') >= 1),
+        validate: (c) => ever(c.game, 'flake') || (have(c.game, 'flint') >= 1 && haveAny(c.game, ['dryStone', 'wetStone']) >= 1),
         success: 'A core and a hammerstone.',
         failures: [{ code: 'knap.coarseStone' }],
       },
@@ -1171,7 +1171,14 @@ export class GuideTracker {
       const p = GUIDE_BY_ID[this.pinned];
       if (unfinished(p)) return p;
     }
-    // 2. The current quest step's guide.
+    // 2. The beginner objective on the card: the quest list behind it can be on another step
+    //    (it was still on dry grass at the flint objective, so the card went blank).
+    const objectiveGuide = g.objectives?.current?.guide;
+    if (objectiveGuide) {
+      const o = GUIDE_BY_ID[objectiveGuide];
+      if (o && unfinished(o)) return o;
+    }
+    // 3. The current quest step's guide.
     const step = g.currentStep()?.step;
     if (step?.guide) {
       const q = GUIDE_BY_ID[step.guide];
@@ -1184,17 +1191,17 @@ export class GuideTracker {
       );
       if (byTarget) return byTarget;
     }
-    // 3. Something in progress: a placed but unfinished structure, or a guide with failures.
+    // 4. Something in progress: a placed but unfinished structure, or a guide with failures.
     const inProgress = GUIDES.find(
       (gd) => gd.goal.structure && unfinished(gd) && g.structures.some((s) => s.kind === gd.goal.structure && !s.complete),
     );
     if (inProgress) return inProgress;
-    // 4. What you are holding.
+    // 5. What you are holding.
     if (g.held) {
       const held = GUIDES.find((gd) => unfinished(gd) && gd.keyItems.includes(g.held!));
       if (held) return held;
     }
-    // 5. What lies nearby that the next step needs.
+    // 6. What lies nearby that the next step needs.
     if (ctx.nearby?.length) {
       const near = GUIDES.find((gd) => {
         if (!unfinished(gd)) return false;

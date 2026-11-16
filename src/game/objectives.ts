@@ -46,6 +46,8 @@ export interface HintData {
 export interface Objective {
   id: string;
   title: string;
+  /** Crafting guide (src/game/guides.ts) the guide card shows while this objective is current. */
+  guide?: string;
   /** The one instruction the card shows (NPE simplicity round): six words at most, verb first. */
   short?: string | ((g: Game) => string);
   instruction: string | ((g: Game) => string);
@@ -244,6 +246,7 @@ export const OBJECTIVES: Objective[] = [
   },
   {
     id: 'workbench',
+    guide: 'workbench',
     structure: 'workbench',
     title: 'Build your first workbench',
     short: (g) => ['Open Build, choose Workbench', 'Pinch each glowing mark', 'Put the flat stone on top', 'Put the flat stone on top'][workbenchStage(g)],
@@ -307,6 +310,7 @@ export const OBJECTIVES: Objective[] = [
   },
   {
     id: 'stoneTools',
+    guide: 'knap',
     find: (g) => (g.count('flint') + (g.held === 'flint' ? 1 : 0) > 0 ? [] : ['flint']),
     title: 'Make a sharp stone',
     short: 'Hit the flint with a stone',
@@ -397,6 +401,7 @@ export const OBJECTIVES: Objective[] = [
   },
   {
     id: 'cord',
+    guide: 'cord',
     find: (g) => (g.gatheredCount('fibers') < 3 && !g.flag('cordMade') ? ['fibers'] : []),
     title: 'Twist some cord',
     short: 'Make cord at the workbench',
@@ -444,6 +449,7 @@ export const OBJECTIVES: Objective[] = [
   },
   {
     id: 'bowDrill',
+    guide: 'bowDrill',
     title: 'Make the bow drill',
     short: 'Make the bow drill',
     instruction: 'Poke your workbench, choose the bow drill and build it step by step with your hands.',
@@ -463,6 +469,7 @@ export const OBJECTIVES: Objective[] = [
   },
   {
     id: 'firePit',
+    guide: 'firePit',
     structure: 'firePit',
     title: 'Build a fire pit',
     short: 'Build a fire pit',
@@ -554,6 +561,7 @@ export const OBJECTIVES: Objective[] = [
   },
   {
     id: 'pot',
+    guide: 'pot',
     find: (g) => (g.gatheredCount('clay') < 2 ? ['clay'] : g.gatheredCount('sand') === 0 ? ['sand'] : []),
     title: 'Make a clay pot',
     short: 'Make a clay pot',
@@ -609,6 +617,7 @@ export const OBJECTIVES: Objective[] = [
   },
   {
     id: 'cleanWater',
+    guide: 'filter',
     structure: 'filter',
     title: 'Make safe water',
     short: 'Make safe water',
@@ -637,6 +646,7 @@ export const OBJECTIVES: Objective[] = [
   },
   {
     id: 'shelter',
+    guide: 'shelter',
     structure: 'shelter',
     title: 'Build a shelter',
     short: 'Build a shelter',

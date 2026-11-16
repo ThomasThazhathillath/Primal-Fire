@@ -7,8 +7,8 @@ const ui = { hintLevel: 0, notebookOpen: false };
 const idx = (id: string) => LESSON_IDS.indexOf(id as never);
 
 describe('the first steps', () => {
-  it('pickup, moving, building the bench, the bag, the bench, in that order', () => {
-    expect(LESSON_IDS).toEqual(['stone', 'ring', 'marks', 'slab', 'top', 'bag', 'bench']);
+  it('pickup, moving, placing and building the bench, the bag, the bench, in that order', () => {
+    expect(LESSON_IDS).toEqual(['stone', 'ring', 'build', 'marks', 'top', 'bag', 'bench']);
     expect(LESSONS[0].title).toBe('Pinch the glowing stone');
     expect(OPENING.length).toBe(1);
   });
@@ -24,11 +24,11 @@ describe('the first steps', () => {
 });
 
 describe('gradual reveal of the HUD', () => {
-  it('only the step card at first; the menu at the bag step; the goal card once the steps are done', () => {
+  it('only the step card at first; the menu from the Build step; the goal card once the steps are done', () => {
     const none = new Set<never>();
     expect(guidedReveal(idx('stone'), none, false)).toEqual({ menu: false, objective: false });
-    expect(guidedReveal(idx('top'), none, false)).toEqual({ menu: false, objective: false });
-    expect(guidedReveal(idx('bag'), none, false)).toEqual({ menu: true, objective: false });
+    expect(guidedReveal(idx('ring'), none, false)).toEqual({ menu: false, objective: false });
+    expect(guidedReveal(idx('build'), none, false)).toEqual({ menu: true, objective: false });
     expect(guidedReveal(idx('bench'), none, false)).toEqual({ menu: true, objective: false });
     expect(guidedReveal(0, none, true)).toEqual({ menu: true, objective: true });
   });
@@ -45,7 +45,7 @@ describe('a mechanic already shown is not explained again', () => {
     expect(r.skills.has('teleport')).toBe(true);
     g.gather('dryStone', 'tutorial');
     expect(known).toContain(idx('ring'));
-    expect(r.lesson.id).toBe('marks');
+    expect(r.lesson.id).toBe('build');
   });
 
   it('a step the player chooses to replay is still played (never auto-passed)', () => {

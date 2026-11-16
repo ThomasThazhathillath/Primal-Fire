@@ -74,6 +74,7 @@ export default defineAssets({
   'pausebtn-panel': uikitml('pausebtn.uikitml', 'Pause Button'),
   'pausecard-panel': uikitml('pausecard.uikitml', 'Pause Card'),
   'settings-panel': uikitml('settings.uikitml', 'Settings Card'),
+  'startgame-panel': uikitml('startgame.uikitml', 'Start Game'),
   'turn-panel': uikitml('turn.uikitml', 'Turn Button'),
   'tutorial-panel': uikitml('tutorial.uikitml', 'Tutorial Tracker'),
 });

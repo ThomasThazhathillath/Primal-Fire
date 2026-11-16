@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Game } from '../src/game/game.js';
 import { setEasyCarry } from '../src/game/items.js';
 import { campItems, tutorialSpots } from '../src/game/tutorial-layout.js';
-import { BENCH_SITE, LESSONS, RING, storyHour, TutorialRunner, type LessonId } from '../src/game/tutorial-lessons.js';
+import { LESSONS, RING, storyHour, TutorialRunner, type LessonId } from '../src/game/tutorial-lessons.js';
 import {
   chooseSurvival,
   chooseTutorial,
@@ -41,19 +41,21 @@ function playLesson(r: TutorialRunner, g: Game): void {
     case 'ring':
       g.setPlayerPosition(RING.x + 0.3, RING.z);
       break;
+    case 'build': {
+      // Open Build, choose Workbench, place it where the player points (here: a couple of metres ahead).
+      g.placeFromBook('workbench', 0, -1);
+      break;
+    }
     case 'marks': {
       const b = bench(g)!;
       b.spots.forEach((_, i) => g.fillFromBag(b.id, i));
       break;
     }
-    case 'slab':
-      g.gather('slab', 'tutorial');
-      if (g.held !== 'slab') g.takeOut('slab'); // easy carry: it went in the bag
-      break;
     case 'top': {
+      // Pinch the flat stone, then pinch the glowing top: one pinch each.
+      g.gather('slab', 'tutorial');
       const b = bench(g)!;
-      if (g.held !== 'slab') g.takeOut('slab');
-      g.placeKey(b.id, b.x, b.z, 2);
+      g.fillFromBag(b.id, -1);
       break;
     }
     case 'bag':
@@ -110,23 +112,40 @@ describe('THE FIRST STEPS: seven one-instruction steps', () => {
     }
   });
 
-  it('every step but the bag points at its exact target', () => {
+  it('every step with a place points at its exact target (Build and the bag are menu steps)', () => {
     const g = new Game();
     const r = new TutorialRunner(g);
     for (const l of LESSONS) {
-      if (l.id !== 'bag') expect(l.target?.(g), l.id).toBeTruthy();
+      if (l.id !== 'bag' && l.id !== 'build') expect(l.target?.(g), l.id).toBeTruthy();
       playLesson(r, g);
     }
   });
 
-  it('the marks step lays a practice workbench outline beyond the ring, and a pinch per mark fills it', () => {
+  it('the player places the workbench outline: nothing appears by itself after walking', () => {
     const g = new Game();
     const r = new TutorialRunner(g);
-    r.begin(LESSONS.findIndex((l) => l.id === 'marks'));
+    playLesson(r, g); // stone
+    playLesson(r, g); // ring
+    at(r, 'build');
+    expect(bench(g)).toBeUndefined();
+    g.placeFromBook('workbench', 1, 0);
+    r.poll(ui);
+    at(r, 'marks');
     const b = bench(g)!;
-    expect(Math.hypot(b.x - BENCH_SITE.x, b.z - BENCH_SITE.z)).toBeLessThan(1.5);
+    expect(b.x).toBeGreaterThan(g.player.x); // where the player chose (to the side), not a fixed spot
     expect(g.fillFromBag(b.id, 0)).toBe(true);
-    expect(b.spots[0]).not.toBeNull();
+  });
+
+  it('the flat stone step points at the slab first, then at the glowing top', () => {
+    const g = new Game();
+    const r = new TutorialRunner(g);
+    r.begin(LESSONS.findIndex((l) => l.id === 'top'));
+    const top = LESSONS.find((l) => l.id === 'top')!;
+    expect(top.target!(g)!.id).toMatch(/slab/);
+    g.gather('slab', 'tutorial');
+    expect(top.target!(g)!.id).toMatch(/^mark_/);
+    g.fillFromBag(bench(g)!.id, -1);
+    expect(r.lesson.id).toBe('bag');
   });
 
   it('a step can be skipped, and the whole thing too', () => {
@@ -145,7 +164,7 @@ describe('THE FIRST STEPS: seven one-instruction steps', () => {
     r.skipLesson();
     r.skipLesson();
     const r2 = new TutorialRunner(new Game(), JSON.parse(JSON.stringify(r.snapshot())));
-    at(r2, 'marks');
+    at(r2, 'build');
     expect(r2.done.has('stone')).toBe(true);
   });
 

@@ -2,9 +2,9 @@
 // Quit Game), and two small Turn buttons at the sides of the view (VR). All of them are big fingertip / gaze-pinch
 // targets (PanelTouch); in the browser the Pause button sits in the top-right corner and Escape toggles the card.
 
-import { createSystem, type Entity, RayInteractable, ScreenSpace, type UIKit, type UIKitMLAsset, VisibilityState } from '@iwsdk/core';
+import { createSystem, type Entity, findUIKitDocument, RayInteractable, ScreenSpace, type UIKit, type UIKitMLAsset, VisibilityState } from '@iwsdk/core';
 import { PanelTouch } from './panel-touch.js';
-import { FAR_CARD_DISTANCE, FAR_CARD_DOWN, getGame, getUi, hidePanel, menu, StaticAnchor } from './shared.js';
+import { cover, FAR_CARD_DISTANCE, FAR_CARD_DOWN, getGame, getUi, hidePanel, menu, StaticAnchor } from './shared.js';
 import { clearSave, WorldSystem } from './world-system.js';
 
 const SCALE = 0.085;
@@ -168,16 +168,26 @@ export class PauseSystem extends createSystem({}) {
     if (!this.ready) return;
     const started = this.world.getSystem(WorldSystem)?.started ?? false;
     const titleUp = getUi(this.world).titleOpen?.() ?? false;
-    if (!started || titleUp) {
+    // The Start Game screen covers everything: no pause or turn buttons over it.
+    if (!started || titleUp || cover.on) {
       if (this.shown) {
         this.shown = false;
-        for (const p of [this.btn, this.card, this.left, this.right]) hidePanel(p.panel);
-        this.flatLayout();
+        for (const p of [this.btn, this.card, this.left, this.right]) {
+          hidePanel(p.panel);
+          // Flat view: the button and card are screen overlays (their documents ride on the camera): hide those too.
+          if (p.entity.hasComponent(ScreenSpace)) p.entity.removeComponent(ScreenSpace);
+          const doc = findUIKitDocument(p.panel);
+          if (doc) doc.visible = false;
+        }
       }
       return;
     }
     if (!this.shown) {
       this.shown = true;
+      for (const p of [this.btn, this.card, this.left, this.right]) {
+        const doc = findUIKitDocument(p.panel);
+        if (doc) doc.visible = true;
+      }
       this.onVisibility(this.world.visibilityState.peek());
     }
     // Expire a stale "tap again" prompt.

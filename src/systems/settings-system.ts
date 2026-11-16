@@ -44,13 +44,12 @@ const BASE_SNAP = { releaseRadius: ASSIST.releaseRadius, touchRadius: ASSIST.tou
 export const guidanceCfg = { nextTarget: true };
 
 /** Apply settings to every live tuning object. Exported for tests and for the debug hook. */
-export function applySettings(s: Settings, game?: { easyBuild: boolean }): void {
+export function applySettings(s: Settings): void {
   const t = tuning(s);
   ASSIST.releaseRadius = BASE_SNAP.releaseRadius * t.snap;
   ASSIST.touchRadius = BASE_SNAP.touchRadius * t.snap;
   ASSIST.magnetRadius = BASE_SNAP.magnetRadius * t.snap;
   ASSIST.catchRadius = BASE_SNAP.catchRadius * t.snap;
-  if (game) game.easyBuild = t.easyBuild;
   guidanceCfg.nextTarget = t.nextTarget;
   STRUGGLE.delay = t.helpDelay;
   TOLERANCE.sensitivity = t.sensitivity;
@@ -81,7 +80,7 @@ export class SettingsSystem extends createSystem({}) {
     // A brand-new player (no start choice, no survival save) starts Guided; an existing game keeps Standard.
     this.settings = loadSettings(store, !choiceMade(store));
     saveSettings(store, this.settings);
-    applySettings(this.settings, getGame(this.world));
+    applySettings(this.settings);
     const ui = getUi(this.world);
     ui.openSettings = () => this.setOpen(true);
     ui.settingsOpen = () => this.open;
@@ -153,7 +152,7 @@ export class SettingsSystem extends createSystem({}) {
     }
     this.settings = s;
     saveSettings(browserStore(), s);
-    applySettings(s, getGame(this.world));
+    applySettings(s);
     getGame(this.world).log.add(`settings: ${key} = ${value}`);
     this.render();
   }

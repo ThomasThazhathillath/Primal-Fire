@@ -41,9 +41,9 @@ export const CLIP_LABEL: Record<GhostClip, string> = {
 export const LESSON_CLIPS: Record<string, GhostClip> = {
   stone: 'pinch',
   ring: 'teleport',
+  build: 'point',
   marks: 'pinch',
-  slab: 'grab',
-  top: 'release',
+  top: 'pinch',
   bag: 'point',
   bench: 'pinch',
 };

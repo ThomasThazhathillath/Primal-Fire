@@ -1,5 +1,16 @@
 # Fresh-save walkthrough
 
+## Tutorial flow round (Nov 16, branch `claude/tutorial-flow`)
+
+Same script, new steps. VR (IWER, emulated hands, real ray-aim + pinch and button pinches; only the walk uses the
+teleport hook), from a wiped save: stone 9.2 s, ring 13.2 s, **Open Build, place a workbench 42.5 s** (Menu, Build,
+Workbench, aim, pinch), marks 70.3 s, **Put the flat stone on top 90.1 s** (pinch the slab, pinch the glowing top),
+bag 102.5 s, bench 114.8 s, then the **Start Game screen** covers the view. Desktop, from a wiped save with real mouse
+clicks (Play, the stone, Build, the Workbench tile, the ground, the three marks, the slab, the glowing top, Bag, the
+workbench) and W to walk: the same seven steps end on the same screen. "Redo the tutorial" (mouse) reloads into
+step 1 of a fresh tutorial; "Start the game" (mouse on the desktop, pinch in VR) reloads into the real game with the
+learned controls carried over. Screenshots: `docs/shots-flow2/`.
+
 ## Simplicity round (Nov 13): the seven first steps
 
 `scripts/npe-walkthrough.sh` on a wiped save (tutorial, Guided). The emulated right hand does the real thing for

@@ -400,7 +400,8 @@ export class GazeTargetSystem extends createSystem({
       case 'seatHeld': {
         const m = this.marks[t.ref];
         if (!m || !game.held) return;
-        const ok = m.index >= 0 ? game.fillSpot(m.structure.id, m.index, game.held, { x: m.x, z: m.z }) : game.placeKey(m.structure.id, m.x, m.z, 1);
+        // The top goes on in one pinch (fillFromBag lifts it with both hands' strength); a support is set at its mark.
+        const ok = m.index >= 0 ? game.fillSpot(m.structure.id, m.index, game.held, { x: m.x, z: m.z }) : game.fillFromBag(m.structure.id, -1);
         if (ok) {
           gazeStats.placed++;
           this.pickedHand = -1;

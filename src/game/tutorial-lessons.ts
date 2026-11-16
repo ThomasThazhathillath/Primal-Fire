@@ -14,7 +14,7 @@ import { openMarks } from './assist.js';
 import { tutorialSpots } from './tutorial-layout.js';
 
 /** The seven first steps (NPE simplicity round): one short instruction each, verb first. */
-export type LessonId = 'stone' | 'ring' | 'marks' | 'slab' | 'top' | 'bag' | 'bench';
+export type LessonId = 'stone' | 'ring' | 'build' | 'marks' | 'top' | 'bag' | 'bench';
 
 /** What the runner has seen since the current lesson started. */
 export interface LessonCtx {
@@ -179,6 +179,16 @@ export const LESSONS: Lesson[] = [
     tasks: [{ text: 'Walk into the glowing ring', done: (_c, g) => Math.hypot(g.player.x - RING.x, g.player.z - RING.z) < 0.9 }],
   },
   {
+    id: 'build',
+    builds: 'workbench',
+    title: 'Open Build, place a workbench',
+    say: 'Open Build, place a workbench.',
+    science: 'Build on flat, open ground: soft or sloping ground lets a load sink or slide.',
+    tip: 'Tap Menu, then the hammer (Build), then Workbench. Point at open ground and pinch: the outline goes there.',
+    setup: freeHands,
+    tasks: [{ text: 'Open Build, place a workbench', done: (_c, g) => !!bench(g) }],
+  },
+  {
     id: 'marks',
     builds: 'workbench',
     title: 'Pinch each glowing mark',
@@ -189,36 +199,23 @@ export const LESSONS: Lesson[] = [
     setup: (g) => {
       freeHands(g);
       ensure(g, { dryStone: 3 });
+      // The player placed the outline in the Build step; a skipped Build step still gets one, so nothing strands.
       benchOutline(g);
     },
     target: (g) => nextMark(g, false),
     tasks: [{ text: 'Pinch each glowing mark', done: (_c, g) => !!bench(g) && bench(g)!.spots.every((v) => v !== null) }],
   },
   {
-    id: 'slab',
-    builds: 'workbench',
-    title: 'Pinch the flat stone',
-    say: 'Pinch the flat stone.',
-    science: 'A flat, heavy top spreads the load over all three legs.',
-    tip: 'It is heavy: it stays in your hand, not in the pouch.',
-    setup: freeHands,
-    target: (g) => (has(g, 'slab') > 0 ? null : liveCampSpot(g, 'slab')),
-    // In hand, or in the bag (the easy-carry build bags even heavy things).
-    tasks: [{ text: 'Pinch the flat stone', done: (c, g) => c.heldKinds.has('slab') || c.gathered.has('slab') || has(g, 'slab') > 0 || !!bench(g)?.complete }],
-  },
-  {
     id: 'top',
     builds: 'workbench',
-    title: 'Put it on top',
-    say: 'Put it on top.',
-    science: 'Now you have a steady surface to work on.',
-    tip: 'Carry it over the glowing top and open your hand. Or pinch the top.',
-    setup: (g) => {
-      benchReady(g, false);
-      if (g.held !== 'slab' && !bench(g)?.complete) ensure(g, { slab: 1 });
-    },
-    target: (g) => nextMark(g, true),
-    tasks: [{ text: 'Put it on top', done: (_c, g) => !!bench(g)?.complete }],
+    title: 'Put the flat stone on top',
+    say: 'Put the flat stone on top.',
+    science: 'A flat, heavy top spreads the load over all three legs: now you have a steady surface.',
+    tip: 'Pinch the flat stone, then pinch the glowing top. It goes on in one go.',
+    setup: (g) => benchReady(g, false),
+    // The arrow points at the flat stone until you have it, then at the glowing top.
+    target: (g) => (bench(g)?.complete ? null : has(g, 'slab') > 0 ? nextMark(g, true) : liveCampSpot(g, 'slab')),
+    tasks: [{ text: 'Put the flat stone on top', done: (_c, g) => !!bench(g)?.complete }],
   },
   {
     id: 'bag',
@@ -254,8 +251,9 @@ export const LESSON_IDS = LESSONS.map((l) => l.id);
  */
 export function guidedReveal(current: number, done: ReadonlySet<LessonId>, finished: boolean): { menu: boolean; objective: boolean } {
   if (finished) return { menu: true, objective: true };
-  const bag = LESSON_IDS.indexOf('bag');
-  return { menu: current >= bag || done.has('bag'), objective: false };
+  // The menu comes with the Build step: it is where Build lives.
+  const build = LESSON_IDS.indexOf('build');
+  return { menu: current >= build || done.has('build'), objective: false };
 }
 
 /** Lesson ids from before the seven-step rework: a save that names one resumes at the first step. */
@@ -263,7 +261,8 @@ export const OLD_ORDER: readonly string[] = ['hands', 'look', 'gather', 'satchel
 
 /** The saved open step as an index into today's LESSONS (by id); anything older or unknown starts at step 1. */
 export function savedLessonIndex(save: Pick<TutorialSave, 'current' | 'currentId'>): number {
-  const i = save.currentId ? LESSON_IDS.indexOf(save.currentId) : -1;
+  const id = (save.currentId as string) === 'slab' ? 'top' : save.currentId;
+  const i = id ? LESSON_IDS.indexOf(id) : -1;
   return i >= 0 ? i : 0;
 }
 
@@ -606,8 +605,8 @@ export const CLOSING: string[] = ['Well done. Now the forest is yours.'];
 export const STEP_HOURS: Record<LessonId, number> = {
   stone: 13,
   ring: 13.5,
-  marks: 14.5,
-  slab: 15.5,
+  build: 14.5,
+  marks: 15.5,
   top: 16.5,
   bag: 17.5,
   bench: 18.5,

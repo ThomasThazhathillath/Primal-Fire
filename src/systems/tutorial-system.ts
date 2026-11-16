@@ -18,7 +18,7 @@ import type { InteractionId } from '../game/objectives.js';
 import { ghost } from './shared.js';
 import { LESSON_CLIPS } from './ghost-hand-system.js';
 import { CLOSING, guidedReveal, LESSONS, OPENING, storyHour, TutorialRunner, type TutorialSave } from '../game/tutorial-lessons.js';
-import { choiceMade, chooseSurvival, loadProgressRaw, reloadInto, saveCarry, saveProgressRaw, takeCarry } from '../game/tutorial-mode.js';
+import { choiceMade, chooseSurvival, clearProgress, loadProgressRaw, reloadInto, saveCarry, saveProgressRaw, takeCarry } from '../game/tutorial-mode.js';
 import { PanelTouch } from './panel-touch.js';
 import { assistFx, getGame, getUi, hidePanel, menu, reveal, StaticAnchor, uiText } from './shared.js';
 import { groundHeight } from '../game/world-layout.js';
@@ -108,6 +108,11 @@ export class TutorialSystem extends createSystem({}, { tutorial: { type: Types.B
     );
 
     if (tutorial) this.startRunner();
+    // The Start Game screen (StartGameSystem) asks these.
+    const ui = getUi(this.world);
+    ui.tutorialDone = () => !!this.runner?.finished && this.config.tutorial.peek();
+    ui.startGame = () => this.leave(true);
+    ui.redoTutorial = () => this.redo();
     this.installDebug();
   }
 
@@ -210,6 +215,16 @@ export class TutorialSystem extends createSystem({}, { tutorial: { type: Types.B
     this.lines.push("Morning. Last night's fire is ash, and you are somewhere new.", 'The mast is still there on the horizon. You know how to begin.');
   }
 
+  /** The first steps again, from step 1, in a fresh tutorial camp (the page reloads into it). */
+  private redo(): void {
+    if (!this.config.tutorial.peek()) return;
+    clearProgress();
+    // In the opening the save key is its own: this drops its game and blocks the pagehide save.
+    clearSave();
+    getGame(this.world).log.add('tutorial: redo from step 1', 'ok');
+    reloadInto('tutorial');
+  }
+
   private practise(): void {
     this.mode = 'lesson';
     this.dirty = true;
@@ -273,9 +288,15 @@ export class TutorialSystem extends createSystem({}, { tutorial: { type: Types.B
    */
   private applyReveal(): void {
     const r = this.runner;
-    if (!r || r.finished || !this.config.tutorial.peek()) {
+    if (!r || !this.config.tutorial.peek()) {
       reveal.menu = true;
       reveal.objective = true;
+      return;
+    }
+    if (r.finished) {
+      // The Start Game screen covers everything: no menu, no goal card behind it.
+      reveal.menu = false;
+      reveal.objective = false;
       return;
     }
     const v = guidedReveal(r.current, r.done, r.finished);
@@ -301,6 +322,12 @@ export class TutorialSystem extends createSystem({}, { tutorial: { type: Types.B
     this.speak(delta);
     this.moveSky(delta);
     if (this.mode === 'hidden') return;
+    // All steps done: the Start Game screen covers the view instead of this card.
+    if (this.mode === 'finished' && this.config.tutorial.peek()) {
+      if (panel.visible) hidePanel(panel);
+      this.pollRunner(delta);
+      return;
+    }
     // Another panel (bag, bench, notebook, hint) is open: step aside so the two never overlap.
     const ui = getUi(this.world);
     if (menu.current !== null || (ui.notebookOpen?.() ?? false) || (ui.hintOpen?.() ?? false)) {

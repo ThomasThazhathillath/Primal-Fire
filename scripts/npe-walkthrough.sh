@@ -20,7 +20,8 @@ pinch() { cli xr run-sequence --input-json '{"device":"hand-right","steps":[{"la
 look() { cli xr look-at --input-json "{\"device\":\"hand-right\",\"target\":{\"x\":$1,\"y\":$2,\"z\":$3}}" >/dev/null; sleep 0.35; }
 aim_target() {
   cli xr run-sequence --input-json '{"device":"hand-right","steps":[{"label":"rest","position":{"x":0.2,"y":1.1,"z":-0.35},"anchor":"index-tip","duration":0.25}]}' --timeout 60000 >/dev/null
-  local t=$(ev "(() => { const e = window.__assist.fx.exact; return e ? [e.x, e.y + 0.08, e.z].map(v => +v.toFixed(3)).join(' ') : ''; })()" | tr -d '"')
+  local t="$1"
+  [ -z "$t" ] && t=$(ev "(() => { const e = window.__assist.fx.exact; return e ? [e.x, e.y + 0.08, e.z].map(v => +v.toFixed(3)).join(' ') : ''; })()" | tr -d '"')
   [ -z "$t" ] && { echo "  (no target)"; return; }
   local T=(${=t}); local A=(${=t})
   for i in 1 2 3 4; do
@@ -39,7 +40,7 @@ press() {
   local c=$(ev "(() => { const t = window.__touch['$1'].targets().find(x => x.id === '$2'); if (!t) return ''; const pl = window.__primal.world.player; const at = (k) => { const v = pl.worldToLocal(pl.position.clone().set(t.c[0] + t.n[0] * k, t.c[1] + t.n[1] * k, t.c[2] + t.n[2] * k)); return [v.x, v.y, v.z].map(n => +n.toFixed(3)).join(' '); }; return at(0.12) + ' ' + at(0.015); })()" | tr -d '"')
   [ -z "$c" ] && { echo "  (no button $1/$2)"; return; }
   local P=(${=c})
-  cli xr run-sequence --input-json "{\"device\":\"hand-right\",\"steps\":[{\"label\":\"out\",\"position\":{\"x\":$P[1],\"y\":$P[2],\"z\":$P[3]},\"anchor\":\"index-tip\",\"duration\":0.4},{\"label\":\"to\",\"position\":{\"x\":$P[4],\"y\":$P[5],\"z\":$P[6]},\"anchor\":\"index-tip\",\"duration\":0.4},{\"label\":\"settle\",\"duration\":0.3},{\"label\":\"pinch\",\"pinch\":{\"value\":1},\"duration\":0.3},{\"label\":\"open\",\"pinch\":{\"value\":0},\"duration\":0.3},{\"label\":\"away\",\"position\":{\"x\":$P[1],\"y\":$P[2],\"z\":$P[3]},\"anchor\":\"index-tip\",\"duration\":0.3}]}" --timeout 60000 >/dev/null
+  cli xr run-sequence --input-json "{\"device\":\"hand-right\",\"steps\":[{\"label\":\"out\",\"position\":{\"x\":$P[1],\"y\":$P[2],\"z\":$P[3]},\"anchor\":\"index-tip\",\"duration\":0.4},{\"label\":\"to\",\"position\":{\"x\":$P[4],\"y\":$P[5],\"z\":$P[6]},\"anchor\":\"index-tip\",\"duration\":0.4},{\"label\":\"settle\",\"duration\":0.3},{\"label\":\"pinch\",\"pinch\":{\"value\":1},\"duration\":0.3},{\"label\":\"open\",\"pinch\":{\"value\":0},\"duration\":0.3},{\"label\":\"let go\",\"duration\":0.6},{\"label\":\"away\",\"position\":{\"x\":$P[1],\"y\":$P[2],\"z\":$P[3]},\"anchor\":\"index-tip\",\"duration\":0.3}]}" --timeout 60000 >/dev/null
   sleep 0.8
 }
 step() { ev "window.__tutorial.state().id"; }
@@ -73,13 +74,21 @@ sleep 2
 
 echo "== 1 Pinch the glowing stone"; aim_target; step
 echo "== 2 Walk into the glowing ring"; ev "(async () => { window.__primal.goTo(0.2, -2.4); await new Promise(r => setTimeout(r, 1200)); return 1; })()" >/dev/null; step
-echo "== 3 Pinch each glowing mark"; aim_target; aim_target; aim_target; step
-echo "== 4 Pinch the flat stone"; aim_target; step
-echo "== 5 Put it on top"; aim_target; step
-echo "== 6 Tap the bag"; press menu slot-14; sleep 1; press menu slot-0; step
+echo "== 3 Open Build, place a workbench"
+[ "$(ev "String(window.__iconbar.menu.gridOpen)" | tr -d '"')" = "true" ] || press menu slot-14
+press menu slot-12
+E_IDX=$(ev "window.__primal.game.bookEntries().findIndex(e => e.id === 'workbench')" | tr -d '"')
+press book entry-$E_IDX
+# Point at open ground a couple of metres ahead and to the right, and pinch: the outline goes there.
+aim_target "$(ev "(() => { const pl = window.__primal.game.player; return [pl.x + 0.8, 0.05, pl.z - 2.2].map(v => +v.toFixed(3)).join(' '); })()" | tr -d '"')"; step
+echo "== 4 Pinch each glowing mark"; aim_target; aim_target; aim_target; step
+echo "== 5 Put the flat stone on top"; aim_target; aim_target; step
+echo "== 6 Tap the bag"
+[ "$(ev "String(window.__iconbar.menu.gridOpen)" | tr -d '"')" = "true" ] || press menu slot-14
+press menu slot-0; step
 ev "(async () => { window.__iconbar.menu.back(); await new Promise(r => setTimeout(r, 800)); return 1; })()" >/dev/null
 echo "== 7 Pinch your workbench"; aim_target; step
 sleep 1
 
 echo "== results"
-ev "(() => { const w = window.__wt; clearInterval(w.timer); const s = window.__tutorial.state(); return JSON.stringify({ marks: w.marks, finished: s.finished, targetShownFor: Object.keys(w.targetShown), log: window.__primal.game.log.lines.slice(-40).map(l => l.text.replace(/^.*· /, '')).filter(t => /pinch|gather|opening step|filled|placed|spot |tap|lock|bench/.test(t)) }); })()"
+ev "(() => { const w = window.__wt; clearInterval(w.timer); const s = window.__tutorial.state(); return JSON.stringify({ marks: w.marks, finished: s.finished, startGameScreen: window.__startGame?.shown?.(), targetShownFor: Object.keys(w.targetShown), log: window.__primal.game.log.lines.slice(-40).map(l => l.text.replace(/^.*· /, '')).filter(t => /pinch|gather|opening step|filled|placed|spot |tap|lock|bench/.test(t)) }); })()"

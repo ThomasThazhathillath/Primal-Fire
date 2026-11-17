@@ -10,6 +10,7 @@
 // Stored in localStorage under its own key (never inside the save, so old saves load unchanged and the choice
 // carries across the tutorial and survival pages). Every option applies at once: no restart.
 
+import type { SurvivalPressure } from './survival/body.js';
 import type { KeyStore } from './tutorial-mode.js';
 
 export type AssistMode = 'guided' | 'standard' | 'explorer';
@@ -29,6 +30,8 @@ export interface Settings {
   sensitivity: Amount;
   /** Seated play: a little more reach, so nothing needs a stretch. */
   seated: boolean;
+  /** How quickly warmth, water, food and rest run down (survival/body.ts). */
+  survival: SurvivalPressure;
 }
 
 export const SETTINGS_KEY = 'primal-first-fire.settings.v1';
@@ -37,10 +40,11 @@ export const MODES: readonly AssistMode[] = ['guided', 'standard', 'explorer'];
 const AMOUNTS: readonly Amount[] = ['low', 'normal', 'high'];
 const SIZES: readonly TextSize[] = ['small', 'normal', 'large'];
 const GUIDES: readonly Guidance[] = ['minimal', 'normal', 'full'];
+export const PRESSURES: readonly SurvivalPressure[] = ['off', 'gentle', 'realistic'];
 
 /** A first-time player starts Guided; someone with a game already under way keeps the game they know (Standard). */
 export function defaultSettings(newPlayer: boolean): Settings {
-  return { v: 1, mode: newPlayer ? 'guided' : 'standard', textSize: 'normal', hints: 'normal', guidance: 'normal', sensitivity: 'normal', seated: false };
+  return { v: 1, mode: newPlayer ? 'guided' : 'standard', textSize: 'normal', hints: 'normal', guidance: 'normal', sensitivity: 'normal', seated: false, survival: 'gentle' };
 }
 
 const pick = <T extends string>(v: unknown, list: readonly T[], fallback: T): T => (list.includes(v as T) ? (v as T) : fallback);
@@ -64,6 +68,7 @@ export function loadSettings(store: KeyStore | null, newPlayer: boolean): Settin
     guidance: pick(raw.guidance, GUIDES, d.guidance),
     sensitivity: pick(raw.sensitivity, AMOUNTS, d.sensitivity),
     seated: typeof raw.seated === 'boolean' ? raw.seated : d.seated,
+    survival: pick(raw.survival, PRESSURES, d.survival),
   };
 }
 

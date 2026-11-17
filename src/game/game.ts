@@ -5,7 +5,7 @@ import { type StorySave, StoryTracker } from './story.js';
 import { Wildlife } from './wildlife.js';
 import { freshness, Tracks } from './tracks.js';
 import { LIVING_QUESTS, livingProgress } from './living-quests.js';
-import { Environment, type EnvironmentSave } from './environment.js';
+import { Environment, type EnvironmentSave, fireExposed } from './environment.js';
 import { actionFor } from './actions.js';
 import { BENCH_BY_ID, BenchSession, canStart, missingText, type BenchMotion } from './bench.js';
 import { bookEntries, findBookSpot, type BookEntry } from './buildbook.js';
@@ -54,6 +54,8 @@ import { deriveLessons } from './curriculum/migrate.js';
 import { LessonTracker, type LessonsSave, type NextLesson } from './curriculum/tracker.js';
 import type { LessonId, Step } from './curriculum/types.js';
 import { SAVE_VERSION } from './save.js';
+import { Body, type BodySave, type Level, type Need } from './survival/body.js';
+import { microclimate, type Microclimate } from './survival/climate.js';
 
 export type FlagId =
   | 'cordMade'
@@ -94,6 +96,7 @@ export type GameEvent =
   | { type: 'lash'; id: number; index: number; progress: number }
   | { type: 'objectiveDone'; id: string; message: string }
   | { type: 'lessonComplete'; lesson: LessonId; n: number; name: string; next: NextLesson | null }
+  | { type: 'body'; need: Need; level: Level }
   | { type: 'discovered'; landmark: Landmark }
   | { type: 'fire'; stage: FireStage; first?: boolean }
   | { type: 'arrow'; hit: boolean }
@@ -244,6 +247,12 @@ export class Game {
   readonly lessons: LessonTracker = new LessonTracker(this, (e) => this.emit(e));
   /** A message to show once play starts (e.g. after an old save was moved into lessons). */
   startupNotice: string | null = null;
+  /** Warmth, water, food, rest and wetness (survival/body.ts), stepped in the 4 Hz slow tick. */
+  readonly body: Body = new Body((e) => this.onBodyLevel(e.need, e.level));
+  /** What the body felt on the last slow tick (for feedback and the notebook). */
+  climate: Microclimate | null = null;
+  private lastBodyPos = { x: 0, z: 0 };
+  private wasRaining = false;
 
   // ------------------------------------------------------------ focus API
   // Systems ask these instead of reaching into objectives, quests or story flags, so the tracker
@@ -353,10 +362,12 @@ export class Game {
 
   get moveLimits(): MoveLimits {
     const lim = moveLimits(this.carriedWeight, this.capacity.load);
+    // Cold, exhaustion and thirst slow you too (never to a stop).
+    const body = this.body.speedFactor();
     // Something big in your arms slows you and stops you running, whatever the bag weighs.
     const carry = carrySpeed(this.held);
-    if (carry >= 1) return lim;
-    return { ...lim, speed: lim.speed * carry, canRun: false };
+    if (carry >= 1) return body >= 1 ? lim : { ...lim, speed: lim.speed * body };
+    return { ...lim, speed: lim.speed * carry * body, canRun: false };
   }
 
   /** Two things touched: material sound, particles and positional audio (AudioSystem / ContactFxSystem). */
@@ -773,6 +784,7 @@ export class Game {
     // The slow step (4 Hz): shelter rain test and lesson progress from state.
     if ((this.shelterT += dt) >= 0.25) {
       this.tickShelter(this.shelterT);
+      this.tickBody(this.shelterT);
       this.shelterT = 0;
       this.lessons.update();
     }
@@ -1921,6 +1933,59 @@ export class Game {
 
   // -------------------------------------------------------------- quests
 
+  // ------------------------------------------------------------ the body (survival/)
+
+  /** Where the player stands right now, as the body feels it. */
+  microclimateHere(): Microclimate {
+    const { x, z } = this.player;
+    const lean = this.leanTo();
+    const sheltered = this.insideShelter(x, z) && !!lean && leakingPanels(lean).length === 0;
+    const onBed = this.structures.some((s) => s.kind === 'bedding' && s.complete && Math.hypot(s.x - x, s.z - z) < 0.9);
+    let fireDist = Infinity;
+    for (const s of this.structures) if (s.kind === 'firePit' && s.complete) fireDist = Math.min(fireDist, Math.hypot(s.x - x, s.z - z));
+    const env = this.env;
+    return microclimate(
+      { hour: env.hour, night: env.night, cloud: env.cloud, rain: env.rain, wind: env.windStrength },
+      { sheltered, onBed, fireDist, fireBurning: this.fire.stage === 'burning' },
+    );
+  }
+
+  private tickBody(dt: number): void {
+    const m = this.microclimateHere();
+    this.climate = m;
+    const moved = Math.hypot(this.player.x - this.lastBodyPos.x, this.player.z - this.lastBodyPos.z);
+    this.lastBodyPos.x = this.player.x;
+    this.lastBodyPos.z = this.player.z;
+    const resting = m.sheltered && moved < 0.05 * Math.max(1, dt / 0.25);
+    this.body.tick(dt, m, resting);
+    // What the body and the weather teach (each recorded once: game.science is idempotent).
+    if (this.body.wet > 0.5 && m.rain > 0.1) this.science('body.cold.wet');
+    if (this.body.water < 30 && this.body.pressure !== 'off') this.science('body.thirst.warning');
+    if (m.night > 0.7 && this.env.cloud < 0.3 && !m.sheltered) this.science('weather.night.clear');
+    if (m.sheltered && this.env.windStrength > 0.3) this.science('shelter.wind.blocked');
+    if (resting && m.onBed) this.science('shelter.bed.insulated');
+    const raining = this.env.rain > 0.2;
+    if (raining && !this.wasRaining && this.fire.stage === 'burning') {
+      const pit = this.structures.find((s) => s.kind === 'firePit' && s.complete);
+      if (pit && fireExposed(this.structures, pit.x, pit.z)) this.science('weather.rain.start');
+    }
+    this.wasRaining = raining;
+  }
+
+  /** A need crossed a threshold: say so once, plainly, with what helps. */
+  private onBodyLevel(need: Need, level: Level): void {
+    this.emit({ type: 'body', need, level });
+    if (level === 'ok') return;
+    const critical = level === 'critical';
+    const text: Record<Need, string> = {
+      warmth: critical ? 'You are very cold and moving slowly. Get under a roof, out of the wind, or near a fire.' : 'You are getting cold. Wind and wet clothes steal heat; shelter or a fire helps.',
+      water: critical ? 'You badly need water. Drink at the stream now.' : 'You are thirsty. Drink: the stream will do for now, but clear water is not always safe water.',
+      food: critical ? 'You are weak with hunger. Eat something: berries, nuts, fish.' : 'You are getting hungry. Food is fuel for warmth and work.',
+      rest: critical ? 'You are exhausted. Rest under your roof, best on a bed.' : 'You are tired. Stand still under your roof to rest; a bed helps most.',
+    };
+    this.toast(text[need], critical ? 'bad' : 'note');
+  }
+
   /** Something changed: settle lesson progress (and open the shelter story when its work begins). */
   checkProgress(): void {
     if (this.focusIs('pole', 'frame', 'roof', 'rainTest', 'bed')) this.science('story.ch2.begin');
@@ -2012,6 +2077,7 @@ export class Game {
       toolUses: Object.fromEntries(this.toolUses),
       fire: this.fire.snapshot(),
       lessons: this.lessons.snapshot(),
+      body: this.body.snapshot(),
       story: this.story.snapshot(),
       assist: this.assist.snapshot(),
       shelterTest: this.shelterTest.snapshot(),
@@ -2060,6 +2126,7 @@ export class Game {
     // Saves from before the day/night clock: wake up in the morning, not at whatever hour the play time implies.
     if (!data.env) g.env.hourOffset = -(((g.time / g.env.dayLength) * 24) % 24);
     g.held = data.held && data.held in ITEMS ? data.held : null;
+    g.body.restore(data.body);
     if (data.lessons) g.lessons.restore(data.lessons);
     else {
       // A version-1 save: work out lesson progress from what it holds (curriculum/migrate.ts).
@@ -2078,6 +2145,8 @@ export interface SaveData {
   v: 1 | 2;
   /** Curriculum progress; absent in version-1 saves (worked out from the state, curriculum/migrate.ts). */
   lessons?: LessonsSave;
+  /** Warmth, water, food, rest; absent in older saves (you start comfortable). */
+  body?: BodySave;
   fire?: FireSave;
   /** Version-1 beginner objectives (read only, for migration; no longer written). */
   objectives?: ObjectivesSave;

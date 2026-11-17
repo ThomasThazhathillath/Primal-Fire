@@ -594,6 +594,7 @@ export class FoodState {
       case 'eat':
         if (g.held !== 'cookedFish') return false;
         g.useItem('cookedFish');
+        g.body.eat(40);
         g.science('body.eat');
         g.toast('Hot, flaky fish. Your strength comes back.', 'good');
         g.checkProgress();
@@ -639,6 +640,7 @@ export class FoodState {
         const h = g.held;
         if (h !== 'berries' && h !== 'nuts' && h !== 'driedFish') return false;
         g.useItem(h);
+        g.body.eat(h === 'driedFish' ? 35 : h === 'nuts' ? 25 : 15);
         g.science('body.eat');
         if (h === 'driedFish') g.science('food.preserved.eaten');
         g.toast(h === 'driedFish' ? 'Chewy and salty-smoky: dried fish keeps and still feeds.' : 'A small, sweet, filling handful.', 'good');

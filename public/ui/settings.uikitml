@@ -82,5 +82,11 @@
     <Button class="opt t-btn" id="s-seated-off" size="sm" variant="secondary"><ButtonLabel class="opttext">Off</ButtonLabel></Button>
     <Button class="opt t-btn" id="s-seated-on" size="sm" variant="secondary"><ButtonLabel class="opttext">On</ButtonLabel></Button>
   </div>
+  <div class="lbl t-label">SURVIVAL PRESSURE (WARMTH, WATER, FOOD, REST)</div>
+  <div class="seg">
+    <Button class="opt t-btn" id="s-survival-off" size="sm" variant="secondary"><ButtonLabel class="opttext">Off</ButtonLabel></Button>
+    <Button class="opt t-btn" id="s-survival-gentle" size="sm" variant="secondary"><ButtonLabel class="opttext">Gentle</ButtonLabel></Button>
+    <Button class="opt t-btn" id="s-survival-realistic" size="sm" variant="secondary"><ButtonLabel class="opttext">Realistic</ButtonLabel></Button>
+  </div>
   <Button class="back t-go" id="s-back" size="lg"><ButtonIcon class="opttext"><ArrowLeft></ArrowLeft></ButtonIcon><ButtonLabel class="opttext">Done</ButtonLabel></Button>
 </div>

@@ -309,6 +309,16 @@ export class AudioSystem extends createSystem({}) {
         this.tone(520, 0.09, 'triangle', 0.18);
         this.tone(780, 0.14, 'sine', 0.14, 0.06);
         break;
+      case 'body':
+        // A need just got low: one soft, low two-note cue (lower and longer when critical). No loops.
+        if (e.level === 'low') {
+          this.tone(294, 0.25, 'sine', 0.07);
+          this.tone(247, 0.35, 'sine', 0.06, 0.18);
+        } else if (e.level === 'critical') {
+          this.tone(220, 0.4, 'sine', 0.09);
+          this.tone(165, 0.6, 'sine', 0.08, 0.25);
+        }
+        break;
       case 'objectiveDone':
         // Subtle: two soft rising notes.
         this.tone(660, 0.2, 'sine', 0.1);

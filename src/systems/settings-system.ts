@@ -15,6 +15,8 @@ import { compassCfg } from './compass-system.js';
 import { PanelTouch } from './panel-touch.js';
 import { reachCfg } from './resource-system.js';
 import { FAR_CARD_DISTANCE, FAR_CARD_DOWN, getGame, getUi, hidePanel, StaticAnchor, uiScale } from './shared.js';
+import type { SurvivalPressure } from '../game/survival/body.js';
+import { currentMode } from '../game/tutorial-mode.js';
 
 /** Settings takes the pause card's place, out of reach (look at a button and pinch), so it is drawn larger too. */
 const SCALE = 0.1;
@@ -35,6 +37,7 @@ const ROWS: Row[] = [
   { key: 'guidance', values: ['minimal', 'normal', 'full'] },
   { key: 'sensitivity', values: ['low', 'normal', 'high'] },
   { key: 'seated', values: ['off', 'on'] },
+  { key: 'survival', values: ['off', 'gentle', 'realistic'] },
 ];
 
 /** The placement radii as shipped; the snap setting scales from these. */
@@ -75,12 +78,18 @@ export class SettingsSystem extends createSystem({}) {
     return this.settings;
   }
 
+  /** The body simulation follows the setting; the tutorial teaches controls, so it is always off there. */
+  private applyPressure(): void {
+    getGame(this.world).body.pressure = currentMode() === 'tutorial' ? 'off' : this.settings.survival;
+  }
+
   async init(): Promise<void> {
     const store = browserStore();
     // A brand-new player (no start choice, no survival save) starts Guided; an existing game keeps Standard.
     this.settings = loadSettings(store, !choiceMade(store));
     saveSettings(store, this.settings);
     applySettings(this.settings);
+    this.applyPressure();
     const ui = getUi(this.world);
     ui.openSettings = () => this.setOpen(true);
     ui.settingsOpen = () => this.open;
@@ -149,10 +158,14 @@ export class SettingsSystem extends createSystem({}) {
       case 'seated':
         s.seated = value === 'on';
         break;
+      case 'survival':
+        s.survival = value as SurvivalPressure;
+        break;
     }
     this.settings = s;
     saveSettings(browserStore(), s);
     applySettings(s);
+    this.applyPressure();
     getGame(this.world).log.add(`settings: ${key} = ${value}`);
     this.render();
   }

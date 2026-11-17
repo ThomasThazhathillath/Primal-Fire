@@ -77,4 +77,5 @@ export default defineAssets({
   'startgame-panel': uikitml('startgame.uikitml', 'Start Game'),
   'turn-panel': uikitml('turn.uikitml', 'Turn Button'),
   'tutorial-panel': uikitml('tutorial.uikitml', 'Tutorial Tracker'),
+  'body-panel': uikitml('body.uikitml', 'Body Status'),
 });

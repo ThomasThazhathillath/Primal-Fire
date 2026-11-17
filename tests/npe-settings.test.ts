@@ -49,7 +49,7 @@ describe('assistance modes', () => {
 describe('settings persistence', () => {
   it('saved and reloaded exactly, under their own key (never inside the game save)', () => {
     const s = store();
-    const want: Settings = { v: 1, mode: 'explorer', textSize: 'large', hints: 'low', guidance: 'full', sensitivity: 'high', seated: true };
+    const want: Settings = { v: 1, mode: 'explorer', textSize: 'large', hints: 'low', guidance: 'full', sensitivity: 'high', seated: true, survival: 'realistic' };
     saveSettings(s, want);
     expect(loadSettings(s, true)).toEqual(want);
     expect([...s.m.keys()]).toEqual([SETTINGS_KEY]);

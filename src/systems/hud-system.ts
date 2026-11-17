@@ -228,10 +228,10 @@ export class HudSystem extends createSystem({
     // While the beginner objectives run, the objective card is the one place that names the task.
     const tutorial = !game.guiding();
     this.hud.requireElementById('quest-num').setProperties({ display: tutorial ? 'none' : 'flex' });
-    text('quest-num', lesson ? `LESSON ${String(lesson.n).padStart(2, '0')} OF ${LESSONS.length}: ${lesson.name.toUpperCase()}` : 'ALL LESSONS COMPLETE');
+    text('quest-num', lesson ? `LESSON ${String(lesson.n).padStart(2, '0')} OF ${String(LESSONS.length).padStart(2, '0')}` : 'ALL LESSONS COMPLETE');
     text('level', `Rank ${game.level}   ${game.xp} XP`);
     this.hud.requireElementById('quest-title').setProperties({ display: tutorial ? 'none' : 'flex' });
-    text('quest-title', lesson ? lesson.title : 'Life at your camp');
+    text('quest-title', lesson ? lesson.name : 'Life at your camp');
     text('quest-desc', lesson ? lesson.goal : 'Keep exploring - can you find every observation?');
     // The five lessons, ticked off as they finish.
     for (let i = 0; i < STEP_LINES; i++) {

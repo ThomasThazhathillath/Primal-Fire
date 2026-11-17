@@ -61,6 +61,7 @@ import { SettingsSystem } from './systems/settings-system.js';
 import { StartGameSystem } from './systems/start-game-system.js';
 import { TutorialSystem } from './systems/tutorial-system.js';
 import { StorySystem } from './systems/story-system.js';
+import { BodySystem } from './systems/body-system.js';
 import { currentMode, TUTORIAL_SAVE_KEY } from './game/tutorial-mode.js';
 import { tutorialSpots } from './game/tutorial-layout.js';
 import { RESOURCES } from './game/world-layout.js';
@@ -120,6 +121,7 @@ World.create(
     .registerSystem(ContactFxSystem)
     .registerSystem(HandsSystem)
     .registerSystem(HudSystem)
+    .registerSystem(BodySystem)
     .registerSystem(IconBarSystem)
     .registerSystem(PauseSystem)
     .registerSystem(AssistanceSystem)

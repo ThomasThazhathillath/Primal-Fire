@@ -50,7 +50,7 @@ export interface WaterSave {
 
 /** A thing the player can do right now, for prompts and the input layer. */
 export interface WaterAction {
-  id: 'firePot' | 'fillPot' | 'pourFilter' | 'boil' | 'digMound' | 'sealMound' | 'lightMound' | 'openMound' | 'drink';
+  id: 'firePot' | 'fillPot' | 'pourFilter' | 'boil' | 'digMound' | 'sealMound' | 'lightMound' | 'openMound' | 'drink' | 'drinkStream';
   label: string;
   at: { x: number; z: number };
 }
@@ -186,6 +186,8 @@ export class WaterState {
       return null;
     }
     if (held === 'diggingStick' && !m && g.count('logs') >= 2) return { id: 'digMound', label: 'Dig a charcoal pit and stack logs in it', at };
+    // Empty hands at the water: drink with cupped hands (quenches thirst; untreated water can carry germs).
+    if (!held && this.atStream(at) && g.body.wantsWater() && g.body.pressure !== 'off') return { id: 'drinkStream', label: 'Drink from the stream with cupped hands', at };
     return null;
   }
 
@@ -240,9 +242,21 @@ export class WaterState {
         this.boil = 0;
         g.toast('The pot is on the fire. Wait for a rolling boil.', 'info');
         return true;
+      case 'drinkStream': {
+        if (!this.atStream(g.player)) return false;
+        const sick = g.body.drinkRaw();
+        g.toast(
+          sick
+            ? 'Your stomach turns. Clear stream water can still carry germs you cannot see (Lesson 03).'
+            : 'Cold and fresh. It quenches your thirst, but untreated water is a gamble.',
+          sick ? 'bad' : 'info',
+        );
+        return true;
+      }
       case 'drink':
         if (this.potWater !== 'safe') return false;
         this.potWater = 'empty';
+        g.body.drinkSafe();
         g.science('body.drink');
         g.toast('Cool, clean water.', 'good');
         g.checkProgress();

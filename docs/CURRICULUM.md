@@ -60,8 +60,17 @@ Every outcome comes from a rule; the experiments only record what the rules prod
 | `treatment` | Stream water four ways: settle (a full pot left still 15 s, in the bag or set down), filter, boil unfiltered, filter then boil | `water.ts`: settled = clearer, germs; filtered = clear, germs; boiled raw = germs killed, mud in; filtered + boiled = safe | `w_settle`, `w_boilmurky`, `w_boil` |
 | `waterSupply` | A closing check (`kind: 'check'`): opens straight to its question once the setup works (fired pot, a filter that runs clear, safe water made) | the limits of filtration | |
 
+**Your own fire:** pot firing, boiling, the test cups and stone heating all need the player's fire pit burning, and
+they go at the rate of its heat (`WaterState.fireHeat()`, from `fire.ts` `flame`; full speed at `FULL_HEAT_FLAME`
+0.45, which a fed fire is above). A fire burned down to embers barely heats and a note says to feed it; a fire that
+goes out takes the pot off. The filter's charcoal is the charcoal from the player's own mound (Lesson 02).
+
 Also: stone boiling (heat two dry stones in the fire, drop them into the pot: `w_hotstones`; wet stream stones are
-never offered). In the browser, U tips water out of the pot when nothing else applies (in VR you tip the pot).
+never offered). In the browser, U tips water out of the pot at the stream or the roof edge (in VR you tip the pot).
+
+**Live check:** `PHASE=start|clay|pot|filter|treatment npx @iwsdk/cli browser run scripts/water-check.mjs --timeout
+105000`, run in that order on one game (a browser run is capped at 110 s): Level 3 chosen from the title list, every
+card answered by real mouse clicks, water actions by the real U and R keys.
 
 **Pot water** (`water.ts` `PotWater`): `empty`, `raw`, `settled`, `rain`, `filtered`, `boiledRaw`, `safe`. Only stream
 water feeds the treatment experiment (`WaterState.source`).

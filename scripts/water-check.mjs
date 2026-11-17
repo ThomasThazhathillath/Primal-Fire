@@ -2,10 +2,10 @@
 // buttons, water actions by the real U key (and R to put the pot away). Waiting-only timers (drying, settling)
 // are fast-forwarded by setting the timer close to its end; every outcome still comes from the game's rules.
 // A browser run is limited to 110 s, so it runs in four phases on the same game, in order:
-//   PHASE=clay | pot | filter | treatment
+//   PHASE=start | clay | pot | filter | treatment
 //   PHASE=clay npx @iwsdk/cli browser run scripts/water-check.mjs --timeout 110000   (SHOTS=<dir> saves screenshots)
 const SHOTS = process.env.SHOTS;
-const PHASE = process.env.PHASE ?? 'clay';
+const PHASE = process.env.PHASE ?? 'start';
 
 export default async function run(ctx) {
   const results = [];
@@ -33,6 +33,7 @@ async function play({ page }, results) {
   const waitFor = async (fn, ms = 20000, arg) => {
     const t0 = Date.now();
     while (Date.now() - t0 < ms) {
+      await P(() => window.__keepFire?.()).catch(() => {});
       if (await P(fn, arg).catch(() => false)) return true;
       await wait(250);
     }
@@ -42,8 +43,17 @@ async function play({ page }, results) {
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/${name}.png` });
   };
   const frameBox = async () => (await (await app.frameElement().catch(() => null))?.boundingBox?.()) ?? { x: 0, y: 0 };
-  /** Real mouse click on a UIKit element of a panel. */
+  /** Real mouse click on a UIKit element of a panel (once the panel has finished popping in). */
   const click = async (panelName, el) => {
+    await waitFor((name) => {
+      const panel = window.__primal.world.scene.getObjectByName(name);
+      if (!panel) return true;
+      const s = panel.scale.x;
+      const settled = window.__clickScale === s;
+      window.__clickScale = s;
+      return settled;
+    }, 3000, panelName);
+    await wait(250);
     const at = await P(
       ({ panelName, el }) => {
         const p = window.__primal;
@@ -79,6 +89,8 @@ async function play({ page }, results) {
     await wait(600);
   };
   const water = () => P(() => window.__primal.game.water.potWater);
+  /** Wait (up to 4 s) for the pot to hold `w`: a key press acts on the next frames. */
+  const potIs = (w) => waitFor((w) => window.__primal.game.water.potWater === w, 4000, w);
   /** Click the card's option `i` once the card shows `id` in `ph`. */
   const answerCard = async (id, ph, i, label) => {
     const up = await waitFor(({ id, ph }) => window.__experiment.state().opened === id && window.__primal.game.experiments.phase(id) === ph, 15000, { id, ph });
@@ -88,8 +100,8 @@ async function play({ page }, results) {
   const action = async () => click('ExperimentCard', 'exp-action');
 
   let camp = await P(() => window.__waterCheck ?? null);
-  if (PHASE === 'clay') {
-  // ---- Fresh survival game, a camp ready for Lesson 03 (bench, burning fire, roofed lean-to).
+  if (PHASE === 'start') {
+  // ---- Fresh survival game; Level 3 chosen from the title's level list by real clicks.
   await P(() => {
     localStorage.clear();
     localStorage.setItem('primal-first-fire.mode.v1', 'survival');
@@ -97,9 +109,32 @@ async function play({ page }, results) {
   }).catch(() => {});
   await wait(1500);
   app = await findApp();
-  await wait(2500);
-  await P(() => window.__primal.begin());
+  await waitFor(() => window.__title?.open?.() === true, 30000);
+  await wait(1000);
+  if (!(await click('Welcome Panel', 'begin-button'))) await P(() => window.__title.tap('begin-button'));
+  check('Play opens the level list', await waitFor(() => window.__title.levels(), 5000));
   await wait(800);
+  const clicked = await click('Welcome Panel', 'lvl-water');
+  check('Level 3 is on the list (real click)', clicked);
+  check('Level 3 (Water) starts from the list', await waitFor(() => window.__primal.game.lessons.lesson?.id === 'water' && !window.__title.open(), 8000));
+  // The fire is lit by the fire's own rules (lay, bow-drill ember, fanning) and kept fed while the checks wait.
+  await P(async () => {
+    const { LAY_NEEDS, PRESSURE } = await import('/src/game/fire.ts');
+    window.__fireRules = { LAY_NEEDS, PRESSURE };
+    window.__keepFire = () => {
+      const g = window.__primal.game;
+      if (g.fire.stage !== 'burning') return;
+      const flame = g.fire.flame;
+      if (g.fire.hearth.count() >= 3 && flame >= 0.45) return;
+      const fuel = flame < 0.45 ? 'twigs' : 'logs';
+      const hand = g.held;
+      g.stow();
+      g.addItem(fuel);
+      g.takeOut(fuel);
+      g.fire.addFuel();
+      if (hand) g.takeOut(hand);
+    };
+  });
   camp = await P(() => {
     const g = window.__primal.game;
     const stream = (x, z) => g.water.atStream({ x, z });
@@ -129,16 +164,33 @@ async function play({ page }, results) {
     const pit = tryPlace('firePit', 'dryStone', grid.filter(([x, z]) => Math.hypot(x - bench.x, z - bench.z) < 6));
     g.addItem('dryStone', 3);
     for (let i = 0; i < 3; i++) g.fillSpot(pit.id, i);
-    g.fire.stage = 'burning';
-    g.fire.burnLeft = 3600;
-    g.notifyFire();
+    g.stow();
+    const { LAY_NEEDS, PRESSURE } = window.__fireRules;
+    g.addItem('dryGrass', LAY_NEEDS.tinder);
+    g.addItem('twigs', LAY_NEEDS.twigs);
+    g.addItem('logs', LAY_NEEDS.logs);
+    for (let i = 0; i < 20 && !g.fire.layBuilt; i++) g.fire.addFuel();
+    g.addItem('bowDrill');
+    g.takeOut('bowDrill');
+    for (let i = 0; i < 400 && !g.fire.carrying; i++) {
+      g.fire.saw(1.5 * 0.05, 0.05, PRESSURE.firm, 1);
+      g.fire.tick(0.05);
+    }
+    g.stow();
+    g.fire.transferEmber();
+    for (let i = 0; i < 40 && g.fire.stage !== 'burning'; i++) g.fire.fan(0.8, 0.25);
+    out.fire = g.fire.stage;
     // A roofed lean-to: every part, lashing done by the lash gesture's own call.
     for (const [id, n] of [['pole', 3], ['greenBranch', 5], ['cord', 3], ['twigs', 4], ['bark', 3], ['leafLitter', 3], ['dryGrass', 3]]) g.addItem(id, n);
     const lean = tryPlace('leanTo', 'pole', grid.filter(([x, z]) => Math.hypot(x - pit.x, z - pit.z) > 3 && Math.hypot(x - pit.x, z - pit.z) < 9));
-    for (let pass = 0; pass < 12; pass++) lean.spots.forEach((v, i) => {
-      if (v !== null) return;
-      if (!g.fillSpot(lean.id, i)) for (let k = 0; k < 40 && g.lashJoint(lean.id, i, 0.05) < 1; k++);
-    });
+    for (let pass = 0; pass < 12; pass++) {
+      lean.spots.forEach((v, i) => {
+        if (v !== null) return;
+        if (!g.fillSpot(lean.id, i)) for (let k = 0; k < 40 && g.lashJoint(lean.id, i, 0.05) < 1; k++);
+      });
+      // Lesson 01: the ribs wait for one push of the bare frame.
+      g.pushFrame(lean.id);
+    }
     g.stow();
     out.bench = { id: bench.id, x: bench.x, z: bench.z, ok: bench.complete };
     out.pit = { x: pit.x, z: pit.z, ok: pit.complete };
@@ -147,11 +199,10 @@ async function play({ page }, results) {
     let bank = null;
     for (const [x, z] of grid) if (!bank && stream(x, z)) bank = { x, z };
     out.bank = bank;
-    g.lessons.setResume('water');
     window.__waterCheck = out;
     return out;
   });
-  check('camp ready: bench, burning fire, roofed lean-to', camp.bench.ok && camp.pit.ok && camp.lean.roofed, JSON.stringify(camp));
+  check('camp ready: bench, a fire lit by the fire rules, roofed lean-to', camp.bench.ok && camp.pit.ok && camp.fire === 'burning' && camp.lean.roofed, JSON.stringify(camp));
   }
   const atFire = () => goTo(camp.pit.x + 1, camp.pit.z);
   const atBench = () => goTo(camp.bench.x, camp.bench.z + 1);
@@ -162,9 +213,12 @@ async function play({ page }, results) {
   // ---- clayTemper + potFiring: predictions by real clicks.
   await answerCard('clayTemper', 'predict', 0, 'predict sand');
   check('clay prediction recorded', (await P(() => window.__primal.game.experiments.state('clayTemper').prediction)) === 'sand');
-  await answerCard('potFiring', 'predict', 0, 'predict dry');
-  await action(); // Keep testing: closes the card
-  check('testing button reads Keep testing (no rain for clay)', true);
+  const keepLabel = await P(() => window.__experiment.panel.getElementById('exp-action-label')?.properties?.value?.text ?? window.__experiment.panel.getElementById('exp-action-label')?.properties?.text ?? null).catch(() => null);
+  await action(); // Keep testing: closes the card; the firing test waited behind it
+  check('the clay card closes with its testing button', (await exp()).opened !== 'clayTemper' && keepLabel === 'Keep testing', String(keepLabel));
+  await answerCard('potFiring', 'predict', 0, 'predict dry (opens once the clay card is closed)');
+  check('firing prediction recorded', (await P(() => window.__primal.game.experiments.state('potFiring').prediction)) === 'dry');
+  await action();
   await atBench();
   await P(() => {
     const g = window.__primal.game;
@@ -223,13 +277,13 @@ async function play({ page }, results) {
   check('card button "Wait for rain" brings rain', raining, String(label));
   await atBank();
   await key('KeyU');
-  check('U fills the pot at the stream', (await water()) === 'raw');
+  check('U fills the pot at the stream', await potIs('raw'));
   const edge = await P(() => window.__primal.game.water.roofEdge());
   await goTo(edge.x, edge.z);
   await key('KeyU'); // tip the stream water out
-  check('U tips the stream water out (browser)', (await water()) === 'empty');
+  check('U tips the stream water out (browser)', await potIs('empty'));
   await key('KeyU');
-  check('U catches the roof runoff', (await water()) === 'rain');
+  check('U catches the roof runoff', await potIs('rain'));
   check('waterSource concluded', await waitFor(() => window.__primal.game.experiments.phase('waterSource') === 'result', 6000));
   await action();
   await answerCard('waterSource', 'check', 0, 'rain check');
@@ -241,6 +295,7 @@ async function play({ page }, results) {
   const pourAt = async () => {
     await atBank();
     await key('KeyU');
+    await waitFor(() => ['raw', 'settled'].includes(window.__primal.game.water.potWater), 4000);
     await goTo(f.x, f.z);
     await key('KeyU');
   };
@@ -272,7 +327,7 @@ async function play({ page }, results) {
   }, camp.bank);
   check('filter built with sand on top', f.complete, JSON.stringify(f));
   await pourAt();
-  check('sand on top clogs', (await P(() => window.__primal.game.water.lastFilter?.flow)) === 'clogged');
+  check('sand on top clogs', await waitFor(() => window.__primal.game.water.lastFilter?.flow === 'clogged', 4000));
   await P((id) => {
     const g = window.__primal.game;
     const s = g.structures.find((t) => t.id === id);
@@ -287,7 +342,7 @@ async function play({ page }, results) {
     return s.complete;
   }, f.id);
   await pourAt();
-  check('gravel above sand runs clear', (await water()) === 'filtered');
+  check('gravel above sand runs clear', await potIs('filtered'));
   check('filterOrder concluded', await waitFor(() => window.__primal.game.experiments.phase('filterOrder') === 'result', 6000));
   await waitFor(() => window.__experiment.state().opened === 'filterOrder', 5000);
   await shot('w2-filter-result');
@@ -314,7 +369,7 @@ async function play({ page }, results) {
   await key('KeyU');
   check('boiled unfiltered: germs killed, mud in', await waitFor(() => window.__primal.game.water.potWater === 'boiledRaw', 30000));
   await pourAt();
-  check('filtered', (await water()) === 'filtered');
+  check('filtered', await potIs('filtered'));
   await atFire();
   await key('KeyU');
   check('filtered then boiled: safe', await waitFor(() => window.__primal.game.water.potWater === 'safe', 30000));

@@ -92,6 +92,8 @@ export const BAR_DISTANCE = 0.4;
 // 2026-11-17). Chest height caught resting and gathering hands (dozens of 'pinching on menu/slot-14' a minute), so
 // it stays above that: only a raised, deliberate hand reaches it. An unfolded row grows upward from this edge.
 export const BAR_BOTTOM = 0.2;
+/** While a card from the menu is open (bag, notebook, Find...) the button drops back out of its way, as Left and Right do. */
+export const BAR_BOTTOM_PANEL = 0.34;
 export const BAR_DOWN = BAR_BOTTOM;
 export const BAR_SIDE = 0;
 
@@ -99,6 +101,8 @@ export class IconBarSystem extends createSystem({}) {
   private bar!: UIKitMLAsset;
   private entity!: Entity;
   private anchor = new StaticAnchor(BAR_DISTANCE, BAR_SIDE, BAR_DOWN, 0.9, 1);
+  /** The bar's height in panel units (from layout). */
+  private barH = 0;
   private menuIdle = 0;
   private btns: Array<ReturnType<UIKitMLAsset['requireElementById']>> = [];
   /** Icons mid-shrink after a tap (restored after a moment). */
@@ -292,11 +296,18 @@ export class IconBarSystem extends createSystem({}) {
     // The row just changed under the fingertip (it unfolds around the Menu button): that is not a swipe.
     this.swipe.reset();
     // Keep the bottom edge where the folded button was: the grid grows upwards, not down out of view.
-    this.anchor.setDown(BAR_BOTTOM - (h * PANEL_SCALE * 0.01) / 2);
+    this.barH = h;
+    this.applyDown();
     if (!this.vr) {
       this.entity.removeComponent(ScreenSpace);
       this.entity.addComponent(ScreenSpace, { width: `${w * 1.15}px`, height: '76px', bottom: '8px', left: `calc(50% - ${(w * 1.15) / 2}px)`, top: 'auto', right: 'auto', zOffset: 0.25 });
     }
+  }
+
+  /** Bottom edge at BAR_BOTTOM, or lower while a card from the menu is open (it sat over the card's lower middle). */
+  private applyDown(): void {
+    const bottom = menu.current !== null ? BAR_BOTTOM_PANEL : BAR_BOTTOM;
+    this.anchor.setDown(bottom - (this.barH * PANEL_SCALE * 0.01) / 2);
   }
 
   update(delta: number): void {
@@ -383,6 +394,7 @@ export class IconBarSystem extends createSystem({}) {
       this.shrunk.splice(k, 1);
     }
     if (this.vr) {
+      this.applyDown();
       this.anchor.update(this.bar, this.camera);
       this.touch.update(delta);
       if (this.vr && menu.gridVisible) this.swipe.update(this.bar);

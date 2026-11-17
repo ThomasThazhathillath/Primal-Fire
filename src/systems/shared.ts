@@ -4,6 +4,7 @@
 import { AdditiveBlending, Box3, MeshBasicMaterial, type Object3D, Quaternion, Vector3, type World } from '@iwsdk/core';
 import type { Game } from '../game/game.js';
 import type { GazeRect } from '../game/gaze.js';
+import type { ItemId } from '../game/items.js';
 import { MenuStack } from '../game/menu.js';
 import { pulse } from './haptics.js';
 import type { HandBusy } from '../game/priority.js';
@@ -27,9 +28,15 @@ export interface UiHooks {
   showHint(): void;
   /** Put the sky light pillar over a world point (null clears it). The hint level-3 effect. */
   setBeacon(at: { x: number; z: number } | null): void;
-  /** Open the image-hint panel for an objective (part B); the card's hint icon calls it. */
+  /** Open (or close) the Find card (Hint); `objectiveId` is the step on the card, whose needs are listed first ('' = none). */
   openHint(objectiveId: string): void;
-  /** True while the hint panel is open; the objective card hides meanwhile so the two never overlap. */
+  /** Sky beacons on every spot of `item` (BeaconSystem); returns how many. */
+  findItem(item: ItemId): number;
+  /** Turn the sky beacons off. */
+  findClear(): void;
+  /** The item the sky beacons show, or null. */
+  findShowing(): ItemId | null;
+  /** True while the Find card is open; the objective card hides meanwhile so the two never overlap. */
   hintOpen?(): boolean;
   /** True while the notebook card is open; the objective card hides meanwhile. */
   notebookOpen?(): boolean;

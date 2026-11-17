@@ -1,57 +1,38 @@
-// The hint panel (docs/QUEST_GUIDANCE_SPEC.md, part B): opened from the
-// objective card's hint icon. It names the thing, shows a reference picture
-// rendered from the real game meshes (HintImages), says what to look for, why
-// you need it and what to avoid, and reveals one of four hint levels at a time:
-// identification, what it looks like, where to look, the exact action.
-// "More help" reveals the next level; nothing ever reveals the last one by
-// itself. In VR it is operated ONLY by a fingertip poke (src/game/ui-touch.ts),
-// never a pinch or controller; in the browser by mouse. It is never left open:
-// it closes on the X, when the objective changes, when VR starts or ends, and
-// after a quiet minute.
+// Hint = Find (Quest test 2026-11-17: "remove the card with information, just show a highlight all the way to the
+// sky"). The Hint button, H and the bulb on the objective card open this card: one button for every item you can
+// gather (game/find.ts), what the step on the card needs first, in orange. Choosing one closes the card and puts a sky
+// beacon on every spot of that item on the map (BeaconSystem); Clear beacons turns them off. Hint again while it is
+// open closes it. In VR the buttons are pressed by fingertip, hand ray or gaze + pinch (PanelTouch); in the browser by
+// mouse. It closes on Back, on a choice, when VR starts or ends, and after a quiet minute and a half.
 
-import {
-  createSystem,
-  type Entity,
-  Mesh,
-  MeshBasicMaterial,
-  PlaneGeometry,
-  RayInteractable,
-  type Texture,
-  type UIKit,
-  type UIKitMLAsset,
-  VisibilityState,
-} from '@iwsdk/core';
-import { hintInfo, hintView } from '../game/hint-info.js';
-import { cardView } from '../game/objectives.js';
+import { createSystem, type Entity, RayInteractable, type UIKit, type UIKitMLAsset, VisibilityState } from '@iwsdk/core';
 import { stepById } from '../game/curriculum/registry.js';
-import { type HintImages, sharedImages } from './hint-images.js';
+import { FIND_SLOTS, findableItems, findOrder } from '../game/find.js';
+import { type ItemId, itemName } from '../game/items.js';
+import { RESOURCES } from '../game/world-layout.js';
 import { PanelTouch } from './panel-touch.js';
 import { PopIn } from './ui-fx.js';
-import { getGame, getUi, hidePanel, menu, PANEL_DISTANCE, PANEL_DOWN, placeInFront, StaticAnchor, uiText } from './shared.js';
+import { getGame, getUi, hidePanel, menu, placeInFront, StaticAnchor, uiText } from './shared.js';
 
 const PANEL_SCALE = 0.047;
-/** Layout (px, from hint.uikitml): the root is 600 x 904; the picture area is 456 x 342 at 74 px from the top. */
-const W = 600;
-const H = 904;
-const PIC_X = 0;
-const PIC_Y = (H / 2 - (74 + 171)) * 0.01;
-const LEVEL_NAME = ['', 'What to look for', 'What it looks like', 'Where to look', 'Exactly what to do'];
 const IDLE_CLOSE = 90;
+/** Button colours (hint.uikitml): what the step needs now, and everything else. */
+const NEEDED_BG = '#f0a54e';
+const OTHER_BG = '#5e6e34';
 
 export class HintPanelSystem extends createSystem({}) {
   private panel!: UIKitMLAsset;
   private entity!: Entity;
-  private images: HintImages | null = null;
-  private pic!: Mesh;
-  private picMat!: MeshBasicMaterial;
-  private anchor = StaticAnchor.slot('panel').movable('hint', 600, 904);
+  private anchor = StaticAnchor.slot('panel').movable('hint', 600, 700);
   private ready = false;
+  /** The step the card was opened for ('' = none), or null while closed. */
   private opened: string | null = null;
   private idle = 0;
-  private watch = 0;
   private vr = false;
   private touch!: PanelTouch;
   private pop!: PopIn;
+  private items: ItemId[] = [];
+  private order: Array<{ item: ItemId; needed: boolean }> = [];
 
   async init(): Promise<void> {
     const panel = await this.world.assets.instantiate<UIKitMLAsset>('hint-panel');
@@ -60,69 +41,61 @@ export class HintPanelSystem extends createSystem({}) {
     panel.scale.setScalar(PANEL_SCALE);
     this.entity = this.world.createTransformEntity(panel);
     hidePanel(panel);
+    this.items = findableItems(RESOURCES);
 
-    this.picMat = new MeshBasicMaterial({ toneMapped: false });
-    this.pic = new Mesh(new PlaneGeometry(4.56, 3.42), this.picMat);
-    this.pic.position.set(PIC_X, PIC_Y, 0.03);
-    this.pic.visible = false;
-    panel.add(this.pic);
-
+    this.touch = new PanelTouch(this.world, panel, PANEL_SCALE, 'hint');
+    this.pop = new PopIn(panel, () => PANEL_SCALE);
     const wire = (id: string, fn: () => void) => {
       const el = panel.requireElementById(id);
-      // Mouse clicks only (flat view); in VR a fingertip poke is the one way to press.
       const click = () => {
         if (!this.vr) fn();
       };
       el.addEventListener('click', click);
       this.cleanupFuncs.push(() => el.removeEventListener('click', click));
+      this.touch.add(id, fn);
     };
-    wire('hint-more', () => this.more());
     wire('hint-close', () => menu.back());
-    this.touch = new PanelTouch(this.world, panel, PANEL_SCALE, 'hint');
-    this.pop = new PopIn(panel, () => PANEL_SCALE);
-    this.touch.add('hint-more', () => this.more());
-    this.touch.add('hint-close', () => menu.back());
+    wire('find-clear', () => this.clearBeacons());
+    for (let i = 0; i < FIND_SLOTS; i++) wire(`find-${i}`, () => this.choose(i));
     menu.register('hint', () => this.close());
 
-    getUi(this.world).hintOpen = () => this.opened !== null;
-    getUi(this.world).openHint = (id: string) => (this.opened === id ? this.close() : this.open(id));
+    const ui = getUi(this.world);
+    ui.hintOpen = () => this.opened !== null;
+    ui.openHint = (id: string) => (this.opened !== null ? menu.back() : this.open(id));
     this.cleanupFuncs.push(this.world.visibilityState.subscribe((v) => this.onVisibility(v)));
     this.ready = true;
     (window as unknown as { __hint?: unknown }).__hint = {
       panel,
       taps: this.touch.taps,
-      state: () => ({ opened: this.opened, vr: this.vr, level: this.opened ? getGame(this.world).steps.hintLevel(this.opened) : 0 }),
+      state: () => ({ opened: this.opened, vr: this.vr, items: this.order.map((o) => o.item), needed: this.order.filter((o) => o.needed).map((o) => o.item) }),
       open: (id: string) => this.open(id),
-      image: (id: string, level: number) => {
-        const v = hintView(id, level);
-        return v ? this.imgs().dataUrl(v) : null;
+      /** Choose an item by id, as its button does. */
+      find: (item: ItemId) => {
+        const i = this.order.findIndex((o) => o.item === item);
+        if (i >= 0) this.choose(i);
+        return i >= 0;
       },
     };
   }
 
-  private imgs(): HintImages {
-    return (this.images ??= sharedImages(this.renderer));
-  }
-
   private onVisibility(v: VisibilityState): void {
     this.vr = v !== VisibilityState.NonImmersive;
-    if (this.opened) this.close(); // a mode change never leaves it open
-    if (this.vr && this.entity.hasComponent(RayInteractable)) this.entity.removeComponent(RayInteractable);
+    if (this.opened !== null) this.close(); // a mode change never leaves it open
+    PanelTouch.setRay(this.world, this.entity, this.vr);
     if (!this.vr && !this.entity.hasComponent(RayInteractable)) this.entity.addComponent(RayInteractable);
   }
 
-  open(id: string): void {
-    if (!this.ready || !stepById(id)) return;
+  /** Open the card; `stepId` is the step on the objective card ('' = none): what it needs is listed first. */
+  open(stepId: string): void {
+    if (!this.ready) return;
     const game = getGame(this.world);
-    // Opening always shows the first level; the rest are asked for one at a time.
-    if (game.steps.hintLevel(id) < 1) {
-      game.steps.unlockHint(id);
-      getUi(this.world).saveNow?.();
-    }
+    const step = stepId ? stepById(stepId) : undefined;
+    const needed = step?.find?.(game) ?? [];
+    this.order = findOrder(this.items, needed);
     menu.open('hint');
-    this.opened = id;
+    this.opened = stepId;
     this.idle = 0;
-    this.render();
+    this.render(needed.length > 0 ? step?.title ?? '' : '');
     this.panel.visible = true;
     this.anchor.reset();
     this.touch.reset();
@@ -133,74 +106,53 @@ export class HintPanelSystem extends createSystem({}) {
   close(): void {
     menu.closed('hint');
     this.opened = null;
-    this.pop.close(() => {
-      hidePanel(this.panel);
-      this.pic.visible = false;
-    });
+    this.pop.close(() => hidePanel(this.panel));
   }
 
-  private more(): void {
-    const id = this.opened;
-    if (!id) return;
+  /** An item button: beacons on every spot of it, then the card gets out of the way. */
+  private choose(i: number): void {
+    const o = this.order[i];
+    if (!o) return;
     const game = getGame(this.world);
-    if (game.steps.hintLevel(id) >= 4) return;
-    game.steps.unlockHint(id);
-    getUi(this.world).saveNow?.();
-    this.idle = 0;
-    this.render();
+    const n = getUi(this.world).findItem?.(o.item) ?? 0;
+    const name = itemName(o.item).toLowerCase();
+    game.toast(n > 0 ? `${n} beacon${n === 1 ? '' : 's'}: ${name}. Follow the light. Hint again to change or clear.` : `No ${name} left on the map right now. Some grows back with time.`, n > 0 ? 'good' : 'note');
+    menu.back();
+  }
+
+  private clearBeacons(): void {
+    getUi(this.world).findClear?.();
+    getGame(this.world).toast('Beacons off.', 'note');
+    menu.back();
+  }
+
+  private render(stepTitle: string): void {
+    const p = this.panel;
+    const text = (id: string, t: string) => p.requireElementById<UIKit.Text>(id).setProperties({ text: uiText(t || ' ') });
+    for (let i = 0; i < FIND_SLOTS; i++) {
+      const o = this.order[i];
+      const el = p.requireElementById(`find-${i}`);
+      el.setProperties({ display: o ? 'flex' : 'none' });
+      if (!o) continue;
+      el.setProperties({ backgroundColor: o.needed ? NEEDED_BG : OTHER_BG } as never);
+      text(`find-${i}-label`, itemName(o.item));
+    }
+    text('find-note', stepTitle ? `Orange: what "${stepTitle}" needs. Every one on the map gets a beacon.` : 'Pick one: every one on the map gets a beacon you can see from far away.');
+    const showing = getUi(this.world).findShowing?.() ?? null;
+    p.requireElementById('find-clear').setProperties({ display: showing ? 'flex' : 'none' });
+    if (showing) text('find-clear-label', `Clear beacons (${itemName(showing).toLowerCase()})`);
   }
 
   private place(): void {
     if (this.vr) this.anchor.update(this.panel, this.camera);
-    else placeInFront(this.panel, this.camera, 0.6, 0, 0.1); // below the top HUD (Enter XR button)
-  }
-
-  private render(): void {
-    const id = this.opened;
-    const o = id ? stepById(id) : null;
-    if (!id || !o) return;
-    const game = getGame(this.world);
-    const level = Math.max(1, game.steps.hintLevel(id));
-    const info = hintInfo(id);
-    const text = (el: string, t: string) => this.panel.requireElementById<UIKit.Text>(el).setProperties({ text: uiText(t || ' ') });
-    const view = cardView(game);
-    const instr = view && view.id === id ? view.instruction : typeof o.instruction === 'function' ? o.instruction(game) : o.instruction;
-    text('hint-eyebrow', 'HINT');
-    text('hint-title', o.title);
-    text('hint-name', info?.name ?? o.title);
-    text('hint-look', `Look for: ${info?.look ?? o.hint.levels[0]}`);
-    text('hint-why', `Why you need it: ${info?.why ?? ''}`);
-    text('hint-avoid', `Avoid: ${info?.avoid ?? ''}`);
-    text('hint-do', `What to do: ${instr}`);
-    text('hint-level', `Hint ${level} of 4: ${LEVEL_NAME[level]}`);
-    text('hint-text', o.hint.levels[level - 1]);
-    const more = this.panel.requireElementById('hint-more');
-    more.setProperties({ display: level >= 4 ? 'none' : 'flex' });
-
-    // The reference picture: from the real game meshes, drawn once and cached.
-    const pv = hintView(id, level);
-    let tex: Texture | null = null;
-    if (pv) tex = this.imgs().get(`${id}:${level >= 2 ? 1 : 0}`, pv);
-    this.pic.visible = !!tex;
-    if (tex) {
-      this.picMat.map = tex;
-      this.picMat.needsUpdate = true;
-    }
+    else placeInFront(this.panel, this.camera, 0.45, 0, 0.06); // big enough to read the item names, below the top HUD
   }
 
   update(delta: number): void {
     if (this.pop?.busy) this.pop.update(delta);
-    if (!this.ready || !this.opened) return;
-    this.idle += delta;
-    if (this.idle > IDLE_CLOSE) return this.close();
-    // The step moved on (or the lessons ended): the panel goes with it. Compared with the current step, not
-    // the card, which still shows the step just finished while it is celebrated.
-    if ((this.watch += delta) > 0.25) {
-      this.watch = 0;
-      if (getGame(this.world).focus()?.id !== this.opened) return this.close();
-    }
+    if (!this.ready || this.opened === null) return;
+    if ((this.idle += delta) > IDLE_CLOSE) return void menu.back();
     this.place();
-    if (!this.vr) return;
-    this.touch.update(delta);
+    if (this.vr) this.touch.update(delta);
   }
 }

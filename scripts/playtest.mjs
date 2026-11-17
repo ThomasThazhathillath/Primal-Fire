@@ -181,20 +181,24 @@ async function play({ page }, results) {
   check('fire pit finished', await P(() => window.__primal.game.hasStructure('firePit')));
   check('the card shows Lesson 02', (await P(() => window.__primal.game.steps.view()?.lesson?.n)) === 2);
 
-  // The hint button opens the picture hint for the step on the card, at its first level.
-  const hint = await P(() => {
-    const p = window.__primal;
+  // The hint button opens the Find card (what the step needs first); choosing logs lights a sky beacon on every
+  // log pile that still has some, and the card closes itself.
+  await P(() => {
     // The help system may already have opened it for a player who looks stuck: start from closed.
-    const already = window.__hint?.state().opened;
-    if (already) p.world.globals.ui.openHint(already); // the same id again closes it
-    p.hint();
-    const id = p.game.focus()?.id;
-    return { id, level: id ? p.game.steps.hintLevel(id) : 0 };
+    if ((window.__hint?.state().opened ?? null) !== null) window.__primal.hint();
+    window.__primal.hint();
   });
   await wait(400);
-  const opened = await P(() => window.__hint?.state().opened ?? null);
-  check('the hint button opens the step hint', hint.level >= 1 && opened === hint.id, JSON.stringify({ ...hint, opened }));
-  await P(() => window.__primal.hint());
+  const find = await P(() => window.__hint?.state() ?? null);
+  const lit = await P(() => (window.__hint.find('logs') ? window.__beacon.state() : null));
+  await wait(400);
+  const closed = await P(() => window.__hint.state().opened === null);
+  check(
+    'the hint button opens the Find card; choosing logs lights a beacon on every log pile',
+    find?.opened !== null && !!find?.items?.includes('logs') && lit?.item === 'logs' && lit.count >= 10 && closed,
+    JSON.stringify({ opened: find?.opened, needed: find?.needed, beacons: lit, closed }),
+  );
+  await P(() => window.__beacon.clear());
 
   // Satchel and notebook panels open.
   await P(() => window.__primal.satchel());

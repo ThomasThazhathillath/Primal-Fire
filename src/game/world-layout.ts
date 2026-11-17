@@ -415,6 +415,27 @@ export const SCATTER_RULES: ScatterRule[] = [
   { look: 'pole', count: 12, zone: 'forest', minR: 7, maxR: 40, treeClear: 0.9 },
 ];
 
+/**
+ * More of what players hunt for (Quest test 2026-11-17: logs, sticks, poles and slabs were too hard to find; the
+ * whole map had 5 log piles). Placed after everything else with its own RNG, so every spot above keeps its id and
+ * place (saves match spots by id). Data only: add rows freely, at the end.
+ */
+export const ABUNDANCE_RULES: ScatterRule[] = [
+  { look: 'fallenLog', count: 24, zone: 'forest', minR: 6, maxR: 42, treeClear: 1.2, spacing: 2 },
+  { look: 'sapling', count: 14, zone: 'forest', minR: 6, maxR: 42 },
+  { look: 'straightStick', count: 10, zone: 'forest', minR: 5, maxR: 40 },
+  { look: 'board', count: 8, zone: 'forest', minR: 6, maxR: 40 },
+  { look: 'forkedStick', count: 10, zone: 'forest', minR: 5, maxR: 40 },
+  { look: 'diggingStick', count: 4, zone: 'forest', minR: 5, maxR: 30 },
+  { look: 'grass', count: 24, zone: 'forest', minR: 5, maxR: 42 },
+  { look: 'slab', count: 10, zone: 'forest', minR: 6, maxR: 42 },
+  { look: 'pole', count: 16, zone: 'forest', minR: 6, maxR: 40, treeClear: 0.9 },
+  { look: 'mossRock', count: 12, zone: 'forest', minR: 6, maxR: 42 },
+  { look: 'fibrePlant', count: 14, zone: 'forest', minR: 6, maxR: 42 },
+  { look: 'vine', count: 8, zone: 'forest', minR: 8, maxR: 42, treeClear: 0.9 },
+  { look: 'cane', count: 8, zone: 'stream', minR: 1.1, maxR: 2.2 },
+];
+
 function scatterPoint(rule: ScatterRule, rng: () => number): [number, number] | null {
   if (rule.zone === 'forest') {
     const a = rng() * Math.PI * 2;
@@ -546,25 +567,29 @@ function generateResources(): ResourceSpot[] {
 
   // Rule-driven scatter (own RNG, appended last so the hand-placed spots
   // above keep their ids). Extend SCATTER_RULES to add more of anything.
-  const srng = mulberry32(101);
   const sgrid = new SpatialGrid<ResourceSpot>(3);
   for (const sp of spots) sgrid.insert(sp.x, sp.z, sp);
-  for (const rule of SCATTER_RULES) {
-    for (let placed = 0, tries = 0; placed < rule.count && tries < rule.count * 60; tries++) {
-      const pt = scatterPoint(rule, srng);
-      if (!pt) continue;
-      const [x, z] = pt;
-      if (inClearing(x, z, rule.zone === 'stream' ? 0 : 1)) continue;
-      if (nearestTreeDistance(x, z) < (rule.treeClear ?? 0.7)) continue;
-      if (sgrid.nearest(x, z, rule.spacing ?? 1.2)) continue;
-      add(rule.look, x, z);
-      sgrid.insert(x, z, spots[spots.length - 1]);
-      placed++;
+  const scatter = (rules: readonly ScatterRule[], srng: () => number): void => {
+    for (const rule of rules) {
+      for (let placed = 0, tries = 0; placed < rule.count && tries < rule.count * 60; tries++) {
+        const pt = scatterPoint(rule, srng);
+        if (!pt) continue;
+        const [x, z] = pt;
+        if (inClearing(x, z, rule.zone === 'stream' ? 0 : 1)) continue;
+        if (nearestTreeDistance(x, z) < (rule.treeClear ?? 0.7)) continue;
+        if (sgrid.nearest(x, z, rule.spacing ?? 1.2)) continue;
+        add(rule.look, x, z);
+        sgrid.insert(x, z, spots[spots.length - 1]);
+        placed++;
+      }
     }
-  }
+  };
+  scatter(SCATTER_RULES, mulberry32(101));
   // Habitat clusters (resource overhaul), appended after everything else so older ids never move.
   CLUSTERS.length = 0;
   generateClusters(add, spots, sgrid, CLUSTERS);
+  // More of the scarce things, last of all (ABUNDANCE_RULES).
+  scatter(ABUNDANCE_RULES, mulberry32(211));
   return spots;
 }
 

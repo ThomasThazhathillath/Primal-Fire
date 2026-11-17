@@ -227,17 +227,17 @@ export class HudSystem extends createSystem({
 
   showHint(): void {
     const game = getGame(this.world);
-    // While the beginner objectives run, the hint button (and H) gives the hint for the objective on
-    // the card, exactly like the card's bulb: the quest list behind it can be on another step (it
-    // pointed at logs while the card said to knap flint).
+    // The hint button (and H) opens the Find card, like the card's bulb: what the step on the card needs comes first
+    // (the quest list behind it can be on another step). With no step, it lists everything.
     const objective = game.focus();
+    const ui = getUi(this.world);
+    if (ui.openHint) {
+      ui.openHint(objective?.id ?? '');
+      return;
+    }
     if (objective) {
-      const ui = getUi(this.world);
-      if (ui.openHint) ui.openHint(objective.id);
-      else {
-        const level = game.steps.unlockHint(objective.id);
-        game.toast(`💡 ${objective.hint.levels[level - 1]}`, 'note');
-      }
+      const level = game.steps.unlockHint(objective.id);
+      game.toast(`💡 ${objective.hint.levels[level - 1]}`, 'note');
       return;
     }
     const resources = this.world.getSystem(ResourceSystem);

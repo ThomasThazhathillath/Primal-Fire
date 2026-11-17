@@ -53,6 +53,7 @@ import { IconBarSystem } from './systems/icon-bar-system.js';
 import { PinchGrabSystem } from './systems/pinch-grab-system.js';
 import { GazeTargetSystem } from './systems/gaze-target-system.js';
 import { HintPanelSystem } from './systems/hint-panel-system.js';
+import { BeaconSystem } from './systems/beacon-system.js';
 import { PerfProbeSystem, PerfSystem } from './systems/perf-system.js';
 import { IntroSystem } from './systems/intro-system.js';
 import { ResourceSystem } from './systems/resource-system.js';
@@ -147,6 +148,7 @@ World.create(
     .registerSystem(AmbienceSystem)
     .registerSystem(PerfSystem)
     .registerSystem(HintPanelSystem)
+    .registerSystem(BeaconSystem)
     .registerSystem(GhostHandSystem)
     .registerSystem(TutorialSystem, { configData: { tutorial: mode === 'tutorial' } })
     .registerSystem(StorySystem, { configData: { tutorial: mode === 'tutorial' } });

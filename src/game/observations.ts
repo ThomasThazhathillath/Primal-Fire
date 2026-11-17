@@ -205,6 +205,15 @@ const BASE_OBSERVATIONS: Record<string, Observation> = {
     pri: 'Above about 550 °C, the water bound inside the clay minerals leaves for good and the grains begin to fuse (sintering). The change can’t be undone: it is now ceramic.',
     lim: 'Open-fire pottery stays porous, unlike glazed, kiln-fired ware.',
   },
+  p_reclaim: {
+    group: 'pottery',
+    trigger: 'pottery.clay.reclaimed',
+    title: 'Unfired clay comes back',
+    obs: 'Soaked in water, the cracked clay-only cup softened into clay you could shape again.',
+    pri: 'Drying only takes away the water between the clay plates, so adding water makes it plastic again. Firing changes the minerals themselves, and that cannot be undone.',
+    lim: 'Fired pottery never turns back into clay, but crushed it can be kneaded into new clay as grit.',
+    why: 'What is the difference between dry clay and fired clay?',
+  },
 
   // ------------------------------------------------------------- charcoal
   c_watertable: {
@@ -262,7 +271,7 @@ const BASE_OBSERVATIONS: Record<string, Observation> = {
   w_odor: {
     group: 'water',
     title: 'Clear, but not clean',
-    obs: 'The water looked clear, yet the lens still shows dissolved compounds tinting it.',
+    obs: 'With no charcoal in the filter, the water ran clear but still smelled and tasted earthy.',
     pri: 'Sand only strains particles. Charcoal is extremely porous: its huge internal surface adsorbs (binds) some odour- and taste-causing compounds.',
     lim: 'Homemade charcoal is far weaker than activated charcoal — and neither reliably removes pathogens.',
   },
@@ -288,6 +297,15 @@ const BASE_OBSERVATIONS: Record<string, Observation> = {
     obs: 'After a rolling boil, the microbes under the lens no longer move.',
     pri: 'A rolling boil denatures the proteins and structures many pathogens need to survive.',
     lim: 'Boil about 1 minute (3 at high altitude). Boiling does NOT remove chemicals like heavy metals — it can even concentrate them.',
+  },
+  w_cycle: {
+    group: 'water',
+    trigger: 'water.rain.caught',
+    title: 'The water cycle',
+    obs: 'Rain running off your roof filled the pot with water far clearer than the stream.',
+    pri: 'Sunshine evaporates water from seas, lakes and leaves. The vapour leaves mud and salt behind, cools into clouds and falls as rain, which soaks into the ground and runs into streams, picking up soil on the way.',
+    lim: 'Rain collects dust in the air, and dirt and germs from the roof it runs over. Treat it before drinking.',
+    why: 'Why is rain cleaner than the stream it ends up in?',
   },
 };
 

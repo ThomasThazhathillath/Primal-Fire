@@ -38,7 +38,7 @@ export const SCIENCE_EVENTS = {
   'water.raw.inspected': 'Stream water inspected with the lens.',
   'water.filter.washout': 'A filter with no cloth support was used.',
   'water.filter.clog': 'A filter with fine layers above coarse ones was used.',
-  'water.filter.odour': 'Filtered, un-charcoaled water inspected.',
+  'water.filter.odour': 'Stream water ran clear through a filter with no charcoal in it.',
   'water.filter.microbes': 'Filtered water inspected with the lens.',
   'water.boil.murky': 'Unfiltered water was boiled.',
   'water.boil.done': 'Water was boiled to a rolling boil.',
@@ -147,6 +147,11 @@ export const SCIENCE_EVENTS = {
   'camp.wood.wet': 'Uncovered firewood was rained on.',
   'camp.bed.rested': 'The player rested on a made bed.',
   'water.sediment.settle': 'Muddy water was left to stand and cleared.',
+  // --- Lesson 03: Water (curriculum/lessons/water)
+  'pottery.test.made': 'Clay test cups were made: one of clay only, two with sand.',
+  'pottery.clay.reclaimed': 'A cracked, unfired clay piece was soaked back into clay.',
+  'pottery.test.fired': 'A bone-dry test cup was fired to ceramic.',
+  'water.rain.caught': 'Rain running off the roof was caught in the pot.',
 } as const;
 
 export type ScienceEventId = keyof typeof SCIENCE_EVENTS;

@@ -15,6 +15,8 @@ import { getGame, getUi, hidePanel, menu, placeInFront, StaticAnchor, uiText } f
 /** Desktop: readable at 0.5 m; VR uses the same card at arm's length through StaticAnchor. */
 const SCALE = 0.06;
 const OPTS = 3;
+/** Trial rows on the card (an experiment's variable has at most this many values). */
+const TRIALS = 4;
 
 export class ExperimentSystem extends createSystem({}) {
   private panel!: UIKitMLAsset;
@@ -64,7 +66,9 @@ export class ExperimentSystem extends createSystem({}) {
       game.on((e) => {
         if (e.type !== 'experiment' || currentMode() === 'tutorial') return;
         // Something to do: the card comes up by itself. Otherwise just refresh it if it is open.
-        if (e.phase === 'predict' || e.phase === 'result') this.open(e.id);
+        // A lesson's closing question (kind 'check') opens straight to its question.
+        const check = e.phase === 'check' && game.experiments.def(e.id)?.kind === 'check';
+        if (e.phase === 'predict' || e.phase === 'result' || check) this.open(e.id);
         else if (this.opened === e.id) this.render();
       }),
     );
@@ -128,7 +132,7 @@ export class ExperimentSystem extends createSystem({}) {
     const g = getGame(this.world);
     const phase = g.experiments.phase(d.id);
     if (phase === 'testing') {
-      if (g.waitForRain()) g.toast('Clouds gather. Stand under your roof and watch each panel.', 'note');
+      this.testAction(d)?.run();
       menu.back();
       return;
     }
@@ -140,6 +144,20 @@ export class ExperimentSystem extends createSystem({}) {
     menu.back();
   }
 
+  /** The testing card's big button: the experiment's own (Wait for rain ...), or none ("Keep testing"). */
+  private testAction(d: ExperimentDef): { label: string; run: () => void } | null {
+    const g = getGame(this.world);
+    if (d.testAction) return d.testAction(g);
+    // The roof-layer test (Lesson 01) predates testAction.
+    if (d.id !== 'roofLayers' || !g.leanTo() || g.shelterTest.raining) return null;
+    return {
+      label: 'Wait for rain',
+      run: () => {
+        if (g.waitForRain()) g.toast('Clouds gather. Stand under your roof and watch each panel.', 'note');
+      },
+    };
+  }
+
   private render(): void {
     const d = this.def();
     if (!d) return;
@@ -149,7 +167,7 @@ export class ExperimentSystem extends createSystem({}) {
     const text = (id: string, t: string) => p.requireElementById<UIKit.Text>(id).setProperties({ text: uiText(t || ' ') });
     const show = (id: string, on: boolean) => p.requireElementById(id).setProperties({ display: on ? 'flex' : 'none' });
     const lesson = lessonById(d.lesson);
-    text('exp-label', `EXPERIMENT - LESSON ${String(lesson?.n ?? 0).padStart(2, '0')}`);
+    text('exp-label', `${d.kind === 'check' ? 'CHECK' : 'EXPERIMENT'} - LESSON ${String(lesson?.n ?? 0).padStart(2, '0')}`);
     text('exp-title', d.question);
     const outcomeText = (o: string) => d.outcomes.find((x) => x.id === o)?.text ?? o;
     const predicted = d.predictions.find((x) => x.id === s.prediction)?.text ?? '';
@@ -167,7 +185,7 @@ export class ExperimentSystem extends createSystem({}) {
       case 'testing':
         body = `Your prediction: ${predicted} ${d.howTo}`;
         showTrials = true;
-        action = g.leanTo() && !g.shelterTest.raining ? 'Wait for rain' : 'Keep testing';
+        action = this.testAction(d)?.label ?? 'Keep testing';
         break;
       case 'result': {
         const right = g.experiments.predictedRight(d.id);
@@ -191,7 +209,7 @@ export class ExperimentSystem extends createSystem({}) {
         body = d.why;
     }
     text('exp-body', body);
-    for (let i = 0; i < 2; i++) {
+    for (let i = 0; i < TRIALS; i++) {
       show(`exp-trial-${i}`, showTrials && i < trials.length);
       if (showTrials && trials[i]) text(`exp-trial-${i}`, trials[i]);
     }

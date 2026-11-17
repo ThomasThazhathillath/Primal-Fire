@@ -12,8 +12,7 @@ import { SCIENCE_EVENTS } from '../src/game/science-events.js';
 
 /** Notebook entries with no way to unlock them yet (Phase 1 audit, Nov 2026). */
 const UNREACHABLE = new Set([
-  'b_wetstone', 'b_litter', 'f_charcoal', 'p_temper',
-  'w_washout', 'w_clog', 'w_odor', 'w_settle', 'w_hotstones',
+  'b_wetstone', 'b_litter', 'f_charcoal',
   'f_smoke', 'f_night', 't_crumble', 't_lever', 't_harden',
   'n_chain', 'n_eyes', 'y_wound_clean', 'y_wound_dirty',
   'x_sky',

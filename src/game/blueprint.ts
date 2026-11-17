@@ -60,6 +60,8 @@ export interface BlueprintDef {
 }
 
 const STONES: ItemId[] = ['dryStone', 'wetStone'];
+/** Any filter layer goes on any layer mark: cloth, charcoal, sand, gravel. */
+const FILTER_LAYERS: ItemId[] = ['cloth', 'charcoal', 'sand', 'gravel'];
 const ring = (i: number, n: number, r: number) => ({
   x: Math.cos((i / n) * Math.PI * 2) * r,
   z: Math.sin((i / n) * Math.PI * 2) * r,
@@ -101,7 +103,9 @@ export const BLUEPRINTS: Record<StructureKind, BlueprintDef> = {
     groundAdvice: 'Any open, dry ground near where you plan to make fire.',
   },
   // Filter tripod: two more forked sticks complete the tripod, a hollow cane
-  // is the spout, then layers go in bottom to top: cloth, charcoal, sand, gravel.
+  // is the spout, then four layers go in from the bottom up. Each layer mark takes
+  // any layer material, so the player chooses the order (Lesson 03's layer-order
+  // experiment; curriculum/lessons/water/filter.ts decides what comes out).
   filter: {
     kind: 'filter',
     name: 'Water filter',
@@ -111,10 +115,10 @@ export const BLUEPRINTS: Record<StructureKind, BlueprintDef> = {
       { ...ring(1, 3, 0.25), y: 0.45, accepts: ['forkedStick'], label: 'Forked stick leg' },
       { ...ring(2, 3, 0.25), y: 0.45, accepts: ['forkedStick'], label: 'Forked stick leg' },
       { x: 0, z: 0, y: 0.3, accepts: ['cane'], label: 'Hollow cane spout' },
-      { x: 0, z: 0, y: 0.55, accepts: ['cloth'], label: 'Cloth screen' },
-      { x: 0, z: 0, y: 0.62, accepts: ['charcoal'], label: 'Charcoal layer' },
-      { x: 0, z: 0, y: 0.69, accepts: ['sand'], label: 'Sand layer' },
-      { x: 0, z: 0, y: 0.76, accepts: ['gravel'], label: 'Gravel layer' },
+      { x: 0, z: 0, y: 0.55, accepts: FILTER_LAYERS, label: 'Bottom layer (goes in first)' },
+      { x: 0, z: 0, y: 0.62, accepts: FILTER_LAYERS, label: 'Second layer' },
+      { x: 0, z: 0, y: 0.69, accepts: FILTER_LAYERS, label: 'Third layer' },
+      { x: 0, z: 0, y: 0.76, accepts: FILTER_LAYERS, label: 'Top layer (water meets it first)' },
     ],
     radius: 0.6,
     xp: 40,

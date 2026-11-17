@@ -46,6 +46,13 @@ export interface ExperimentDef {
   check: Assessment;
   /** When the experiment is offered (it opens by itself). */
   opens: (g: Game) => boolean;
+  /**
+   * 'check': a lesson's closing question, not an experiment: it opens straight to its check question
+   * (predictions, variable and outcomes are left empty). Default 'experiment'.
+   */
+  kind?: 'experiment' | 'check';
+  /** The testing card's big button (default "Keep testing", which only closes the card). */
+  testAction?: (g: Game) => { label: string; run: () => void } | null;
 }
 
 export type ExperimentPhase = 'locked' | 'predict' | 'testing' | 'result' | 'check' | 'done';
@@ -129,7 +136,7 @@ export class ExperimentTracker {
 
   /** Open experiments whose moment has come (called from the slow tick). */
   update(g: Game): void {
-    for (const d of this.defs) if (this.phase(d.id) === 'locked' && d.opens(g)) this.set(d.id, 'predict');
+    for (const d of this.defs) if (this.phase(d.id) === 'locked' && d.opens(g)) this.set(d.id, d.kind === 'check' ? 'check' : 'predict');
   }
 
   /** The player's prediction: testing starts. Trials seen before it still count. */

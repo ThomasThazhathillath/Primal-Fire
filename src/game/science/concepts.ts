@@ -185,7 +185,16 @@ export const CONCEPTS: Concept[] = [
     idea: 'Wet clay is soft and plastic; dried, then fired hot, its particles fuse into hard ceramic.',
     apply: 'Bricks, tiles and mugs are fired clay; potters add grit (temper) so pots do not crack.',
     discover: 'Shape a pot, let it dry and fire it.',
-    entries: ['g_clay', 'p_temper', 'p_dry', 'p_ceramic'],
+    entries: ['g_clay', 'p_temper', 'p_dry', 'p_ceramic', 'p_reclaim'],
+  },
+  {
+    id: 'water_cycle',
+    lesson: 'water',
+    name: 'The water cycle',
+    idea: 'Water evaporates, condenses into clouds and falls as rain; on its way to the stream it picks up soil and germs.',
+    apply: 'Homes collect rain off roofs into barrels, and still treat it before drinking.',
+    discover: 'Catch rain running off your roof and compare it with stream water.',
+    entries: ['w_cycle'],
   },
   {
     id: 'hydration',

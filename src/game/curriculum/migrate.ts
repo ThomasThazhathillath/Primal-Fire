@@ -14,7 +14,7 @@ import type { LessonTracker } from './tracker.js';
 import type { LessonId } from './types.js';
 
 /** Old beginner objectives that no lesson uses, and the lesson their work belongs to now. */
-const RETIRED_STEP_LESSON: Record<string, LessonId> = { shelter: 'shelter' };
+const RETIRED_STEP_LESSON: Record<string, LessonId> = { shelter: 'shelter', cleanWater: 'water' };
 
 export interface LegacyProgress {
   objectives?: ObjectivesSave;

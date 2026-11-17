@@ -112,7 +112,7 @@ describe('LessonTracker', () => {
   it('can resume another lesson and comes back to play order when it is done', () => {
     const { t } = tracked();
     t.setResume('water');
-    expect(t.current?.id).toBe('pot');
+    expect(t.current?.id).toBe('clayTemper');
     expect(t.reached('water')).toBe(true);
     t.setResume(null);
     expect(t.current?.id).toBe('firstStone');

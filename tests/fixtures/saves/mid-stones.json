@@ -1,0 +1,128 @@
+{
+ "v": 1,
+ "time": 600,
+ "xp": 0,
+ "level": 1,
+ "questIndex": 0,
+ "questsVersion": 2,
+ "levelReached": 1,
+ "water": {
+  "potDry": 0,
+  "potHeat": 0,
+  "potWater": "empty",
+  "boil": 0,
+  "mound": null
+ },
+ "food": {
+  "plots": [],
+  "wild": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "forage": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "cook": 0,
+  "nextId": 1,
+  "rack": {},
+  "spoil": {}
+ },
+ "satchel": {
+  "dryStone": 2
+ },
+ "gathered": {
+  "dryStone": 2
+ },
+ "notebook": [],
+ "events": [],
+ "living": [],
+ "resources": [],
+ "guide": {
+  "marks": [],
+  "failures": {},
+  "pinned": null,
+  "hidden": true
+ },
+ "structures": [],
+ "discovered": [
+  "wake"
+ ],
+ "flags": [],
+ "player": {
+  "x": 0,
+  "z": 0
+ },
+ "held": null,
+ "packUpgrades": [],
+ "drops": [],
+ "toolUses": {},
+ "fire": {
+  "tinder": 0,
+  "twigs": 0,
+  "logs": 0,
+  "fuelFirst": false,
+  "stage": "cold",
+  "burnLeft": 0
+ },
+ "objectives": {
+  "v": 1,
+  "index": 1,
+  "completed": [
+   "firstStone"
+  ],
+  "bases": {
+   "firstStone": 0,
+   "moreStones": 1
+  },
+  "learned": [
+   "grab"
+  ],
+  "hints": {},
+  "done": false,
+  "closed": false
+ },
+ "story": {
+  "seen": [
+   "firstGather"
+  ],
+  "camp": null,
+  "notes": {},
+  "muted": false
+ },
+ "assist": {
+  "place": 0,
+  "tap": 0,
+  "knap": 0
+ },
+ "shelterTest": {
+  "phase": "idle",
+  "rainLeft": 0,
+  "dry": 0,
+  "pause": 0,
+  "flood": 0,
+  "rested": 0,
+  "leakSeen": false,
+  "sealed": false
+ },
+ "env": {
+  "hourOffset": 0,
+  "seed": 1,
+  "wetness": 0
+ }
+}

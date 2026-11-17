@@ -1,0 +1,54 @@
+{
+ "v": 1,
+ "time": 600,
+ "xp": 0,
+ "level": 1,
+ "questIndex": 0,
+ "questsVersion": 2,
+ "levelReached": 1,
+ "satchel": {
+  "dryStone": 2,
+  "slab": 0
+ },
+ "gathered": {
+  "dryStone": 4,
+  "slab": 1
+ },
+ "notebook": [],
+ "structures": [
+  {
+   "id": 1,
+   "kind": "workbench",
+   "x": -2,
+   "z": 2,
+   "rotY": 0,
+   "key": "slab",
+   "spots": [
+    "dryStone",
+    "dryStone",
+    null
+   ],
+   "complete": false,
+   "keyPlaced": false,
+   "spotPos": [
+    {
+     "x": -1.74,
+     "z": 2
+    },
+    {
+     "x": -2.13,
+     "z": 2.2251666049839542
+    },
+    null
+   ]
+  }
+ ],
+ "discovered": [
+  "wake"
+ ],
+ "flags": [],
+ "player": {
+  "x": 0,
+  "z": 0
+ }
+}

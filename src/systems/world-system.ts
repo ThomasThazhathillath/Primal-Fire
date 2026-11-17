@@ -2,10 +2,11 @@
 // feeding the player's position to the game, and autosaving.
 
 import { Color, createSystem, Fog, LocomotionSystem, Vector3, VisibilityState } from '@iwsdk/core';
-import { Game, type SaveData } from '../game/game.js';
+import { Game } from '../game/game.js';
+import { backupBeforeUpgrade, migrateSave, SURVIVAL_SAVE_KEY } from '../game/save.js';
 import { cover, getGame, getUi } from './shared.js';
 
-let SAVE_KEY = 'primal-first-fire.save.v1';
+let SAVE_KEY = SURVIVAL_SAVE_KEY;
 
 /** Tutorial hook: point loading and saving at another key (the tutorial's own game). Call before loadGame(). */
 export function setSaveKey(key: string): void {
@@ -19,9 +20,14 @@ export function loadGame(): Game {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
     if (raw) {
-      const g = Game.restore(JSON.parse(raw) as SaveData);
-      g.log.add('restored save', 'ok');
-      return g;
+      const parsed: unknown = JSON.parse(raw);
+      const data = migrateSave(parsed);
+      if (data) {
+        if (SAVE_KEY === SURVIVAL_SAVE_KEY) backupBeforeUpgrade(localStorage, raw, parsed as typeof data);
+        const g = Game.restore(data);
+        g.log.add('restored save', 'ok');
+        return g;
+      }
     }
   } catch {
     // Private mode, blocked storage or an old save: start fresh.

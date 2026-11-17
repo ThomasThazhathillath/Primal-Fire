@@ -1,0 +1,217 @@
+{
+ "v": 1,
+ "time": 600,
+ "xp": 90,
+ "level": 1,
+ "questIndex": 1,
+ "questsVersion": 2,
+ "levelReached": 1,
+ "water": {
+  "potDry": 0,
+  "potHeat": 0,
+  "potWater": "empty",
+  "boil": 0,
+  "mound": null
+ },
+ "food": {
+  "plots": [],
+  "wild": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "forage": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "cook": 0,
+  "nextId": 1,
+  "rack": {},
+  "spoil": {}
+ },
+ "satchel": {
+  "bowDrill": 1
+ },
+ "gathered": {
+  "dryStone": 8,
+  "slab": 1,
+  "flint": 1,
+  "flake": 1,
+  "twigs": 5,
+  "logs": 3,
+  "dryGrass": 3,
+  "fibers": 3,
+  "spindle": 1,
+  "board": 1,
+  "greenBranch": 1,
+  "cane": 1
+ },
+ "notebook": [
+  "b_tripod",
+  "t_flake",
+  "t_pressure",
+  "g_cord",
+  "g_bow"
+ ],
+ "events": [
+  "build.workbench.done",
+  "tool.knap.flake",
+  "tool.edge.cut",
+  "craft.cord",
+  "craft.bowdrill"
+ ],
+ "living": [],
+ "resources": [],
+ "guide": {
+  "marks": [],
+  "failures": {},
+  "pinned": null,
+  "hidden": true
+ },
+ "structures": [
+  {
+   "id": 100,
+   "kind": "workbench",
+   "x": 3,
+   "z": -4,
+   "rotY": 0,
+   "key": "slab",
+   "spots": [
+    "dryStone",
+    "dryStone",
+    "dryStone"
+   ],
+   "complete": true,
+   "built": true,
+   "keyPlaced": true
+  },
+  {
+   "id": 101,
+   "kind": "firePit",
+   "x": -2,
+   "z": -3,
+   "rotY": 0,
+   "key": "dryStone",
+   "spots": [
+    "dryStone",
+    "dryStone",
+    "dryStone"
+   ],
+   "complete": true,
+   "built": true
+  }
+ ],
+ "discovered": [
+  "wake"
+ ],
+ "flags": [
+  "cordMade",
+  "hasDrill",
+  "fireLayBuilt"
+ ],
+ "player": {
+  "x": 0,
+  "z": 0
+ },
+ "held": null,
+ "packUpgrades": [],
+ "drops": [],
+ "toolUses": {},
+ "fire": {
+  "tinder": 0,
+  "twigs": 0,
+  "logs": 0,
+  "fuelFirst": false,
+  "stage": "cold",
+  "burnLeft": 0
+ },
+ "objectives": {
+  "v": 1,
+  "index": 14,
+  "completed": [
+   "firstStone",
+   "moreStones",
+   "flatStone",
+   "workbench",
+   "exploreBench",
+   "stoneTools",
+   "wood",
+   "cutting",
+   "tinder",
+   "cord",
+   "frictionParts",
+   "bowDrill",
+   "firePit",
+   "fireLay"
+  ],
+  "bases": {
+   "firstStone": 0,
+   "moreStones": 8,
+   "flatStone": 0,
+   "workbench": 0,
+   "exploreBench": 0,
+   "stoneTools": 0,
+   "wood": 0,
+   "cutting": 0,
+   "tinder": 0,
+   "cord": 0,
+   "frictionParts": 0,
+   "bowDrill": 0,
+   "firePit": 0,
+   "fireLay": 0,
+   "ember": 0
+  },
+  "learned": [
+   "bench"
+  ],
+  "hints": {},
+  "done": false,
+  "closed": false
+ },
+ "story": {
+  "seen": [],
+  "camp": null,
+  "notes": {
+   "b_tripod": "Recorded at Waking Clearing, on your first day.",
+   "t_flake": "Recorded at Waking Clearing, on your first day.",
+   "t_pressure": "Recorded at Waking Clearing, on your first day.",
+   "g_cord": "Recorded at Waking Clearing, on your first day.",
+   "g_bow": "Recorded at Waking Clearing, on your first day."
+  },
+  "muted": false
+ },
+ "assist": {
+  "place": 0,
+  "tap": 0,
+  "knap": 0
+ },
+ "shelterTest": {
+  "phase": "idle",
+  "rainLeft": 0,
+  "dry": 0,
+  "pause": 0,
+  "flood": 0,
+  "rested": 0,
+  "leakSeen": false,
+  "sealed": false
+ },
+ "env": {
+  "hourOffset": 0,
+  "seed": 1,
+  "wetness": 0
+ }
+}

@@ -1,0 +1,345 @@
+{
+ "v": 1,
+ "time": 600,
+ "xp": 1020,
+ "level": 6,
+ "questIndex": 15,
+ "questsVersion": 2,
+ "levelReached": 3,
+ "water": {
+  "potDry": 0,
+  "potHeat": 0,
+  "potWater": "empty",
+  "boil": 0,
+  "mound": null
+ },
+ "food": {
+  "plots": [],
+  "wild": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "forage": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "cook": 0,
+  "nextId": 1,
+  "rack": {},
+  "spoil": {}
+ },
+ "satchel": {
+  "bowDrill": 1
+ },
+ "gathered": {
+  "dryStone": 8,
+  "slab": 1,
+  "flint": 1,
+  "flake": 1,
+  "twigs": 12,
+  "logs": 3,
+  "dryGrass": 8,
+  "fibers": 12,
+  "spindle": 1,
+  "board": 1,
+  "greenBranch": 6,
+  "cane": 1,
+  "clay": 2,
+  "sand": 1,
+  "gravel": 1,
+  "forkedStick": 1,
+  "diggingStick": 1,
+  "pole": 3,
+  "bark": 3,
+  "leafLitter": 3
+ },
+ "notebook": [
+  "b_tripod",
+  "t_flake",
+  "t_pressure",
+  "g_cord",
+  "g_bow",
+  "f_drill",
+  "f_success",
+  "p_ceramic",
+  "c_success",
+  "w_boil",
+  "c2_triangle",
+  "c2_load",
+  "s_roof",
+  "c2_slope"
+ ],
+ "events": [
+  "build.workbench.done",
+  "tool.knap.flake",
+  "tool.edge.cut",
+  "craft.cord",
+  "craft.bowdrill",
+  "fire.drill.ember",
+  "fire.lit",
+  "pottery.fired",
+  "charcoal.done",
+  "water.filter.poured",
+  "water.boil.done",
+  "shelter.frame.braced",
+  "shelter.load.shared",
+  "shelter.frame.built",
+  "shelter.roof.covered",
+  "shelter.rain.begin",
+  "shelter.roof.sheds"
+ ],
+ "living": [],
+ "resources": [],
+ "guide": {
+  "marks": [],
+  "failures": {},
+  "pinned": null,
+  "hidden": true
+ },
+ "structures": [
+  {
+   "id": 111,
+   "kind": "workbench",
+   "x": 3,
+   "z": -4,
+   "rotY": 0,
+   "key": "slab",
+   "spots": [
+    "dryStone",
+    "dryStone",
+    "dryStone"
+   ],
+   "complete": true,
+   "built": true,
+   "keyPlaced": true
+  },
+  {
+   "id": 112,
+   "kind": "firePit",
+   "x": -2,
+   "z": -3,
+   "rotY": 0,
+   "key": "dryStone",
+   "spots": [
+    "dryStone",
+    "dryStone",
+    "dryStone"
+   ],
+   "complete": true,
+   "built": true
+  },
+  {
+   "id": 113,
+   "kind": "filter",
+   "x": 1,
+   "z": 4,
+   "rotY": 0,
+   "key": "forkedStick",
+   "spots": [
+    "forkedStick",
+    "forkedStick",
+    "cane",
+    "cloth",
+    "charcoal",
+    "sand",
+    "gravel"
+   ],
+   "complete": true,
+   "built": true
+  },
+  {
+   "id": 114,
+   "kind": "storage",
+   "x": -3,
+   "z": -2,
+   "rotY": 0,
+   "key": "cane",
+   "spots": [
+    "cane",
+    "cane",
+    "cord"
+   ],
+   "complete": true,
+   "built": true
+  },
+  {
+   "id": 115,
+   "kind": "leanTo",
+   "x": 4,
+   "z": 4,
+   "rotY": 0,
+   "key": "pole",
+   "spots": [
+    "pole",
+    "pole",
+    "greenBranch",
+    "greenBranch",
+    "greenBranch",
+    "greenBranch",
+    "greenBranch",
+    "cord",
+    "cord",
+    "cord",
+    "twigs",
+    "twigs",
+    "twigs",
+    "twigs",
+    "bark",
+    "bark",
+    "bark",
+    "leafLitter",
+    "leafLitter",
+    "leafLitter",
+    "dryGrass",
+    "dryGrass",
+    "dryGrass"
+   ],
+   "complete": true,
+   "built": true
+  },
+  {
+   "id": 116,
+   "kind": "drainage",
+   "x": 4,
+   "z": 4,
+   "rotY": 0,
+   "key": "diggingStick",
+   "spots": [
+    "diggingStick",
+    "diggingStick",
+    "diggingStick"
+   ],
+   "complete": true,
+   "built": true
+  }
+ ],
+ "discovered": [
+  "wake"
+ ],
+ "flags": [
+  "cordMade",
+  "hasDrill",
+  "fireLayBuilt",
+  "emberMade",
+  "fireLit",
+  "potDry",
+  "potFired",
+  "moundBuilt",
+  "kilnLit",
+  "charcoalMade",
+  "waterSafe",
+  "shelterTested",
+  "finale"
+ ],
+ "player": {
+  "x": 0,
+  "z": 0
+ },
+ "held": null,
+ "packUpgrades": [],
+ "drops": [],
+ "toolUses": {},
+ "fire": {
+  "tinder": 0,
+  "twigs": 0,
+  "logs": 0,
+  "fuelFirst": false,
+  "stage": "cold",
+  "burnLeft": 0
+ },
+ "objectives": {
+  "v": 1,
+  "index": 21,
+  "completed": [
+   "firstStone",
+   "moreStones",
+   "flatStone",
+   "workbench",
+   "exploreBench",
+   "stoneTools",
+   "wood",
+   "cutting",
+   "tinder",
+   "cord",
+   "frictionParts",
+   "bowDrill",
+   "firePit",
+   "fireLay",
+   "ember",
+   "fireLit",
+   "pot",
+   "charcoal",
+   "cleanWater",
+   "shelter",
+   "science"
+  ],
+  "bases": {},
+  "learned": [
+   "grab",
+   "place",
+   "build",
+   "bench",
+   "tool",
+   "fire"
+  ],
+  "hints": {},
+  "done": true,
+  "closed": false
+ },
+ "story": {
+  "seen": [],
+  "camp": null,
+  "notes": {
+   "b_tripod": "Recorded at Waking Clearing, on your first day.",
+   "t_flake": "Recorded at Waking Clearing, on your first day.",
+   "t_pressure": "Recorded at Waking Clearing, on your first day.",
+   "g_cord": "Recorded at Waking Clearing, on your first day.",
+   "g_bow": "Recorded at Waking Clearing, on your first day.",
+   "f_drill": "Recorded at Waking Clearing, on your first day.",
+   "f_success": "Recorded at Waking Clearing, on your first day.",
+   "p_ceramic": "Recorded at Waking Clearing, on your first day.",
+   "c_success": "Recorded at Waking Clearing, on your first day.",
+   "w_boil": "Recorded at Waking Clearing, on your first day.",
+   "c2_triangle": "Recorded at Waking Clearing, on your first day.",
+   "c2_load": "Recorded at Waking Clearing, on your first day.",
+   "s_roof": "Recorded at Waking Clearing, on your first day.",
+   "c2_slope": "Recorded at Waking Clearing, on your first day."
+  },
+  "muted": false
+ },
+ "assist": {
+  "place": 0,
+  "tap": 0,
+  "knap": 0
+ },
+ "shelterTest": {
+  "phase": "idle",
+  "rainLeft": 0,
+  "dry": 0,
+  "pause": 0,
+  "flood": 0,
+  "rested": 0,
+  "leakSeen": false,
+  "sealed": false
+ },
+ "env": {
+  "hourOffset": 0,
+  "seed": 1,
+  "wetness": 0
+ }
+}

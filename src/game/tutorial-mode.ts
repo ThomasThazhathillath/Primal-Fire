@@ -4,8 +4,10 @@
 // instance. The tutorial has its own save key and its own progress key; it
 // never reads or writes the survival save.
 
-/** The survival save (owned by WorldSystem). Listed here only so tests can check it is never touched. */
-export const SURVIVAL_SAVE_KEY = 'primal-first-fire.save.v1';
+import { SURVIVAL_SAVE_KEY } from './save.js';
+
+/** The survival save (owned by WorldSystem, defined in save.ts). Re-exported so tests can check it is never touched. */
+export { SURVIVAL_SAVE_KEY };
 /** The tutorial's own Game snapshot (cleared each time the tutorial starts). */
 export const TUTORIAL_SAVE_KEY = 'primal-first-fire.tutorial-game.v1';
 /** Lesson progress: which lessons are done, which one is open. */

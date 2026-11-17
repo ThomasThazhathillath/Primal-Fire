@@ -114,7 +114,9 @@ describe('workbench crafting', () => {
       give(g, r.inputs);
       expect(g.startBench(r.id, id)).toBe(true);
       doAll(g);
-      expect(g.count(r.output)).toBe(r.count ?? 1);
+      // A recipe that makes something other than an item (clay test cups) puts it in the game instead.
+      if (r.make) expect(g.water.clay.pieces.length, r.id).toBe(3);
+      else expect(g.count(r.output)).toBe(r.count ?? 1);
     }
     const { g, id } = withBench();
     give(g, BENCH_BY_ID.axe.inputs);

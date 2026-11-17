@@ -45,6 +45,8 @@ export interface BenchRecipe {
   observation?: string;
   science?: ScienceEventId[];
   flag?: FlagId;
+  /** Makes something other than an item (clay test cups): called instead of adding `output` to the bag. */
+  make?: (g: Game) => void;
 }
 
 export const BENCH_RECIPES: BenchRecipe[] = [
@@ -150,6 +152,19 @@ export const BENCH_RECIPES: BenchRecipe[] = [
       { id: 'knead', title: 'Knead sand into the clay', motion: 'press', work: 0.6, hint: 'Sand (temper) stops the pot cracking as it dries.', mark: 'pot.clay.tempered' },
       { id: 'coil', title: 'Roll coils and build the walls', motion: 'twist', work: Math.PI * 4, hint: 'Even coils make even walls.' },
       { id: 'smooth', title: 'Smooth the walls', motion: 'scrape', work: 1, hint: 'Thin, even walls dry without cracking.', mark: 'pot.shaped' },
+    ],
+  },
+  // Lesson 03: three small test cups, the same size, to test clay before risking a pot (lessons/water/clay.ts).
+  {
+    id: 'clayTest',
+    name: 'Clay test cups (clay only vs clay + sand)',
+    output: 'clay',
+    inputs: { clay: 2, sand: 1 },
+    make: (g) => g.water.clay.make(),
+    steps: [
+      { id: 'divide', title: 'Split the clay into three equal lumps', motion: 'press', work: 0.3, hint: 'Same size, same clay: only one thing will differ.' },
+      { id: 'temper', title: 'Knead sand into two lumps, leave one plain', motion: 'press', work: 0.4, hint: 'The plain lump is the comparison.' },
+      { id: 'shape', title: 'Pinch each into a small cup', motion: 'twist', work: Math.PI * 2, hint: 'Make the walls of all three equally thick.' },
     ],
   },
   // FOOD (Level 3, Science session): see src/game/food.ts.

@@ -3,7 +3,7 @@ export default async function run({ page }) {
   for (const f of page.frames()) if (await f.evaluate(() => !!window.__primal?.game).catch(() => false)) app = f;
   return await app.evaluate(async () => {
     const p = window.__primal, g = p.game; const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-    window.__title?.tap('begin-button') || p.begin(); await wait(800);
+    window.__title?.play?.() || p.begin(); await wait(800);
     g.allowsBuild = () => true; g.addItem('dryStone', 3); g.addItem('slab');
     g.armFromBook('workbench'); p.place(0, -2); await wait(300);
     const s = g.structures[0];

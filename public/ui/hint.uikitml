@@ -1,9 +1,7 @@
 <!--
-  The hint panel (docs/QUEST_GUIDANCE_SPEC.md, part B). Fixed layout: HintPanelSystem
-  puts the reference picture (a rendered texture) over the empty .pic area and
-  tests fingertip taps against the two buttons at known spots. Rows (top to
-  bottom, px): header 48, picture 342, name 34, look-for / why / avoid / what-to-do 4 x 60,
-  level row 44, level text 128. Panel height 904.
+  Hint = Find (HintPanelSystem): every item you can gather, one button each (the current step's needs first, in
+  orange). Choosing one puts a sky beacon on every spot of it on the map (BeaconSystem); Clear beacons turns them off.
+  28 item buttons (find-0 .. find-27, game/find.ts FIND_SLOTS), 4 to a row.
 -->
 <style>
   .theme-begin { display: flex; }
@@ -35,33 +33,54 @@
   .t-track { background-color: rgba(255, 225, 180, 0.16); border-radius: 4px; }
   .t-fill { background-color: #f0a54e; border-radius: 4px; }
 .theme-end { display: flex; }
-  .root { flex-direction: column; width: 600px; height: 904px; padding-top: 18px; padding-bottom: 18px; padding-left: 20px; padding-right: 20px; justify-content: flex-start; }
-  .head { flex-direction: row; align-items: center; justify-content: space-between; height: 48px; flex-shrink: 0; }
+  .root { flex-direction: column; width: 600px; padding-top: 18px; padding-bottom: 18px; padding-left: 20px; padding-right: 20px; gap: 8px; }
+  .head { flex-direction: row; align-items: center; justify-content: space-between; height: 56px; flex-shrink: 0; }
   .titlebox { flex-direction: column; width: 360px; }
-  .pic { width: 456px; height: 342px; margin-top: 8px; margin-left: 52px; flex-shrink: 0; }
-  .name { height: 34px; margin-top: 6px; flex-shrink: 0; width: 560px; }
-  .row { height: 60px; flex-shrink: 0; margin-top: 0px; line-height: 1.2; width: 560px; }
-  .lvl { flex-direction: row; align-items: center; justify-content: space-between; height: 44px; margin-top: 8px; flex-shrink: 0; }
-  .hinttext { height: 128px; margin-top: 4px; flex-shrink: 0; line-height: 1.25; width: 560px; }
   .back { width: 170px; height: 56px; }
+  .note { width: 560px; line-height: 1.25; }
+  .grid { flex-direction: row; flex-wrap: wrap; gap: 8px; width: 560px; }
+  .cell { width: 132px; height: 56px; justify-content: center; }
+  .celltext { color: #f6ecd2; font-size: 16px; font-weight: 700; }
+  .wide { width: 560px; height: 56px; justify-content: center; }
 </style>
 <div class="root t-root">
   <div class="head">
     <div class="titlebox">
-      <div id="hint-eyebrow" class="eyebrow t-label">HINT</div>
-      <div id="hint-title" class="title t-title">-</div>
+      <div id="hint-eyebrow" class="t-label">HINT: FIND</div>
+      <div id="hint-title" class="t-title">What are you looking for?</div>
     </div>
     <Button id="hint-close" class="back t-btn" size="lg" variant="secondary"><ButtonIcon><ArrowLeft></ArrowLeft></ButtonIcon><ButtonLabel>Back</ButtonLabel></Button>
   </div>
-  <div class="pic"></div>
-  <div id="hint-name" class="name t-name">-</div>
-  <div id="hint-look" class="row t-body">-</div>
-  <div id="hint-why" class="row t-body">-</div>
-  <div id="hint-avoid" class="row t-body">-</div>
-  <div id="hint-do" class="row t-body">-</div>
-  <div class="lvl">
-    <div id="hint-level" class="lvltext t-accent">Hint 1 of 4</div>
-    <Button id="hint-more" class="t-go" size="lg"><ButtonIcon><Plus></Plus></ButtonIcon><ButtonLabel>More help</ButtonLabel></Button>
+  <div id="find-note" class="note t-muted">Pick one: every one on the map gets a beacon you can see from far away.</div>
+  <div class="grid">
+    <Button id="find-0" class="t-btn cell" size="sm"><ButtonLabel id="find-0-label" class="celltext">-</ButtonLabel></Button>
+    <Button id="find-1" class="t-btn cell" size="sm"><ButtonLabel id="find-1-label" class="celltext">-</ButtonLabel></Button>
+    <Button id="find-2" class="t-btn cell" size="sm"><ButtonLabel id="find-2-label" class="celltext">-</ButtonLabel></Button>
+    <Button id="find-3" class="t-btn cell" size="sm"><ButtonLabel id="find-3-label" class="celltext">-</ButtonLabel></Button>
+    <Button id="find-4" class="t-btn cell" size="sm"><ButtonLabel id="find-4-label" class="celltext">-</ButtonLabel></Button>
+    <Button id="find-5" class="t-btn cell" size="sm"><ButtonLabel id="find-5-label" class="celltext">-</ButtonLabel></Button>
+    <Button id="find-6" class="t-btn cell" size="sm"><ButtonLabel id="find-6-label" class="celltext">-</ButtonLabel></Button>
+    <Button id="find-7" class="t-btn cell" size="sm"><ButtonLabel id="find-7-label" class="celltext">-</ButtonLabel></Button>
+    <Button id="find-8" class="t-btn cell" size="sm"><ButtonLabel id="find-8-label" class="celltext">-</ButtonLabel></Button>
+    <Button id="find-9" class="t-btn cell" size="sm"><ButtonLabel id="find-9-label" class="celltext">-</ButtonLabel></Button>
+    <Button id="find-10" class="t-btn cell" size="sm"><ButtonLabel id="find-10-label" class="celltext">-</ButtonLabel></Button>
+    <Button id="find-11" class="t-btn cell" size="sm"><ButtonLabel id="find-11-label" class="celltext">-</ButtonLabel></Button>
+    <Button id="find-12" class="t-btn cell" size="sm"><ButtonLabel id="find-12-label" class="celltext">-</ButtonLabel></Button>
+    <Button id="find-13" class="t-btn cell" size="sm"><ButtonLabel id="find-13-label" class="celltext">-</ButtonLabel></Button>
+    <Button id="find-14" class="t-btn cell" size="sm"><ButtonLabel id="find-14-label" class="celltext">-</ButtonLabel></Button>
+    <Button id="find-15" class="t-btn cell" size="sm"><ButtonLabel id="find-15-label" class="celltext">-</ButtonLabel></Button>
+    <Button id="find-16" class="t-btn cell" size="sm"><ButtonLabel id="find-16-label" class="celltext">-</ButtonLabel></Button>
+    <Button id="find-17" class="t-btn cell" size="sm"><ButtonLabel id="find-17-label" class="celltext">-</ButtonLabel></Button>
+    <Button id="find-18" class="t-btn cell" size="sm"><ButtonLabel id="find-18-label" class="celltext">-</ButtonLabel></Button>
+    <Button id="find-19" class="t-btn cell" size="sm"><ButtonLabel id="find-19-label" class="celltext">-</ButtonLabel></Button>
+    <Button id="find-20" class="t-btn cell" size="sm"><ButtonLabel id="find-20-label" class="celltext">-</ButtonLabel></Button>
+    <Button id="find-21" class="t-btn cell" size="sm"><ButtonLabel id="find-21-label" class="celltext">-</ButtonLabel></Button>
+    <Button id="find-22" class="t-btn cell" size="sm"><ButtonLabel id="find-22-label" class="celltext">-</ButtonLabel></Button>
+    <Button id="find-23" class="t-btn cell" size="sm"><ButtonLabel id="find-23-label" class="celltext">-</ButtonLabel></Button>
+    <Button id="find-24" class="t-btn cell" size="sm"><ButtonLabel id="find-24-label" class="celltext">-</ButtonLabel></Button>
+    <Button id="find-25" class="t-btn cell" size="sm"><ButtonLabel id="find-25-label" class="celltext">-</ButtonLabel></Button>
+    <Button id="find-26" class="t-btn cell" size="sm"><ButtonLabel id="find-26-label" class="celltext">-</ButtonLabel></Button>
+    <Button id="find-27" class="t-btn cell" size="sm"><ButtonLabel id="find-27-label" class="celltext">-</ButtonLabel></Button>
   </div>
-  <div id="hint-text" class="hinttext t-body">-</div>
+  <Button id="find-clear" class="wide t-btn" size="lg"><ButtonLabel id="find-clear-label" class="celltext">Clear beacons</ButtonLabel></Button>
 </div>

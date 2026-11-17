@@ -98,9 +98,11 @@ describe('LessonTracker', () => {
   it('finishing the last step of a lesson completes it and names the next lesson', () => {
     const { t, events } = tracked();
     t.load({ completed: LESSONS[0].steps.slice(0, -1), resume: null, bases: {}, learned: [], hints: {}, closed: false });
-    expect(t.current?.id).toBe('bed');
-    // The bed is built.
-    (t as unknown as { game: Game }).game.structures.push({ id: 9, kind: 'bedding', x: 0, z: 0, rotY: 0, key: 'leafLitter', spots: [], complete: true });
+    expect(t.current?.id).toBe('nightShelter');
+    // The night test is answered and the shelter kept warmth steady through a cold night.
+    const game = (t as unknown as { game: Game }).game;
+    game.experiments.restore({ v: 1, states: { nightShelter: { phase: 'done', prediction: 'less', trials: { open: 'fast', shelter: 'steady' }, supported: 'less', answers: ['shelter'] } } });
+    game.science('shelter.night.warm');
     t.update();
     const done = events.find((e) => e.type === 'lessonComplete');
     expect(done).toMatchObject({ type: 'lessonComplete', lesson: 'shelter', n: 1, next: { id: 'fire', n: 2 } });
@@ -112,7 +114,7 @@ describe('LessonTracker', () => {
   it('can resume another lesson and comes back to play order when it is done', () => {
     const { t } = tracked();
     t.setResume('water');
-    expect(t.current?.id).toBe('pot');
+    expect(t.current?.id).toBe('clayTemper');
     expect(t.reached('water')).toBe(true);
     t.setResume(null);
     expect(t.current?.id).toBe('firstStone');

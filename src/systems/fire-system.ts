@@ -1,7 +1,9 @@
 // The fire in the pit: fuel hotspot, bow-drill sawing and open-palm fanning
 // read from hand motion, the carried ember, and the flame effects (a few
 // pooled meshes + 24 ember sparks + one light; nothing allocates per frame).
-// Browser fallback: tap the pit to add fuel / saw a stroke / fan a puff.
+// Browser: drag the mouse left and right at the pit to saw the bow drill (the drag's speed is the stroke
+// speed; Shift presses down on the spindle); tap the pit to add fuel, fan a puff, or (holding the digging
+// stick) smother the fire with earth.
 
 import { roundPoints } from './round-points.js';
 import {
@@ -33,8 +35,9 @@ import {
 import type { GameEvent } from '../game/game.js';
 import { FirePitSpot } from '../components/game-components.js';
 import { flameGeometry, flameMaterial, glowMaterial, smokeMaterial } from './fire-fx.js';
+import { FUEL_ITEMS, PRESSURE } from '../game/fire.js';
 import { bowSlide, BowDrillMotion, DRILL, drillSmokeRate, drillSpin, fanLean, fanStrength, Reciprocation, RIG, SawAxis } from '../game/gestures.js';
-import { hands } from './hand-input-system.js';
+import { hands, mouse } from './hand-input-system.js';
 import { getGame, getUi, handClaims, interactionsPaused } from './shared.js';
 
 const SPARKS = 24;
@@ -56,6 +59,9 @@ const emberGeo = new SphereGeometry(0.018, 8, 6);
 
 /** Seconds the first fire takes to grow from a flicker to full flame. */
 const FIRST_FIRE_GROW = 10;
+/** Browser: pixels of mouse drag per metre of bow stroke, and how near the pit (m) you must stand to saw. */
+const PX_PER_M = 700;
+const DESK_REACH = 2.6;
 
 export class FireSystem extends createSystem({
   pitPressed: { required: [FirePitSpot, Pressed] },
@@ -96,12 +102,18 @@ export class FireSystem extends createSystem({
   private rigWorld = new Vector3();
   private spinRate = 0;
   private spinAngle = 0;
-  private kick = 0;
   private wasCarrying = false;
   /** Smoke and sparks lean with the fanning hand's sweep (m/s). */
   private lean = { x: 0, z: 0 };
   private t = 0;
   private shownLay = '';
+  /** Browser sawing: a press that started while the drill could saw, its stroke rhythm and the bow's slide. */
+  private deskSaw = false;
+  private deskStrokes = new Reciprocation();
+  private deskBow = 0;
+  private deskX = 0;
+  private deskTip = -10;
+  private capWrapped = false;
 
   init(): void {
     const game = getGame(this.world);
@@ -189,14 +201,30 @@ export class FireSystem extends createSystem({
 
   /** Browser / ray tap on the pit. VR pinches reach it through the same ray. */
   private onPitPressed(): void {
-    const fire = getGame(this.world).fire;
+    const game = getGame(this.world);
+    const fire = game.fire;
+    const held = game.held;
     if (fire.carrying) fire.transferEmber();
     else if (fire.embedded) fire.fan(1, 0.3);
-    else if (fire.layBuilt && getGame(this.world).held === 'bowDrill') {
-      fire.stroke();
-      this.kick = 1;
-    }
+    else if (held === 'bowDrill') {
+      // Sawing is a drag (browser) or the hand's own stroke (VR), never a click: say how, now and then.
+      if (this.t - this.deskTip > 8) {
+        this.deskTip = this.t;
+        const vr = this.world.visibilityState.peek() !== VisibilityState.NonImmersive;
+        if (!fire.canDrill) game.toast(fire.stage === 'burning' || fire.layBuilt ? 'Wait until the ember is out of the way.' : 'Lay the fire first: tinder, twigs, then logs.', 'note');
+        else game.toast(vr ? 'Saw the bow back and forth over the board, your other hand pressing on top of the spindle.' : 'Hold the mouse button and drag left and right to saw. Hold Shift to press down on the spindle.', 'info');
+      }
+    } else if (held === 'diggingStick' && fire.stage === 'burning') fire.smother();
+    else if (held && FUEL_ITEMS[held]) fire.addFuel();
+    else if (fire.stage === 'burning') fire.fan(1, 0.3);
     else fire.addFuel();
+  }
+
+  /** Browser: can a mouse drag saw the bow drill right now (holding it, near the pit, nothing in the way)? */
+  private deskCanSaw(): boolean {
+    const game = getGame(this.world);
+    if (!this.pitEntity || this.world.visibilityState.peek() !== VisibilityState.NonImmersive || !game.fire.canDrill) return false;
+    return Math.hypot(game.player.x - this.pitPos.x, game.player.z - this.pitPos.z) < DESK_REACH;
   }
 
   private refreshLay(): void {
@@ -327,6 +355,15 @@ export class FireSystem extends createSystem({
   }
 
   update(delta: number): void {
+    if (!this.capWrapped) {
+      // A left press that saws the drill must not turn the view (InteractionSystem sets the hook in its init).
+      const ui = getUi(this.world);
+      const prev = ui.capturesPointer;
+      if (prev) {
+        ui.capturesPointer = () => this.deskCanSaw() || prev();
+        this.capWrapped = true;
+      }
+    }
     if (!this.pitEntity || delta <= 0) return;
     const game = getGame(this.world);
     const fire = game.fire;
@@ -341,7 +378,10 @@ export class FireSystem extends createSystem({
     // Hand motion (filtered, once a frame in HandInputSystem): the bow hand saws back and forth while the
     // other hand steadies the spindle; an empty hand waved over an embedded ember fans it.
     const vr = this.world.visibilityState.peek() !== VisibilityState.NonImmersive;
-    const driving = game.held === 'bowDrill' && fire.layBuilt && fire.stage === 'lay' && !fire.carrying;
+    // The drill saws at the pit whenever no ember is out: for the first ember, and beside a burning fire for the
+    // drill experiments. The rig only appears when you are at the pit.
+    const nearPit = Math.hypot(game.player.x - this.pitPos.x, game.player.z - this.pitPos.z) < (vr ? 3.5 : DESK_REACH);
+    const driving = fire.canDrill && nearPit;
     if (driving && !this.rigOn) this.activateRig();
     // The ember just appeared: the rig stays a moment with its dust glowing, then the bow goes back to your hand.
     if (fire.carrying && !this.wasCarrying && this.rigOn) this.rigHold = 1.2;
@@ -370,9 +410,11 @@ export class FireSystem extends createSystem({
         if (atRig < RIG.reach && h.pos.y < 1.2) {
           const other = hands[1 - i];
           const steadyDist = other.tracked ? Math.hypot(other.pos.x - this.rigWorld.x, other.pos.z - this.rigWorld.z) : Infinity;
-          const k = this.drill.update(delta, h.motion.vel.x, h.motion.vel.z, steadyDist, other.motion.speed);
+          // The other hand on top of the spindle, held still, is the downward press; without it the touch is light.
+          const pressing = steadyDist <= DRILL.steadyRadius && other.motion.speed <= DRILL.steadySpeed;
+          const rhythm = this.drill.strokes.update(delta, h.motion.vel.x, 0, h.motion.vel.z);
           const dist = Math.min(h.motion.speed, DRILL.maxSpeed) * delta;
-          fire.saw(dist, delta, k);
+          fire.saw(dist, delta, pressing ? PRESSURE.firm : PRESSURE.light, rhythm);
           this.axis.update(delta, h.motion.vel.x, h.motion.vel.z);
           bowSpeed = this.axis.along(h.motion.vel.x, h.motion.vel.z);
           // The bow slides with the hand along the line of the stroke.
@@ -380,7 +422,7 @@ export class FireSystem extends createSystem({
           this.bow.position.set(this.axis.x * off, Math.min(0.3, Math.max(0.1, h.pos.y)), this.axis.z * off);
           this.bow.rotation.y = Math.atan2(this.axis.x, this.axis.z);
         } else this.drill.reset();
-      } else if (fire.embedded && game.held !== 'bowDrill' && near < 0.8 && h.pos.y > 0.2 && h.pos.y < 1.1) {
+      } else if ((fire.embedded || fire.stage === 'burning') && game.held !== 'bowDrill' && (!game.held || i !== handClaims.holdHand) && near < 0.8 && h.pos.y > 0.2 && h.pos.y < 1.1) {
         const r = this.fans[i].update(delta, h.motion.vel.x, h.motion.vel.y, h.motion.vel.z);
         const strength = fanStrength(h.motion.speed, r);
         if (strength > 0) {
@@ -393,10 +435,26 @@ export class FireSystem extends createSystem({
     }
     if (!driving) this.drill.reset();
     fanLean(this.lean, delta, fanVx, fanVz, fanning);
-    // Browser: a click is one stroke, shown as a quick spin of the spindle.
-    if (this.kick > 0) {
-      this.kick = Math.max(0, this.kick - delta * 3);
-      bowSpeed = (Math.sin(this.t * 40) > 0 ? 1 : -1) * 0.5 * this.kick;
+    // Browser: hold the button and drag left and right. The drag's speed is the stroke speed, Shift the press.
+    if (!vr) {
+      if (mouse.pressed && this.deskCanSaw()) {
+        this.deskSaw = true;
+        this.deskStrokes.reset();
+        this.deskX = mouse.x;
+      }
+      if (!mouse.down || !driving) this.deskSaw = false;
+      if (this.deskSaw) {
+        // The pointer's real travel this frame (not a smoothed velocity, which averages quick strokes away).
+        const vx = (mouse.x - this.deskX) / delta / PX_PER_M;
+        this.deskX = mouse.x;
+        const rhythm = this.deskStrokes.update(delta, vx, 0, 0);
+        const speed = Math.min(Math.abs(vx), DRILL.maxSpeed);
+        fire.saw(speed * delta, delta, mouse.shift ? PRESSURE.firm : PRESSURE.light, rhythm);
+        bowSpeed = vx;
+        this.deskBow = Math.max(-RIG.slideMax, Math.min(RIG.slideMax, this.deskBow + vx * delta));
+        this.bow.position.set(this.axis.x * this.deskBow, 0.14, this.axis.z * this.deskBow);
+        this.bow.rotation.y = Math.atan2(this.axis.x, this.axis.z);
+      }
     }
     if (this.rigOn) this.updateRig(delta, bowSpeed, fire.heat, fire.carrying);
 
@@ -422,15 +480,20 @@ export class FireSystem extends createSystem({
       const size = 0.45 + flameLevel * 0.75;
       f.scale.set(size, size * (0.9 + 0.12 * Math.sin(this.t * 3.1 + i * 2)), size);
     }
-    const glowLevel = Math.max(flameLevel, heat * 0.4, embedded ? 0.35 : 0);
+    // A fire burned down to coals still glows red in the pit.
+    const fire = getGame(this.world).fire;
+    const coals = fire.stage === 'burning' ? fire.hearth.coals : 0;
+    const glowLevel = Math.max(flameLevel, heat * 0.4, embedded ? 0.35 : 0, coals * 0.9);
     this.glow.visible = glowLevel > 0.02;
     this.glowMat.uniforms.uIntensity.value = glowLevel * (0.55 + 0.08 * Math.sin(this.t * 7.1) + 0.05 * Math.sin(this.t * 13.7));
     // Firelight: layered flicker so it never pulses like a metronome.
-    this.light.intensity = burning ? 2.4 * (1 + 0.5 * getGame(this.world).env.night) * intensity * (0.25 + 0.75 * grow) * (0.82 + 0.1 * Math.sin(this.t * 11.3) + 0.06 * Math.sin(this.t * 23.7 + 1.3) + 0.04 * Math.sin(this.t * 37.1)) : embedded ? 0.4 : 0;
+    this.light.intensity = burning ? 2.4 * (1 + 0.5 * getGame(this.world).env.night) * intensity * (0.25 + 0.75 * grow) * (0.82 + 0.1 * Math.sin(this.t * 11.3) + 0.06 * Math.sin(this.t * 23.7 + 1.3) + 0.04 * Math.sin(this.t * 37.1)) : embedded ? 0.4 : coals * 1.2;
 
     // Smoke: thick while it smoulders, thinner once it burns cleanly.
     // The first fire sends up a thicker column while it takes hold.
-    const ownRate = embedded && !burning ? 3 : burning ? 1.4 * (1 + 1.6 * (1 - grow)) : heat > 0.3 ? heat * 2 : 0;
+    // Damp or green fuel, a crowded fire or a smouldering ember smoke thickly (fire.smoke, from the fire's rules).
+    const fuelSmoke = fire.smoke;
+    const ownRate = embedded && !burning ? 3 + fuelSmoke * 3 : burning ? 1.4 * (1 + 1.6 * (1 - grow)) + fuelSmoke * 5 : heat > 0.3 ? heat * 2 : 0;
     // Sawing smokes at the drilled board as soon as the spindle turns fast enough.
     const drillRate = this.rigOn ? drillSmokeRate(this.spinRate, heat) : 0;
     const fromRig = drillRate > ownRate;

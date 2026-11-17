@@ -59,7 +59,7 @@ describe('title menu, pause card and turn buttons', () => {
   it('the title offers Play/Continue, New Game, Tutorial and Quit with big targets', () => {
     const t = ui('welcome');
     for (const id of ['begin-button', 'new-button', 'tutorial-button', 'quit-button']) expect(t.includes(`id="${id}"`), id).toBe(true);
-    expect(t).toContain('PRIMAL');
+    expect(t).toContain('EUREKA');
     expect(t).toMatch(/\.big \{[^}]*height: (6\d|7\d|8\d)px/);
   });
   it('the pause card has Resume, a labelled Restart, Exit to Menu and Quit Game', () => {

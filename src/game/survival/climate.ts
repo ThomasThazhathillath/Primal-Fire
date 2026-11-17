@@ -21,6 +21,10 @@ export interface Microclimate {
   fire: number;
   /** It is night (0..1, 1 = full night). */
   night: number;
+  /** Share of the ground's pull the bed under you stops (0..1, survival/materials.ts). Absent: 0.9 on a bed, else 0. */
+  bedInsulation?: number;
+  /** How damp the bed under you is (0..1): damp bedding soaks into your clothes. */
+  bedMoisture?: number;
 }
 
 export interface WeatherNow {
@@ -36,6 +40,8 @@ export const DAY_HIGH = 20;
 export const NIGHT_LOW = 7;
 /** How far a fire's warmth reaches (m). */
 export const FIRE_REACH = 4;
+/** How much colder (deg C) the air is at the bottom of a hollow on a calm night: cold air drains downhill and pools. */
+export const HOLLOW_CHILL = 2.5;
 
 /** Air temperature from the hour (warmest at 14:00, coldest at 05:00) and the sky. */
 export function airTemperature(w: WeatherNow): number {
@@ -59,9 +65,20 @@ export function fireWarmth(d: number, burning: boolean): number {
 /** Put it together. `shelter`: how much of the wind a roof overhead stops (0..1). */
 export function microclimate(
   w: WeatherNow,
-  at: { sheltered: boolean; onBed: boolean; fireDist: number; fireBurning: boolean },
+  at: {
+    sheltered: boolean;
+    onBed: boolean;
+    fireDist: number;
+    fireBurning: boolean;
+    /** The bed under you (survival/materials.ts): how much of the ground's pull it stops, and how damp it is. */
+    bedInsulation?: number;
+    bedMoisture?: number;
+    /** 0..1: how deep in a hollow you are (game/sites.ts). Cold air pools there on calm nights; wind stirs it out. */
+    hollow?: number;
+  },
 ): Microclimate {
-  const air = airTemperature(w);
+  const pool = (at.hollow ?? 0) * w.night * Math.max(0, 1 - 1.2 * w.wind);
+  const air = airTemperature(w) - HOLLOW_CHILL * pool;
   // Clear nights: the ground radiates its heat to the sky and ends up colder than the air.
   const ground = air - (w.night > 0.5 ? 2 * (1 - w.cloud) : 0);
   return {
@@ -73,5 +90,7 @@ export function microclimate(
     onBed: at.onBed,
     fire: fireWarmth(at.fireDist, at.fireBurning),
     night: w.night,
+    ...(at.bedInsulation !== undefined ? { bedInsulation: at.bedInsulation } : {}),
+    ...(at.bedMoisture !== undefined ? { bedMoisture: at.bedMoisture } : {}),
   };
 }

@@ -67,7 +67,7 @@ ev "(() => {
     if (window.__iconbar?.panel?.visible) mark('menuShown');
     if (s.id && window.__assist.fx.exact) w.targetShown[s.id] = true;
   }, 100);
-  window.__title.tap('begin-button');
+  window.__title.play();
   return 'started';
 })()"
 sleep 2

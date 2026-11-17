@@ -6,7 +6,7 @@
  */
 
 import { iwsdkDev } from '@iwsdk/vite-plugin-dev';
-import { appendFileSync } from 'node:fs';
+import { appendFileSync, readFileSync } from 'node:fs';
 import { join, sep } from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
 
@@ -49,12 +49,42 @@ function playtestLog(): Plugin {
   };
 }
 
+/**
+ * The ECS (elics) keeps every component in fixed-size arrays sized when the World is made: 1000 entities by default,
+ * and IWSDK's World.create offers no option. Every resource spot is an entity, so a fresh game already used 888 of the
+ * 1000, and more spots (or a big build) ran out: createTransformEntity threw "offset is out of bounds" and systems
+ * failed to start. Raise the default where elics sets it, in the dev pre-bundle (esbuild) and in the build (Rollup).
+ * About 3 MB more memory. If an elics update moves that line, both fail loudly instead of quietly keeping 1000.
+ */
+const ENTITY_CAPACITY = 4096;
+const ELICS_WORLD = /[\\/]elics[\\/]lib[\\/]world\.js$/;
+function raiseEntityCapacity(code: string, id: string): string {
+  const out = code.replace('entityCapacity = 1000,', `entityCapacity = ${ENTITY_CAPACITY},`);
+  if (out === code) throw new Error(`entity capacity patch did not apply to ${id}: check the elics World constructor`);
+  return out;
+}
+function entityCapacity(): Plugin {
+  return {
+    name: 'eureka-entity-capacity',
+    enforce: 'pre',
+    transform(code, id) {
+      return ELICS_WORLD.test(id) ? { code: raiseEntityCapacity(code, id), map: null } : null;
+    },
+  };
+}
+const entityCapacityEsbuild = {
+  name: 'eureka-entity-capacity',
+  setup(build: { onLoad(opts: { filter: RegExp }, cb: (args: { path: string }) => { contents: string; loader: 'js' }): void }) {
+    build.onLoad({ filter: ELICS_WORLD }, (args) => ({ contents: raiseEntityCapacity(readFileSync(args.path, 'utf8'), args.path), loader: 'js' }));
+  },
+};
+
 const ROOT = process.cwd();
 const NOT_APP = ['.claude', 'dist', 'docs', '.scratch'].map((d) => join(ROOT, d) + sep);
 const PLAYTEST_LOG = join(ROOT, 'playtest.log');
 
 export default defineConfig({
-  plugins: [iwsdkDev(), playtestLog()],
+  plugins: [entityCapacity(), iwsdkDev(), playtestLog()],
   server: {
     host: '0.0.0.0',
     port: Number(process.env.PORT ?? 8081),
@@ -93,7 +123,7 @@ export default defineConfig({
       '@pmndrs/uikit-lucide',
       '@drawcall/uikitml',
     ],
-    esbuildOptions: { target: 'esnext' },
+    esbuildOptions: { target: 'esnext', plugins: [entityCapacityEsbuild] },
   },
   publicDir: 'public',
   base: './',

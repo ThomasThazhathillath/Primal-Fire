@@ -13,12 +13,14 @@ import { checkPlace, FAILURE_TEXT, GrabTracker, slabStability, SUPPORT_NAMES, ty
 import { HAND_RECIPES, TOOLS } from './tools.js';
 import { capacityFor, itemsCount, itemsWeight, moveLimits, PACK_UPGRADES, type MoveLimits, type PackUpgrade } from './backpack.js';
 import { FireState, type FireSave, type FireStage } from './fire.js';
+import { FuelMoisture, type FuelMoistureSave } from './fuel-moisture.js';
 import {
   BLUEPRINTS,
   CAMP_RADIUS,
   checkPlacement,
   DEFAULT_SPOT_TOLERANCE,
   isSpotLocked,
+  markDef,
   openStage,
   STAGE_NAMES,
   spotWorldPosition,
@@ -59,6 +61,10 @@ import { SAVE_VERSION } from './save.js';
 import { Body, type BodySave, type Level, type Need } from './survival/body.js';
 import { microclimate, type Microclimate } from './survival/climate.js';
 import { ToolYard, type YardSave } from './curriculum/lessons/tools/yard.js';
+import { bedParts, bedUnder, COLD_HOUR, NIGHT_COLD, ShelterRules } from './curriculum/lessons/shelter/rules.js';
+import { bedInsulation, bedMoisture } from './survival/materials.js';
+import { hollowDepth, siteAt } from './sites.js';
+import type { FramePushResult } from './shelter.js';
 
 export type FlagId =
   | 'cordMade'
@@ -111,7 +117,9 @@ export type GameEvent =
   | { type: 'interaction'; code: GuideFailureCode; detail?: string }
   | { type: 'drops' }
   | { type: 'gather'; item: ItemId; tool: ItemId | null }
-  | { type: 'action'; id: string; progress: number; done: boolean };
+  | { type: 'action'; id: string; progress: number; done: boolean }
+  /** The lean-to frame was pushed (Lesson 01): how far it leaned (0..1), for the sway. */
+  | { type: 'framePush'; id: number; rack: number; holds: boolean };
 
 /** XP needed to reach each level (index = level − 1). */
 export const LEVELS = [0, 100, 250, 450, 700, 1000, 1400, 99999];
@@ -249,6 +257,8 @@ export class Game {
   readonly discovered = new Set<string>(LANDMARKS.filter((l) => l.known).map((l) => l.id));
   readonly log: EventLog;
   readonly fire = new FireState(this);
+  /** How wet the fuel you carry is (Lesson 02: rain soaks it, a fire or a roof dries it). */
+  readonly fuelWet = new FuelMoisture(this);
   /** The five-lesson curriculum: the one progression driver (curriculum/tracker.ts). */
   readonly lessons: LessonTracker = new LessonTracker(this, (e) => this.emit(e));
   /** Gather spots the player dragged somewhere else (heavy logs): where they now lie, by spot id. */
@@ -263,6 +273,8 @@ export class Game {
   readonly experiments: ExperimentTracker = new ExperimentTracker(EXPERIMENTS, (e) => this.emit(e));
   /** Lesson 04's Tool Yard by Split Rock: test bough, frame ground, the boulder and its lever (lessons/tools/yard.ts). */
   readonly yard: ToolYard = new ToolYard(this);
+  /** Lesson 01's push, bed and night tests (curriculum/lessons/shelter/rules.ts). Not saved. */
+  readonly shelterRules = new ShelterRules();
   /** Seconds of a shower asked for to test the roof ("Wait for rain"). */
   private showerLeft = 0;
   /** What the body felt on the last slow tick (for feedback and the notebook). */
@@ -452,6 +464,7 @@ export class Game {
       this.held = d.item;
       this.emit({ type: 'held', item: d.item });
     } else this.addItem(d.item);
+    this.fuelWet.picked(d.item, d.x, d.z);
     this.toast(`+1 ${itemName(d.item)}`);
     this.emit({ type: 'drops' });
     return true;
@@ -554,11 +567,14 @@ export class Game {
     // Done: the parts became the item.
     const r = b.recipe;
     this.bench = null;
-    this.addItem(r.output, r.count ?? 1);
-    this.toolUses.delete(r.output);
+    if (r.make) r.make(this);
+    else {
+      this.addItem(r.output, r.count ?? 1);
+      this.toolUses.delete(r.output);
+    }
     if (r.flag) this.setFlag(r.flag);
-    this.log.add(`bench: made ${r.output}`, 'ok');
-    this.toast(`Made: ${itemName(r.output)}`, 'good');
+    this.log.add(`bench: made ${r.make ? r.id : r.output}`, 'ok');
+    if (!r.make) this.toast(`Made: ${itemName(r.output)}`, 'good');
     if (r.observation) this.observe(r.observation);
     for (const ev2 of r.science ?? []) this.science(ev2);
     this.checkProgress();
@@ -802,6 +818,7 @@ export class Game {
     if ((this.shelterT += dt) >= 0.25) {
       this.tickShelter(this.shelterT);
       this.tickBody(this.shelterT);
+      this.fuelWet.tick(this.shelterT);
       this.experiments.update(this);
       this.yard.tick(this.shelterT);
       this.shelterT = 0;
@@ -918,6 +935,7 @@ export class Game {
       this.actionProgress = 0;
       this.emit({ type: 'held', item: id });
     } else this.addItem(id);
+    this.fuelWet.picked(id, this.player.x, this.player.z);
     this.lastToolUsed = null;
     // A flake held in the hand cuts soft, fibrous things free: your first cut with an edge.
     if (this.held === 'flake' && CUTTABLE.includes(id) && !this.hasEvent('tool.edge.cut')) {
@@ -1085,6 +1103,11 @@ export class Game {
     if (!check.ok) {
       this.log.add(`place ${kind} rejected: ${check.reason}`, 'bad');
       this.toast(check.message, 'bad');
+      // Lesson 01 site choice: the reason is a guide failure and, for a hollow, a notebook entry.
+      if (check.reason === 'low') {
+        this.guide.fail('site.lowGround');
+        this.science('shelter.site.hollow');
+      } else if (check.reason === 'overhead') this.guide.fail('site.deadBranches');
       return check;
     }
     // A keyLast part (the slab) stays in your hand: the outline is only the plan.
@@ -1114,6 +1137,13 @@ export class Game {
       'note',
     );
     if (kind === 'shelter') this.science('shelter.site.chosen');
+    if (kind === 'leanTo') {
+      this.science('shelter.site.chosen');
+      if (siteAt(x, z).kind === 'rise') {
+        this.science('shelter.site.raised');
+        this.toast('Good ground: a slight rise, so cold air and rainwater run off it, not into it.', 'good');
+      }
+    }
     // checkPlacement passed, so the ground is stable enough to build on.
     if (kind === 'workbench') this.guide.mark('workbench.site.ready');
     this.emit({ type: 'structure', structure });
@@ -1211,7 +1241,8 @@ export class Game {
     }
     if (isSpotLocked(s, index)) {
       const open = openStage(def, s.spots);
-      this.toast(s.keyOpen ? 'Set the first pole on its mark first.' : `Not yet: finish the ${STAGE_NAMES[open] ?? 'earlier part'} first.`, 'bad');
+      if (s.pushFirst) this.toast('First push the bare frame (pinch or click a post): does it stand?', 'bad');
+      else this.toast(s.keyOpen ? 'Set the first pole on its mark first.' : `Not yet: finish the ${STAGE_NAMES[open] ?? 'earlier part'} first.`, 'bad');
       return false;
     }
     const target = spotWorldPosition(s, index);
@@ -1395,6 +1426,9 @@ export class Game {
         break;
       case 'carryEmber':
         ok = this.fire.transferEmber();
+        break;
+      case 'smotherFire':
+        ok = this.fire.smother();
         break;
       case 'firePot':
       case 'boilPot':
@@ -1625,10 +1659,13 @@ export class Game {
       s.spots[index] = null;
       if (s.spotPos) s.spotPos[index] = null;
     }
+    // A filter layer comes out to change the order (Lesson 03); the next layer in fills the lowest gap.
+    const filterLayer = s.kind === 'filter' && index >= 0 && (markDef(s.kind, index)?.accepts.length ?? 0) > 1;
     if (s.complete) {
       s.complete = false;
-      if (!roofLayer) this.toast(`${def.name} taken apart.`, 'note');
+      if (!roofLayer && !filterLayer) this.toast(`${def.name} taken apart.`, 'note');
     }
+    if (filterLayer) this.toast('You took a layer out. The next layer you put in fills the lowest gap.', 'note');
     if (roofLayer) this.toast('You took a layer off that roof panel. Fewer layers: will it still keep the rain out?', 'note');
     if (this.held) this.stow();
     this.held = item;
@@ -1682,11 +1719,16 @@ export class Game {
     const stage = def.spots[index].stage ?? 0;
     const c = stageCount(s, stage);
     if (c.done === c.total && !s.keyOpen) {
+      if (stage === 2 && this.shelterRules.wantsPush(this, s)) {
+        s.pushFirst = true;
+        this.toast('The ridge is up. Before the ribs go on, push the frame (pinch or click a post). Does it stand?', 'note');
+      }
       if (stage === 3) {
         this.science('shelter.frame.braced');
         this.toast('The ribs lean in and meet the upright: a triangle. Give the frame a push: it holds.', 'good');
       }
       if (stage === 4) {
+        this.guide.mark('shelter.ribs.set');
         this.science('shelter.load.shared');
         this.toast('Two cross-supports: the load now has more than one way to reach the ground.', 'note');
       }
@@ -1795,6 +1837,33 @@ export class Game {
     this.showerLeft = 30;
     this.log.add('shower requested for the roof test');
     return true;
+  }
+
+  /**
+   * Push on the lean-to frame (Lesson 01): pressing a post or the ridge pole, by hand ray, pinch or mouse.
+   * The frame leans as far as its bracing lets it (shelter.ts framePush) and the push is a trial of the frame test.
+   */
+  pushFrame(structureId: number): FramePushResult | null {
+    const s = this.structures.find((t) => t.id === structureId);
+    if (!s || s.kind !== 'leanTo') return null;
+    const r = this.shelterRules.push(this, s);
+    this.log.add(`pushed leanTo#${s.id}: ${r.bracing}, rack ${r.rack.toFixed(2)}`);
+    this.fx(r.holds ? 'seat' : 'wobble', 1);
+    this.emit({ type: 'framePush', id: s.id, rack: r.rack, holds: r.holds });
+    this.emit({ type: 'structure', structure: s });
+    this.checkProgress();
+    return r;
+  }
+
+  /**
+   * Rest until the cold part of the night (the night test's "Rest until midnight"): the clock skips ahead.
+   * Returns what to tell the player, or null when it is already a cold night.
+   */
+  waitForNight(): string | null {
+    if (this.env.night > 0.5 && (this.climate?.air ?? 99) <= NIGHT_COLD) return null;
+    this.env.skipTo(this.time, COLD_HOUR);
+    this.log.add('rested until the cold of the night');
+    return 'You rest until the cold of the night. Stand in the open, then lie on your bed under the roof.';
   }
 
   /** Is a point under the shelter roof? */
@@ -1995,9 +2064,20 @@ export class Game {
     let fireDist = Infinity;
     for (const s of this.structures) if (s.kind === 'firePit' && s.complete) fireDist = Math.min(fireDist, Math.hypot(s.x - x, s.z - z));
     const env = this.env;
+    // Lesson 01: the bed's material decides how much of the ground's pull it stops; hollows pool cold air.
+    const bed = bedUnder(this, x, z);
+    const parts = bed ? bedParts(bed) : null;
     return microclimate(
       { hour: env.hour, night: env.night, cloud: env.cloud, rain: env.rain, wind: env.windStrength },
-      { sheltered, onBed, fireDist, fireBurning: this.fire.stage === 'burning' },
+      {
+        sheltered,
+        onBed,
+        fireDist,
+        fireBurning: this.fire.stage === 'burning',
+        bedInsulation: parts ? bedInsulation(parts) : 0,
+        bedMoisture: parts ? bedMoisture(parts) : 0,
+        hollow: hollowDepth(x, z),
+      },
     );
   }
 
@@ -2009,6 +2089,7 @@ export class Game {
     this.lastBodyPos.z = this.player.z;
     const resting = m.sheltered && moved < 0.05 * Math.max(1, dt / 0.25);
     this.body.tick(dt, m, resting);
+    this.shelterRules.slowStep(this, m, resting, dt);
     // What the body and the weather teach (each recorded once: game.science is idempotent).
     if (this.body.wet > 0.5 && m.rain > 0.1) this.science('body.cold.wet');
     if (this.body.water < 30 && this.body.pressure !== 'off') this.science('body.thirst.warning');
@@ -2044,7 +2125,7 @@ export class Game {
 
   /** Something changed: settle lesson progress (and open the shelter story when its work begins). */
   checkProgress(): void {
-    if (this.focusIs('pole', 'frame', 'roof', 'rainTest', 'bed')) this.science('story.ch2.begin');
+    if (this.focusIs('pole', 'frame', 'framePush', 'roof', 'rainTest', 'bed', 'bedMaterials', 'nightShelter')) this.science('story.ch2.begin');
     this.lessons.update();
   }
 
@@ -2132,6 +2213,7 @@ export class Game {
       drops: this.drops.map((d) => ({ ...d })),
       toolUses: Object.fromEntries(this.toolUses),
       fire: this.fire.snapshot(),
+      fuelWet: this.fuelWet.snapshot(),
       lessons: this.lessons.snapshot(),
       body: this.body.snapshot(),
       experiments: this.experiments.snapshot(),
@@ -2182,6 +2264,7 @@ export class Game {
     g.nextDropId = Math.max(0, ...g.drops.map((d) => d.id)) + 1;
     for (const u of data.packUpgrades ?? []) g.packUpgrades.add(u);
     if (data.fire) g.fire.restore(data.fire);
+    g.fuelWet.restore(data.fuelWet);
     g.env.restore(data.env);
     // Saves from before the day/night clock: wake up in the morning, not at whatever hour the play time implies.
     if (!data.env) g.env.hourOffset = -(((g.time / g.env.dayLength) * 24) % 24);
@@ -2221,6 +2304,8 @@ export interface SaveData {
   /** Gather spots dragged to a new place: [spot id, x, z, yaw]. */
   movedSpots?: Array<[string, number, number, number]>;
   fire?: FireSave;
+  /** Weather water in carried fuel, by item (Lesson 02); absent in older saves (all dry). */
+  fuelWet?: FuelMoistureSave;
   /** Version-1 beginner objectives (read only, for migration; no longer written). */
   objectives?: ObjectivesSave;
   /** Chapter 1 story; absent in older saves (beats already past are marked seen, story.ts). */

@@ -10,8 +10,10 @@ import {
   nearestTreeDistance,
   STREAM_BANK,
   streamDistance,
+  TREES,
   WORLD_RADIUS,
 } from './world-layout.js';
+import { siteAt } from './sites.js';
 
 export type StructureKind = 'firePit' | 'workbench' | 'filter' | 'shelter' | 'storage' | 'leanTo' | 'drainage' | 'dryingRack' | 'woodStack' | 'bedding';
 
@@ -60,6 +62,8 @@ export interface BlueprintDef {
 }
 
 const STONES: ItemId[] = ['dryStone', 'wetStone'];
+/** Any filter layer goes on any layer mark: cloth, charcoal, sand, gravel. */
+const FILTER_LAYERS: ItemId[] = ['cloth', 'charcoal', 'sand', 'gravel'];
 const ring = (i: number, n: number, r: number) => ({
   x: Math.cos((i / n) * Math.PI * 2) * r,
   z: Math.sin((i / n) * Math.PI * 2) * r,
@@ -101,7 +105,9 @@ export const BLUEPRINTS: Record<StructureKind, BlueprintDef> = {
     groundAdvice: 'Any open, dry ground near where you plan to make fire.',
   },
   // Filter tripod: two more forked sticks complete the tripod, a hollow cane
-  // is the spout, then layers go in bottom to top: cloth, charcoal, sand, gravel.
+  // is the spout, then four layers go in from the bottom up. Each layer mark takes
+  // any layer material, so the player chooses the order (Lesson 03's layer-order
+  // experiment; curriculum/lessons/water/filter.ts decides what comes out).
   filter: {
     kind: 'filter',
     name: 'Water filter',
@@ -111,10 +117,10 @@ export const BLUEPRINTS: Record<StructureKind, BlueprintDef> = {
       { ...ring(1, 3, 0.25), y: 0.45, accepts: ['forkedStick'], label: 'Forked stick leg' },
       { ...ring(2, 3, 0.25), y: 0.45, accepts: ['forkedStick'], label: 'Forked stick leg' },
       { x: 0, z: 0, y: 0.3, accepts: ['cane'], label: 'Hollow cane spout' },
-      { x: 0, z: 0, y: 0.55, accepts: ['cloth'], label: 'Cloth screen' },
-      { x: 0, z: 0, y: 0.62, accepts: ['charcoal'], label: 'Charcoal layer' },
-      { x: 0, z: 0, y: 0.69, accepts: ['sand'], label: 'Sand layer' },
-      { x: 0, z: 0, y: 0.76, accepts: ['gravel'], label: 'Gravel layer' },
+      { x: 0, z: 0, y: 0.55, accepts: FILTER_LAYERS, label: 'Bottom layer (goes in first)' },
+      { x: 0, z: 0, y: 0.62, accepts: FILTER_LAYERS, label: 'Second layer' },
+      { x: 0, z: 0, y: 0.69, accepts: FILTER_LAYERS, label: 'Third layer' },
+      { x: 0, z: 0, y: 0.76, accepts: FILTER_LAYERS, label: 'Top layer (water meets it first)' },
     ],
     radius: 0.6,
     xp: 40,
@@ -230,13 +236,15 @@ export const BLUEPRINTS: Record<StructureKind, BlueprintDef> = {
   bedding: {
     kind: 'bedding',
     name: 'Sleeping bed',
-    keyAccepts: ['leafLitter', 'dryGrass'],
+    // Lesson 01's insulation test compares beds of different materials, so damp moss goes on too (last, so the
+    // bag fills a mark with dry material first). Its insulation and dampness: survival/materials.ts.
+    keyAccepts: ['leafLitter', 'dryGrass', 'dampMoss'],
     key: { x: 0, y: 0.04, z: 0 },
     spots: [
-      { x: 0.3, z: 0, y: 0.05, accepts: ['leafLitter', 'dryGrass'], label: 'Soft layer' },
-      { x: -0.3, z: 0, y: 0.05, accepts: ['leafLitter', 'dryGrass'], label: 'Soft layer' },
-      { x: 0, z: 0.3, y: 0.08, accepts: ['dryGrass', 'leafLitter'], label: 'Top layer' },
-      { x: 0, z: -0.3, y: 0.08, accepts: ['dryGrass', 'leafLitter'], label: 'Top layer' },
+      { x: 0.3, z: 0, y: 0.05, accepts: ['leafLitter', 'dryGrass', 'dampMoss'], label: 'Soft layer' },
+      { x: -0.3, z: 0, y: 0.05, accepts: ['leafLitter', 'dryGrass', 'dampMoss'], label: 'Soft layer' },
+      { x: 0, z: 0.3, y: 0.08, accepts: ['dryGrass', 'leafLitter', 'dampMoss'], label: 'Top layer' },
+      { x: 0, z: -0.3, y: 0.08, accepts: ['dryGrass', 'leafLitter', 'dampMoss'], label: 'Top layer' },
     ],
     radius: 0.9,
     xp: 30,
@@ -260,11 +268,13 @@ export function spotLocked(def: BlueprintDef, spots: ReadonlyArray<ItemId | null
 }
 
 /** Is spot `i` of a placed structure closed for now (an earlier stage is unfinished, or the plan's first part is still to come)? */
-export function isSpotLocked(s: Pick<PlacedStructure, 'kind' | 'spots' | 'keyOpen'>, i: number): boolean {
+export function isSpotLocked(s: Pick<PlacedStructure, 'kind' | 'spots' | 'keyOpen' | 'pushFirst'>, i: number): boolean {
   const def = BLUEPRINTS[s.kind];
   const st = def.spots[i]?.stage ?? 0;
   if (st <= 0) return false;
   if (s.keyOpen && st > 1) return true;
+  // Lesson 01: the bare frame (posts and ridge) is push-tested before any rib or cross-support goes on.
+  if (s.pushFirst && st >= 3) return true;
   return spotLocked(def, s.spots, i);
 }
 
@@ -320,11 +330,19 @@ export interface PlacedStructure {
   work?: Record<number, number>;
   /** Milestones already celebrated for THIS structure ('frame', 'roof'), so each is rewarded once per structure. */
   milestones?: string[];
+  /**
+   * Lesson 01 lean-to: the bare frame (posts and ridge) waits for a push test before the ribs and cross-supports
+   * open, so the player sees it fold first (game.pushFrame clears it). Absent in older saves (nothing waits).
+   */
+  pushFirst?: boolean;
 }
 
 export type PlacementResult =
   | { ok: true }
-  | { ok: false; reason: 'bounds' | 'bank' | 'trees' | 'structure' | 'unfinished'; message: string };
+  | { ok: false; reason: 'bounds' | 'bank' | 'trees' | 'structure' | 'unfinished' | 'low' | 'overhead'; message: string };
+
+/** A lean-to is turned down this close (m) to a dead tree: dead branches fall in the wind. */
+export const DEAD_BRANCH_REACH = 3.5;
 
 /** Structures built inside another on purpose: a bed goes under the shelter roof. */
 const NESTS: Partial<Record<StructureKind, readonly StructureKind[]>> = { bedding: ['leanTo', 'shelter', 'drainage'] };
@@ -349,6 +367,17 @@ export function checkPlacement(
   }
   if (nearestTreeDistance(x, z) < def.radius + 0.6) {
     return { ok: false, reason: 'trees', message: 'Too cramped between the trees.' };
+  }
+  if (kind === 'leanTo') {
+    // Lesson 01 site choice: not in a hollow (cold air and rainwater collect there), not under dead branches.
+    if (siteAt(x, z).kind === 'hollow') {
+      return { ok: false, reason: 'low', message: 'Too low: cold air and rainwater collect in this hollow. Build on higher ground.' };
+    }
+    for (const t of TREES) {
+      if (t.kind === 2 && Math.hypot(t.x - x, t.z - z) < DEAD_BRANCH_REACH) {
+        return { ok: false, reason: 'overhead', message: 'A dead tree leans over this spot: its branches can fall in the wind. Move away.' };
+      }
+    }
   }
   for (const s of structures) {
     if (nests(kind, s.kind)) continue;
@@ -379,6 +408,27 @@ export function spotWorldPosition(
     y: local.y,
     z: s.z - local.x * n + local.z * c,
   };
+}
+
+/** What a glowing mark asks for, by its index; -1 is the top of a keyLast structure (a workbench slab). */
+export interface MarkDef {
+  label: string;
+  accepts: ItemId[];
+}
+
+const TOP_MARKS = new Map<StructureKind, MarkDef>();
+
+/**
+ * The mark at `index` of a `kind` blueprint: a snap spot, or the top (index -1), which goes on with one press from
+ * your bag. Null for an index the blueprint does not have. Never index `spots` with a mark's index directly:
+ * `spots[-1]` is undefined, and reading it inside a system's update stops the frame loop (the headset freezes).
+ */
+export function markDef(kind: StructureKind, index: number): MarkDef | null {
+  const def = BLUEPRINTS[kind];
+  if (index >= 0) return def.spots[index] ?? null;
+  let top = TOP_MARKS.get(kind);
+  if (!top) TOP_MARKS.set(kind, (top = { label: 'Top', accepts: def.keyAccepts }));
+  return top;
 }
 
 /** Default distance (m) a released part may land from its spot and still seat. */

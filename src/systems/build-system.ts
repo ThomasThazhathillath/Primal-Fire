@@ -104,6 +104,10 @@ const charMat = new MeshLambertMaterial({ color: 0x191310 });
 const emberGeo = new SphereGeometry(0.03, 6, 5);
 const emberMat = new MeshBasicMaterial({ color: 0xff6a22 });
 const partGeo = new SphereGeometry(0.16, 8, 6);
+/** The press target on a lean-to post or ridge (bigger than a part: the poles are long). */
+const pushGeo = new SphereGeometry(0.24, 8, 6);
+/** Double-sided, so a hand pinching right at the pole (inside the target) still hits it. */
+const pushMat = new MeshBasicMaterial({ visible: false, side: DoubleSide });
 const partMat = new MeshBasicMaterial({ visible: false });
 
 interface StructureView {
@@ -123,6 +127,8 @@ export class BuildSystem extends createSystem({
   private ghostKind: BlueprintDef['kind'] | null = null;
   /** A finished stage of the shelter: its frame settles with a little bounce. */
   private bounce: { id: number; t: number } | null = null;
+  /** Lesson 01 push test: the frame leans by `rack` and springs back (or settles slowly when it folds). */
+  private sway: { id: number; t: number; rack: number } | null = null;
   private ghostDisc!: Mesh;
   private views = new Map<number, StructureView>();
   private pointer = new Vector2(0, 0);
@@ -172,6 +178,8 @@ export class BuildSystem extends createSystem({
         }
         // A stage was finished: the whole frame settles with a small bounce.
         if (e.type === 'shelterStage') this.bounce = { id: e.id, t: 0 };
+        // The frame was pushed: it leans as far as its bracing lets it.
+        if (e.type === 'framePush') this.sway = { id: e.id, t: 0, rack: e.rack };
       }),
       // Pointer presses drive the browser; VR uses selectstart (below).
       this.queries.ghostPressed.subscribe('qualify', () => !this.immersive() && this.placeGhost()),
@@ -228,6 +236,11 @@ export class BuildSystem extends createSystem({
     const bench = game.structures.find((t) => t.id === id);
     if (bench?.kind === 'workbench' && bench.complete) {
       getUi(this.world).openBench?.(id);
+      return;
+    }
+    // A post or the ridge pole of the lean-to: pressing it pushes the frame (Lesson 01 push test).
+    if (bench?.kind === 'leanTo') {
+      game.pushFrame(id);
       return;
     }
     if (index >= 0) {
@@ -511,6 +524,23 @@ export class BuildSystem extends createSystem({
   private renderShelter(s: PlacedStructure, view: StructureView, root: Group): void {
     const def = BLUEPRINTS[s.kind];
     root.add(buildShelter(s));
+    // Press targets on the posts and the ridge pole: pressing one pushes the frame (pinch, hand ray or mouse).
+    if (s.kind === 'leanTo' && !s.keyOpen) {
+      const pushAt = (index: number, lift: number) => {
+        const proxy = new Mesh(pushGeo, pushMat);
+        const p = spotWorldPosition(s, index);
+        proxy.position.set(p.x, p.y + lift, p.z);
+        proxy.name = `FramePush_${s.id}_${index}`;
+        const part = this.world.createTransformEntity(proxy);
+        part.addComponent(StructurePart, { structureId: s.id, index });
+        part.addComponent(RayInteractable);
+        view.spots.push(part);
+      };
+      pushAt(-1, 0.2);
+      def.spots.forEach((sp, i) => {
+        if ((sp.role === 'upright' || sp.role === 'ridge') && s.spots[i]) pushAt(i, sp.role === 'upright' ? 0.2 : 0);
+      });
+    }
     // A faint ghost of the parts that can go on right now (open, unlocked, set down not tied).
     // Roof layers: ghost only the layer that goes on next (bark, then leaves, then grass), never all three at once.
     const ORDER = ['roofBark', 'roofLeaf', 'roofGrass'];
@@ -579,6 +609,22 @@ export class BuildSystem extends createSystem({
     if (this.ghostKind) {
       if (hit) this.moveGhostTo(this.origin.x, this.origin.z);
       else this.ghostRoot.visible = false;
+    }
+    // The pushed frame leans over (as far as its bracing lets it) and comes back; a folding box comes back slowly.
+    if (this.sway) {
+      this.sway.t += delta;
+      const v = this.views.get(this.sway.id);
+      const dur = this.sway.rack > 0.35 ? 1.6 : 0.8;
+      const k = this.sway.t / dur;
+      if (!v?.root.object3D || k >= 1) {
+        if (v?.root.object3D) v.root.object3D.rotation.z = 0;
+        this.sway = null;
+      } else {
+        const lean = this.sway.rack * 0.32;
+        // Out quickly, then a damped return.
+        const out = Math.min(1, k * 6);
+        v.root.object3D.rotation.z = -lean * out * Math.exp(-k * 3) * Math.cos(k * (this.sway.rack > 0.35 ? 3 : 12));
+      }
     }
     // The frame settles after a finished stage.
     if (this.bounce) {

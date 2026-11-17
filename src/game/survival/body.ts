@@ -45,6 +45,32 @@ export interface HeatFlow {
   ground: number;
 }
 
+/** Under a roof: the share of the open air's heat loss you still have (the roof and back wall hold still air). */
+export const SHELTER_KEEP = 0.5;
+/** Lying in a thick dry bed you are partly buried in it: it cuts this share of the air's loss too (scaled by the bed). */
+export const BED_WRAP = 0.3;
+
+/**
+ * The heat balance, per second, at the Realistic rate (pure; the Body scales losses by the pressure setting).
+ * Convection: wind strips the warm air layer away, and water conducts heat far faster than air. Conduction into
+ * the ground only while resting on it; the bed under you stops its share of that (survival/materials.ts).
+ */
+export function heatFlow(m: Microclimate, wet: number, resting: boolean, out: HeatFlow = { gain: 0, loss: 0, ground: 0 }): HeatFlow {
+  const cold = Math.max(0, COMFORT_AIR - m.air);
+  const bed = m.bedInsulation ?? (m.onBed ? 0.9 : 0);
+  const wrap = resting && m.sheltered ? 1 - BED_WRAP * bed : 1;
+  out.loss = 0.02 * cold * (1 + 1.5 * m.wind) * (1 + 2 * wet) * (m.sheltered ? SHELTER_KEEP : 1) * wrap;
+  out.ground = resting ? 0.02 * Math.max(0, COMFORT_AIR - m.ground) * (1 - bed) : 0;
+  // Metabolism always makes some heat; a fire radiates more.
+  out.gain = 0.12 + 1.2 * m.fire;
+  return out;
+}
+
+/** Heat out over heat made (1 = balanced, 2 = losing heat twice as fast as you make it). */
+export function heatRatio(f: HeatFlow): number {
+  return (f.loss + f.ground) / Math.max(1e-6, f.gain);
+}
+
 export class Body {
   warmth = 100;
   water = 100;
@@ -65,23 +91,20 @@ export class Body {
   /** Advance `dt` seconds. `resting`: standing still inside a shelter (you would sit or lie down). */
   tick(dt: number, m: Microclimate, resting: boolean): void {
     const rate = PRESSURE_RATE[this.pressure];
+    // The physics is the same at every setting (readouts use it); the setting only scales what it does to you.
+    heatFlow(m, this.wet, resting, this.flow);
     if (rate === 0 || dt <= 0) return;
 
     // ---- Wetness: rain soaks you in about a minute; you dry slowly, faster by a fire or in warm air.
     if (m.rain > 0.02) this.wet = clamp(this.wet + 0.02 * m.rain * dt, 0, 1);
     else this.wet = clamp(this.wet - 0.004 * (1 + 4 * m.fire + (m.air > 15 ? 1 : 0) + (m.sheltered ? 0.5 : 0)) * dt, 0, 1);
+    // Lying on damp bedding, its water soaks into your clothes (up to about half as wet as the bed).
+    const damp = resting ? (m.bedMoisture ?? 0) : 0;
+    if (damp > 0.2 && this.wet < damp * 0.5) this.wet = Math.min(damp * 0.5, this.wet + 0.02 * damp * dt);
 
-    // ---- Heat balance.
-    const cold = Math.max(0, COMFORT_AIR - m.air);
-    // Convection: wind strips the warm air layer away. Water conducts heat far faster than air.
-    const loss = 0.02 * cold * (1 + 1.5 * m.wind) * (1 + 2 * this.wet) * (m.sheltered ? 0.7 : 1);
-    // Conduction into the ground: only while resting on it, and a dry bed stops nearly all of it.
-    const groundLoss = resting ? 0.02 * Math.max(0, COMFORT_AIR - m.ground) * (m.onBed ? 0.1 : 1) : 0;
-    // Metabolism always makes some heat; a fire radiates more.
-    const gain = 0.12 + 1.2 * m.fire;
-    this.flow.gain = gain;
-    this.flow.loss = loss;
-    this.flow.ground = groundLoss;
+    // ---- Heat balance (heatFlow above, with the wetness just updated).
+    heatFlow(m, this.wet, resting, this.flow);
+    const { gain, loss, ground: groundLoss } = this.flow;
     const fed = this.food > 20 ? 1 : 0.5; // poor nutrition: the body makes less heat and recovers slower
     this.warmth = clamp(this.warmth + (gain * fed - (loss + groundLoss) * rate) * dt);
 

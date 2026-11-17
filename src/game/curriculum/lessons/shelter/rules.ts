@@ -99,6 +99,8 @@ export class ShelterRules {
     const bare = 0.02 * Math.max(0, COMFORT_AIR - m.ground);
     if (bare < 0.005) {
       this.lastBed = { value: null, label: 'warm ground', through: 0 };
+      const phase = g.experiments.phase('bedMaterials');
+      if (phase === 'predict' || phase === 'testing') this.say(g, 'bed.warmGround', 'The ground is warm by day, so no heat is lost to it. On the experiment card, choose "Rest until midnight" to test on cold ground.');
       return;
     }
     const bed = bedUnder(g, g.player.x, g.player.z);
@@ -111,6 +113,11 @@ export class ShelterRules {
       const mat = bedMaterialOf(parts);
       value = mat === 'dryGrass' || mat === 'leafLitter' || mat === 'dampMoss' ? mat : null;
       label = mat ? `a bed of ${itemName(mat).toLowerCase()}` : 'a mixed bed';
+      // Dry grass and dry leaves together are still one fair setting: a whole dry bed.
+      if (!mat && parts.every((p) => p === 'dryGrass' || p === 'leafLitter')) {
+        value = 'leafLitter';
+        label = 'a bed of dry leaves and grass';
+      }
     }
     // The body's own conduction into the ground this tick, against what bare ground would take.
     const through = Math.max(0, Math.min(1, g.body.flow.ground / bare));

@@ -306,11 +306,19 @@ describe('the bed test: the body measures the heat flow into the ground', () => 
     run(g, 4);
     expect(g.experiments.state('bedMaterials').trials.size).toBe(0);
     expect(msgs.join(' ')).toMatch(/same thickness/);
-    g.fillSpot(b.id, 2, 'leafLitter');
-    g.fillSpot(b.id, 3, 'leafLitter');
+    g.fillSpot(b.id, 2, 'dampMoss');
+    g.fillSpot(b.id, 3, 'dampMoss');
     run(g, 4);
     expect(g.experiments.state('bedMaterials').trials.size).toBe(0);
     expect(msgs.join(' ')).toMatch(/one material/);
+  });
+  it('dry grass and dry leaves together count as one whole dry bed', () => {
+    const { g, s } = ready();
+    const b = bed(g, s, 'dryGrass', 3);
+    g.fillSpot(b.id, 2, 'leafLitter');
+    g.fillSpot(b.id, 3, 'leafLitter');
+    run(g, 4);
+    expect(g.experiments.state('bedMaterials').trials.get('leafLitter')).toBe('little');
   });
   it('dry grass lets very little through, damp moss a lot; the result supports "dry" against the "any" prediction', () => {
     const { g, s } = ready();

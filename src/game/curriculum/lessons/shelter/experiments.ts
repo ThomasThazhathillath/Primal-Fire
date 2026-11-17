@@ -163,6 +163,11 @@ export const BED_TEST: ExperimentDef = {
     ],
   },
   opens: (g) => g.focusIs('bed', 'bedMaterials', 'nightShelter') || g.lessons.completed.has('bed'),
+  // By day the ground is warm and nothing can be measured: the same rest the night test offers.
+  testAction: {
+    label: () => 'Rest until midnight',
+    run: (g) => g.waitForNight(),
+  },
   readout: (g) => g.shelterRules.bedReadout(),
 };
 

@@ -106,7 +106,8 @@ export const FOOD_STEPS: Step[] = [
     short: 'Read and follow tracks',
     instruction: 'Find animal tracks, read whose they are and how fresh, and follow the trail.',
     doneMessage: 'Sharp-edged prints are fresh; size and spacing tell you who made them.',
-    done: (g) => g.living.has('hiddenTrail'),
+    // Reading whose prints they are and following five of them is the step; seeing the animal itself is a bonus.
+    done: (g) => g.living.has('hiddenTrail') || g.hasEvent('hunt.track.followed'),
     hint: {
       levels: [
         'Animals leave signs where the ground is soft.',

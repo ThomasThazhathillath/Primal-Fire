@@ -344,7 +344,9 @@ export class WaterState {
   available(at = this.g.player, held: ItemId | null = this.g.held): WaterAction | null {
     const g = this.g;
     const fire = this.burningFireNear(at);
-    if (held === 'pot') {
+    // A dry pot still in the bag goes into the fire with an empty hand (a damp one only when you hold it: it bursts).
+    const bagPot = held === null && g.count('pot') > 0 && g.flag('potDry') && !g.flag('potFired');
+    if (held === 'pot' || bagPot) {
       if (!g.flag('potFired')) {
         if (fire) return { id: 'firePot', label: g.flag('potDry') ? 'Set the dry pot in the fire' : 'Set the damp pot in the fire', at: fire };
         return null;

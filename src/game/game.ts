@@ -629,10 +629,12 @@ export class Game {
   /** The tool bonus when gathering `id`: spends one use. Returns extra items. */
   private toolBonus(id: ItemId): number {
     // The first tool you actually carry that helps with this (a knife beats a bare flake).
-    const t = TOOLS.find((x) => x.bonus.includes(id) && this.count(x.id) > 0);
+    // The tool in your hand counts too: the axe you swing is the one that splits the log.
+    const t = TOOLS.find((x) => x.bonus.includes(id) && (this.count(x.id) > 0 || this.held === x.id));
     if (!t) return 0;
     const left = (this.toolUses.get(t.id) ?? t.uses) - 1;
-    if (left <= 0) {
+    if (left <= 0 && this.count(t.id) <= 0) this.toolUses.set(t.id, 1); // it never breaks in your hand mid-swing
+    else if (left <= 0) {
       this.satchel.set(t.id, this.count(t.id) - 1);
       this.toolUses.delete(t.id);
       this.toast(`Your ${itemName(t.id).toLowerCase()} broke.`, 'bad');

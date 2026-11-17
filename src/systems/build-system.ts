@@ -239,8 +239,11 @@ export class BuildSystem extends createSystem({
       return;
     }
     // A post or the ridge pole of the lean-to: pressing it pushes the frame (Lesson 01 push test).
+    // A roof layer comes off again while the layer test is open (one layer against two); afterwards the roof stays.
     if (bench?.kind === 'leanTo') {
-      game.pushFrame(id);
+      const role = index >= 0 ? BLUEPRINTS.leanTo.spots[index]?.role : undefined;
+      if (role?.startsWith('roof') && !game.experiments.done('roofLayers')) game.takeBack(id, index);
+      else game.pushFrame(id);
       return;
     }
     if (index >= 0) {

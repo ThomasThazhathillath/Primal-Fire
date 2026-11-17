@@ -70,10 +70,7 @@ const anyGathered = (g: Game): boolean => kinds(g) > 0;
 const benchDone = (g: Game): boolean => g.hasStructure('workbench');
 const fireLit = (g: Game): boolean => g.flag('fireLit');
 const near = (g: Game, p: { x: number; z: number }, r: number): boolean => Math.hypot(g.player.x - p.x, g.player.z - p.z) < r;
-const objIs = (g: Game, ...ids: string[]): boolean => {
-  const o = g.objectives.current;
-  return !!o && ids.includes(o.id);
-};
+const objIs = (g: Game, ...ids: string[]): boolean => g.focusIs(...ids);
 
 export const STORY_BEATS: StoryBeat[] = [
   // Act 1: awakening. Fired by StorySystem when a new game starts ("Wake up").

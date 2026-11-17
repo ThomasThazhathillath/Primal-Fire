@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { afterGather, afterRegrow } from '../src/game/resource-state.js';
-import { LESSONS } from '../src/game/tutorial-lessons.js';
+import { TUTORIAL_STEPS } from '../src/game/tutorial-lessons.js';
 import { CAMP_CHARGES, CAMP_REGROW, tutorialSpots } from '../src/game/tutorial-layout.js';
 import { CLIP_LABEL, LESSON_CLIPS, MOVE_CLIPS, OBJECTIVE_CLIPS } from '../src/systems/ghost-hand-system.js';
 
@@ -30,9 +30,9 @@ describe('tutorial regrowth is realistic', () => {
 
 describe('VR movement is taught', () => {
   it('has its own movement step, early, with the thumb gesture under Why?', () => {
-    const ids = LESSONS.map((l) => l.id);
+    const ids = TUTORIAL_STEPS.map((l) => l.id);
     expect(ids.indexOf('ring')).toBe(1);
-    const l = LESSONS[ids.indexOf('ring')];
+    const l = TUTORIAL_STEPS[ids.indexOf('ring')];
     expect(l.tip.toLowerCase()).toContain('thumb');
   });
 });
@@ -45,13 +45,13 @@ describe('projected hand signs', () => {
   });
   it('lessons and objective How? cards only name signs that exist', () => {
     for (const c of [...Object.values(LESSON_CLIPS), ...Object.values(OBJECTIVE_CLIPS)]) expect(CLIP_LABEL[c], c).toBeTruthy();
-    const ids = new Set(LESSONS.map((l) => l.id as string));
+    const ids = new Set(TUTORIAL_STEPS.map((l) => l.id as string));
     for (const k of Object.keys(LESSON_CLIPS)) expect(ids.has(k), k).toBe(true);
     expect(LESSON_CLIPS.ring).toBe('teleport');
   });
   it('the tutorial card has a lesson button for every lesson but the last', () => {
     const t = ui('tutorial');
-    for (let i = 0; i < LESSONS.length - 1; i++) expect(t.includes(`id="tut-l${i}"`), `tut-l${i}`).toBe(true);
+    for (let i = 0; i < TUTORIAL_STEPS.length - 1; i++) expect(t.includes(`id="tut-l${i}"`), `tut-l${i}`).toBe(true);
   });
 });
 

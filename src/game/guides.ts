@@ -1173,7 +1173,7 @@ export class GuideTracker {
     }
     // 2. The beginner objective on the card: the quest list behind it can be on another step
     //    (it was still on dry grass at the flint objective, so the card went blank).
-    const objectiveGuide = g.objectives?.current?.guide;
+    const objectiveGuide = g.focus?.()?.guide;
     if (objectiveGuide) {
       const o = GUIDE_BY_ID[objectiveGuide];
       if (o && unfinished(o)) return o;

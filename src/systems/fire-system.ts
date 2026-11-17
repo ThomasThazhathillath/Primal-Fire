@@ -112,8 +112,8 @@ export class FireSystem extends createSystem({
       const game = getGame(this.world);
       this.cleanupFuncs.push(
         game.on((e) => {
-          // Only the very first ignition (the story beat has not been told yet): later fires light as before.
-          if (e.type === 'fire' && e.stage === 'burning' && this.growth >= 1 && !game.story.seen.has('fireLit')) this.growth = 0;
+          // Only the very first fire in this game grows slowly from the ember: later fires light as before.
+          if (e.type === 'fire' && e.stage === 'burning' && e.first && this.growth >= 1) this.growth = 0;
         }),
       );
     }

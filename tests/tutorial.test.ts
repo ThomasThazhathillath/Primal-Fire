@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Game } from '../src/game/game.js';
 import { setEasyCarry } from '../src/game/items.js';
 import { campItems, tutorialSpots } from '../src/game/tutorial-layout.js';
-import { LESSONS, RING, storyHour, TutorialRunner, type LessonId } from '../src/game/tutorial-lessons.js';
+import { TUTORIAL_STEPS, RING, storyHour, TutorialRunner, type TutorialStepId } from '../src/game/tutorial-lessons.js';
 import {
   chooseSurvival,
   chooseTutorial,
@@ -26,7 +26,7 @@ function store(): KeyStore & { m: Map<string, string> } {
   return { m, getItem: (k) => m.get(k) ?? null, setItem: (k, v) => void m.set(k, v), removeItem: (k) => void m.delete(k) };
 }
 
-function at(r: TutorialRunner, id: LessonId): void {
+function at(r: TutorialRunner, id: TutorialStepId): void {
   expect(r.lesson.id).toBe(id);
 }
 
@@ -70,9 +70,9 @@ function playLesson(r: TutorialRunner, g: Game): void {
 
 describe('THE FIRST STEPS: seven one-instruction steps', () => {
   it('has 6 to 8 steps, each one instruction of at most six words, verb first', () => {
-    expect(LESSONS.length).toBeGreaterThanOrEqual(6);
-    expect(LESSONS.length).toBeLessThanOrEqual(8);
-    for (const l of LESSONS) {
+    expect(TUTORIAL_STEPS.length).toBeGreaterThanOrEqual(6);
+    expect(TUTORIAL_STEPS.length).toBeLessThanOrEqual(8);
+    for (const l of TUTORIAL_STEPS) {
       expect(l.title.split(/\s+/).length, l.title).toBeLessThanOrEqual(6);
       expect(l.title, l.title).toMatch(/^(Pinch|Walk|Put|Tap|Open|Turn|Look|Take|Make)\b/);
       expect(l.tasks.length, l.id).toBe(1);
@@ -82,7 +82,7 @@ describe('THE FIRST STEPS: seven one-instruction steps', () => {
   it('every step can be completed in order with the real mechanics', () => {
     const g = new Game();
     const r = new TutorialRunner(g);
-    for (const l of LESSONS) {
+    for (const l of TUTORIAL_STEPS) {
       at(r, l.id);
       playLesson(r, g);
     }
@@ -103,19 +103,19 @@ describe('THE FIRST STEPS: seven one-instruction steps', () => {
   });
 
   it('each step can be replayed on its own from a fresh game (none can strand you)', () => {
-    for (let i = 0; i < LESSONS.length; i++) {
+    for (let i = 0; i < TUTORIAL_STEPS.length; i++) {
       const g = new Game();
       const r = new TutorialRunner(g);
       r.begin(i);
       playLesson(r, g);
-      expect(r.done.has(LESSONS[i].id), `step ${LESSONS[i].id}`).toBe(true);
+      expect(r.done.has(TUTORIAL_STEPS[i].id), `step ${TUTORIAL_STEPS[i].id}`).toBe(true);
     }
   });
 
   it('every step with a place points at its exact target (Build and the bag are menu steps)', () => {
     const g = new Game();
     const r = new TutorialRunner(g);
-    for (const l of LESSONS) {
+    for (const l of TUTORIAL_STEPS) {
       if (l.id !== 'bag' && l.id !== 'build') expect(l.target?.(g), l.id).toBeTruthy();
       playLesson(r, g);
     }
@@ -139,8 +139,8 @@ describe('THE FIRST STEPS: seven one-instruction steps', () => {
   it('the flat stone step points at the slab first, then at the glowing top', () => {
     const g = new Game();
     const r = new TutorialRunner(g);
-    r.begin(LESSONS.findIndex((l) => l.id === 'top'));
-    const top = LESSONS.find((l) => l.id === 'top')!;
+    r.begin(TUTORIAL_STEPS.findIndex((l) => l.id === 'top'));
+    const top = TUTORIAL_STEPS.find((l) => l.id === 'top')!;
     expect(top.target!(g)!.id).toMatch(/slab/);
     g.gather('slab', 'tutorial');
     expect(top.target!(g)!.id).toMatch(/^mark_/);
@@ -155,7 +155,7 @@ describe('THE FIRST STEPS: seven one-instruction steps', () => {
     at(r, 'ring');
     r.skipAll();
     expect(r.finished).toBe(true);
-    expect(r.done.size).toBe(LESSONS.length);
+    expect(r.done.size).toBe(TUTORIAL_STEPS.length);
   });
 
   it('progress survives a reload', () => {
@@ -171,7 +171,7 @@ describe('THE FIRST STEPS: seven one-instruction steps', () => {
   it('outside building steps no blueprint can be started', () => {
     const g = new Game();
     const r = new TutorialRunner(g);
-    r.begin(LESSONS.findIndex((l) => l.id === 'ring'));
+    r.begin(TUTORIAL_STEPS.findIndex((l) => l.id === 'ring'));
     g.addItem('dryStone', 1);
     g.takeOut('dryStone');
     expect(g.placeBlueprint('firePit', 1, 1).ok).toBe(false);
@@ -226,7 +226,7 @@ describe('tutorial and survival saves stay separate', () => {
     survival.addItem('dryStone', 2);
     const tutorial = new Game();
     const r = new TutorialRunner(tutorial);
-    r.begin(LESSONS.findIndex((l) => l.id === 'fire'));
+    r.begin(TUTORIAL_STEPS.findIndex((l) => l.id === 'fire'));
     expect(survival.count('bowDrill')).toBe(0);
     expect(survival.count('dryStone')).toBe(2);
   });
@@ -234,7 +234,7 @@ describe('tutorial and survival saves stay separate', () => {
 
 describe('the opening as a story', () => {
   it('no step title or line reads like a training course', () => {
-    for (const l of LESSONS) {
+    for (const l of TUTORIAL_STEPS) {
       for (const t of [l.title, l.say, l.science, ...l.tasks.map((x) => x.text)]) {
         expect(t, t).not.toMatch(/lesson|tutorial|training|\bpractice\b/i);
       }
@@ -248,16 +248,16 @@ describe('the opening as a story', () => {
     const r = new TutorialRunner(g);
     const said: string[] = [];
     r.on((e) => e.type === 'science' && said.push(e.text));
-    r.begin(LESSONS.findIndex((l) => l.id === 'marks'));
+    r.begin(TUTORIAL_STEPS.findIndex((l) => l.id === 'marks'));
     playLesson(r, g);
-    expect(said).toEqual([LESSONS[LESSONS.findIndex((l) => l.id === 'marks')].science]);
+    expect(said).toEqual([TUTORIAL_STEPS[TUTORIAL_STEPS.findIndex((l) => l.id === 'marks')].science]);
     expect(g.notebook).toContain('b_tripod');
   });
 
   it('the clock runs from early afternoon towards dusk across the steps', () => {
-    expect(storyHour(LESSONS[0].id)).toBeCloseTo(13);
-    expect(storyHour(null)).toBeGreaterThan(storyHour(LESSONS[LESSONS.length - 1].id));
-    for (let i = 1; i < LESSONS.length; i++) expect(storyHour(LESSONS[i].id)).toBeGreaterThan(storyHour(LESSONS[i - 1].id));
+    expect(storyHour(TUTORIAL_STEPS[0].id)).toBeCloseTo(13);
+    expect(storyHour(null)).toBeGreaterThan(storyHour(TUTORIAL_STEPS[TUTORIAL_STEPS.length - 1].id));
+    for (let i = 1; i < TUTORIAL_STEPS.length; i++) expect(storyHour(TUTORIAL_STEPS[i].id)).toBeGreaterThan(storyHour(TUTORIAL_STEPS[i - 1].id));
   });
 
   it('only learned controls carry into survival, once', () => {

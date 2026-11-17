@@ -124,7 +124,7 @@ export class AssistanceSystem extends createSystem({}) {
   /** Say something: on the objective card when it is up, else as a toast. */
   private say(key: string, text: string): void {
     const game = getGame(this.world);
-    if (reveal.objective && !game.objectives.done) game.objectives.gate.say(game.time, `assist_${key}`, text, true);
+    if (reveal.objective && game.guiding()) game.steps.gate.say(game.time, `assist_${key}`, text, true);
     else game.toast(text, 'note');
   }
 
@@ -165,7 +165,7 @@ export class AssistanceSystem extends createSystem({}) {
         return;
       }
       case 'idle': {
-        const o = game.objectives.current;
+        const o = game.focus();
         if (h.level === 1) this.say(h.key, 'Stuck? Tap Why? or the bulb.');
         if (h.level === 2 && o) this.say(h.key, o.hint.levels[0]);
         if (h.level === 3 && o) this.say(h.key, o.hint.levels[1]);
@@ -176,7 +176,7 @@ export class AssistanceSystem extends createSystem({}) {
         if (h.level === 1 && bench) assistFx.pulse = { id: `bench_${bench.id}`, x: bench.x, y: groundHeight(bench.x, bench.z) + 0.6, z: bench.z };
         const line = nextStepLine(game);
         if (h.level >= 2 && line) this.say(h.key, line);
-        if (h.level === 3 && bench && game.objectives.hintFxLevel() < 3) {
+        if (h.level === 3 && bench && game.steps.hintFxLevel() < 3) {
           this.beaconOn = true;
           getUi(this.world).setBeacon?.({ x: bench.x, z: bench.z });
         }

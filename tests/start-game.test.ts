@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { Game } from '../src/game/game.js';
-import { LESSONS, TutorialRunner } from '../src/game/tutorial-lessons.js';
+import { TUTORIAL_STEPS, TutorialRunner } from '../src/game/tutorial-lessons.js';
 import { clearProgress, hasSurvivalSave, type KeyStore, saveProgressRaw, SURVIVAL_SAVE_KEY, TUTORIAL_PROGRESS_KEY } from '../src/game/tutorial-mode.js';
 
 function store(): KeyStore & { m: Map<string, string> } {
@@ -28,7 +28,7 @@ describe('Start Game screen', () => {
     r.skipAll();
     expect(r.finished).toBe(true);
     const r2 = new TutorialRunner(new Game());
-    for (let i = 0; i < LESSONS.length; i++) r2.skipLesson();
+    for (let i = 0; i < TUTORIAL_STEPS.length; i++) r2.skipLesson();
     expect(r2.finished).toBe(true);
   });
 
@@ -40,7 +40,7 @@ describe('Start Game screen', () => {
     expect(s.getItem(TUTORIAL_PROGRESS_KEY)).toBeNull();
     expect(s.getItem(SURVIVAL_SAVE_KEY)).toBe('{"v":1}');
     const r = new TutorialRunner(new Game(), null);
-    expect(r.lesson.id).toBe(LESSONS[0].id);
+    expect(r.lesson.id).toBe(TUTORIAL_STEPS[0].id);
   });
 
   it('says Continue when a survival game is already under way', () => {

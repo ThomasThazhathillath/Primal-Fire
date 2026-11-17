@@ -71,7 +71,7 @@ export class CompassSystem extends createSystem({}) {
     const out: Array<{ label: string; x: number; z: number; color: string }> = [];
     const camp = campOf(g);
     out.push({ label: camp.known ? 'Camp' : 'Start', x: camp.x, z: camp.z, color: '#ffb35c' });
-    const o = g.objectives.current;
+    const o = g.focus();
     const l = o?.place ? LANDMARK_BY_ID[o.place] : undefined;
     if (l) out.push({ label: 'Goal', x: l.x, z: l.z, color: '#9fe8ff' });
     else if (hintFx.glow) out.push({ label: 'Goal', x: hintFx.glow.x, z: hintFx.glow.z, color: '#9fe8ff' });

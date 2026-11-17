@@ -228,7 +228,7 @@ export class HudSystem extends createSystem({
     const lv = game.gameLevel;
     const inLevel = lv.quests.indexOf(q?.title ?? '');
     // While the beginner objectives run, the objective card is the one place that names the task.
-    const tutorial = !game.objectives.done;
+    const tutorial = !game.guiding();
     this.hud.requireElementById('quest-num').setProperties({ display: tutorial ? 'none' : 'flex' });
     text('quest-num', q ? `LEVEL ${lv.n}: ${lv.name.toUpperCase()}${inLevel >= 0 ? `  ${inLevel + 1}/${lv.quests.length}` : ''}` : 'CHAPTER 1');
     text('level', `Rank ${game.level}   ${game.xp} XP`);
@@ -259,12 +259,12 @@ export class HudSystem extends createSystem({
     // While the beginner objectives run, the hint button (and H) gives the hint for the objective on
     // the card, exactly like the card's bulb: the quest list behind it can be on another step (it
     // pointed at logs while the card said to knap flint).
-    const objective = game.objectives.current;
+    const objective = game.focus();
     if (objective) {
       const ui = getUi(this.world);
       if (ui.openHint) ui.openHint(objective.id);
       else {
-        const level = game.objectives.unlockHint(objective.id);
+        const level = game.steps.unlockHint(objective.id);
         game.toast(`💡 ${objective.hint.levels[level - 1]}`, 'note');
       }
       return;
@@ -463,7 +463,7 @@ export class HudSystem extends createSystem({
       // VR during the tutorial: never shown (the objective card carries the task and the
       // failure reasons; a strip that flickers in for each message read as an empty floating box).
       // The flat view keeps it for messages and the Enter VR button.
-      const tutorial = !getGame(this.world).objectives.done;
+      const tutorial = !getGame(this.world).guiding();
       this.setIdle(tutorial && (vr || (this.toastTimer <= 0 && !this.hoverShown && !this.world.xrEnabled)));
       if (!this.idle && vr) this.hudAnchor.update(this.hud, this.camera);
     }

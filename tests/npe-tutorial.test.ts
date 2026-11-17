@@ -1,15 +1,15 @@
 // NPE: the first steps. Seven one-instruction steps, gradual reveal, no repeated explanations, persistence.
 import { describe, expect, it } from 'vitest';
 import { Game } from '../src/game/game.js';
-import { guidedReveal, LESSON_IDS, LESSONS, OPENING, savedLessonIndex, TutorialRunner } from '../src/game/tutorial-lessons.js';
+import { guidedReveal, TUTORIAL_STEP_IDS, TUTORIAL_STEPS, OPENING, savedLessonIndex, TutorialRunner } from '../src/game/tutorial-lessons.js';
 
 const ui = { hintLevel: 0, notebookOpen: false };
-const idx = (id: string) => LESSON_IDS.indexOf(id as never);
+const idx = (id: string) => TUTORIAL_STEP_IDS.indexOf(id as never);
 
 describe('the first steps', () => {
   it('pickup, moving, placing and building the bench, the bag, the bench, in that order', () => {
-    expect(LESSON_IDS).toEqual(['stone', 'ring', 'build', 'marks', 'top', 'bag', 'bench']);
-    expect(LESSONS[0].title).toBe('Pinch the glowing stone');
+    expect(TUTORIAL_STEP_IDS).toEqual(['stone', 'ring', 'build', 'marks', 'top', 'bag', 'bench']);
+    expect(TUTORIAL_STEPS[0].title).toBe('Pinch the glowing stone');
     expect(OPENING.length).toBe(1);
   });
 

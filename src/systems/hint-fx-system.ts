@@ -30,8 +30,8 @@ export class HintFxSystem extends createSystem({}) {
     this.timer = 0.25;
     const game = getGame(this.world);
     const res = this.world.getSystem(ResourceSystem);
-    const o = game.objectives.current;
-    const level = game.objectives.hintFxLevel();
+    const o = game.focus();
+    const level = game.steps.hintFxLevel();
     // Always show where the next thing is (NPE simplicity round): one arrow and ring on the goal's exact next
     // target while the goal card is up (the tutorial sets its own while it runs).
     if (reveal.objective) {
@@ -53,7 +53,7 @@ export class HintFxSystem extends createSystem({}) {
     }
     if (arrived(plan, game.player.x, game.player.z)) {
       // You found it: the pillar and arrow have done their job.
-      game.objectives.dismissHintFx();
+      game.steps.dismissHintFx();
       this.clear();
       return;
     }

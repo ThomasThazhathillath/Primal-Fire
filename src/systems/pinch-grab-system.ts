@@ -112,7 +112,7 @@ export class PinchGrabSystem extends createSystem({}) {
     }
     // One place decides: what the fingertips touch, else the nearest valid thing, else whatever the
     // objective needs when it is about as near, else any other valid one (game/assist.ts).
-    const need = game.objectives.current?.find?.(game) ?? [];
+    const need = game.focus()?.find?.(game) ?? [];
     const cands: Candidate[] = list.map((c, i) => {
       const dist = Math.hypot(c.x - p.x, c.y - p.y, c.z - p.z);
       return { id: String(i), dist, aimed: dist <= TOUCH_DIST, valid: dist <= PINCH_CONFIG.grabRadius, matchesHeld: need.includes(c.id as never) };

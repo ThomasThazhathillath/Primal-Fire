@@ -127,7 +127,7 @@ export function materialsLine(kind: StructureKind, g: Game): string | null {
 
 /** The note once the parts are all in hand: you can start building now. */
 export function readyToBuild(g: Game): string | null {
-  const o = g.objectives.current;
+  const o = g.focus();
   if (!o?.structure || g.hasStructure(o.structure) || g.structures.some((s) => s.kind === o.structure)) return null;
   const line = materialsLine(o.structure, g);
   if (!line) return null;
@@ -296,7 +296,7 @@ export const OBJECTIVES: Objective[] = [
     instruction: 'Poke your workbench with a finger and look at what you can make there.',
     doneMessage: 'This is where your tools begin.',
     teach: 'bench',
-    done: (g) => g.objectives.hasLearned('bench'),
+    done: (g) => g.hasLearned('bench'),
     implied: (g) => litFire(g) || g.flag('hasDrill') || g.hasEvent('tool.knap.flake'),
     hint: {
       ref: 'slab',
@@ -1033,5 +1033,5 @@ export function questView(g: Game): ObjectiveView | null {
 
 /** What the objective card shows: a beginner objective, then the quest chain. */
 export function cardView(g: Game): ObjectiveView | null {
-  return g.objectives.view() ?? questView(g);
+  return g.steps.view() ?? questView(g);
 }

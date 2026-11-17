@@ -90,7 +90,7 @@ export class HintPanelSystem extends createSystem({}) {
     (window as unknown as { __hint?: unknown }).__hint = {
       panel,
       taps: this.touch.taps,
-      state: () => ({ opened: this.opened, vr: this.vr, level: this.opened ? getGame(this.world).objectives.hintLevel(this.opened) : 0 }),
+      state: () => ({ opened: this.opened, vr: this.vr, level: this.opened ? getGame(this.world).steps.hintLevel(this.opened) : 0 }),
       open: (id: string) => this.open(id),
       image: (id: string, level: number) => {
         const v = hintView(id, level);
@@ -114,8 +114,8 @@ export class HintPanelSystem extends createSystem({}) {
     if (!this.ready || !objectiveById(id)) return;
     const game = getGame(this.world);
     // Opening always shows the first level; the rest are asked for one at a time.
-    if (game.objectives.hintLevel(id) < 1) {
-      game.objectives.unlockHint(id);
+    if (game.steps.hintLevel(id) < 1) {
+      game.steps.unlockHint(id);
       getUi(this.world).saveNow?.();
     }
     menu.open('hint');
@@ -142,8 +142,8 @@ export class HintPanelSystem extends createSystem({}) {
     const id = this.opened;
     if (!id) return;
     const game = getGame(this.world);
-    if (game.objectives.hintLevel(id) >= 4) return;
-    game.objectives.unlockHint(id);
+    if (game.steps.hintLevel(id) >= 4) return;
+    game.steps.unlockHint(id);
     getUi(this.world).saveNow?.();
     this.idle = 0;
     this.render();
@@ -159,7 +159,7 @@ export class HintPanelSystem extends createSystem({}) {
     const o = id ? objectiveById(id) : null;
     if (!id || !o) return;
     const game = getGame(this.world);
-    const level = Math.max(1, game.objectives.hintLevel(id));
+    const level = Math.max(1, game.steps.hintLevel(id));
     const info = hintInfo(id);
     const text = (el: string, t: string) => this.panel.requireElementById<UIKit.Text>(el).setProperties({ text: uiText(t || ' ') });
     const view = cardView(game);

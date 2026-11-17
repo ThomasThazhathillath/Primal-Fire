@@ -48,7 +48,7 @@ import { ASSIST, needText, openMarks, resolveTarget, snapVerdict, type Candidate
 import { Adaptive, type AssistSave, StruggleTracker } from './adaptive.js';
 import { frameDone, inside as insideShelter, leakingPanels, RAIN_MAX, roofed, ShelterTest, type ShelterTestSave, stageCount } from './shelter.js';
 import { CONTINUOUS, type IntentAction, type IntentTarget, resolveIntent } from './intent.js';
-import { ObjectiveTracker, type ObjectivesSave } from './objectives.js';
+import { type InteractionId, type Objective, ObjectiveTracker, type ObjectivesSave } from './objectives.js';
 import { QUESTS, type QuestStep } from './quests.js';
 import { LANDMARKS, type Landmark } from './world-layout.js';
 
@@ -93,7 +93,7 @@ export type GameEvent =
   | { type: 'questComplete'; index: number; title: string; roadmapNode: string | null }
   | { type: 'levelComplete'; level: number; name: string; next: GameLevel | null }
   | { type: 'discovered'; landmark: Landmark }
-  | { type: 'fire'; stage: FireStage }
+  | { type: 'fire'; stage: FireStage; first?: boolean }
   | { type: 'arrow'; hit: boolean }
   | { type: 'reach' }
   | { type: 'contact'; a: Material; b: Material; x: number; y: number; z: number; strength: number }
@@ -200,7 +200,7 @@ export class Game {
    * The structure the current lesson wants (set by the tutorial): `undefined` = no lesson says anything,
    * `null` = this lesson builds nothing, so no outline may start. Takes precedence over the objective.
    */
-  lessonStructure: StructureKind | null | undefined = undefined;
+  tutorialStructure: StructureKind | null | undefined = undefined;
   readonly satchel = new Map<ItemId, number>();
   readonly gathered = new Map<ItemId, number>();
   readonly notebook: string[] = [];
@@ -237,6 +237,45 @@ export class Game {
   readonly fire = new FireState(this);
   /** Beginner objectives: one at a time, over the existing quests (objectives.ts). */
   readonly objectives: ObjectiveTracker = new ObjectiveTracker(this, (e) => this.emit(e));
+
+  // ------------------------------------------------------------ focus API
+  // Systems ask these instead of reaching into objectives, quests or story flags, so the tracker
+  // behind them (beginner objectives today, lessons next) can change without touching every system.
+
+  /** The step tracker the card, hints and help read: hint levels, short messages, the card view. */
+  get steps(): ObjectiveTracker {
+    return this.objectives;
+  }
+
+  /** The step on the card: the one thing to do next (null when no step is being guided). */
+  focus(): Objective | null {
+    return this.steps.current;
+  }
+
+  /** Is the step on the card one of these? */
+  focusIs(...ids: string[]): boolean {
+    const f = this.focus();
+    return !!f && ids.includes(f.id);
+  }
+
+  /** Is step-by-step guidance still running (the card shows a step)? */
+  guiding(): boolean {
+    return !this.steps.done;
+  }
+
+  /** A control the player has now used (taught once, then never repeated). */
+  learn(id: InteractionId): void {
+    this.steps.learn(id);
+  }
+
+  hasLearned(id: InteractionId): boolean {
+    return this.steps.hasLearned(id);
+  }
+
+  /** Controls learned so far (carried over from the tutorial). */
+  learnedControls(): InteractionId[] {
+    return this.steps.snapshot().learned as InteractionId[];
+  }
   /** Chapter 1 story beats: once each, saved (story.ts). */
   readonly story: StoryTracker = new StoryTracker(this);
   /** Level 2: pot, charcoal and water purification (water.ts). */
@@ -259,9 +298,9 @@ export class Game {
   /** Game time of the last "you need cord" toast while lashing (so it is not repeated every frame). */
   private noCordToastAt = -99;
 
-  /** Inside a tutorial lesson only the lesson's structure may be started (lessonStructure undefined = not in a lesson). */
+  /** Inside a tutorial lesson only the lesson's structure may be started (tutorialStructure undefined = not in a lesson). */
   allowsBuild(kind: StructureKind): boolean {
-    return this.lessonStructure === undefined || this.lessonStructure === kind;
+    return this.tutorialStructure === undefined || this.tutorialStructure === kind;
   }
 
   constructor() {
@@ -921,8 +960,9 @@ export class Game {
     return true;
   }
 
-  notifyFire(): void {
-    this.emit({ type: 'fire', stage: this.fire.stage });
+  /** The fire changed; `first` = this is the very first time a fire caught in this game. */
+  notifyFire(first = false): void {
+    this.emit({ type: 'fire', stage: this.fire.stage, ...(first ? { first } : {}) });
   }
 
   private consumeHeld(): ItemId | null {
@@ -1229,7 +1269,7 @@ export class Game {
    * (null = none: a pinch on open ground must not start an unrelated blueprint), else (undefined) any.
    */
   wantedStructure(): StructureKind | null | undefined {
-    if (this.lessonStructure !== undefined) return this.lessonStructure;
+    if (this.tutorialStructure !== undefined) return this.tutorialStructure;
     if (this.objectives.done) return undefined;
     return this.objectives.current?.structure ?? null;
   }

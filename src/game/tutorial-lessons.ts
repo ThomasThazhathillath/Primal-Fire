@@ -14,7 +14,7 @@ import { openMarks } from './assist.js';
 import { tutorialSpots } from './tutorial-layout.js';
 
 /** The seven first steps (NPE simplicity round): one short instruction each, verb first. */
-export type LessonId = 'stone' | 'ring' | 'build' | 'marks' | 'top' | 'bag' | 'bench';
+export type TutorialStepId = 'stone' | 'ring' | 'build' | 'marks' | 'top' | 'bag' | 'bench';
 
 /** What the runner has seen since the current lesson started. */
 export interface LessonCtx {
@@ -59,8 +59,8 @@ export interface Task {
   done(c: LessonCtx, g: Game): boolean;
 }
 
-export interface Lesson {
-  id: LessonId;
+export interface TutorialStep {
+  id: TutorialStepId;
   title: string;
   /** One short line from the guide, shown above the tasks. */
   say: string;
@@ -156,7 +156,7 @@ function nextMark(g: Game, top: boolean): { id: string; x: number; z: number } |
   return null;
 }
 
-export const LESSONS: Lesson[] = [
+export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'stone',
     setup: freeHands,
@@ -243,35 +243,35 @@ export const LESSONS: Lesson[] = [
 ];
 
 
-export const LESSON_IDS = LESSONS.map((l) => l.id);
+export const TUTORIAL_STEP_IDS = TUTORIAL_STEPS.map((l) => l.id);
 
 /**
  * Gradual reveal of the HUD during the guided opening (NPE B): the menu once the bag is taught, the objective
  * card once the first discovery is made. Before that the lesson card is the only guide on screen.
  */
-export function guidedReveal(current: number, done: ReadonlySet<LessonId>, finished: boolean): { menu: boolean; objective: boolean } {
+export function guidedReveal(current: number, done: ReadonlySet<TutorialStepId>, finished: boolean): { menu: boolean; objective: boolean } {
   if (finished) return { menu: true, objective: true };
   // The menu comes with the Build step: it is where Build lives.
-  const build = LESSON_IDS.indexOf('build');
+  const build = TUTORIAL_STEP_IDS.indexOf('build');
   return { menu: current >= build || done.has('build'), objective: false };
 }
 
 /** Lesson ids from before the seven-step rework: a save that names one resumes at the first step. */
 export const OLD_ORDER: readonly string[] = ['hands', 'look', 'gather', 'satchel', 'glide', 'move', 'place', 'build', 'craft', 'fire', 'hints', 'notebook', 'final'];
 
-/** The saved open step as an index into today's LESSONS (by id); anything older or unknown starts at step 1. */
+/** The saved open step as an index into today's TUTORIAL_STEPS (by id); anything older or unknown starts at step 1. */
 export function savedLessonIndex(save: Pick<TutorialSave, 'current' | 'currentId'>): number {
   const id = (save.currentId as string) === 'slab' ? 'top' : save.currentId;
-  const i = id ? LESSON_IDS.indexOf(id) : -1;
+  const i = id ? TUTORIAL_STEP_IDS.indexOf(id) : -1;
   return i >= 0 ? i : 0;
 }
 
 export interface TutorialSave {
-  done: LessonId[];
-  /** Index into LESSONS when saved. Saves before the NPE reorder used OLD_ORDER (see `currentId`). */
+  done: TutorialStepId[];
+  /** Index into TUTORIAL_STEPS when saved. Saves before the NPE reorder used OLD_ORDER (see `currentId`). */
   current: number;
   /** The open lesson by id (NPE B; absent in older saves). */
-  currentId?: LessonId;
+  currentId?: TutorialStepId;
   /** Skills shown so far (NPE B; absent in older saves). */
   skills?: Skill[];
   finished: boolean;
@@ -315,11 +315,11 @@ export type TutorialEvent =
   | { type: 'finished' };
 
 /**
- * Watches one Game and moves through LESSONS. Call `poll(ui)` a few times a
+ * Watches one Game and moves through TUTORIAL_STEPS. Call `poll(ui)` a few times a
  * second; events are handled as they come.
  */
 export class TutorialRunner {
-  readonly done = new Set<LessonId>();
+  readonly done = new Set<TutorialStepId>();
   /** Skills the player has shown anywhere in the tutorial (NPE B): a lesson made only of these is not explained again. */
   readonly skills = new Set<Skill>();
   current = 0;
@@ -345,7 +345,7 @@ export class TutorialRunner {
     save?: TutorialSave | null,
   ) {
     if (save) {
-      for (const id of save.done) if (LESSON_IDS.includes(id)) this.done.add(id);
+      for (const id of save.done) if (TUTORIAL_STEP_IDS.includes(id)) this.done.add(id);
       this.current = savedLessonIndex(save);
       this.finished = !!save.finished;
       for (const k of save.skills ?? []) this.skills.add(k);
@@ -357,7 +357,7 @@ export class TutorialRunner {
   }
 
   dispose(): void {
-    this.game.lessonStructure = undefined;
+    this.game.tutorialStructure = undefined;
     this.off();
     this.listeners.clear();
   }
@@ -371,23 +371,23 @@ export class TutorialRunner {
     for (const fn of this.listeners) fn(e);
   }
 
-  get lesson(): Lesson {
-    return LESSONS[this.current];
+  get lesson(): TutorialStep {
+    return TUTORIAL_STEPS[this.current];
   }
 
   snapshot(): TutorialSave {
-    return { done: [...this.done], current: this.current, currentId: LESSONS[this.current].id, finished: this.finished, ticks: [...this.ticks], skills: [...this.skills] };
+    return { done: [...this.done], current: this.current, currentId: TUTORIAL_STEPS[this.current].id, finished: this.finished, ticks: [...this.ticks], skills: [...this.skills] };
   }
 
   /** Open lesson `index` (replay or jump). Runs its setup, clears what was seen. */
   begin(index: number, quiet = false, runSetup = true): void {
-    this.current = Math.max(0, Math.min(LESSONS.length - 1, index));
+    this.current = Math.max(0, Math.min(TUTORIAL_STEPS.length - 1, index));
     const g = this.game;
-    const builds = LESSONS[this.current].builds;
-    g.lessonStructure = this.finished ? undefined : (builds ?? null);
-    if (runSetup) LESSONS[this.current].setup?.(g);
+    const builds = TUTORIAL_STEPS[this.current].builds;
+    g.tutorialStructure = this.finished ? undefined : (builds ?? null);
+    if (runSetup) TUTORIAL_STEPS[this.current].setup?.(g);
     this.ctx = freshCtx();
-    this.ticks = LESSONS[this.current].tasks.map(() => false);
+    this.ticks = TUTORIAL_STEPS[this.current].tasks.map(() => false);
     this.startX = g.player.x;
     this.startZ = g.player.z;
     this.lastYaw = g.facingYaw;
@@ -409,9 +409,9 @@ export class TutorialRunner {
 
   /** Skip the rest of the tutorial. */
   skipAll(): void {
-    for (const id of LESSON_IDS) this.done.add(id);
+    for (const id of TUTORIAL_STEP_IDS) this.done.add(id);
     this.finished = true;
-    this.game.lessonStructure = undefined;
+    this.game.tutorialStructure = undefined;
     this.emit({ type: 'finished' });
   }
 
@@ -531,7 +531,7 @@ export class TutorialRunner {
 
   /** Does the player already know everything lesson `i` teaches (and it teaches only skills)? */
   knows(i: number): boolean {
-    const sk = LESSONS[i]?.skills;
+    const sk = TUTORIAL_STEPS[i]?.skills;
     return !!sk && sk.length > 0 && sk.every((x) => this.skills.has(x));
   }
 
@@ -556,14 +556,14 @@ export class TutorialRunner {
     this.done.add(this.lesson.id);
     this.ticks = this.ticks.map(() => true);
     this.emit({ type: 'lessonDone', index });
-    const l = LESSONS[index];
+    const l = TUTORIAL_STEPS[index];
     if (l.note && !this.game.notebook.includes(l.note)) this.game.observe(l.note);
     l.teardown?.(this.game);
     this.emit({ type: 'science', index, text: l.science });
-    if (index === LESSONS.length - 1) {
+    if (index === TUTORIAL_STEPS.length - 1) {
       if (!this.finished || !wasDone) {
         this.finished = true;
-        this.game.lessonStructure = undefined;
+        this.game.tutorialStructure = undefined;
         this.emit({ type: 'finished' });
       }
       return;
@@ -571,10 +571,10 @@ export class TutorialRunner {
     // Go on to the first lesson not yet done after this one (or simply the next). A lesson whose skills the player
     // has already shown is passed with a word instead of being explained again (NPE B).
     let next = -1;
-    for (let i = index + 1; i < LESSONS.length; i++) {
-      if (this.done.has(LESSONS[i].id)) continue;
-      if (this.knows(i) && i < LESSONS.length - 1) {
-        this.done.add(LESSONS[i].id);
+    for (let i = index + 1; i < TUTORIAL_STEPS.length; i++) {
+      if (this.done.has(TUTORIAL_STEPS[i].id)) continue;
+      if (this.knows(i) && i < TUTORIAL_STEPS.length - 1) {
+        this.done.add(TUTORIAL_STEPS[i].id);
         this.emit({ type: 'known', index: i });
         continue;
       }
@@ -583,8 +583,8 @@ export class TutorialRunner {
     }
     if (next < 0) {
       // Everything after this one is done or known: the last lesson closes the tutorial.
-      next = LESSONS.length - 1;
-      if (this.done.has(LESSONS[next].id)) next = Math.min(index + 1, LESSONS.length - 1);
+      next = TUTORIAL_STEPS.length - 1;
+      if (this.done.has(TUTORIAL_STEPS[next].id)) next = Math.min(index + 1, TUTORIAL_STEPS.length - 1);
     }
     this.begin(next);
   }
@@ -602,7 +602,7 @@ export const OPENING: string[] = ['You wake in a wild forest. Find what you need
 export const CLOSING: string[] = ['Well done. Now the forest is yours.'];
 
 /** The hour each step plays at: early afternoon at waking, dusk by the fire, night falling at the end. */
-export const STEP_HOURS: Record<LessonId, number> = {
+export const STEP_HOURS: Record<TutorialStepId, number> = {
   stone: 13,
   ring: 13.5,
   build: 14.5,
@@ -615,6 +615,6 @@ export const STEP_HOURS: Record<LessonId, number> = {
 export const NIGHT_HOUR = 19.8;
 
 /** Hour of the first day for the open step (or night once the opening is finished). */
-export function storyHour(step: LessonId | null): number {
+export function storyHour(step: TutorialStepId | null): number {
   return step === null ? NIGHT_HOUR : STEP_HOURS[step];
 }

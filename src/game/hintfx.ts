@@ -38,8 +38,8 @@ export interface HintPlan {
  * the needed items (the caller knows which have charges left).
  */
 export function planHint(g: Game, spots: readonly Spot[]): HintPlan {
-  const o = g.objectives.current;
-  const level = g.objectives.hintFxLevel();
+  const o = g.focus();
+  const level = g.steps.hintFxLevel();
   const effects = hintEffects(level);
   const plan: HintPlan = { level, effects, objective: o?.id ?? null, needed: [], target: null, nearby: [] };
   if (!o || level === 0) return plan;
@@ -89,7 +89,7 @@ export function glowFor(plan: HintPlan): HintTarget | null {
  * the next thing is): the landmark, the nearest spot with what is still needed, or the build mark to fill next.
  */
 export function nextTargetFor(g: Game, spots: readonly Spot[]): { id: string; x: number; z: number } | null {
-  const o = g.objectives.current;
+  const o = g.focus();
   if (!o) return null;
   if (o.place) {
     const l = LANDMARK_BY_ID[o.place];

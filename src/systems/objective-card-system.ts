@@ -60,7 +60,7 @@ export class ObjectiveCardSystem extends createSystem({}) {
     hidePanel(panel);
     this.doc = findUIKitDocument(panel);
     if (this.doc) this.doc.visible = false;
-    this.open = !game.objectives.closed;
+    this.open = !game.steps.closed;
 
     const wire = (id: string, fn: () => void) => {
       const el = panel.requireElementById(id);
@@ -113,7 +113,7 @@ export class ObjectiveCardSystem extends createSystem({}) {
   setOpen(open: boolean): void {
     if (open === this.open) return;
     this.open = open;
-    getGame(this.world).objectives.setClosed(!open);
+    getGame(this.world).steps.setClosed(!open);
     this.place();
     this.dirty = true;
   }
@@ -156,7 +156,7 @@ export class ObjectiveCardSystem extends createSystem({}) {
       return;
     }
     const game = getGame(this.world);
-    const level = game.objectives.unlockHint(v.id);
+    const level = game.steps.unlockHint(v.id);
     const o = objectiveById(v.id);
     if (o) game.toast(`Hint ${level}/4: ${o.hint.levels[level - 1]}`, 'note');
     this.dirty = true;

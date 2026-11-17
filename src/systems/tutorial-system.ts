@@ -17,7 +17,7 @@ import { START_HOUR } from '../game/environment.js';
 import type { InteractionId } from '../game/objectives.js';
 import { ghost } from './shared.js';
 import { LESSON_CLIPS } from './ghost-hand-system.js';
-import { CLOSING, guidedReveal, LESSONS, OPENING, storyHour, TutorialRunner, type TutorialSave } from '../game/tutorial-lessons.js';
+import { CLOSING, guidedReveal, TUTORIAL_STEPS, OPENING, storyHour, TutorialRunner, type TutorialSave } from '../game/tutorial-lessons.js';
 import { choiceMade, chooseSurvival, clearProgress, loadProgressRaw, reloadInto, saveCarry, saveProgressRaw, takeCarry } from '../game/tutorial-mode.js';
 import { PanelTouch } from './panel-touch.js';
 import { assistFx, getGame, getUi, hidePanel, menu, reveal, StaticAnchor, uiText } from './shared.js';
@@ -71,7 +71,7 @@ export class TutorialSystem extends createSystem({}, { tutorial: { type: Types.B
       this.els[id] = panel.getElementById<UIKit.Text>(id);
     }
     for (let i = 0; i < MAX_TASKS; i++) this.els[`t${i}`] = panel.getElementById<UIKit.Text>(`tut-body-${i}`);
-    for (let i = 0; i < LESSONS.length; i++) this.els[`l${i}`] = panel.getElementById<UIKit.Text>(`tut-l${i}`);
+    for (let i = 0; i < TUTORIAL_STEPS.length; i++) this.els[`l${i}`] = panel.getElementById<UIKit.Text>(`tut-l${i}`);
 
     this.touch = new PanelTouch(this.world, panel, PANEL_SCALE, 'tutorial');
     // The card stays up while both hands work nearby: only a deliberate pointing finger taps it (as at the bench).
@@ -95,7 +95,7 @@ export class TutorialSystem extends createSystem({}, { tutorial: { type: Types.B
     wire('tut-leave', () => this.leave(false));
     wire('tut-start', () => (this.mode === 'choice' ? reloadInto('tutorial') : this.leave(true)));
     wire('tut-again', () => (this.mode === 'choice' ? this.skipChoice() : this.practise()));
-    for (let i = 0; i < LESSONS.length; i++) wire(`tut-l${i}`, () => this.runner?.begin(i));
+    for (let i = 0; i < TUTORIAL_STEPS.length; i++) wire(`tut-l${i}`, () => this.runner?.begin(i));
 
     this.cleanupFuncs.push(
       this.world.visibilityState.subscribe((v) => {
@@ -151,19 +151,19 @@ export class TutorialSystem extends createSystem({}, { tutorial: { type: Types.B
       () => this.runner?.dispose(),
       this.runner.on((e) => {
         this.dirty = true;
-        if (e.type === 'lessonDone') game.log.add(`opening step ${LESSONS[e.index].id} done`, 'ok');
+        if (e.type === 'lessonDone') game.log.add(`opening step ${TUTORIAL_STEPS[e.index].id} done`, 'ok');
         if (e.type === 'known') {
           // Already shown: one word instead of the whole explanation again (NPE B).
-          game.log.add(`opening step ${LESSONS[e.index].id} already known`, 'ok');
-          this.lines.push(`You already know this one (${LESSONS[e.index].title.toLowerCase()}).`);
+          game.log.add(`opening step ${TUTORIAL_STEPS[e.index].id} already known`, 'ok');
+          this.lines.push(`You already know this one (${TUTORIAL_STEPS[e.index].title.toLowerCase()}).`);
         }
-        if (e.type === 'task' && LESSONS[e.index].id === 'stone' && e.task === 0) {
+        if (e.type === 'task' && TUTORIAL_STEPS[e.index].id === 'stone' && e.task === 0) {
           // The first pickup: confirm it and say where it went (NPE B, stage 2).
           game.toast('Got it! It is in your pouch.', 'good');
         }
         if (e.type === 'science') this.lines.push(e.text);
         if (e.type === 'lesson') {
-          this.lines.push(LESSONS[e.index].say);
+          this.lines.push(TUTORIAL_STEPS[e.index].say);
           this.mode = 'lesson'; // a replay after finishing shows the step again
         }
         if (e.type === 'finished') {
@@ -189,7 +189,7 @@ export class TutorialSystem extends createSystem({}, { tutorial: { type: Types.B
     if (!this.config.tutorial.peek() || !this.runner) return;
     this.saveProgress();
     if (carry) {
-      const learned = getGame(this.world).objectives.snapshot().learned;
+      const learned = getGame(this.world).learnedControls();
       saveCarry({ learned });
       getGame(this.world).log.add(`story carry saved: ${learned.join(',') || 'nothing'}`, 'ok');
     }
@@ -208,7 +208,7 @@ export class TutorialSystem extends createSystem({}, { tutorial: { type: Types.B
       game.log.add(`story carry ignored: survival game already under way (${game.time.toFixed(0)}s)`);
       return;
     }
-    for (const id of carry.learned) game.objectives.learn(id as InteractionId);
+    for (const id of carry.learned) game.learn(id as InteractionId);
     // The opening already told the awakening: survival goes on from the morning after.
     game.story.markSeen('awake');
     game.log.add(`story carry: learned ${carry.learned.join(',') || 'nothing'}`, 'ok');
@@ -269,7 +269,7 @@ export class TutorialSystem extends createSystem({}, { tutorial: { type: Types.B
     const l = r.lesson;
     const x = this.expanded;
     // One instruction, verb first: the card's title. "Why?" opens the how-to; nothing else is on the card.
-    e['tut-label']?.setProperties({ text: `STEP ${r.current + 1} OF ${LESSONS.length}` });
+    e['tut-label']?.setProperties({ text: `STEP ${r.current + 1} OF ${TUTORIAL_STEPS.length}` });
     e['tut-title']?.setProperties({ text: uiText(l.title) });
     e['tut-tip']?.setProperties({ text: uiText(l.tip) });
     e['tut-why-t']?.setProperties({ text: x ? 'Hide' : 'Why?' });
@@ -362,7 +362,7 @@ export class TutorialSystem extends createSystem({}, { tutorial: { type: Types.B
     const r = this.runner;
     if (!r) return;
     const g = getGame(this.world);
-    const target = storyHour(r.finished && r.done.size === LESSONS.length && this.mode === 'finished' ? null : r.lesson.id);
+    const target = storyHour(r.finished && r.done.size === TUTORIAL_STEPS.length && this.mode === 'finished' ? null : r.lesson.id);
     if (this.skyHour < 0) this.skyHour = target;
     const d = target - this.skyHour;
     if (Math.abs(d) > 1e-3) this.skyHour += Math.sign(d) * Math.min(Math.abs(d), SKY_RATE * delta);
@@ -375,8 +375,8 @@ export class TutorialSystem extends createSystem({}, { tutorial: { type: Types.B
     this.poll = 0;
     const game = getGame(this.world);
     const ui = getUi(this.world);
-    const cur = game.objectives.current;
-    this.runner.poll({ hintLevel: cur ? game.objectives.hintLevel(cur.id) : 0, notebookOpen: ui.notebookOpen?.() ?? false, bagOpen: menu.current === 'bag', benchOpen: menu.current === 'bench' });
+    const cur = game.focus();
+    this.runner.poll({ hintLevel: cur ? game.steps.hintLevel(cur.id) : 0, notebookOpen: ui.notebookOpen?.() ?? false, bagOpen: menu.current === 'bag', benchOpen: menu.current === 'bench' });
     // Always show where the next thing is: one arrow and ring on the exact target of this step.
     const t = this.runner.finished || this.mode !== 'lesson' ? null : (this.runner.lesson.target?.(game) ?? null);
     assistFx.exact = t ? { id: `tut_${t.id}`, x: t.x, y: groundHeight(t.x, t.z), z: t.z } : null;

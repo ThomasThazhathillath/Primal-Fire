@@ -219,13 +219,14 @@ export class FireState {
     }
     this.stage = 'burning';
     this.burnLeft = this.tinder * BURN_SECONDS.tinder + this.twigs * BURN_SECONDS.twigs + this.logs * BURN_SECONDS.logs;
+    const first = !g.flag('fireLit');
     g.setFlag('fireLit');
     g.observe('f_success');
     g.science('fire.lit');
     g.addXp(40);
     g.toast('Fire!', 'good');
     g.checkQuests();
-    g.notifyFire();
+    g.notifyFire(first);
   }
 
   private reset(): void {

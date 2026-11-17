@@ -116,11 +116,11 @@ describe('only the wanted structure may start an outline', () => {
     g.tick(3);
     expect(g.objectives.current!.id).toBe('workbench');
     expect(g.wantedStructure()).toBe('workbench');
-    g.lessonStructure = 'firePit';
+    g.tutorialStructure = 'firePit';
     expect(g.wantedStructure()).toBe('firePit');
-    g.lessonStructure = null;
+    g.tutorialStructure = null;
     expect(g.wantedStructure()).toBeNull();
-    g.lessonStructure = undefined;
+    g.tutorialStructure = undefined;
     expect(g.wantedStructure()).toBe('workbench');
   });
   it('once the beginner objectives are over any structure may start', () => {

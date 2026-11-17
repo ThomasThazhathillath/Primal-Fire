@@ -15,6 +15,8 @@ import { getGame, getUi, hidePanel, menu, placeInFront, StaticAnchor, uiText } f
 /** Desktop: readable at 0.5 m; VR uses the same card at arm's length through StaticAnchor. */
 const SCALE = 0.06;
 const OPTS = 3;
+/** Trial rows on the card (one per value of the variable). */
+const TRIALS = 4;
 
 export class ExperimentSystem extends createSystem({}) {
   private panel!: UIKitMLAsset;
@@ -128,7 +130,10 @@ export class ExperimentSystem extends createSystem({}) {
     const g = getGame(this.world);
     const phase = g.experiments.phase(d.id);
     if (phase === 'testing') {
-      if (g.waitForRain()) g.toast('Clouds gather. Stand under your roof and watch each panel.', 'note');
+      if (d.testAction) {
+        const said = d.testAction.run(g);
+        if (said) g.toast(said, 'note');
+      } else if (g.waitForRain()) g.toast('Clouds gather. Stand under your roof and watch each panel.', 'note');
       menu.back();
       return;
     }
@@ -167,7 +172,7 @@ export class ExperimentSystem extends createSystem({}) {
       case 'testing':
         body = `Your prediction: ${predicted} ${d.howTo}`;
         showTrials = true;
-        action = g.leanTo() && !g.shelterTest.raining ? 'Wait for rain' : 'Keep testing';
+        action = d.testAction ? d.testAction.label(g) : g.leanTo() && !g.shelterTest.raining ? 'Wait for rain' : 'Keep testing';
         break;
       case 'result': {
         const right = g.experiments.predictedRight(d.id);
@@ -191,7 +196,7 @@ export class ExperimentSystem extends createSystem({}) {
         body = d.why;
     }
     text('exp-body', body);
-    for (let i = 0; i < 2; i++) {
+    for (let i = 0; i < TRIALS; i++) {
       show(`exp-trial-${i}`, showTrials && i < trials.length);
       if (showTrials && trials[i]) text(`exp-trial-${i}`, trials[i]);
     }

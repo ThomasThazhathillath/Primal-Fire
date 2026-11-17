@@ -81,7 +81,8 @@ export class CompassSystem extends createSystem({}) {
   update(delta: number): void {
     const started = this.world.getSystem(WorldSystem)?.started ?? false;
     const ui = getUi(this.world);
-    const on = compassCfg.show && started && !ui.titleOpen?.() && !cover.on;
+    // Lesson 05's long trek covers the compass: you steer by the sun and landmarks.
+    const on = compassCfg.show && started && !ui.titleOpen?.() && !cover.on && !getGame(this.world).field.compassCovered();
     if (!on) {
       if (this.mesh.visible) this.mesh.visible = false;
       if (this.dom && this.dom.style.display !== 'none') this.dom.style.display = 'none';

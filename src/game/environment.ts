@@ -43,6 +43,12 @@ export const SPELL_MAX = 330;
 export const TRANSITION = 40;
 /** The first spell is always clear, so the tutorial morning is calm. */
 const FIRST_SPELL = 360;
+/** Seconds before a rain spell during which the clouds build up and darken (the rain starts on time). */
+export const RAIN_LEAD = 75;
+/** A brewed shower (Environment.brewRain): clouds build, then light rain, then it clears (seconds). */
+export const BREW_BUILD = 60;
+export const BREW_RAIN = 120;
+const BREW_CLEAR = 40;
 
 /** Fog distances (m): clear vs thick fog. */
 const FOG_NEAR = 16;
@@ -290,6 +296,27 @@ export class Environment {
 
   /** Debug/tuning: pin the weather (null = follow the schedule). Not saved. */
   forceWeather: WeatherKind | null = null;
+  /** Game time a brewed shower began (null = none). Not saved. */
+  brew: number | null = null;
+
+  /**
+   * Brew a shower from now: clouds build and darken for BREW_BUILD s, light rain for BREW_RAIN s, then it
+   * clears. Used by Lesson 05's cloud experiment so a player need not wait for the schedule. Returns false
+   * if it is already raining or a shower is brewing.
+   */
+  brewRain(t: number): boolean {
+    if (this.forceWeather || this.brew !== null || this.rain > 0.15) return false;
+    this.brew = t;
+    return true;
+  }
+
+  /** The kind of the spell after `sp` (the same draw spellAt makes, so it always agrees). */
+  private nextKind(sp: { index: number; kind: WeatherKind }): WeatherKind {
+    const i = sp.index + 1;
+    let kind = pickWeather(spellRandom(this.seed, i, 2));
+    if (kind === sp.kind) kind = pickWeather(spellRandom(this.seed, i, 3));
+    return kind;
+  }
 
   private weatherAt(t: number): void {
     const spell = this.spellAt(t);
@@ -306,10 +333,40 @@ export class Environment {
     this.fog = lerp(prev.fog, cur.fog, s);
     this.windStrength = lerp(prev.wind, cur.wind, s);
     this.weather = s >= 0.5 || spell.index === 0 ? spell.kind : spell.prev;
+    if (!this.forceWeather) {
+      // Clouds build up before rain: in the last RAIN_LEAD s of a spell whose successor brings rain, the
+      // cloud thickens toward the rain's cover; the rain spell then starts with its cloud already built.
+      const next = WEATHER[this.nextKind(spell)];
+      const lead = clamp((t - (spell.end - RAIN_LEAD)) / RAIN_LEAD, 0, 1);
+      if (next.rain > 0 && lead > 0) this.cloud = lerp(this.cloud, Math.max(this.cloud, next.cloud), lead * lead * (3 - 2 * lead));
+      if (cur.rain > 0 && spell.index > 0) this.cloud = Math.max(this.cloud, cur.cloud);
+      if (this.brew !== null) this.brewed(t - this.brew);
+    }
     // The wind slowly veers; gusts are layered on top by whoever renders them.
     const dir = spellRandom(this.seed, spell.index, 4) * Math.PI * 2 + Math.sin(t * 0.01) * 0.4;
     this.wind.x = Math.cos(dir) * this.windStrength;
     this.wind.z = Math.sin(dir) * this.windStrength;
+  }
+
+  /** Blend a brewed shower `e` seconds old over the scheduled weather. */
+  private brewed(e: number): void {
+    const sm = (x: number) => {
+      const c = clamp(x, 0, 1);
+      return c * c * (3 - 2 * c);
+    };
+    if (e < 0 || e > BREW_BUILD + BREW_RAIN + BREW_CLEAR) {
+      this.brew = null;
+      return;
+    }
+    const k = 1 - sm((e - BREW_BUILD - BREW_RAIN) / BREW_CLEAR);
+    const build = sm(e / BREW_BUILD) * k;
+    const wet = sm((e - BREW_BUILD) / 20) * k;
+    this.cloud = lerp(this.cloud, Math.max(this.cloud, 0.9), build);
+    this.windStrength = lerp(this.windStrength, Math.max(this.windStrength, 0.35), build);
+    this.rain = lerp(this.rain, Math.max(this.rain, WEATHER.lightRain.rain), wet);
+    this.fog = lerp(this.fog, Math.max(this.fog, WEATHER.lightRain.fog), wet);
+    if (wet > 0.5) this.weather = 'lightRain';
+    else if (build > 0.5 && this.weather === 'clear') this.weather = 'cloudy';
   }
 
   // ------------------------------------------------ gameplay hooks

@@ -277,7 +277,7 @@ export const CONCEPTS: Concept[] = [
     idea: 'Food stores energy (calories) as carbohydrate, fat and protein; your body burns it to move and keep warm.',
     apply: 'Food labels list energy in kcal and the nutrients that supply it.',
     discover: 'Eat something you gathered or caught.',
-    entries: ['y_eat'],
+    entries: ['y_eat', 'fd_sugar', 'fd_fat', 'fd_protein'],
   },
   {
     id: 'cooking',
@@ -313,7 +313,7 @@ export const CONCEPTS: Concept[] = [
     idea: 'Some poisonous plants look like edible ones: only eat what you can identify for certain.',
     apply: 'Foragers learn a few plants thoroughly and leave everything else alone.',
     discover: 'Look very closely at wild berries and roots before picking.',
-    entries: ['l_lookalike'],
+    entries: ['l_lookalike', 'fd_sick', 'fd_unknown'],
   },
   {
     id: 'preservation',
@@ -322,7 +322,7 @@ export const CONCEPTS: Concept[] = [
     idea: 'Microbes need water to grow, so drying food slows spoiling.',
     apply: 'Dried fruit, jerky and pasta keep for months.',
     discover: 'Hang food on a drying rack.',
-    entries: ['l_dry'],
+    entries: ['l_dry', 'fd_offfish', 'fd_driedkeeps'],
   },
   {
     id: 'ecology',
@@ -331,7 +331,7 @@ export const CONCEPTS: Concept[] = [
     idea: 'Plants feed plant-eaters, which feed predators; animals keep daily rhythms and flee what seems dangerous.',
     apply: 'Wildlife watchers move slowly and quietly; removing one species affects the others.',
     discover: 'Watch the animals around you, quietly.',
-    entries: ['n_chain', 'n_eyes', 'l_mist', 'l_dusk', 'l_alert', 'l_quiet'],
+    entries: ['n_chain', 'n_eyes', 'l_mist', 'l_dusk', 'l_alert', 'l_quiet', 'fd_overharvest', 'fd_recover'],
   },
   {
     id: 'tracking',
@@ -341,6 +341,15 @@ export const CONCEPTS: Concept[] = [
     apply: 'Rangers and biologists read tracks to count animals they rarely see.',
     discover: 'Find tracks near water and follow them.',
     entries: ['h_track', 'l_age'],
+  },
+  {
+    id: 'navigation',
+    lesson: 'food',
+    name: 'Finding your way',
+    idea: 'The sun rises in the east and sets in the west; with the time of day and landmarks you can steer without a compass.',
+    apply: 'Sailors, pilots and hikers steer by the sun, the stars and landmarks when instruments fail.',
+    discover: 'Face the sun in the morning, and again in the afternoon.',
+    entries: ['nv_sunrise', 'nv_sunset', 'nv_noon', 'nv_trek', 'nv_home'],
   },
   {
     id: 'wound_care',

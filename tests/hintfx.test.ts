@@ -103,13 +103,13 @@ describe('hint effects follow the hint level', () => {
     const flint = RESOURCES.filter((r) => r.itemId === 'flint');
     expect(flint.some((r) => r.x === p.target!.x && r.z === p.target!.z)).toBe(true);
   });
-  it('the science objective points at the ruins', () => {
+  it('a place objective points at its landmark', () => {
     const g = new Game();
-    jumpTo(g, 'science');
-    expect(g.lessons.current?.id).toBe('science');
+    jumpTo(g, 'fish');
+    expect(g.lessons.current?.id).toBe('fish');
     level(g, 3);
     const p = planHint(g, spots);
-    expect(p.target!.id).toBe('place_ruins');
+    expect(p.target!.id).toBe('place_bend');
   });
 });
 

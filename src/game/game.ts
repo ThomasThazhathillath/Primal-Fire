@@ -58,6 +58,7 @@ import type { LessonId, Step } from './curriculum/types.js';
 import { SAVE_VERSION } from './save.js';
 import { Body, type BodySave, type Level, type Need } from './survival/body.js';
 import { microclimate, type Microclimate } from './survival/climate.js';
+import { FieldLesson, type FieldSave } from './curriculum/lessons/food/field.js';
 
 export type FlagId =
   | 'cordMade'
@@ -311,6 +312,8 @@ export class Game {
   readonly water = new WaterState(this);
   /** Level 3: fishing, cooking and farming (food.ts). */
   readonly food = new FoodState(this);
+  /** Lesson 05 field rules: judging plants, the sky, the sun, the long trek, the closing check. */
+  readonly field: FieldLesson = new FieldLesson(this);
   /** Highest game level reached (1-3). */
   levelReached = 1;
   readonly packUpgrades = new Set<string>();
@@ -798,6 +801,7 @@ export class Game {
     if ((this.shelterT += dt) >= 0.25) {
       this.tickShelter(this.shelterT);
       this.tickBody(this.shelterT);
+      this.field.update(this.shelterT);
       this.experiments.update(this);
       this.shelterT = 0;
       this.lessons.update();
@@ -862,6 +866,10 @@ export class Game {
     }
     for (const e of w.events) {
       if (e.species === 'deer' && e.kind === 'flee') this.science('wild.deer.fled');
+      if (e.species === 'deer' && e.kind === 'alert') {
+        const a = w.animals.find((x) => x.id === e.id);
+        if (a) this.field.preyAlert(a.heading, a.x, a.z);
+      }
       if (e.species === 'deer' && e.kind === 'drink' && Math.hypot(e.x - this.player.x, e.z - this.player.z) < 30) this.science('wild.deer.drank');
       if ((e.kind === 'call' || e.kind === 'startle') && this.wildAudio.length < 8) this.wildAudio.push(e);
     }
@@ -2123,6 +2131,7 @@ export class Game {
       lessons: this.lessons.snapshot(),
       body: this.body.snapshot(),
       experiments: this.experiments.snapshot(),
+      field: this.field.snapshot(),
       notebookSeen: this.notebookSeen,
       movedSpots: [...this.movedSpots].map(([id, p]) => [id, p.x, p.z, p.ry] as [string, number, number, number]),
       story: this.story.snapshot(),
@@ -2175,6 +2184,7 @@ export class Game {
     g.held = data.held && data.held in ITEMS ? data.held : null;
     g.body.restore(data.body);
     g.experiments.restore(data.experiments);
+    g.field.restore(data.field);
     // Older saves did not track it: treat what they had as read.
     g.notebookSeen = Math.min(g.notebook.length, data.notebookSeen ?? g.notebook.length);
     for (const [id, x, z, ry] of data.movedSpots ?? []) g.movedSpots.set(id, { x, z, ry });
@@ -2200,6 +2210,8 @@ export interface SaveData {
   body?: BodySave;
   /** Experiments run so far (predictions, trials, results). */
   experiments?: ExperimentsSave;
+  /** Lesson 05: the long trek, the closing check, plant judgements; absent in older saves. */
+  field?: FieldSave;
   /** Notebook entries already seen (absent in older saves: all of them). */
   notebookSeen?: number;
   /** Gather spots dragged to a new place: [spot id, x, z, yaw]. */

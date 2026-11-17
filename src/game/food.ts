@@ -11,7 +11,8 @@
 
 import type { Game } from './game.js';
 import { type ItemId, itemName } from './items.js';
-import { FORAGE_PATCHES, FORAGE_REGROW } from './forage.js';
+import { FIELD_GUIDE, FORAGE_PATCHES, FORAGE_REGROW, type ForagePatch, PATCH_STOCK, STOCK_REGROW } from './forage.js';
+import { FOOD_PROFILES } from './curriculum/lessons/food/nutrition.js';
 import { mulberry32, type Rng } from './rng.js';
 import { nearestTreeDistance, STREAM, STREAM_BANK, STREAM_HALF_WIDTH, streamDistance } from './world-layout.js';
 
@@ -154,8 +155,29 @@ export interface FoodSave {
   wild?: number[];
   /** Seconds until each foraging patch regrows. */
   forage?: number[];
+  /** Lesson 05: handfuls left on each patch, its current most, seconds towards the next handful, stripped bare. */
+  stock?: number[];
+  cap?: number[];
+  regrow?: number[];
+  stripped?: boolean[];
+  /** Your verdict on each patch you judged (patch id -> verdict). */
+  judged?: Record<number, Verdict>;
   cook: number;
   nextId: number;
+}
+
+/** Your judgement of a wild plant before eating it. */
+export type Verdict = 'safe' | 'unsafe' | 'unsure';
+
+/** What a judgement turned out to be (food.ts `judge`), for the judge card and tests. */
+export interface JudgeResult {
+  correct: boolean;
+  /** You ate something that was not food and fell ill. */
+  sick: boolean;
+  /** You picked food. */
+  picked: number;
+  /** What the truth was and why, one or two short sentences. */
+  text: string;
 }
 
 export interface FoodAction {
@@ -178,10 +200,17 @@ export class FoodState {
   cook = 0;
   /** Seconds until each wild tuber plant has regrown (0 = ready). */
   readonly wild: number[] = WILD_TUBERS.map(() => 0);
-  /** Foraging patches: seconds until regrown. */
+  /** Foraging patches: seconds until a stripped patch puts out anything again (0 = not stripped). */
   readonly forage: number[] = FORAGE_PATCHES.map(() => 0);
-  /** Patches you have looked at closely this session. */
-  private inspected = new Set<number>();
+  /** Handfuls left on each patch, the most it carries now, and progress (s) towards the next handful. */
+  readonly stock: number[] = FORAGE_PATCHES.map(() => PATCH_STOCK);
+  readonly cap: number[] = FORAGE_PATCHES.map(() => PATCH_STOCK);
+  private readonly regrowT: number[] = FORAGE_PATCHES.map(() => 0);
+  /** Stripped bare (it comes back thin), and picked but not stripped (it comes back full): for the overharvest test. */
+  private readonly stripped: boolean[] = FORAGE_PATCHES.map(() => false);
+  private readonly picked: boolean[] = FORAGE_PATCHES.map(() => false);
+  /** Your verdict on each patch you judged (saved): the truth is known to you once you have judged it. */
+  readonly judged = new Map<number, Verdict>();
   private seenStage = new Map<number, number>();
   private nextId = 1;
   private rng: Rng = mulberry32(77);
@@ -262,6 +291,7 @@ export class FoodState {
     if (best.r.hit && best.f.scared <= 0) {
       this.fish.splice(this.fish.indexOf(best.f), 1);
       g.addItem('fish', best.f.size === 2 ? 2 : 1);
+      g.field.gatheredFood(best.f.size === 2 ? 2 : 1);
       g.science('food.fish.caught');
       if (best.f.size === 2) g.science('food.fish.large');
       g.toast(best.f.size === 2 ? 'A big one! Plenty of meat on it.' : 'Got one! A fish flaps on the spear.', 'good');
@@ -376,7 +406,12 @@ export class FoodState {
       }
       case 'rest':
         g.science('camp.bed.rested');
-        g.toast('Off the cold ground, you can rest properly. Soft layers trap warm air.', 'note');
+        // From Lesson 05, at night the bed lets you sleep until morning (the long trek and the sun test need
+        // daylight). Earlier lessons keep the night: Lesson 01 tests a shelter through it.
+        if (g.lessons.reached('food') && (g.env.hour >= 19 || g.env.hour < 5)) {
+          g.env.skipTo(g.time, 6.5);
+          g.toast('You sleep on the soft layers through the night. Morning: the sun rises in the east.', 'note');
+        } else g.toast('Off the cold ground, you can rest properly. Soft layers trap warm air.', 'note');
         g.checkProgress();
         return true;
       default:
@@ -399,6 +434,18 @@ export class FoodState {
       if (n > was && n > 0) age = (age * was) / n;
       if (n === 0) age = 0;
       else age += dt;
+      // The drying experiment compares fresh and dried fish carried for the same time (fresh fish's "going off" age).
+      const testAge = SHELF_LIFE.fish! * AGEING_AT;
+      if (id === 'fish' && n > 0 && age >= testAge && age - dt < testAge) {
+        g.toast('Your fresh fish smells off: microbes are growing in its wet flesh.', 'bad');
+        g.science('food.fish.ageing');
+        g.experiments.trial('dryingTest', 'fresh', 'off');
+      }
+      if (id === 'driedFish' && n > 0 && age >= testAge && age - dt < testAge) {
+        g.toast('The dried fish you carry still smells good, as long as fresh fish takes to go off.', 'good');
+        g.science('food.dried.keeps');
+        g.experiments.trial('dryingTest', 'dried', 'keeps');
+      }
       if (n > 0 && age >= life) {
         g.useItem(id);
         age = life * 0.85;
@@ -485,7 +532,7 @@ export class FoodState {
       }
     }
     for (let i = 0; i < this.wild.length; i++) this.wild[i] = Math.max(0, this.wild[i] - dt);
-    for (let i = 0; i < this.forage.length; i++) this.forage[i] = Math.max(0, this.forage[i] - dt);
+    this.tickForage(dt);
     this.tickStages();
     this.tickCamp(dt);
     this.tickSpoil(dt);
@@ -534,9 +581,9 @@ export class FoodState {
     const wi = WILD_TUBERS.findIndex((w, i) => this.wild[i] === 0 && near(w, at, USE_RADIUS));
     if (wi >= 0) return { id: 'gatherWild', label: 'Dig up the wild tuber plant', at: WILD_TUBERS[wi], wildIndex: wi };
     if (!held) {
-      const fp = FORAGE_PATCHES.find((q) => this.forage[q.id] === 0 && near(q, at, USE_RADIUS));
+      const fp = FORAGE_PATCHES.find((q) => this.stock[q.id] > 0 && near(q, at, USE_RADIUS));
       if (fp) {
-        return this.inspected.has(fp.id)
+        return this.judged.has(fp.id)
           ? { id: 'forage', label: fp.edible ? `Pick the ${fp.kind === 'berry' ? 'berries' : fp.kind === 'nut' ? 'nuts' : 'root'}` : 'Pick it anyway?', at: fp, patchId: fp.id }
           : { id: 'inspect', label: 'Look closely at this plant', at: fp, patchId: fp.id };
       }
@@ -594,7 +641,7 @@ export class FoodState {
       case 'eat':
         if (g.held !== 'cookedFish') return false;
         g.useItem('cookedFish');
-        g.body.eat(40);
+        this.eatFood('cookedFish');
         g.science('body.eat');
         g.toast('Hot, flaky fish. Your strength comes back.', 'good');
         g.checkProgress();
@@ -606,6 +653,7 @@ export class FoodState {
         g.addItem('tuber');
         g.addItem('seeds');
         g.gathered.set('tuber', (g.gathered.get('tuber') ?? 0) + 1);
+        g.field.gatheredFood(1);
         g.toast('A knobbly tuber, and a pinch of seeds from the flower head.', 'good');
         g.checkProgress();
         return true;
@@ -613,26 +661,22 @@ export class FoodState {
       case 'inspect': {
         const fp = FORAGE_PATCHES.find((q) => q.id === a.patchId);
         if (!fp) return false;
-        this.inspected.add(fp.id);
-        g.toast(fp.look, fp.edible ? 'note' : 'bad');
+        // Looking closely lists what you can observe; you judge it on the card (FieldLesson.judgePrompt -> judge).
         g.science('food.forage.inspected');
-        g.science(fp.edible ? 'food.forage.identified' : 'food.forage.avoided');
+        g.field.judgePrompt(fp);
         g.checkProgress();
         return true;
       }
       case 'forage': {
         const fp = FORAGE_PATCHES.find((q) => q.id === a.patchId);
-        if (!fp || this.forage[fp.id] > 0) return false;
+        if (!fp || this.stock[fp.id] <= 0) return false;
         if (!fp.edible) {
           g.science('food.forage.avoided');
-          g.toast('You leave it. Not knowing is reason enough: a wrong guess here can kill you.', 'bad');
+          g.toast('You leave it. You know it is not the plant in the guide, and a wrong guess makes you ill.', 'bad');
           return true;
         }
-        this.forage[fp.id] = FORAGE_REGROW;
-        g.addItem(fp.yield, 2);
-        g.gathered.set(fp.yield, (g.gathered.get(fp.yield) ?? 0) + 2);
-        g.science('food.forage.picked');
-        g.toast('Picked what you could name. It will regrow in time.', 'good');
+        const n = this.pick(fp);
+        g.toast(this.stock[fp.id] === 0 ? 'You stripped it bare. With nothing left to fruit and spread, it will be slow to come back.' : `Picked ${n} handful${n > 1 ? 's' : ''} and left some to grow back.`, this.stock[fp.id] === 0 ? 'note' : 'good');
         g.checkProgress();
         return true;
       }
@@ -640,7 +684,7 @@ export class FoodState {
         const h = g.held;
         if (h !== 'berries' && h !== 'nuts' && h !== 'driedFish') return false;
         g.useItem(h);
-        g.body.eat(h === 'driedFish' ? 35 : h === 'nuts' ? 25 : 15);
+        this.eatFood(h);
         g.science('body.eat');
         if (h === 'driedFish') g.science('food.preserved.eaten');
         g.toast(h === 'driedFish' ? 'Chewy and salty-smoky: dried fish keeps and still feeds.' : 'A small, sweet, filling handful.', 'good');
@@ -666,6 +710,122 @@ export class FoodState {
     }
   }
 
+  // -------------------------------------------------------------- Lesson 05: judging, picking, eating
+
+  /** Eat a food: its energy reaches you as your body digests it (nutrition.ts, survival/body.ts). */
+  eatFood(id: ItemId): void {
+    const p = FOOD_PROFILES[id];
+    if (!p) return;
+    this.g.body.digest(p.points, p.quick, p.release, p.repair, id);
+    this.g.field.ate(id);
+  }
+
+  /** Pick from a patch: one handful (two with a basket, which makes stripping a patch easy). Returns handfuls taken. */
+  private pick(fp: ForagePatch): number {
+    const g = this.g;
+    const n = Math.min(this.stock[fp.id], g.packUpgrades.has('basket') ? 2 : 1);
+    if (n <= 0) return 0;
+    this.stock[fp.id] -= n;
+    const items = n * 2;
+    g.addItem(fp.yield, items);
+    g.gathered.set(fp.yield, (g.gathered.get(fp.yield) ?? 0) + items);
+    g.field.gatheredFood(items);
+    g.science('food.forage.picked');
+    if (n > 1) g.science('food.basket.used');
+    if (this.stock[fp.id] === 0) {
+      // Stripped bare: nothing left to fruit and spread, so it is slow to come back, and comes back thinner.
+      this.forage[fp.id] = FORAGE_REGROW;
+      this.stripped[fp.id] = true;
+      this.picked[fp.id] = false;
+      this.cap[fp.id] = Math.max(1, this.cap[fp.id] - 1);
+      this.regrowT[fp.id] = 0;
+      g.science('food.patch.stripped');
+    } else this.picked[fp.id] = true;
+    return n;
+  }
+
+  /** Patches grow back: a handful at a time while some is left; a stripped one only after a long wait, and thin. */
+  private tickForage(dt: number): void {
+    const g = this.g;
+    for (let i = 0; i < this.forage.length; i++) {
+      if (this.forage[i] > 0) {
+        this.forage[i] = Math.max(0, this.forage[i] - dt);
+        if (this.forage[i] > 0) continue;
+        if (this.stripped[i]) {
+          this.stripped[i] = false;
+          this.stock[i] = 1;
+          g.science('food.patch.thin');
+          g.experiments.trial('overharvest', 'all', 'thin');
+          if (near(FORAGE_PATCHES[i], g.player, 25)) g.toast('A patch you stripped bare has come back, but thin: one small handful.', 'note');
+        } else this.stock[i] = this.cap[i];
+        this.regrowT[i] = 0;
+        continue;
+      }
+      if (this.stock[i] >= this.cap[i]) continue;
+      if ((this.regrowT[i] += dt) < STOCK_REGROW) continue;
+      this.regrowT[i] = 0;
+      this.stock[i]++;
+      if (this.stock[i] >= this.cap[i]) {
+        if (this.picked[i]) {
+          this.picked[i] = false;
+          g.science('food.patch.recovered');
+          g.experiments.trial('overharvest', 'some', 'full');
+          if (near(FORAGE_PATCHES[i], g.player, 25)) g.toast('A patch you picked with care has grown back full.', 'good');
+        }
+        // A patch left to grow back recovers its strength, a step at a time.
+        if (this.cap[i] < PATCH_STOCK) this.cap[i]++;
+      }
+    }
+  }
+
+  /**
+   * Your verdict on a wild plant, before eating it. The truth is shown after you decide: safe food is picked;
+   * calling a look-alike or unknown plant safe means you taste it and fall ill for a while (the body simulation),
+   * never worse. Calling food unsafe only costs a meal. Feeds the plant experiment with what the plant really was.
+   */
+  judge(patchId: number, verdict: Verdict): JudgeResult | null {
+    const g = this.g;
+    const fp = FORAGE_PATCHES[patchId];
+    if (!fp || this.judged.has(fp.id)) return null;
+    this.judged.set(fp.id, verdict);
+    const guide = FIELD_GUIDE[fp.kind];
+    const r: JudgeResult = { correct: fp.edible ? verdict === 'safe' : verdict !== 'safe', sick: false, picked: 0, text: '' };
+    if (fp.truth === 'food') {
+      g.experiments.trial('plantId', 'all', 'safe');
+      if (verdict === 'safe') {
+        g.science('food.forage.identified');
+        r.picked = this.stock[fp.id] > 0 ? this.pick(fp) : 0;
+        r.text = `Right: every feature matches the ${guide.name}. You pick ${r.picked * 2}.`;
+      } else r.text = `It was the ${guide.name}: every feature matched. Leaving it cost you a meal, never your health.`;
+    } else if (verdict === 'safe') {
+      r.sick = g.body.poison();
+      g.science('food.forage.sick');
+      if (fp.truth === 'lookalike') g.experiments.trial('plantId', 'most', 'sick');
+      r.text =
+        fp.truth === 'lookalike'
+          ? `It is a look-alike, not the ${guide.name}: check the ${this.diffText(fp)}. You taste it and feel ill for a while.`
+          : 'The guide lists nothing like it, so you could not name it. You taste it and feel ill for a while.';
+    } else if (fp.truth === 'lookalike') {
+      g.science('food.forage.avoided');
+      g.experiments.trial('plantId', 'most', 'sick');
+      r.text = `Right: a look-alike of the ${guide.name}. The ${this.diffText(fp)} give it away.`;
+    } else {
+      g.science('food.forage.unsure');
+      r.text = 'Right to leave it: nothing in the field guide matches. If you cannot name it, it is not food.';
+    }
+    g.field.judged(r);
+    g.checkProgress();
+    return r;
+  }
+
+  private diffText(fp: ForagePatch): string {
+    const guide = FIELD_GUIDE[fp.kind].features;
+    return (Object.keys(guide) as Array<keyof typeof guide>)
+      .filter((k) => fp.features[k] !== guide[k])
+      .map((k) => k)
+      .join(' and ');
+  }
+
   snapshot(): FoodSave {
     return {
       plots: this.plots.map((p) => ({ ...p })),
@@ -675,6 +835,11 @@ export class FoodState {
       nextId: this.nextId,
       rack: Object.fromEntries(this.rackT),
       spoil: Object.fromEntries(this.spoilAge),
+      stock: [...this.stock],
+      cap: [...this.cap],
+      regrow: [...this.regrowT],
+      stripped: [...this.stripped],
+      judged: Object.fromEntries(this.judged),
     };
   }
 
@@ -685,6 +850,17 @@ export class FoodState {
     for (const [k, v] of Object.entries(s.spoil ?? {})) this.spoilAge.set(k, v);
     s.wild?.forEach((v, i) => i < this.wild.length && (this.wild[i] = v));
     s.forage?.forEach((v, i) => i < this.forage.length && (this.forage[i] = v));
+    // Saves from before patch stocks: a patch with a regrow timer was picked; it comes back full.
+    for (let i = 0; i < this.stock.length; i++) {
+      const num = (a: unknown[] | undefined, d: number) => (typeof a?.[i] === 'number' && Number.isFinite(a[i]) ? (a[i] as number) : d);
+      this.cap[i] = Math.max(1, Math.min(PATCH_STOCK, num(s.cap, PATCH_STOCK)));
+      this.stock[i] = Math.max(0, Math.min(this.cap[i], num(s.stock, this.forage[i] > 0 ? 0 : this.cap[i])));
+      this.regrowT[i] = Math.max(0, num(s.regrow, 0));
+      this.stripped[i] = s.stripped?.[i] === true;
+      this.picked[i] = this.stock[i] > 0 && this.stock[i] < this.cap[i];
+    }
+    const verdicts: Verdict[] = ['safe', 'unsafe', 'unsure'];
+    for (const [k, v] of Object.entries(s.judged ?? {})) if (FORAGE_PATCHES[Number(k)] && verdicts.includes(v)) this.judged.set(Number(k), v);
     // Plants already past a stage in the save do not re-announce it.
     for (const p of this.plots) this.seenStage.set(p.id, CROP_STAGES.indexOf(cropStage(p.growth)));
   }

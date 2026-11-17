@@ -60,7 +60,7 @@ export const SCIENCE_EVENTS = {
   'shelter.layers.sealed': 'Added layers closed a leak.',
   'shelter.drain.dug': 'A drainage channel carried water around the shelter.',
   'shelter.rested': 'Rested inside the shelter while it rained.',
-  'weather.sky.read': 'Player looked at the sky (clouds / colour) at dusk.',
+  'weather.sky.read': 'Player read dark, building clouds and rain followed.',
   'weather.rain.start': 'Rain started.',
   'weather.night.clear': 'A cold, clear night fell.',
 
@@ -93,8 +93,8 @@ export const SCIENCE_EVENTS = {
   'wild.rabbit.seen': 'A rabbit was seen near its burrow.',
   'wild.bird.seen': 'A bird was watched in a tree.',
   'wild.quiet.approach': 'Player came close to wildlife by moving slowly.',
-  'nature.foodchain.seen': 'A predator was seen near its prey.',
-  'nature.predator.near': 'A predator noticed the player.',
+  'nature.foodchain.seen': 'Player watched plant-eaters feed and ate a fish they caught.',
+  'nature.predator.near': 'A deer noticed the player (a predator) from the side.',
 
   // --- the body
   'body.thirst.warning': 'Thirst level crossed the warning mark.',
@@ -147,6 +147,28 @@ export const SCIENCE_EVENTS = {
   'camp.wood.wet': 'Uncovered firewood was rained on.',
   'camp.bed.rested': 'The player rested on a made bed.',
   'water.sediment.settle': 'Muddy water was left to stand and cleared.',
+
+  // --- Lesson 05: food, navigation and long-term survival (curriculum/lessons/food/)
+  'food.forage.sick': 'A look-alike or unknown plant was judged safe, tasted, and made the player ill.',
+  'food.forage.unsure': 'A plant not in the field guide was left alone.',
+  'food.basket.used': 'Two handfuls were picked at once with a basket.',
+  'food.patch.stripped': 'A food patch was picked bare.',
+  'food.patch.thin': 'A stripped patch grew back slowly and thin.',
+  'food.patch.recovered': 'A patch picked with care grew back full.',
+  'food.fish.ageing': 'Fresh fish carried for a while started to go off.',
+  'food.dried.keeps': 'Dried fish carried just as long was still good.',
+  'food.ate.sugar': 'Player ate a sugary food (berries).',
+  'food.ate.fat': 'Player ate a fatty food (nuts).',
+  'food.ate.protein': 'Player ate a protein food (fish).',
+  'food.fish.eaten': 'Player ate cooked or dried fish.',
+  'weather.sky.looked': 'Player looked up and read the clouds.',
+  'nav.sun.morning': 'Player faced the morning sun.',
+  'nav.sun.afternoon': 'Player faced the afternoon sun.',
+  'nav.sun.noon': 'Player faced the midday sun.',
+  'nav.trek.started': 'The long trek began: compass covered.',
+  'nav.trek.reached': 'The Ruins were reached with the compass covered.',
+  'nav.trek.done': 'Back at camp before dark, fed, with food gathered, no compass.',
+  'curriculum.food.checked': 'The Lesson 05 check was answered.',
 } as const;
 
 export type ScienceEventId = keyof typeof SCIENCE_EVENTS;

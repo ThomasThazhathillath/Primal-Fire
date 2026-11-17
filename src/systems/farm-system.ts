@@ -60,15 +60,17 @@ export class FarmSystem extends createSystem({}) {
       this.tmp.updateMatrix();
       this.bush.setMatrixAt(i, this.tmp.matrix);
       this.bush.setColorAt(i, this.tint.setHex(q.kind === 'nut' ? 0x4a7a3a : q.kind === 'root' ? 0x6a9a48 : 0x3f6e34));
-      const fc = q.kind === 'berry' ? (q.edible ? 0xc0243a : 0xf2f2ea) : q.kind === 'nut' ? 0xa9803f : (q.edible ? 0xe8e0a0 : 0xb48ac0);
+      // A look-alike shares the food plant's colour; berries in one upright spike are drawn as a column.
+      const fc = q.color;
       for (let k = 0; k < 3; k++) {
-        this.tmp.position.set(q.x + Math.cos(k * 2.1 + i) * 0.22, y + 0.32 + k * 0.05, q.z + Math.sin(k * 2.1 + i) * 0.22);
+        if (q.spike) this.tmp.position.set(q.x + 0.12, y + 0.36 + k * 0.1, q.z + 0.12);
+        else this.tmp.position.set(q.x + Math.cos(k * 2.1 + i) * 0.22, y + 0.32 + k * 0.05, q.z + Math.sin(k * 2.1 + i) * 0.22);
         this.tmp.scale.set(1, 1, 1);
         this.tmp.updateMatrix();
         this.fruit.setMatrixAt(i * 3 + k, this.tmp.matrix);
         this.fruit.setColorAt(i * 3 + k, this.tint.setHex(fc));
       }
-      this.shown.push(1);
+      this.shown.push(3);
     });
     const bushGeo = new SphereGeometry(0.22, 8, 6);
     const flowerGeo = new SphereGeometry(0.05, 6, 4);
@@ -117,16 +119,16 @@ export class FarmSystem extends createSystem({}) {
       }
     }
     for (let i = 0; i < this.wild.length; i++) this.wild[i].visible = food.wild[i] === 0;
-    // Picked patches show bare bushes (the fruit shrinks away) until they regrow.
+    // Each fruit stands for a handful left on the patch: picked patches thin out, stripped ones are bare.
     for (let i = 0; i < FORAGE_PATCHES.length; i++) {
-      const on = food.forage[i] === 0 ? 1 : 0;
+      const on = food.stock[i];
       if (on === this.shown[i]) continue;
       this.shown[i] = on;
       const q = FORAGE_PATCHES[i];
       for (let k = 0; k < 3; k++) {
         this.fruit.getMatrixAt(i * 3 + k, this.tmp.matrix);
         this.tmp.matrix.decompose(this.tmp.position, this.tmp.quaternion, this.tmp.scale);
-        this.tmp.scale.setScalar(on ? 1 : 0.0001);
+        this.tmp.scale.setScalar(k < on ? 1 : 0.0001);
         this.tmp.updateMatrix();
         this.fruit.setMatrixAt(i * 3 + k, this.tmp.matrix);
       }

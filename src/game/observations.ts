@@ -636,8 +636,8 @@ const SURVIVAL_OBSERVATIONS: Record<string, Observation> = {
     group: 'nature',
     trigger: 'nature.foodchain.seen',
     title: 'Who eats whom',
-    obs: 'The fox hunted the rabbit, and the rabbit ate the grass.',
-    pri: 'Plants make food from sunlight. Herbivores eat plants and carnivores eat herbivores. Each step passes on only a fraction of the energy, which is why there are far fewer predators than prey.',
+    obs: 'Deer and rabbits fed on the meadow plants, and you fed on a fish you caught.',
+    pri: 'Plants make food from sunlight. Herbivores eat plants and carnivores eat other animals; you are one of them. Each step passes on only a fraction of the energy, which is why there are far fewer predators than prey.',
     lim: 'A common rule of thumb is that about a tenth of the energy passes up each step; real values vary.',
     why: 'Why are there fewer foxes than rabbits?',
   },
@@ -645,8 +645,8 @@ const SURVIVAL_OBSERVATIONS: Record<string, Observation> = {
     group: 'nature',
     trigger: 'nature.predator.near',
     title: 'Eyes tell you the job',
-    obs: 'The deer saw you coming from the side. The wolf watched you with both eyes forward.',
-    pri: 'Many prey animals have eyes on the sides of the head for a wide view that spots danger. Many predators have forward-facing eyes for depth perception to judge a pounce.',
+    obs: 'A deer looking away still saw you coming from the side. Your own eyes face forward, like a hunter.',
+    pri: 'Many prey animals have eyes on the sides of the head for a wide view that spots danger. Many predators, people included, have forward-facing eyes for depth perception to judge distance.',
     lim: 'This is a general trend, not a rule for every species.',
     why: 'What does each kind of eye placement help the animal do?',
   },
@@ -794,6 +794,137 @@ const SURVIVAL_OBSERVATIONS: Record<string, Observation> = {
 };
 
 
+/** Lesson 05: judging plants, nutrition, preserving, ecology and navigation (curriculum/lessons/food/). */
+const FOOD_LESSON_OBSERVATIONS: Record<string, Observation> = {
+  fd_sick: {
+    group: 'body',
+    trigger: 'food.forage.sick',
+    title: 'A bad guess',
+    obs: 'You judged a plant safe that was not, tasted it and felt ill.',
+    pri: 'Many plants defend themselves with poisons. A look-alike shares some features with a food plant, so judging on part of the evidence can poison you.',
+    lim: 'Here you only feel ill for a while. In real life some plants can kill, even in small amounts.',
+    why: 'Which feature should have warned you?',
+  },
+  fd_unknown: {
+    group: 'living',
+    trigger: 'food.forage.unsure',
+    title: 'Not sure means no',
+    obs: 'You left a plant alone because nothing in your field guide matched it.',
+    pri: 'A plant you cannot name for certain is not food for you. Leaving it costs a meal; guessing can cost your health.',
+    lim: 'The plants in this forest are made up. Never trust a real wild plant to a game or a picture.',
+    why: 'What do you lose by leaving it, and what could you lose by eating it?',
+  },
+  fd_sugar: {
+    group: 'body',
+    trigger: 'food.ate.sugar',
+    title: 'Sugar is quick energy',
+    obs: 'The berries lifted your food bar at once, and soon it was falling again.',
+    pri: 'Sugars are carbohydrates the body takes up almost at once, so their energy arrives fast and is soon used. Plants make sugar from light by photosynthesis.',
+    lim: 'A rule of thumb: how long food keeps you going varies from person to person.',
+    why: 'Why might sweet food leave you hungry again soon?',
+  },
+  fd_fat: {
+    group: 'body',
+    trigger: 'food.ate.fat',
+    title: 'Fat packs energy',
+    obs: 'A small handful of nuts kept feeding you for minutes.',
+    pri: 'Fat holds about 9 kilocalories per gram, more than twice sugar or protein (about 4). It digests slowly, so its energy keeps coming.',
+    lim: 'Bodies need some fat, but also the other nutrients, water, vitamins and minerals.',
+    why: 'Why do people on long trips carry nuts?',
+  },
+  fd_protein: {
+    group: 'body',
+    trigger: 'food.ate.protein',
+    title: 'Protein rebuilds',
+    obs: 'After eating fish you rested back to strength faster.',
+    pri: 'Protein is made of amino acids, which the body uses to build and repair muscle and other tissue. It digests slowly, too.',
+    lim: 'The body mostly burns sugar and fat for energy and uses protein for building. Faster recovery here is simplified.',
+    why: 'What does your body build from protein?',
+  },
+  fd_offfish: {
+    group: 'living',
+    trigger: 'food.fish.ageing',
+    title: 'Fresh food goes off',
+    obs: 'After you carried it for a while, your fresh fish smelled off.',
+    pri: 'Bacteria and moulds feed on wet, fresh food and multiply. The smell comes from what they make as they break it down.',
+    lim: 'In real life this takes hours to days, faster when it is warm.',
+    why: 'What in fresh fish do microbes need to grow?',
+  },
+  fd_driedkeeps: {
+    group: 'living',
+    trigger: 'food.dried.keeps',
+    title: 'A fair test of drying',
+    obs: 'Dried fish carried just as long as the fresh one was still good.',
+    pri: 'Same time, same kind of fish, one difference: the water. With most of it gone, microbes can hardly grow, so drying slows spoiling.',
+    lim: 'Dried food that gets wet again spoils again. Keep it dry.',
+    why: 'Why was it fair to compare them over the same time?',
+  },
+  fd_overharvest: {
+    group: 'nature',
+    trigger: 'food.patch.thin',
+    title: 'Stripped bare',
+    obs: 'The patch you stripped came back slowly, with only a little fruit.',
+    pri: 'Fruit and seed left on a plant make the next harvest. Take it all and the patch has little to rebuild from.',
+    lim: 'Real plants recover at very different rates; weather and animals matter too.',
+    why: 'What did the stripped patch lose that the other kept?',
+  },
+  fd_recover: {
+    group: 'nature',
+    trigger: 'food.patch.recovered',
+    title: 'Leave some',
+    obs: 'The patch you picked with care grew back full.',
+    pri: 'Taking less than a population can replace lets it renew itself: a sustainable harvest. Every living thing in a food web depends on that renewal.',
+    lim: 'How much is safe to take differs for every plant and animal.',
+    why: 'How much would you take from a patch you want to eat from all year?',
+  },
+  nv_sunrise: {
+    group: 'nature',
+    trigger: 'nav.sun.morning',
+    title: 'Morning sun in the east',
+    obs: 'In the morning you faced the sun, and your compass said east.',
+    pri: 'The Earth spins from west to east, so the sun appears to rise in the east and travel west across the sky.',
+    lim: 'Exactly where it rises shifts north and south with the seasons.',
+    why: 'If the morning sun is on your right, which way are you walking?',
+  },
+  nv_sunset: {
+    group: 'nature',
+    trigger: 'nav.sun.afternoon',
+    title: 'Afternoon sun in the west',
+    obs: 'In the afternoon the sun had moved round to the west.',
+    pri: 'Over the day the sun crosses the sky from east to west. With the time of day, its position is a direction you can steer by.',
+    lim: 'Near midday it is high and hard to read; early and late in the day it works best.',
+    why: 'How could the sun get you home in the evening?',
+  },
+  nv_noon: {
+    group: 'nature',
+    trigger: 'nav.sun.noon',
+    title: 'Midday sun in the south',
+    obs: 'At midday the sun stood high in the south.',
+    pri: 'Halfway through its path the sun is at its highest. In the northern half of the world that is due south.',
+    lim: 'In the southern half it is due north, and near the equator almost overhead.',
+    why: 'Where would the midday sun be in the southern half of the world?',
+  },
+  nv_trek: {
+    group: 'nature',
+    trigger: 'nav.trek.reached',
+    title: 'Finding the way',
+    obs: 'You reached the Ruins with your compass covered.',
+    pri: 'Navigators combine a direction (the sun and the time) with landmarks they can see from afar, and check both often.',
+    lim: 'Fog or thick forest hides both. Real hikers carry a map and compass too.',
+    why: 'What did you steer by when the trees hid the mast?',
+  },
+  nv_home: {
+    group: 'nature',
+    trigger: 'nav.trek.done',
+    xp: 40,
+    title: 'Home before dark',
+    obs: 'You came home before dark, fed, with food you gathered on the way.',
+    pri: 'Long trips are planned around daylight, food and energy: carry food that keeps, gather on the way, eat before you are weak and turn back in time.',
+    lim: 'Real trips also need water, warm clothes and someone who knows where you went.',
+    why: 'What would you change before your next long walk?',
+  },
+};
+
 const LIVING_OBSERVATIONS: Record<string, Observation> = {
   l_mist: {
     group: 'living',
@@ -909,7 +1040,7 @@ export const OBSERVATIONS: Record<string, Observation> = {};
 for (const [id, o] of Object.entries(BASE_OBSERVATIONS)) {
   OBSERVATIONS[id] = { ...o, ...BASE_META[id] };
 }
-Object.assign(OBSERVATIONS, SURVIVAL_OBSERVATIONS, LIVING_OBSERVATIONS);
+Object.assign(OBSERVATIONS, SURVIVAL_OBSERVATIONS, LIVING_OBSERVATIONS, FOOD_LESSON_OBSERVATIONS);
 
 export const OBSERVATION_COUNT = Object.keys(OBSERVATIONS).length;
 

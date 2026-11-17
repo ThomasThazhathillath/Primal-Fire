@@ -171,6 +171,8 @@ export class ObjectiveCardSystem extends createSystem({}) {
       getUi(this.world).openExperiment?.(id);
       return;
     }
+    // Lesson 05's trek and closing check have a card of their own (the choice card).
+    if (id && game.field.openFor(id)) return;
     this.howOpen = !this.howOpen;
     ghost.how = this.howOpen ? (OBJECTIVE_CLIPS[this.view?.id ?? ''] ?? null) : null;
     this.sig = ''; // re-render now

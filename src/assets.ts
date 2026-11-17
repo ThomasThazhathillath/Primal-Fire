@@ -79,4 +79,5 @@ export default defineAssets({
   'body-panel': uikitml('body.uikitml', 'Body Status'),
   'experiment-panel': uikitml('experiment.uikitml', 'Experiment Card'),
   'notebook-panel': uikitml('notebook.uikitml', 'Lab Notebook'),
+  'choice-panel': uikitml('choice.uikitml', 'Choice Card'),
 });

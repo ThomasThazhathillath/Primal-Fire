@@ -46,6 +46,11 @@ export interface ExperimentDef {
   check: Assessment;
   /** When the experiment is offered (it opens by itself). */
   opens: (g: Game) => boolean;
+  /**
+   * The experiment card's button while testing: its label now, and what it does (returns a message to show, or
+   * null). Without it the card offers the roof test's "Wait for rain".
+   */
+  testAction?: { label: (g: Game) => string; run: (g: Game) => string | null };
 }
 
 export type ExperimentPhase = 'locked' | 'predict' | 'testing' | 'result' | 'check' | 'done';

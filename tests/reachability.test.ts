@@ -14,7 +14,7 @@ import { SCIENCE_EVENTS } from '../src/game/science-events.js';
 const UNREACHABLE = new Set([
   'b_wetstone', 'b_litter', 'f_charcoal', 'p_temper',
   'w_washout', 'w_clog', 'w_odor', 'w_settle', 'w_hotstones',
-  'f_smoke', 'f_night', 't_crumble', 't_lever', 't_harden',
+  'f_smoke', 'f_night',
   'n_chain', 'n_eyes', 'y_wound_clean', 'y_wound_dirty',
   'x_sky',
 ]);

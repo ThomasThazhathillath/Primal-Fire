@@ -8,6 +8,7 @@ import { installDebugHooks, streamPlaytestLog } from './debug-hooks.js';
 import { AudioSystem } from './systems/audio-system.js';
 import { CraftGestureSystem } from './systems/craft-gesture-system.js';
 import { BenchSystem } from './systems/bench-system.js';
+import { ToolYardSystem } from './systems/tool-yard-system.js';
 import { BuildBookSystem } from './systems/build-book-system.js';
 import { HighlightSystem } from './systems/highlight-system.js';
 import { LashSystem } from './systems/lash-system.js';
@@ -110,6 +111,7 @@ World.create(
     .registerSystem(CraftGestureSystem)
     .registerSystem(InteractionSystem)
     .registerSystem(BenchSystem)
+    .registerSystem(ToolYardSystem)
     .registerSystem(BuildBookSystem)
     .registerSystem(ObjectiveCardSystem)
     .registerSystem(HighlightSystem)

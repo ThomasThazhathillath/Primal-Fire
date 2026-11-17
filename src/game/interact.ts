@@ -304,8 +304,12 @@ export const KNAP_MIN = 0.55;
 export const KNAP_MAX = 5;
 /** Distance (m) from the core's edge within which a blow can detach a flake. */
 export const KNAP_EDGE = 0.045;
-/** Best platform angles (degrees between blow and striking platform). */
-export const KNAP_ANGLE: [number, number] = [25, 88];
+/**
+ * Best platform angles (degrees between blow and striking platform). Above the upper limit the blow is
+ * square on (straight down): the fracture cone drives into the stone and crushes the edge (Lesson 04's
+ * strike-angle experiment compares the two).
+ */
+export const KNAP_ANGLE: [number, number] = [25, 80];
 
 export type KnapOutcome = 'flake' | 'crushed' | 'nothing';
 
@@ -537,7 +541,7 @@ export const FAILURE_TEXT: Record<GuideFailureCode, string> = {
   'knap.tooSoft': 'Too gentle - strike with more force.',
   'knap.tooHard': 'Too hard - the edge crushed instead of flaking.',
   'knap.offEdge': 'Strike near the edge - force in the middle just spreads out.',
-  'knap.badAngle': 'Hit the edge at a sharper angle (less than 90 degrees to the platform).',
+  'knap.badAngle': 'Crushed: that blow was square on. Strike the edge at an angle (a slanting blow), not straight down.',
   'knap.coreSpent': 'This core is used up - find another flint nodule.',
   'cord.tooLoose': 'Keep the strands taut - pull your hands apart while you twist.',
   'cord.sameDirection': 'Twist your wrists in opposite directions, like wringing a cloth.',

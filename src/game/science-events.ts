@@ -66,13 +66,20 @@ export const SCIENCE_EVENTS = {
 
   // --- tools
   'tool.knap.flake': 'A flake was struck from a fine-grained stone.',
-  'tool.knap.fail': 'A coarse stone was struck and crumbled.',
+  'tool.knap.fail': 'A blow crushed a stone edge instead of flaking it.',
   'tool.edge.cut': 'Something was cut with a sharp stone edge.',
   'tool.lash.hold': 'A lashing held a load.',
   'tool.axe.made': 'A stone head was lashed to a handle.',
   'tool.lever.used': 'A stick was used as a lever to move something heavy.',
   'tool.wedge.split': 'A log was split with an axe or wedge.',
   'tool.point.hardened': 'A wooden point was hardened over embers.',
+  // Lesson 04 Tool Yard (curriculum/lessons/tools/yard.ts)
+  'tool.cord.snapped': 'Loose fibres snapped lifting the test stone.',
+  'tool.cord.held': 'Twisted cord lifted the test stone.',
+  'tool.lever.stuck': 'A lever with its pivot far from the load could not move it.',
+  'tool.kit.made': 'A knife, an axe and a hammer have all been hafted.',
+  'build.frame.racked': 'A square stick frame folded when its top was pushed.',
+  'build.frame.braced': 'A braced stick frame stood firm when its top was pushed.',
 
   // --- hunting and nature
   'hunt.track.found': 'Animal tracks were found.',

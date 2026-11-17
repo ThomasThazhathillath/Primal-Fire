@@ -46,6 +46,13 @@ export interface ExperimentDef {
   check: Assessment;
   /** When the experiment is offered (it opens by itself). */
   opens: (g: Game) => boolean;
+  /**
+   * The card's button while testing (absent: "Keep testing", which closes the card). `run` does it and returns
+   * a message to show (or null); the card then closes.
+   */
+  testAction?: { label: (g: Game) => string; run: (g: Game) => string | null };
+  /** A live line for the card while testing and at the result: what the simulation measures right now. */
+  readout?: (g: Game) => string | null;
 }
 
 export type ExperimentPhase = 'locked' | 'predict' | 'testing' | 'result' | 'check' | 'done';

@@ -38,8 +38,8 @@
   .btntext { color: #f6ecd2; font-size: 26px; font-weight: 700; }
 </style>
 <div class="panel-root t-root">
-  <div class="eyebrow">A SURVIVAL STORY</div>
-  <div class="heading">PRIMAL</div>
+  <div class="eyebrow">SURVIVE THROUGH SCIENCE</div>
+  <div class="heading">EUREKA</div>
   <div class="sub">You wake on the forest floor with nothing. Every machine is gone. The science isn't.</div>
   <div class="menu">
     <Button class="t-go big" id="begin-button" size="lg"><ButtonIcon class="btntext"><Sunrise></Sunrise></ButtonIcon><ButtonLabel id="begin-label" class="btntext">Play</ButtonLabel></Button>

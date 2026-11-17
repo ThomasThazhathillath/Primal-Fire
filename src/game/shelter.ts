@@ -52,6 +52,52 @@ export function frameDone(s: PlacedStructure): boolean {
   return !s.keyOpen && defOf().spots.every((sp, i) => (sp.stage ?? 0) >= 7 || s.spots[i] !== null);
 }
 
+// ----------------------------------------------------------------- the push test (Lesson 01)
+
+export type Bracing = 'posts' | 'unbraced' | 'partial' | 'braced';
+
+export interface FramePushResult {
+  /** How far the frame leans over under a push (0 = not at all .. 1 = folds right over). */
+  rack: number;
+  /** It keeps its shape (rack at or below HOLD_RACK). */
+  holds: boolean;
+  /** posts: no ridge yet; unbraced: posts and ridge only; braced: every rib and cross-support in. */
+  bracing: Bracing;
+  ribs: number;
+  crosses: number;
+  lashes: number;
+}
+
+/** A push that leans the frame no further than this counts as holding. */
+export const HOLD_RACK = 0.35;
+
+/**
+ * Push on the frame: how far does it lean? Two posts and a ridge make a four-sided box with the ground, and a
+ * box can fold flat without any pole changing length: it leans right over. Each leaning rib makes a triangle
+ * (post, ridge and rib) that cannot fold; cross-supports tie the ribs together so the roof plane cannot shear;
+ * lashings take the last play out of the joints. A teaching model of racking, not a structural calculation.
+ */
+export function framePush(s: PlacedStructure): FramePushResult {
+  const def = defOf();
+  let ribs = 0;
+  let crosses = 0;
+  let lashes = 0;
+  let upright = false;
+  let ridge = false;
+  def.spots.forEach((sp, i) => {
+    if (!s.spots[i]) return;
+    if (sp.role === 'rib') ribs++;
+    else if (sp.role === 'cross') crosses++;
+    else if (sp.role === 'lash') lashes++;
+    else if (sp.role === 'upright') upright = true;
+    else if (sp.role === 'ridge') ridge = true;
+  });
+  if (s.keyOpen || !upright || !ridge) return { rack: 1, holds: false, bracing: 'posts', ribs, crosses, lashes };
+  const rack = Math.max(0.05, Math.min(1, 0.9 - 0.2 * ribs - 0.1 * crosses - 0.03 * lashes));
+  const bracing: Bracing = ribs === 0 && crosses === 0 ? 'unbraced' : ribs >= 3 && crosses >= 2 ? 'braced' : 'partial';
+  return { rack, holds: rack <= HOLD_RACK + 1e-9, bracing, ribs, crosses, lashes };
+}
+
 /** Roof layers on a panel, by spot role. */
 export function panelLayers(s: PlacedStructure, panel: number): Array<'roofBark' | 'roofLeaf' | 'roofGrass'> {
   const out: Array<'roofBark' | 'roofLeaf' | 'roofGrass'> = [];

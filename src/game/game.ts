@@ -59,6 +59,10 @@ import type { LessonId, Step } from './curriculum/types.js';
 import { SAVE_VERSION } from './save.js';
 import { Body, type BodySave, type Level, type Need } from './survival/body.js';
 import { microclimate, type Microclimate } from './survival/climate.js';
+import { bedParts, bedUnder, COLD_HOUR, NIGHT_COLD, ShelterRules } from './curriculum/lessons/shelter/rules.js';
+import { bedInsulation, bedMoisture } from './survival/materials.js';
+import { hollowDepth, siteAt } from './sites.js';
+import type { FramePushResult } from './shelter.js';
 
 export type FlagId =
   | 'cordMade'
@@ -111,7 +115,9 @@ export type GameEvent =
   | { type: 'interaction'; code: GuideFailureCode; detail?: string }
   | { type: 'drops' }
   | { type: 'gather'; item: ItemId; tool: ItemId | null }
-  | { type: 'action'; id: string; progress: number; done: boolean };
+  | { type: 'action'; id: string; progress: number; done: boolean }
+  /** The lean-to frame was pushed (Lesson 01): how far it leaned (0..1), for the sway. */
+  | { type: 'framePush'; id: number; rack: number; holds: boolean };
 
 /** XP needed to reach each level (index = level − 1). */
 export const LEVELS = [0, 100, 250, 450, 700, 1000, 1400, 99999];
@@ -263,6 +269,8 @@ export class Game {
   readonly body: Body = new Body((e) => this.onBodyLevel(e.need, e.level));
   /** Experiments the lessons run (science/experiments.ts), fed by the real simulation. */
   readonly experiments: ExperimentTracker = new ExperimentTracker(EXPERIMENTS, (e) => this.emit(e));
+  /** Lesson 01's push, bed and night tests (curriculum/lessons/shelter/rules.ts). Not saved. */
+  readonly shelterRules = new ShelterRules();
   /** Seconds of a shower asked for to test the roof ("Wait for rain"). */
   private showerLeft = 0;
   /** What the body felt on the last slow tick (for feedback and the notebook). */
@@ -1081,6 +1089,11 @@ export class Game {
     if (!check.ok) {
       this.log.add(`place ${kind} rejected: ${check.reason}`, 'bad');
       this.toast(check.message, 'bad');
+      // Lesson 01 site choice: the reason is a guide failure and, for a hollow, a notebook entry.
+      if (check.reason === 'low') {
+        this.guide.fail('site.lowGround');
+        this.science('shelter.site.hollow');
+      } else if (check.reason === 'overhead') this.guide.fail('site.deadBranches');
       return check;
     }
     // A keyLast part (the slab) stays in your hand: the outline is only the plan.
@@ -1110,6 +1123,13 @@ export class Game {
       'note',
     );
     if (kind === 'shelter') this.science('shelter.site.chosen');
+    if (kind === 'leanTo') {
+      this.science('shelter.site.chosen');
+      if (siteAt(x, z).kind === 'rise') {
+        this.science('shelter.site.raised');
+        this.toast('Good ground: a slight rise, so cold air and rainwater run off it, not into it.', 'good');
+      }
+    }
     // checkPlacement passed, so the ground is stable enough to build on.
     if (kind === 'workbench') this.guide.mark('workbench.site.ready');
     this.emit({ type: 'structure', structure });
@@ -1207,7 +1227,8 @@ export class Game {
     }
     if (isSpotLocked(s, index)) {
       const open = openStage(def, s.spots);
-      this.toast(s.keyOpen ? 'Set the first pole on its mark first.' : `Not yet: finish the ${STAGE_NAMES[open] ?? 'earlier part'} first.`, 'bad');
+      if (s.pushFirst) this.toast('First push the bare frame (pinch or click a post): does it stand?', 'bad');
+      else this.toast(s.keyOpen ? 'Set the first pole on its mark first.' : `Not yet: finish the ${STAGE_NAMES[open] ?? 'earlier part'} first.`, 'bad');
       return false;
     }
     const target = spotWorldPosition(s, index);
@@ -1679,11 +1700,16 @@ export class Game {
     const stage = def.spots[index].stage ?? 0;
     const c = stageCount(s, stage);
     if (c.done === c.total && !s.keyOpen) {
+      if (stage === 2 && this.shelterRules.wantsPush(this, s)) {
+        s.pushFirst = true;
+        this.toast('The ridge is up. Before the ribs go on, push the frame (pinch or click a post). Does it stand?', 'note');
+      }
       if (stage === 3) {
         this.science('shelter.frame.braced');
         this.toast('The ribs lean in and meet the upright: a triangle. Give the frame a push: it holds.', 'good');
       }
       if (stage === 4) {
+        this.guide.mark('shelter.ribs.set');
         this.science('shelter.load.shared');
         this.toast('Two cross-supports: the load now has more than one way to reach the ground.', 'note');
       }
@@ -1792,6 +1818,33 @@ export class Game {
     this.showerLeft = 30;
     this.log.add('shower requested for the roof test');
     return true;
+  }
+
+  /**
+   * Push on the lean-to frame (Lesson 01): pressing a post or the ridge pole, by hand ray, pinch or mouse.
+   * The frame leans as far as its bracing lets it (shelter.ts framePush) and the push is a trial of the frame test.
+   */
+  pushFrame(structureId: number): FramePushResult | null {
+    const s = this.structures.find((t) => t.id === structureId);
+    if (!s || s.kind !== 'leanTo') return null;
+    const r = this.shelterRules.push(this, s);
+    this.log.add(`pushed leanTo#${s.id}: ${r.bracing}, rack ${r.rack.toFixed(2)}`);
+    this.fx(r.holds ? 'seat' : 'wobble', 1);
+    this.emit({ type: 'framePush', id: s.id, rack: r.rack, holds: r.holds });
+    this.emit({ type: 'structure', structure: s });
+    this.checkProgress();
+    return r;
+  }
+
+  /**
+   * Rest until the cold part of the night (the night test's "Rest until midnight"): the clock skips ahead.
+   * Returns what to tell the player, or null when it is already a cold night.
+   */
+  waitForNight(): string | null {
+    if (this.env.night > 0.5 && (this.climate?.air ?? 99) <= NIGHT_COLD) return null;
+    this.env.skipTo(this.time, COLD_HOUR);
+    this.log.add('rested until the cold of the night');
+    return 'You rest until the cold of the night. Stand in the open, then lie on your bed under the roof.';
   }
 
   /** Is a point under the shelter roof? */
@@ -1992,9 +2045,20 @@ export class Game {
     let fireDist = Infinity;
     for (const s of this.structures) if (s.kind === 'firePit' && s.complete) fireDist = Math.min(fireDist, Math.hypot(s.x - x, s.z - z));
     const env = this.env;
+    // Lesson 01: the bed's material decides how much of the ground's pull it stops; hollows pool cold air.
+    const bed = bedUnder(this, x, z);
+    const parts = bed ? bedParts(bed) : null;
     return microclimate(
       { hour: env.hour, night: env.night, cloud: env.cloud, rain: env.rain, wind: env.windStrength },
-      { sheltered, onBed, fireDist, fireBurning: this.fire.stage === 'burning' },
+      {
+        sheltered,
+        onBed,
+        fireDist,
+        fireBurning: this.fire.stage === 'burning',
+        bedInsulation: parts ? bedInsulation(parts) : 0,
+        bedMoisture: parts ? bedMoisture(parts) : 0,
+        hollow: hollowDepth(x, z),
+      },
     );
   }
 
@@ -2006,6 +2070,7 @@ export class Game {
     this.lastBodyPos.z = this.player.z;
     const resting = m.sheltered && moved < 0.05 * Math.max(1, dt / 0.25);
     this.body.tick(dt, m, resting);
+    this.shelterRules.slowStep(this, m, resting, dt);
     // What the body and the weather teach (each recorded once: game.science is idempotent).
     if (this.body.wet > 0.5 && m.rain > 0.1) this.science('body.cold.wet');
     if (this.body.water < 30 && this.body.pressure !== 'off') this.science('body.thirst.warning');
@@ -2041,7 +2106,7 @@ export class Game {
 
   /** Something changed: settle lesson progress (and open the shelter story when its work begins). */
   checkProgress(): void {
-    if (this.focusIs('pole', 'frame', 'roof', 'rainTest', 'bed')) this.science('story.ch2.begin');
+    if (this.focusIs('pole', 'frame', 'framePush', 'roof', 'rainTest', 'bed', 'bedMaterials', 'nightShelter')) this.science('story.ch2.begin');
     this.lessons.update();
   }
 

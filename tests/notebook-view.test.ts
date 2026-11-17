@@ -19,7 +19,7 @@ describe('lesson pages', () => {
     expect(p.rows.map((r) => r.id)).toEqual(conceptsOf('shelter').map((c) => c.id));
     expect(p.rows.every((r) => !r.discovered)).toBe(true);
     expect(p.challenges[0]).toBe('Find your first stone');
-    expect(p.experiments.map((e) => e.id)).toEqual(['roofLayers']);
+    expect(p.experiments.map((e) => e.id)).toEqual(['framePush', 'roofLayers', 'bedMaterials', 'nightShelter']);
   });
 
   it('recording an entry discovers its concept, marked new until the notebook is opened', () => {

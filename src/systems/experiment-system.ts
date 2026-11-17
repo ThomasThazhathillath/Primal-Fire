@@ -15,6 +15,8 @@ import { getGame, getUi, hidePanel, menu, placeInFront, StaticAnchor, uiText } f
 /** Desktop: readable at 0.5 m; VR uses the same card at arm's length through StaticAnchor. */
 const SCALE = 0.06;
 const OPTS = 3;
+/** Trial rows on the card (one per value of the variable). */
+const TRIALS = 4;
 
 export class ExperimentSystem extends createSystem({}) {
   private panel!: UIKitMLAsset;
@@ -29,6 +31,9 @@ export class ExperimentSystem extends createSystem({}) {
   private feedback: string | null = null;
   /** An experiment that opened while the card was showing another: shown when that one is closed. */
   private pending: string | null = null;
+  /** The live readout line shown in the note while testing (refreshed twice a second, set only when it changes). */
+  private shownNote = '';
+  private noteT = 0;
 
   async init(): Promise<void> {
     const panel = await this.world.assets.instantiate<UIKitMLAsset>('experiment-panel');
@@ -125,14 +130,15 @@ export class ExperimentSystem extends createSystem({}) {
     this.render();
   }
 
-  /** The big button: Wait for rain (testing), Continue (result), Done. */
+  /** The big button: the experiment's own test action or Keep testing (testing), Continue (result), Done. */
   private action(): void {
     const d = this.def();
     if (!d) return;
     const g = getGame(this.world);
     const phase = g.experiments.phase(d.id);
     if (phase === 'testing') {
-      if (d.id === 'roofLayers' && g.waitForRain()) g.toast('Clouds gather. Stand under your roof and watch each panel.', 'note');
+      const said = d.testAction?.run(g) ?? null;
+      if (said) g.toast(said, 'note');
       menu.back();
       return;
     }
@@ -171,8 +177,8 @@ export class ExperimentSystem extends createSystem({}) {
       case 'testing':
         body = `Your prediction: ${predicted} ${d.howTo}`;
         showTrials = true;
-        // Only the roof test can ask for rain; every other experiment is tested by doing it.
-        action = d.id === 'roofLayers' && g.leanTo() && !g.shelterTest.raining ? 'Wait for rain' : 'Keep testing';
+        action = d.testAction?.label(g) ?? 'Keep testing';
+        note = d.readout?.(g) ?? '';
         break;
       case 'result': {
         const right = g.experiments.predictedRight(d.id);
@@ -180,6 +186,7 @@ export class ExperimentSystem extends createSystem({}) {
         body = `${right ? 'Your prediction was right.' : 'The evidence says otherwise.'} Result: ${supported} ${d.principle}`;
         showTrials = true;
         action = 'Continue';
+        note = d.readout?.(g) ?? '';
         break;
       }
       case 'check':
@@ -196,7 +203,7 @@ export class ExperimentSystem extends createSystem({}) {
         body = d.why;
     }
     text('exp-body', body);
-    for (let i = 0; i < 2; i++) {
+    for (let i = 0; i < TRIALS; i++) {
       show(`exp-trial-${i}`, showTrials && i < trials.length);
       if (showTrials && trials[i]) text(`exp-trial-${i}`, trials[i]);
     }
@@ -206,6 +213,7 @@ export class ExperimentSystem extends createSystem({}) {
     }
     show('exp-note', !!note);
     if (note) text('exp-note', note);
+    this.shownNote = note;
     show('exp-action', !!action);
     if (action) text('exp-action-label', action);
   }
@@ -213,6 +221,20 @@ export class ExperimentSystem extends createSystem({}) {
   private place(): void {
     if (this.vr) this.anchor.update(this.panel, this.camera);
     else placeInFront(this.panel, this.camera, 0.5, 0, 0.06);
+  }
+
+  /** Keep the readout current while the card is open (only the note changes, and only when its text does). */
+  private refreshReadout(): void {
+    const d = this.def();
+    if (!d?.readout) return;
+    const g = getGame(this.world);
+    const phase = g.experiments.phase(d.id);
+    if (phase !== 'testing' && phase !== 'result') return;
+    const note = d.readout(g) ?? '';
+    if (note === this.shownNote) return;
+    this.shownNote = note;
+    this.panel.requireElementById('exp-note').setProperties({ display: note ? 'flex' : 'none' });
+    if (note) this.panel.requireElementById<UIKit.Text>('exp-note').setProperties({ text: uiText(note) });
   }
 
   update(delta: number): void {
@@ -226,5 +248,9 @@ export class ExperimentSystem extends createSystem({}) {
     if (!this.ready || !this.opened) return;
     this.place();
     if (this.vr) this.touch.update(delta);
+    if ((this.noteT += delta) >= 0.5) {
+      this.noteT = 0;
+      this.refreshReadout();
+    }
   }
 }

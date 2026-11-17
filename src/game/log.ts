@@ -21,7 +21,7 @@ export class EventLog {
     const line = { text: `${this.context()} · ${msg}`, level };
     this.lines.push(line);
     if (this.lines.length > this.max) this.lines.shift();
-    console.log('[PRIMAL]', line.text);
+    console.log('[EUREKA]', line.text);
     for (const l of this.listeners) l(line);
   }
 

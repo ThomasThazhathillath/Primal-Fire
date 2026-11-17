@@ -1,4 +1,4 @@
-# Primal Fire: science curriculum
+# EUREKA: science curriculum
 
 Every mechanic should teach one true idea. This page maps mechanics to the science
 behind them, how the game shows it, and where it is simplified.
@@ -42,6 +42,10 @@ Quests (`src/game/quests.ts`) wait on events and give recaps when they finish.
 | Biomechanics | Carrying | Work against gravity = m g h | `body.carry.heavy` | `y_carry` | ✅ |
 | Heat loss | Cold, wet, wind | Conduction, convection and evaporation carry heat away; water conducts far faster than air | `body.cold.wet`, `shelter.wind.blocked` | `y_wet`, `s_wind` | ✅ |
 | Insulation | Shelter bed | Dry debris traps still air, which conducts poorly | `shelter.bed.insulated` | `s_bed` | ✅ |
+| Insulation (test) | Bed materials | Still air insulates; water in damp bedding conducts heat and soaks you | `shelter.bed.dry`, `shelter.bed.damp`, `shelter.bed.compared` | `l1_stems`, `l1_damp`, `l1_air` | ✅ (relative values) |
+| Heat budget | A night in the shelter | A shelter makes no heat; it cuts losses until body heat is enough | `shelter.night.exposed`, `shelter.night.warm` | `l1_open`, `l1_night` | ✅ (simplified) |
+| Terrain | Site check | Cold air drains downhill and pools in hollows; raised ground sheds water | `shelter.site.hollow`, `shelter.site.raised` | `l1_hollow`, `l1_rise` | ✅ |
+| Racking | Push test | A box folds without any side changing length; triangles do not | `shelter.frame.racked` | `l1_rack` | ✅ |
 | Shelter siting and shape | Shelter | Cold air sinks; water runs downhill; steep layered roofs shed rain | `shelter.site.chosen`, `shelter.roof.covered` | `s_site`, `s_roof` | ✅ |
 | Wound care | First aid | Dirt carries bacteria; washing lowers infection risk; inflammation is the body’s response | `body.wound.*` | `y_wound_clean`, `y_wound_dirty` | ✅ (game only; not medical advice) |
 | Ecology | Animals | Producers, herbivores and carnivores; energy is lost at each step | `nature.foodchain.seen` | `n_chain` | ✅ / 🟡 (10% rule) |
@@ -60,6 +64,16 @@ The game is played as five lessons (see [CURRICULUM.md](CURRICULUM.md)): 01 Shel
 **Experiments** (`src/game/science/experiments.ts`) are fed by the real simulation. The first is Lesson 01's
 "How many roof layers keep the rain out?": each roof panel under rain is a trial, with the shelter rules
 deciding whether it leaks (one layer of bark, leaves or grass leaks; two or more overlapping layers hold).
+
+Lesson 01 adds three more ✅ (simplified models, stated as such):
+- "What stops a frame from folding over?" Pushing the lean-to: posts and a ridge make a box that leans right over;
+  ribs make triangles and cross-supports tie them, so it holds (`shelter.ts framePush`, a teaching model of racking).
+- "What makes a warm bed?" Resting under the roof, the body's conduction into the ground is compared with bare
+  ground. Insulation per material is relative (`survival/materials.ts`: dry grass 0.9, dry leaves 0.85, damp moss
+  0.3 of the ground's pull stopped); still air conducts about 0.026 W/m K, water about 0.6.
+- "How much warmth does your shelter save at night?" Heat out over heat made, in the open and on a dry bed under the
+  roof (`heatRatio`). Cold air pooling in hollows on calm nights ✅ (radiative cooling + cold-air drainage), modelled
+  as up to 2.5 C colder air.
 
 **The body** (`src/game/survival/`) is a simplified teaching model: heat in (metabolism, a fire) minus heat out
 (cold air, faster in wind, much faster when wet, and into the ground when resting without a bed). The game shows

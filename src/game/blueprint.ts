@@ -10,8 +10,10 @@ import {
   nearestTreeDistance,
   STREAM_BANK,
   streamDistance,
+  TREES,
   WORLD_RADIUS,
 } from './world-layout.js';
+import { siteAt } from './sites.js';
 
 export type StructureKind = 'firePit' | 'workbench' | 'filter' | 'shelter' | 'storage' | 'leanTo' | 'drainage' | 'dryingRack' | 'woodStack' | 'bedding';
 
@@ -230,13 +232,15 @@ export const BLUEPRINTS: Record<StructureKind, BlueprintDef> = {
   bedding: {
     kind: 'bedding',
     name: 'Sleeping bed',
-    keyAccepts: ['leafLitter', 'dryGrass'],
+    // Lesson 01's insulation test compares beds of different materials, so damp moss goes on too (last, so the
+    // bag fills a mark with dry material first). Its insulation and dampness: survival/materials.ts.
+    keyAccepts: ['leafLitter', 'dryGrass', 'dampMoss'],
     key: { x: 0, y: 0.04, z: 0 },
     spots: [
-      { x: 0.3, z: 0, y: 0.05, accepts: ['leafLitter', 'dryGrass'], label: 'Soft layer' },
-      { x: -0.3, z: 0, y: 0.05, accepts: ['leafLitter', 'dryGrass'], label: 'Soft layer' },
-      { x: 0, z: 0.3, y: 0.08, accepts: ['dryGrass', 'leafLitter'], label: 'Top layer' },
-      { x: 0, z: -0.3, y: 0.08, accepts: ['dryGrass', 'leafLitter'], label: 'Top layer' },
+      { x: 0.3, z: 0, y: 0.05, accepts: ['leafLitter', 'dryGrass', 'dampMoss'], label: 'Soft layer' },
+      { x: -0.3, z: 0, y: 0.05, accepts: ['leafLitter', 'dryGrass', 'dampMoss'], label: 'Soft layer' },
+      { x: 0, z: 0.3, y: 0.08, accepts: ['dryGrass', 'leafLitter', 'dampMoss'], label: 'Top layer' },
+      { x: 0, z: -0.3, y: 0.08, accepts: ['dryGrass', 'leafLitter', 'dampMoss'], label: 'Top layer' },
     ],
     radius: 0.9,
     xp: 30,
@@ -260,11 +264,13 @@ export function spotLocked(def: BlueprintDef, spots: ReadonlyArray<ItemId | null
 }
 
 /** Is spot `i` of a placed structure closed for now (an earlier stage is unfinished, or the plan's first part is still to come)? */
-export function isSpotLocked(s: Pick<PlacedStructure, 'kind' | 'spots' | 'keyOpen'>, i: number): boolean {
+export function isSpotLocked(s: Pick<PlacedStructure, 'kind' | 'spots' | 'keyOpen' | 'pushFirst'>, i: number): boolean {
   const def = BLUEPRINTS[s.kind];
   const st = def.spots[i]?.stage ?? 0;
   if (st <= 0) return false;
   if (s.keyOpen && st > 1) return true;
+  // Lesson 01: the bare frame (posts and ridge) is push-tested before any rib or cross-support goes on.
+  if (s.pushFirst && st >= 3) return true;
   return spotLocked(def, s.spots, i);
 }
 
@@ -320,11 +326,19 @@ export interface PlacedStructure {
   work?: Record<number, number>;
   /** Milestones already celebrated for THIS structure ('frame', 'roof'), so each is rewarded once per structure. */
   milestones?: string[];
+  /**
+   * Lesson 01 lean-to: the bare frame (posts and ridge) waits for a push test before the ribs and cross-supports
+   * open, so the player sees it fold first (game.pushFrame clears it). Absent in older saves (nothing waits).
+   */
+  pushFirst?: boolean;
 }
 
 export type PlacementResult =
   | { ok: true }
-  | { ok: false; reason: 'bounds' | 'bank' | 'trees' | 'structure' | 'unfinished'; message: string };
+  | { ok: false; reason: 'bounds' | 'bank' | 'trees' | 'structure' | 'unfinished' | 'low' | 'overhead'; message: string };
+
+/** A lean-to is turned down this close (m) to a dead tree: dead branches fall in the wind. */
+export const DEAD_BRANCH_REACH = 3.5;
 
 /** Structures built inside another on purpose: a bed goes under the shelter roof. */
 const NESTS: Partial<Record<StructureKind, readonly StructureKind[]>> = { bedding: ['leanTo', 'shelter', 'drainage'] };
@@ -349,6 +363,17 @@ export function checkPlacement(
   }
   if (nearestTreeDistance(x, z) < def.radius + 0.6) {
     return { ok: false, reason: 'trees', message: 'Too cramped between the trees.' };
+  }
+  if (kind === 'leanTo') {
+    // Lesson 01 site choice: not in a hollow (cold air and rainwater collect there), not under dead branches.
+    if (siteAt(x, z).kind === 'hollow') {
+      return { ok: false, reason: 'low', message: 'Too low: cold air and rainwater collect in this hollow. Build on higher ground.' };
+    }
+    for (const t of TREES) {
+      if (t.kind === 2 && Math.hypot(t.x - x, t.z - z) < DEAD_BRANCH_REACH) {
+        return { ok: false, reason: 'overhead', message: 'A dead tree leans over this spot: its branches can fall in the wind. Move away.' };
+      }
+    }
   }
   for (const s of structures) {
     if (nests(kind, s.kind)) continue;

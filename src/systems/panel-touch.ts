@@ -57,6 +57,10 @@ export class PanelTouch implements GazeUiOwner {
   private pp = [0, 1].map(() => ({ id: '', x: 0, y: 0, t: 0 }));
   /** Per hand: no poke taps until this time (s), right after a pinch-press. */
   private pressBlock = [0, 0];
+  /** Per hand: the button the fingertip was last on (id) and when (s). A pinch that closes just off a button presses that one. */
+  private hoverId = ['', ''];
+  private hoverAt = [-10, -10];
+  private merged: number[] = [];
   /** Buttons pressed by a pinch closing on them (NPE A; debug and tests). */
   pinchPresses = 0;
   private sampleOut: TipSample = { x: 0, y: 0, z: 0, dz: 0, tracked: false };
@@ -246,8 +250,9 @@ export class PanelTouch implements GazeUiOwner {
     this.panel.updateMatrixWorld(true);
     this.layout();
     const n = this.icons.length;
-    const merged: number[] = [];
-    for (let i = 0; i < n; i++) merged.push(IconState.Normal);
+    const merged = this.merged;
+    merged.length = n;
+    for (let i = 0; i < n; i++) merged[i] = IconState.Normal;
     for (let h = 0; h < 2; h++) {
       const hand = hands[h];
       const tr = this.trackers[h];
@@ -258,6 +263,10 @@ export class PanelTouch implements GazeUiOwner {
       let hit = tr.update(dt, this.icons, s);
       if (hit >= 0 && performance.now() / 1000 < this.pressBlock[h]) hit = -1;
       for (let i = 0; i < n; i++) if (tr.states[i] > merged[i]) merged[i] = tr.states[i];
+      if (tr.hoverIcon >= 0 && tr.hoverIcon < n) {
+        this.hoverId[h] = this.active[tr.hoverIcon].id;
+        this.hoverAt[h] = performance.now() / 1000;
+      }
       // Around the panel a pinch is never a grab or a teleport.
       if (tr.hoverIcon >= 0 || (s.tracked && this.inZone(s))) {
         handClaims.uiNear[h] = true;
@@ -315,7 +324,7 @@ export class PanelTouch implements GazeUiOwner {
       this.panel.worldToLocal(this.pinchP);
       const x = this.pinchP.x * this.scale;
       const y = this.pinchP.y * this.scale;
-      const pi = pinchPressIcon(this.icons, x, y, this.pinchP.z * this.scale);
+      const pi = this.pinchIcon(h);
       st.id = pi >= 0 ? this.active[pi].id : '';
       st.x = x;
       st.y = y;
@@ -359,6 +368,30 @@ export class PanelTouch implements GazeUiOwner {
     this.flash(t);
     t.tap();
     return true;
+  }
+
+  /**
+   * The button hand `h`'s pinch is on right now, or -1: the one under the pinch point (a little forgiving at the
+   * edges), else the one the fingertip was on a moment before the fingers closed. Needs a fresh layout().
+   */
+  private pinchIcon(h: 0 | 1): number {
+    this.pinchP.copy(hands[h].pinchPos);
+    this.panel.worldToLocal(this.pinchP);
+    const z = this.pinchP.z * this.scale;
+    const pi = pinchPressIcon(this.icons, this.pinchP.x * this.scale, this.pinchP.y * this.scale, z, TOUCH_CONFIG, 1.15);
+    if (pi >= 0) return pi;
+    if (z > TOUCH_CONFIG.pinchFront || z < -TOUCH_CONFIG.pinchBehind) return -1;
+    if (!this.hoverId[h] || performance.now() / 1000 - this.hoverAt[h] > 0.25) return -1;
+    for (let i = 0; i < this.active.length; i++) if (this.active[i].id === this.hoverId[h]) return i;
+    return -1;
+  }
+
+  /** Would a pinch by hand `h` right now press one of this panel's buttons? Then it is not a hand-ray press. */
+  pinchOver(h: 0 | 1): boolean {
+    if (!this.panel.visible || !hands[h].tracked) return false;
+    this.panel.updateMatrixWorld(true);
+    this.layout();
+    return this.pinchIcon(h) >= 0;
   }
 
   private inZone(s: TipSample): boolean {

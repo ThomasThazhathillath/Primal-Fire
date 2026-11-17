@@ -132,8 +132,6 @@ export class IconBarSystem extends createSystem({}) {
     this.entity = this.world.createTransformEntity(bar);
     hidePanel(bar);
     this.touch = new PanelTouch(this.world, bar, PANEL_SCALE, 'menu');
-    // The icon grid sits off to the side, so it asks for a deliberate pointing hand (open panels do not).
-    this.touch.setRequirePoint(true);
     DEFS.forEach((d, i) => {
       const btn = bar.requireElementById(`ic-${d.id}`);
       this.slots.push(bar.requireElementById(`slot-${i}`));

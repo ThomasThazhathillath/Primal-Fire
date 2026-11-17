@@ -62,9 +62,9 @@ export const TOUCH_CONFIG = {
    * hand was pinching: players use the gesture they just learned. The pinch point must be over the button and
    * between this far in front of the surface...
    */
-  pinchFront: 0.09,
+  pinchFront: 0.14,
   /** ...and this far behind it (m). */
-  pinchBehind: 0.03,
+  pinchBehind: 0.06,
 } satisfies Record<string, number>;
 
 export const enum IconState {
@@ -368,15 +368,15 @@ export function rowCentres(n: number, size: number, gap: number): number[] {
  * must be over the icon (its fitted size, no extra margin) and close to the surface: a pinch out in the room,
  * or behind the panel, never presses anything.
  */
-export function pinchPressIcon(icons: readonly TouchIcon[], x: number, y: number, z: number, cfg = TOUCH_CONFIG): number {
+export function pinchPressIcon(icons: readonly TouchIcon[], x: number, y: number, z: number, cfg = TOUCH_CONFIG, grow = 1): number {
   if (z > cfg.pinchFront || z < -cfg.pinchBehind) return -1;
   let best = -1;
   let bestD = Infinity;
   for (let i = 0; i < icons.length; i++) {
     const ic = icons[i];
     if (!ic.enabled) continue;
-    const hw = ic.hw ?? ic.r;
-    const hh = ic.hh ?? ic.r;
+    const hw = (ic.hw ?? ic.r) * grow;
+    const hh = (ic.hh ?? ic.r) * grow;
     const dx = Math.abs(x - ic.x);
     const dy = Math.abs(y - ic.y);
     if (dx > hw || dy > hh) continue;

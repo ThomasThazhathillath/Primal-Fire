@@ -762,7 +762,11 @@ export interface GazeUiOwner {
   /** Light (or clear) the gaze highlight on element `id`. */
   gazeHover(id: number, on: boolean): void;
 }
+/** A panel within reach: would hand `h`'s pinch press one of its buttons directly? */
+export interface NearPressOwner {
+  pinchOver?(h: 0 | 1): boolean;
+}
 /** `rect` (optional, read at once and not kept) is the element's rectangle; without it the element is a ball of radius `r`. */
 export type GazeUiAdd = (prefix: string, key: string, x: number, y: number, z: number, r: number, owner: GazeUiOwner, id: number, rect?: GazeRect) => void;
 /** Every on-screen panel that can offer UI elements as gaze targets (registered once at creation). */
-export const gazeUi: Array<{ collectGaze(add: GazeUiAdd): void }> = [];
+export const gazeUi: Array<{ collectGaze(add: GazeUiAdd): void } & NearPressOwner> = [];

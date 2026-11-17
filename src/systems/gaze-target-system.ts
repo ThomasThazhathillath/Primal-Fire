@@ -19,6 +19,7 @@ import {
   MeshBasicMaterial,
   Quaternion,
   RingGeometry,
+  SphereGeometry,
   Sprite,
   SpriteMaterial,
   Vector3,
@@ -45,8 +46,18 @@ const OCCLUDERS = new Set(['tree', 'boulder', 'splitRock', 'ruinsWall', 'mast', 
 const HAND_RAY_DEG = 3;
 /** Frames of hand-ray history per hand; a pinch uses the button from LOOKBACK frames before, since closing the fingers dips the ray. */
 // Quest hand rays dip a lot as the fingers close (pinches on Why? and Pause missed): look back about 0.1 s at 72 fps.
-const RAY_UI_FRAMES = 12;
-const RAY_UI_LOOKBACK = 7;
+const RAY_UI_FRAMES = 16;
+/** ...taken from this long (s) before the pinch, whatever the frame rate (the Quest runs 45-72 fps). */
+const RAY_UI_LOOKBACK_S = 0.09;
+/** History older than this (s) is not what the pinch was aimed at. */
+const RAY_UI_MAX_AGE_S = 0.3;
+/** The ray may have dipped this far (degrees) off that button by the time the fingers meet; farther and the hand moved on (a pinch for the world). */
+const RAY_UI_DIP_DEG = 12;
+/** The button the ray is already on keeps it until the ray is this far (degrees) off it, and wins a near tie: no flicker between neighbours. */
+const RAY_UI_KEEP_DEG = 5;
+const RAY_UI_KEEP_BONUS = 0.15;
+/** The hand ray reaches buttons from this close (m): a card just beyond the fingertips is still pinchable. */
+const HAND_RAY_CFG = { ...GAZE, minDist: 0.1 };
 const RADIUS: Record<GazeKind, number> = { resource: 0.14, drop: 0.14, mark: 0.12, bench: 0.6, firePit: 0.5, ui: 0.05 };
 
 export type GazeSource = 'eye' | 'head' | 'mouse' | 'none';
@@ -126,7 +137,15 @@ export class GazeTargetSystem extends createSystem({
   private handD = new Vector3();
   /** Per hand, the menu button its ray was on in recent frames ('' = none). Frozen while the fingers are closed. */
   private rayUiKeys: string[][] = [[], []];
+  private rayUiTimes: number[][] = [[], []];
   private rayUiAt = [0, 0];
+  /** Per hand, the button its ray is on now (sticky). */
+  private rayUiHover = ['', ''];
+  /** The lit button comes from a hand ray (not head or eye gaze). */
+  private rayUiShown = false;
+  /** A dot where the hand ray meets the card. */
+  private cursor!: Mesh;
+  private cursorAt = new Vector3();
   private actions = 0;
   private lastVerb = 'none';
   private solidAt = (x: number, z: number): boolean => {
@@ -144,7 +163,18 @@ export class GazeTargetSystem extends createSystem({
       this.uiOwner.push(null);
       this.uiId.push(-1);
     }
-    for (let i = 0; i < RAY_UI_FRAMES; i++) this.rayUiKeys[0].push(''), this.rayUiKeys[1].push('');
+    for (let h = 0; h < 2; h++) {
+      for (let i = 0; i < RAY_UI_FRAMES; i++) {
+        this.rayUiKeys[h].push('');
+        this.rayUiTimes[h].push(-10);
+      }
+    }
+    this.cursor = new Mesh(new SphereGeometry(1, 12, 8), new MeshBasicMaterial({ color: 0xffc283, depthTest: false, depthWrite: false, transparent: true, opacity: 0.95 }));
+    this.cursor.name = 'HandRayCursor';
+    this.cursor.visible = false;
+    this.cursor.renderOrder = 9500;
+    this.cursor.frustumCulled = false;
+    this.world.createTransformEntity(this.cursor);
     this.ringMat = new MeshBasicMaterial({ color: COLORS.take, transparent: true, opacity: 0, depthWrite: false, depthTest: false, side: DoubleSide });
     this.ring = new Mesh(ringGeo, this.ringMat);
     this.ring.name = 'GazeRing';
@@ -273,6 +303,9 @@ export class GazeTargetSystem extends createSystem({
       if (this.vrNow) for (let i = 0; i < gazeUi.length; i++) gazeUi[i].collectGaze(this.addUi);
       return;
     }
+    // In VR every shown UI element is a target too: icon bar, panels, the objective card. They go in first, so a
+    // spot dense with resources never pushes a button out of the list.
+    if (this.vrNow) for (let i = 0; i < gazeUi.length; i++) gazeUi[i].collectGaze(this.addUi);
     // Holding something: only what can take it is a target (a hand holds one thing; loose things wait).
     const held = !!game.held;
     if (res && !held) {
@@ -303,8 +336,6 @@ export class GazeTargetSystem extends createSystem({
         if (useful) this.push('firePit', this.key('f:', s.id), s.x, groundHeight(s.x, s.z) + 0.15, s.z, s.id, true);
       }
     }
-    // In VR every shown UI element is a target too: icon bar, panels, the objective card.
-    if (this.vrNow) for (let i = 0; i < gazeUi.length; i++) gazeUi[i].collectGaze(this.addUi);
   }
 
   update(delta: number): void {
@@ -339,15 +370,25 @@ export class GazeTargetSystem extends createSystem({
     if (vr) {
       if (this.source === 'head' && this.target?.kind === 'ui') this.target = null;
       let shown: GazeCandidate | null = null;
+      const now = performance.now() / 1000;
       for (let h = 1; h >= 0; h--) {
         const c = this.handRayUi(h);
         if (!hands[h].grip) {
           this.rayUiAt[h] = (this.rayUiAt[h] + 1) % RAY_UI_FRAMES;
           this.rayUiKeys[h][this.rayUiAt[h]] = c ? c.key : '';
+          this.rayUiTimes[h][this.rayUiAt[h]] = now;
         }
-        if (c && !shown) shown = c;
+        if (c && !shown) {
+          shown = c;
+          this.placeCursor(c);
+        }
       }
       if (shown) this.target = shown;
+      this.rayUiShown = !!shown;
+      this.cursor.visible = !!shown;
+    } else {
+      this.rayUiShown = false;
+      this.cursor.visible = false;
     }
     this.updateUiHover();
 
@@ -373,34 +414,96 @@ export class GazeTargetSystem extends createSystem({
 
   /** The menu button hand `h`'s ray points at, or null. Inside a button's rectangle beats near its edge. */
   private handRayUi(h: number): GazeCandidate | null {
-    if (!hands[h].tracked) return null;
-    const space = this.player.raySpaces[h === 0 ? 'left' : 'right'];
-    if (!space) return null;
-    space.getWorldPosition(this.handO);
-    space.getWorldDirection(this.handD).negate(); // XR ray spaces point down -Z
+    if (!this.readHandRay(h)) {
+      this.rayUiHover[h] = '';
+      return null;
+    }
     const o = this.handO;
     const d = this.handD;
+    const keep = this.rayUiHover[h];
     let best: GazeCandidate | null = null;
     let bestScore = -1;
     for (let i = 0; i < this.n; i++) {
       const c = this.cands[i];
       if (c.kind !== 'ui' || !c.rect || !c.enabled) continue;
-      const s = gazeScore(c, o.x, o.y, o.z, d.x, d.y, d.z, HAND_RAY_DEG);
+      let s: number;
+      if (c.key === keep) {
+        s = gazeScore(c, o.x, o.y, o.z, d.x, d.y, d.z, RAY_UI_KEEP_DEG, HAND_RAY_CFG);
+        if (s >= 0) s += RAY_UI_KEEP_BONUS;
+      } else s = gazeScore(c, o.x, o.y, o.z, d.x, d.y, d.z, HAND_RAY_DEG, HAND_RAY_CFG);
       if (s > bestScore) {
         bestScore = s;
         best = c;
       }
     }
+    this.rayUiHover[h] = best ? best.key : '';
     return best;
   }
 
-  /** The button hand `h`'s ray was on just before this pinch (the ray dips as the fingers close), or null. */
+  /** Hand `h`'s pointing ray into handO / handD; false when the hand is not tracked. */
+  private readHandRay(h: number): boolean {
+    if (!hands[h].tracked) return false;
+    const space = this.player.raySpaces[h === 0 ? 'left' : 'right'];
+    if (!space) return false;
+    space.getWorldPosition(this.handO);
+    space.getWorldDirection(this.handD).negate(); // XR ray spaces point down -Z
+    return true;
+  }
+
+  /** Put the cursor dot where the ray in handO / handD meets button `c`'s card. */
+  private placeCursor(c: GazeCandidate): void {
+    const rc = c.rect;
+    if (!rc) return;
+    const o = this.handO;
+    const d = this.handD;
+    const nx = rc.uy * rc.vz - rc.uz * rc.vy;
+    const ny = rc.uz * rc.vx - rc.ux * rc.vz;
+    const nz = rc.ux * rc.vy - rc.uy * rc.vx;
+    const facing = d.x * nx + d.y * ny + d.z * nz;
+    let t = Math.abs(facing) > 0.05 ? ((c.x - o.x) * nx + (c.y - o.y) * ny + (c.z - o.z) * nz) / facing : -1;
+    if (t <= 0) t = Math.hypot(c.x - o.x, c.y - o.y, c.z - o.z);
+    this.cursorAt.set(o.x + d.x * t, o.y + d.y * t, o.z + d.z * t);
+    // Keep the dot on the button (the ray may be up to a few degrees outside its rectangle).
+    const rx = this.cursorAt.x - c.x;
+    const ry = this.cursorAt.y - c.y;
+    const rz = this.cursorAt.z - c.z;
+    const u = Math.max(-rc.hw, Math.min(rc.hw, rx * rc.ux + ry * rc.uy + rz * rc.uz));
+    const v = Math.max(-rc.hh, Math.min(rc.hh, rx * rc.vx + ry * rc.vy + rz * rc.vz));
+    this.cursor.position.set(c.x + rc.ux * u + rc.vx * v, c.y + rc.uy * u + rc.vy * v, c.z + rc.uz * u + rc.vz * v);
+    // About half a degree across at any distance.
+    this.cursor.scale.setScalar(Math.max(0.003, t * 0.006));
+  }
+
+  /**
+   * The button hand `h`'s ray was on just before this pinch (the ray dips as the fingers close), or null. A button the
+   * ray only swept past on its way elsewhere does not count: the ray must still be near it.
+   */
   private pinchUi(h: number): GazeCandidate | null {
-    const ring = this.rayUiKeys[h];
-    let key = ring[(this.rayUiAt[h] - RAY_UI_LOOKBACK + RAY_UI_FRAMES) % RAY_UI_FRAMES];
-    for (let k = 0; !key && k < RAY_UI_FRAMES; k++) key = ring[(this.rayUiAt[h] - k + RAY_UI_FRAMES) % RAY_UI_FRAMES];
-    if (!key) return null;
-    for (let i = 0; i < this.n; i++) if (this.cands[i].key === key && this.cands[i].kind === 'ui') return this.cands[i];
+    const keys = this.rayUiKeys[h];
+    const times = this.rayUiTimes[h];
+    const now = performance.now() / 1000;
+    let key = '';
+    let latest = '';
+    for (let k = 0; k < RAY_UI_FRAMES; k++) {
+      const at = (this.rayUiAt[h] - k + RAY_UI_FRAMES) % RAY_UI_FRAMES;
+      const age = now - times[at];
+      if (age > RAY_UI_MAX_AGE_S) break;
+      if (k === 0) latest = keys[at];
+      if (age >= RAY_UI_LOOKBACK_S) {
+        key = keys[at];
+        break;
+      }
+    }
+    // Nothing a moment ago, but the ray is on a button now: it just arrived there.
+    if (!key) key = latest;
+    if (!key || !this.readHandRay(h)) return null;
+    const o = this.handO;
+    const d = this.handD;
+    for (let i = 0; i < this.n; i++) {
+      const c = this.cands[i];
+      if (c.key !== key || c.kind !== 'ui') continue;
+      return gazeScore(c, o.x, o.y, o.z, d.x, d.y, d.z, RAY_UI_DIP_DEG, HAND_RAY_CFG) >= 0 ? c : null;
+    }
     return null;
   }
 
@@ -420,6 +523,12 @@ export class GazeTargetSystem extends createSystem({
     const direct = now - handClaims.grabAt < 0.05;
     // Paused or on the title menu, looking at one of its buttons: the pinch is that button's, even with the hand resting
     // near another card (the goal card, the Pause button) or over a stone at your feet.
+    // One pinch, one owner. A near grab that already took this pinch keeps it, and a pinch that closes on a button
+    // within reach is that card's own press (PanelTouch): neither is also a hand-ray press on a card farther away.
+    if (t?.kind === 'ui') {
+      if (direct) return;
+      for (let i = 0; i < gazeUi.length; i++) if (gazeUi[i].pinchOver?.(h)) return;
+    }
     const menuPress = t?.kind === 'ui' && (this.menuUp() || rayUi !== null);
     const owned = !menuPress && (busy.held || busy.ui || direct || this.rayOwns);
     let fits = false;
@@ -506,7 +615,7 @@ export class GazeTargetSystem extends createSystem({
   /** Light the UI element the gaze is on (and clear the one it left). */
   private updateUiHover(): void {
     const t = this.target;
-    const ui = t && t.kind === 'ui' && !this.rayOwns ? t : null;
+    const ui = t && t.kind === 'ui' && (!this.rayOwns || this.rayUiShown) ? t : null;
     if (ui && ui.key === this.hoverKey) return;
     if (this.hoverOwner) this.hoverOwner.gazeHover(this.hoverId, false);
     this.hoverOwner = null;

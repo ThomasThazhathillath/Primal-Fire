@@ -74,7 +74,6 @@ export class GuideSystem extends createSystem({}) {
     getUi(this.world).toggleGuide = () => this.toggle();
     // Its Hide button is a fingertip target in VR (no ray or pinch).
     this.touch = new PanelTouch(this.world, panel, 0.07, 'guide');
-    this.touch.setRequirePoint(true);
     this.touch.add('guide-close', () => this.toggle());
     this.cleanupFuncs.push(
       () => window.removeEventListener('keydown', onKey),

@@ -78,7 +78,6 @@ export class TutorialSystem extends createSystem({}, { tutorial: { type: Types.B
 
     this.touch = new PanelTouch(this.world, panel, PANEL_SCALE, 'tutorial');
     // The card stays up while both hands work nearby: only a deliberate pointing finger taps it (as at the bench).
-    this.touch.setRequirePoint(true);
     const wire = (id: string, fn: () => void) => {
       const el = panel.getElementById(id);
       if (!el) return;

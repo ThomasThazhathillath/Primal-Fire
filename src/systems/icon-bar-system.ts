@@ -19,7 +19,7 @@ import {
 import { fitsPouch } from '../game/items.js';
 import { PanelTouch } from './panel-touch.js';
 import { keepsGridOpen, pageLayout } from '../game/menu.js';
-import { getGame, getUi, hidePanel, menu, reveal, StaticAnchor, SwipePager } from './shared.js';
+import { getGame, getUi, hidePanel, menu, menuUp, reveal, StaticAnchor, SwipePager } from './shared.js';
 import { clearSave, WorldSystem } from './world-system.js';
 
 const SLOT = 68;
@@ -84,23 +84,23 @@ const DEFS: Def[] = [
 
 /** Icons that act and fold the grid (the rest open a panel, which folds it itself). */
 
-/** Where the bar hangs (m): within a seated arm's reach, below eye level, either hand. */
-export const BAR_DISTANCE = 0.4;
-// Centred, above and between Left and Right (which stay lower, at the sides), its bottom edge 0.2 m below the eyes:
-// the Menu button sits about 20 degrees below where you look, in the clear part of the lenses. At 0.3 m (about 35
-// degrees down) it was on the blurry bottom edge of the Quest's view and players could not find it (Quest test
-// 2026-11-17). Chest height caught resting and gathering hands (dozens of 'pinching on menu/slot-14' a minute), so
-// it stays above that: only a raised, deliberate hand reaches it. An unfolded row grows upward from this edge.
-export const BAR_BOTTOM = 0.2;
-/** While a card from the menu is open (bag, notebook, Find...) the button drops back out of its way, as Left and Right do. */
-export const BAR_BOTTOM_PANEL = 0.34;
+/** Where the bar hangs (m): at hand-ray distance, below eye level (pinch it with the hand ray, like every other card). */
+export const BAR_DISTANCE = 1;
+/** Size multiplier for that distance: the bar was designed at 0.4 m; it keeps the same apparent size. */
+const BAR_SCALE = BAR_DISTANCE / 0.4;
+// Centred, above and between Left and Right (which stay lower, at the sides): the Menu button's middle about 14
+// degrees below where you look, in the clear part of the lenses (Quest test 2026-11-17: at 35 degrees down it sat on
+// the blurry bottom edge; at 0.4 m away the hand ray could not reach it). An unfolded row grows upward from this edge.
+export const BAR_BOTTOM = 0.37;
+/** While a card from the menu is open (bag, notebook, Find...) the button drops below it, out of its way, as Left and Right step aside. */
+export const BAR_BOTTOM_PANEL = 0.8;
 export const BAR_DOWN = BAR_BOTTOM;
 export const BAR_SIDE = 0;
 
 export class IconBarSystem extends createSystem({}) {
   private bar!: UIKitMLAsset;
   private entity!: Entity;
-  private anchor = new StaticAnchor(BAR_DISTANCE, BAR_SIDE, BAR_DOWN, 0.9, 1);
+  private anchor = new StaticAnchor(BAR_DISTANCE, BAR_SIDE, BAR_DOWN, 0.9, 1).scaled(BAR_SCALE);
   /** The bar's height in panel units (from layout). */
   private barH = 0;
   private menuIdle = 0;
@@ -306,8 +306,9 @@ export class IconBarSystem extends createSystem({}) {
 
   /** Bottom edge at BAR_BOTTOM, or lower while a card from the menu is open (it sat over the card's lower middle). */
   private applyDown(): void {
-    const bottom = menu.current !== null ? BAR_BOTTOM_PANEL : BAR_BOTTOM;
-    this.anchor.setDown(bottom - (this.barH * PANEL_SCALE * 0.01) / 2);
+    // A card from the menu, the pause card, the title or the Start Game screen: drop below it, out of its way.
+    const bottom = menu.current !== null || menuUp(this.world) ? BAR_BOTTOM_PANEL : BAR_BOTTOM;
+    this.anchor.setDown(bottom - (this.barH * PANEL_SCALE * BAR_SCALE * 0.01) / 2);
   }
 
   update(delta: number): void {

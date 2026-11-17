@@ -42,10 +42,11 @@ const GATHER_RANGE = 8;
 /** Static solids that block the eye (fallen logs and structures are low enough to look over). */
 const OCCLUDERS = new Set(['tree', 'boulder', 'splitRock', 'ruinsWall', 'mast', 'shatteredTree']);
 /** A hand ray this close (degrees) to a menu button's rectangle is on it (inside it scores best). */
-const HAND_RAY_DEG = 1.5;
+const HAND_RAY_DEG = 3;
 /** Frames of hand-ray history per hand; a pinch uses the button from LOOKBACK frames before, since closing the fingers dips the ray. */
-const RAY_UI_FRAMES = 8;
-const RAY_UI_LOOKBACK = 4;
+// Quest hand rays dip a lot as the fingers close (pinches on Why? and Pause missed): look back about 0.1 s at 72 fps.
+const RAY_UI_FRAMES = 12;
+const RAY_UI_LOOKBACK = 7;
 const RADIUS: Record<GazeKind, number> = { resource: 0.14, drop: 0.14, mark: 0.12, bench: 0.6, firePit: 0.5, ui: 0.05 };
 
 export type GazeSource = 'eye' | 'head' | 'mouse' | 'none';

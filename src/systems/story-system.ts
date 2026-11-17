@@ -23,6 +23,7 @@ import {
   SpriteMaterial,
   Types,
   Vector3,
+  VisibilityState,
   createSystem,
 } from '@iwsdk/core';
 import { ACTS, CLUES, MAST_TOP, type StoryEvent } from '../game/story.js';
@@ -228,8 +229,10 @@ export class StorySystem extends createSystem({}, { tutorial: { type: Types.Bool
     d = Math.atan2(Math.sin(d), Math.cos(d));
     // Snap on first show, then drift after the head.
     this.lineYaw = this.lineAlpha < 0.05 ? yaw : this.lineYaw + d * Math.min(1, delta * 2.5);
-    line.position.set(this.camPos.x + Math.sin(this.lineYaw) * LINE_DIST, this.camPos.y - 0.27, this.camPos.z + Math.cos(this.lineYaw) * LINE_DIST);
-    line.rotation.set(-0.22, this.lineYaw + Math.PI, 0, 'YXZ');
+    // In the headset just under eye level, above the Left / Menu / Right row (which now hangs where it used to be).
+    const down = this.world.visibilityState.peek() === VisibilityState.NonImmersive ? 0.27 : 0.06;
+    line.position.set(this.camPos.x + Math.sin(this.lineYaw) * LINE_DIST, this.camPos.y - down, this.camPos.z + Math.cos(this.lineYaw) * LINE_DIST);
+    line.rotation.set(-Math.atan2(down, LINE_DIST), this.lineYaw + Math.PI, 0, 'YXZ');
   }
 
   // ------------------------------------------------------------ the evening (gradual, never a sudden night)

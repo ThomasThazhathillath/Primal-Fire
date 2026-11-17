@@ -6,7 +6,7 @@
 
 import { ConeGeometry, createSystem, Group, Mesh, MeshBasicMaterial, Vector3, VisibilityState } from '@iwsdk/core';
 import { type Arrow, drawSpeed, launch, MAX_DRAW, step } from '../game/projectile.js';
-import { arrowTargets, getGame } from './shared.js';
+import { arrowTargets, getGame, pinchTaken } from './shared.js';
 
 const POOL = 8;
 const geo = new ConeGeometry(0.012, 0.5, 5);
@@ -38,7 +38,7 @@ export class BowSystem extends createSystem({}) {
     };
     window.addEventListener('keydown', onKey);
     const onStart = (ev: XRInputSourceEvent) => {
-      if (ev.inputSource.handedness === 'left' && getGame(this.world).held === 'bow') {
+      if (ev.inputSource.handedness === 'left' && getGame(this.world).held === 'bow' && !pinchTaken(this.world, 0)) {
         this.drawing = true;
         getGame(this.world).science('hunt.bow.drawn');
       }

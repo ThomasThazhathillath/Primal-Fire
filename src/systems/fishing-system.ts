@@ -8,7 +8,7 @@
 import { createSystem, Group, Mesh, MeshBasicMaterial, SphereGeometry, Vector3, VisibilityState } from '@iwsdk/core';
 import { apparentDepth, FISH_COUNT, WATER_Y } from '../game/food.js';
 import { STREAM_HALF_WIDTH, streamDistance } from '../game/world-layout.js';
-import { getGame } from './shared.js';
+import { getGame, interactionsPaused } from './shared.js';
 
 /** Hand speed (m/s, mostly downward) that counts as a thrust in VR. */
 const THRUST_SPEED = 1.6;
@@ -50,6 +50,7 @@ export class FishingSystem extends createSystem({}) {
   }
 
   update(delta: number): void {
+    if (interactionsPaused(this.world)) return;
     const g = getGame(this.world);
     const fish = g.food.fish;
     // The stream surface is opaque, so each fish's image (at its apparent

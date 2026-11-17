@@ -27,6 +27,10 @@ import { Gatherable } from '../components/game-components.js';
 import { itemMesh, resourceMesh } from '../scene-assets/item-meshes.js';
 import { hands } from './hand-input-system.js';
 import { getGame, getUi, glowMaterial, glowMaterialHot, handClaims, haptic, hipPosition, menuUp, pickupFrom, rayPick } from './shared.js';
+import { collisionWorld } from '../game/collision.js';
+
+/** A dragged log's footprint for walking into it (m). */
+export const DRAGGED_RADIUS = 0.3;
 
 /** Max distance (m) from your head to something you can gather. */
 export const REACH = 6;
@@ -113,7 +117,16 @@ export class ResourceSystem extends createSystem({
     (window as unknown as { __pick?: unknown }).__pick = { ray: rayPick, locks: this.locks, keys: this.rayKey, sys: this };
     const fxRoot = this.world.createTransformEntity(new Group());
     this.fx = fxRoot.object3D as Group;
+    const moved = getGame(this.world).movedSpots;
     for (const spot of RESOURCES) {
+      // A log you dragged earlier lies where you left it, and you walk around it.
+      const m = moved.get(spot.id);
+      if (m) {
+        spot.x = m.x;
+        spot.z = m.z;
+        spot.rotY = m.ry;
+        collisionWorld().setDynamic(`spot_${spot.id}`, m.x, m.z, DRAGGED_RADIUS);
+      }
       const obj = resourceMesh(spot.look);
       obj.position.set(spot.x, groundHeight(spot.x, spot.z), spot.z);
       obj.rotation.y = spot.rotY;

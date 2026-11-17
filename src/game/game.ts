@@ -160,6 +160,8 @@ export interface WorldDrop {
   item: ItemId;
   x: number;
   z: number;
+  /** Which way it came to rest (yaw, radians); absent in older saves. */
+  ry?: number;
 }
 
 export interface HintResult {
@@ -248,6 +250,8 @@ export class Game {
   readonly fire = new FireState(this);
   /** The five-lesson curriculum: the one progression driver (curriculum/tracker.ts). */
   readonly lessons: LessonTracker = new LessonTracker(this, (e) => this.emit(e));
+  /** Gather spots the player dragged somewhere else (heavy logs): where they now lie, by spot id. */
+  readonly movedSpots = new Map<string, { x: number; z: number; ry: number }>();
   /** How many notebook entries the player has seen (the rest are new: the badge on the Notes icon). */
   notebookSeen = 0;
   /** A message to show once play starts (e.g. after an old save was moved into lessons). */
@@ -2021,6 +2025,11 @@ export class Game {
     this.toast(text[need], critical ? 'bad' : 'note');
   }
 
+  /** A dragged log (or other heavy spot) was left here: remember it, so it stays put across reloads. */
+  moveSpot(id: string, x: number, z: number, ry: number): void {
+    this.movedSpots.set(id, { x, z, ry });
+  }
+
   /** Something changed: settle lesson progress (and open the shelter story when its work begins). */
   checkProgress(): void {
     if (this.focusIs('pole', 'frame', 'roof', 'rainTest', 'bed')) this.science('story.ch2.begin');
@@ -2115,6 +2124,7 @@ export class Game {
       body: this.body.snapshot(),
       experiments: this.experiments.snapshot(),
       notebookSeen: this.notebookSeen,
+      movedSpots: [...this.movedSpots].map(([id, p]) => [id, p.x, p.z, p.ry] as [string, number, number, number]),
       story: this.story.snapshot(),
       assist: this.assist.snapshot(),
       shelterTest: this.shelterTest.snapshot(),
@@ -2167,6 +2177,7 @@ export class Game {
     g.experiments.restore(data.experiments);
     // Older saves did not track it: treat what they had as read.
     g.notebookSeen = Math.min(g.notebook.length, data.notebookSeen ?? g.notebook.length);
+    for (const [id, x, z, ry] of data.movedSpots ?? []) g.movedSpots.set(id, { x, z, ry });
     if (data.lessons) g.lessons.restore(data.lessons);
     else {
       // A version-1 save: work out lesson progress from what it holds (curriculum/migrate.ts).
@@ -2191,6 +2202,8 @@ export interface SaveData {
   experiments?: ExperimentsSave;
   /** Notebook entries already seen (absent in older saves: all of them). */
   notebookSeen?: number;
+  /** Gather spots dragged to a new place: [spot id, x, z, yaw]. */
+  movedSpots?: Array<[string, number, number, number]>;
   fire?: FireSave;
   /** Version-1 beginner objectives (read only, for migration; no longer written). */
   objectives?: ObjectivesSave;

@@ -34,7 +34,7 @@ import { hands, mouse, pulse } from './hand-input-system.js';
 import { PanelTouch } from './panel-touch.js';
 import { itemPicture, RowThumbs } from './row-thumbs.js';
 import { PopIn } from './ui-fx.js';
-import { getGame, getUi, handPose, hidePanel, menu, PANEL_DISTANCE, PANEL_DOWN, StaticAnchor, SwipePager, uiText } from './shared.js';
+import { getGame, getUi, handPose, hidePanel, menu, PANEL_DISTANCE, PANEL_DOWN, StaticAnchor, SwipePager, uiText, interactionsPaused } from './shared.js';
 
 const ROWS = 10;
 /** Recipes shown at once: a short card, scrolled by finger swipe, pinch-drag, wheel or the More button. */
@@ -511,6 +511,7 @@ export class BenchSystem extends createSystem({}) {
     const dt = Math.min(delta, 0.05);
     this.t += dt;
     if (this.pop?.busy) this.pop.update(dt);
+    if (interactionsPaused(this.world)) return;
     const game = getGame(this.world);
     if (this.open && this.vrNow) this.touch.update(dt);
     if (this.open && this.vrNow && !game.bench && !this.anchor.dragging) this.swipe.update(this.panel);

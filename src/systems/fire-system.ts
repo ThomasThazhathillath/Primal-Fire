@@ -35,7 +35,7 @@ import { FirePitSpot } from '../components/game-components.js';
 import { flameGeometry, flameMaterial, glowMaterial, smokeMaterial } from './fire-fx.js';
 import { bowSlide, BowDrillMotion, DRILL, drillSmokeRate, drillSpin, fanLean, fanStrength, Reciprocation, RIG, SawAxis } from '../game/gestures.js';
 import { hands } from './hand-input-system.js';
-import { getGame, getUi, handClaims } from './shared.js';
+import { getGame, getUi, handClaims, interactionsPaused } from './shared.js';
 
 const SPARKS = 24;
 const FLAMES = 4;
@@ -331,6 +331,10 @@ export class FireSystem extends createSystem({
     const game = getGame(this.world);
     const fire = game.fire;
     this.t += delta;
+    if (interactionsPaused(this.world)) {
+      this.animate(delta, fire.intensity, fire.embedded, fire.heat);
+      return;
+    }
     this.setCarried(fire.carrying);
     if (this.carried) emberMat.color.setHex(Math.sin(this.t * 14) > 0 ? 0xff7a28 : 0xff4a10);
 

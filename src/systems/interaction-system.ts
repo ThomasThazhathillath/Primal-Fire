@@ -58,9 +58,10 @@ import { itemMesh } from '../scene-assets/item-meshes.js';
 import { Gatherable, SnapSpot } from '../components/game-components.js';
 import { lambert } from '../scene-assets/materials.js';
 import { hands, mouse, pulse } from './hand-input-system.js';
-import { DRAG_LOOK, REACH, ResourceSystem } from './resource-system.js';
-import { camNudge, getGame, getUi, handClaims, handPose } from './shared.js';
+import { DRAG_LOOK, DRAGGED_RADIUS, REACH, ResourceSystem } from './resource-system.js';
+import { camNudge, getGame, getUi, handClaims, handPose, interactionsPaused } from './shared.js';
 import { HandMotion } from '../game/handmotion.js';
+import { collisionWorld } from '../game/collision.js';
 
 /** The pinch that just grabbed this object must not also count as the pinch that places or bends it. */
 const grabbedJustNow = () => performance.now() / 1000 - handClaims.grabAt < 0.4;
@@ -361,7 +362,7 @@ export class InteractionSystem extends createSystem({
     // Material contact at the head: a clean edge chops wood; a glancing or weak blow knocks the bark;
     // stone rings; soil thuds (src/game/contact.ts).
     game.contact(r.outcome === 'chop' && tool === 'axe' ? 'flint' : 'stone', material, at.x, at.y, at.z, speed * (r.outcome === 'chop' ? 1 : 0.5));
-    if (vr) pulse(this.session, 1, 0.2 + r.jolt * 0.8, 40 + r.jolt * 80);
+    if (vr) pulse(this.session, handClaims.holdHand, 0.2 + r.jolt * 0.8, 40 + r.jolt * 80);
     else camNudge.pitch = -0.012 - r.jolt * 0.03;
     this.burstChips(at, material, r.outcome === 'chop' ? r.damage * 3 : r.outcome === 'bounce' ? 0.6 : 0.2);
     if (r.code) this.fail(r.code);
@@ -392,7 +393,7 @@ export class InteractionSystem extends createSystem({
     const idx = e.getValue(SnapSpot, 'index') ?? 0;
     const r = driveBlow(speed, align, quality, game.held as ItemId | null);
     game.contact('stone', 'wood', at.x, at.y, at.z, speed * (r.outcome === 'drive' ? 1 : 0.5));
-    if (vr) pulse(this.session, 1, 0.2 + r.jolt * 0.8, 40 + r.jolt * 80);
+    if (vr) pulse(this.session, handClaims.holdHand, 0.2 + r.jolt * 0.8, 40 + r.jolt * 80);
     else camNudge.pitch = -0.012 - r.jolt * 0.03;
     this.burstChips(at, 'wood', r.outcome === 'drive' ? 0.6 + r.progress * 3 : 0.2);
     if (r.reason) this.say(r.reason);
@@ -625,6 +626,15 @@ export class InteractionSystem extends createSystem({
 
   private endDrag(click: boolean): void {
     const e = this.dragTarget;
+    // Where a dragged log was let go is where it stays (saved), and it blocks the way like any log.
+    if (e?.object3D && this.drag && !click) {
+      const id = e.getValue(Gatherable, 'spotId') ?? '';
+      const p = e.object3D.position;
+      if (id) {
+        getGame(this.world).moveSpot(id, p.x, p.z, e.object3D.rotation.y);
+        collisionWorld().setDynamic(`spot_${id}`, p.x, p.z, DRAGGED_RADIUS);
+      }
+    }
     this.mode = 'none';
     this.dragTarget = null;
     this.drag = null;
@@ -679,7 +689,7 @@ export class InteractionSystem extends createSystem({
     if ((this.strainTimer -= dt) <= 0) {
       this.strainTimer = 0.45;
       getGame(this.world).fx('strain', strain);
-      if (this.viaVR) pulse(this.session, 1, 0.1 + strain * 0.4, 40);
+      if (this.viaVR) pulse(this.session, handClaims.holdHand, 0.1 + strain * 0.4, 40);
     }
   }
 
@@ -780,6 +790,8 @@ export class InteractionSystem extends createSystem({
   // ------------------------------------------------------------------ frame
 
   update(delta: number): void {
+    // Paused: no swings, bends or drags behind the pause card.
+    if (interactionsPaused(this.world)) return;
     const dt = Math.min(delta, 0.05);
     this.clock += dt;
     this.animateSnap(dt);

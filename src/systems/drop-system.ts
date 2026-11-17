@@ -96,6 +96,7 @@ export class DropSystem extends createSystem({
       hit.position.y = 0.2;
       g.add(m, glow, hit);
       g.position.set(d.x, groundHeight(d.x, d.z), d.z);
+      g.rotation.y = d.ry ?? 0;
       const e = this.world.createTransformEntity(g);
       e.addComponent(WorldDropItem, { dropId: d.id });
       e.addComponent(RayInteractable);
@@ -194,6 +195,8 @@ export class DropSystem extends createSystem({
         if (d) {
           d.x = b.pos.x;
           d.z = b.pos.z;
+          // It keeps the way it came to rest (saved), instead of snapping back to facing north.
+          d.ry = f.obj.rotation.y;
         }
         // Rest exactly on the local ground wherever it ended up.
         b.pos.y = f.obj.position.y = groundHeight(b.pos.x, b.pos.z);

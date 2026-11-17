@@ -46,7 +46,7 @@ import { BlueprintGhost, SnapSpot, StructurePart } from '../components/game-comp
 import { itemMesh } from '../scene-assets/item-meshes.js';
 import type { ItemId } from '../game/items.js';
 import { hands, mouse } from './hand-input-system.js';
-import { getGame, getUi } from './shared.js';
+import { getGame, getUi, pinchTaken } from './shared.js';
 
 /** How far away (m) you can point to place a blueprint. */
 const MAX_PLACE_DISTANCE = 6;
@@ -269,6 +269,8 @@ export class BuildSystem extends createSystem({
   /** A pinch (hand) or trigger (controller) in VR. */
   private onXRSelect(handedness: XRHandedness): void {
     if (handedness !== 'left' && handedness !== 'right') return;
+    // One pinch does one thing: if a UI tap, a grab or a mark already used it, it does not also place a plan.
+    if (pinchTaken(this.world, handedness === 'left' ? 0 : 1)) return;
     if (handedness !== this.hand) {
       // The other hand takes over aiming; its first pinch only switches hands.
       this.hand = handedness;

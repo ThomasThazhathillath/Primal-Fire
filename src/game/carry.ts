@@ -29,11 +29,13 @@ export function followStiffness(mass: number, hands: number): number {
  */
 export function springStep(pos: V3, vel: V3, target: V3, stiffness: number, dt: number): void {
   const damping = 2 * Math.sqrt(stiffness);
-  for (const k of ['x', 'y', 'z'] as const) {
-    const acc = stiffness * (target[k] - pos[k]) - damping * vel[k];
-    vel[k] += acc * dt;
-    pos[k] += vel[k] * dt;
-  }
+  // Unrolled: this runs every frame for the held object, so no per-call key array.
+  vel.x += (stiffness * (target.x - pos.x) - damping * vel.x) * dt;
+  pos.x += vel.x * dt;
+  vel.y += (stiffness * (target.y - pos.y) - damping * vel.y) * dt;
+  pos.y += vel.y * dt;
+  vel.z += (stiffness * (target.z - pos.z) - damping * vel.z) * dt;
+  pos.z += vel.z * dt;
 }
 
 /**

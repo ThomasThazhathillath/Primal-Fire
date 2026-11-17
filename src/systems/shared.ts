@@ -5,6 +5,7 @@ import { AdditiveBlending, Box3, MeshBasicMaterial, type Object3D, Quaternion, V
 import type { Game } from '../game/game.js';
 import type { GazeRect } from '../game/gaze.js';
 import { MenuStack } from '../game/menu.js';
+import { pulse } from './haptics.js';
 import type { HandBusy } from '../game/priority.js';
 
 export interface UiHooks {
@@ -251,17 +252,15 @@ export const rayPick = {
 /** A short vibration on the hand's controller where the platform supports it (hands have none: a no-op). */
 export function haptic(world: World, hand: 0 | 1, strength = 0.35, ms = 35): void {
   try {
-    const session = world.renderer.xr.getSession();
-    if (!session) return;
-    const want = hand === 0 ? 'left' : 'right';
-    for (const src of session.inputSources) {
-      if (src.handedness !== want || !src.gamepad) continue;
-      const act = (src.gamepad as Gamepad & { hapticActuators?: Array<{ pulse?(v: number, t: number): Promise<boolean> }> }).hapticActuators?.[0];
-      void act?.pulse?.(strength, ms);
-    }
+    pulse(world.renderer.xr.getSession(), hand, strength, ms);
   } catch {
-    // Not supported here.
+    // No haptics available (tracked hands, or the browser has none): nothing to do.
   }
+}
+
+/** A buzz in the hand that holds the carried tool or object (handClaims.holdHand), not a fixed hand. */
+export function hapticHeld(world: World, strength = 0.35, ms = 35): void {
+  haptic(world, handClaims.holdHand, strength, ms);
 }
 
 /**
@@ -665,6 +664,27 @@ export const handClaims = {
   heldTilt: 0,
   heldPos: new Vector3(),
 };
+
+/**
+ * Hand interactions (sawing, knapping, lashing, bench steps, swings, drags) stop while the game is paused:
+ * game time is frozen then, so motion must not keep changing the world behind the pause card.
+ */
+export function interactionsPaused(world: World): boolean {
+  return !!getUi(world).paused?.();
+}
+
+/**
+ * Has this hand's current pinch already been used by something else (a UI tap, a grab or pickup, a mark
+ * filled) within the last moment? Raw XR select listeners (building, the bow) check this so one pinch never
+ * does two things.
+ */
+export function pinchTaken(world: World, h: 0 | 1, window = 0.3): boolean {
+  const now = performance.now() / 1000;
+  if (handClaims.uiNear[h] || now - handClaims.uiTapAt[h] < window) return true;
+  if (now - handClaims.actedAt[h] < window) return true;
+  if (handClaims.holdHand === h && now - handClaims.grabAt < window) return true;
+  return interactionsPaused(world);
+}
 
 /** What hand `h` is busy with, for the one priority order (src/game/priority.ts). */
 export function handBusy(world: World, h: 0 | 1): HandBusy {

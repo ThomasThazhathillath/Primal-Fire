@@ -30,7 +30,7 @@ import { Core, KNAP_EDGE, TwistState, type GuideFailureCode } from '../game/inte
 import { ITEMS } from '../game/items.js';
 import { lambert } from '../scene-assets/materials.js';
 import { hands, mouse, pulse } from './hand-input-system.js';
-import { getGame, getUi, handPose } from './shared.js';
+import { getGame, getUi, handPose, interactionsPaused } from './shared.js';
 
 const CORE_R = 0.045;
 const SCARS = 4;
@@ -355,6 +355,7 @@ export class CraftGestureSystem extends createSystem({}) {
   // ------------------------------------------------------------------ frame
 
   update(delta: number): void {
+    if (interactionsPaused(this.world)) return;
     const dt = Math.min(delta, 0.05);
     if (this.codeTimer > 0) this.codeTimer -= dt;
     this.animateFlake(dt);

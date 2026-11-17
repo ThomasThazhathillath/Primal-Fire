@@ -107,16 +107,8 @@ export const mouse = {
 };
 
 /** Short vibration on the controller in `hand` (no-op for tracked hands). */
-export function pulse(session: XRSession | null | undefined, hand: 0 | 1, strength: number, ms: number): void {
-  if (!session) return;
-  const want = hand === 0 ? 'left' : 'right';
-  for (const src of session.inputSources) {
-    if (src.handedness !== want) continue;
-    const act = (src.gamepad as (Gamepad & { hapticActuators?: Array<{ pulse(v: number, d: number): Promise<boolean> }> }) | undefined)
-      ?.hapticActuators?.[0];
-    act?.pulse(Math.min(1, strength), ms).catch(() => undefined);
-  }
-}
+// Haptics live in haptics.ts; re-exported here for the systems that import them from hand input.
+export { pulse } from './haptics.js';
 
 export class HandInputSystem extends createSystem({}) {
   private prevPos = [new Vector3(), new Vector3()];

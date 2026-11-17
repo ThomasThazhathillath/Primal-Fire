@@ -9,7 +9,7 @@
 import { createSystem, Vector3, VisibilityState } from '@iwsdk/core';
 import { LASH, LashGesture } from '../game/lashing.js';
 import { hands, mouse, pulse } from './hand-input-system.js';
-import { getGame } from './shared.js';
+import { getGame, interactionsPaused } from './shared.js';
 
 const SCAN_EVERY = 0.2;
 
@@ -27,6 +27,7 @@ export class LashSystem extends createSystem({}) {
   }
 
   update(delta: number): void {
+    if (interactionsPaused(this.world)) return;
     const game = getGame(this.world);
     if (!game.leanTo() || delta <= 0) {
       this.target = null;

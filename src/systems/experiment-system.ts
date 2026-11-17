@@ -128,7 +128,7 @@ export class ExperimentSystem extends createSystem({}) {
     const g = getGame(this.world);
     const phase = g.experiments.phase(d.id);
     if (phase === 'testing') {
-      if (g.waitForRain()) g.toast('Clouds gather. Stand under your roof and watch each panel.', 'note');
+      if (d.id === 'roofLayers' && g.waitForRain()) g.toast('Clouds gather. Stand under your roof and watch each panel.', 'note');
       menu.back();
       return;
     }
@@ -167,7 +167,8 @@ export class ExperimentSystem extends createSystem({}) {
       case 'testing':
         body = `Your prediction: ${predicted} ${d.howTo}`;
         showTrials = true;
-        action = g.leanTo() && !g.shelterTest.raining ? 'Wait for rain' : 'Keep testing';
+        // Only the roof-layer test can call the rain; other experiments are tested in the world.
+        action = d.id === 'roofLayers' && g.leanTo() && !g.shelterTest.raining ? 'Wait for rain' : 'Keep testing';
         break;
       case 'result': {
         const right = g.experiments.predictedRight(d.id);

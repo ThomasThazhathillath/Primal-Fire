@@ -86,7 +86,7 @@ const gripMat = lambert(0x5a4630);
 const markMat = new MeshBasicMaterial({ color: 0xffe9a8, transparent: true, opacity: 0.55, depthWrite: false });
 const markOnMat = new MeshBasicMaterial({ color: 0x7fe08a, transparent: true, opacity: 0.7, depthWrite: false });
 const focusMat = new MeshBasicMaterial({ color: 0xfff3d0, transparent: true, opacity: 0.8, depthWrite: false });
-/** Invisible hit shapes: they take the mouse ray but draw nothing. */
+/** Hit shapes: hidden (no draw call), but still hit by the mouse ray (raycasting ignores `visible`). */
 const hitMat = new MeshBasicMaterial({ colorWrite: false, depthWrite: false });
 const FIBRE_COLOR = 0x7a9a42;
 const CORD_COLOR = 0xc9b48a;
@@ -284,6 +284,8 @@ export class ToolYardSystem extends createSystem({
   }
 
   private hit(id: TargetId, e: Entity, o: Object3D): void {
+    // Dedicated hit shapes draw nothing; the boulder and the stone are their own (visible) targets.
+    if ((o as Mesh).material === hitMat) o.visible = false;
     e.addComponent(RayInteractable);
     this.hits.set(e, id);
     this.hitObj[id] = o;
@@ -584,7 +586,9 @@ export class ToolYardSystem extends createSystem({
           const hand = hands[h];
           if (!hand.tracked || !hand.gripDown || (g.held && handClaims.holdHand === h)) continue;
           for (const id of ['poleEnd', 'stone', 'frame'] as const) {
-            if (this.live(id) && hand.pinchPos.distanceTo(this.at[id]) < NEAR_GRAB) {
+            // Tracked hands pinch between thumb and index; a controller grabs at its grip.
+            const at = hand.tipTracked ? hand.pinchPos : hand.pos;
+            if (this.live(id) && at.distanceTo(this.at[id]) < NEAR_GRAB) {
               this.activate(id, h);
               break;
             }

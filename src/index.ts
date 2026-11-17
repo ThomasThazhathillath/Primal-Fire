@@ -1,9 +1,13 @@
 import { World } from '@iwsdk/core';
 import projectOptions from 'virtual:iwsdk-project';
 import { setEasyCarry } from './game/items.js';
+import { setPlayableLessons } from './game/curriculum/registry.js';
 
 // Play-testing: no pocket limit, no weight, everything goes in the bag. Set to false to test the real carry rules.
 setEasyCarry(true);
+// The levels on offer: one at a time while each lesson is finished and play-tested (title screen level list; the guide
+// stops after the last one). Add a lesson id here when its level is ready.
+setPlayableLessons(['shelter']);
 import { installDebugHooks, streamPlaytestLog } from './debug-hooks.js';
 import { guardSystems } from './system-guard.js';
 import { AudioSystem } from './systems/audio-system.js';

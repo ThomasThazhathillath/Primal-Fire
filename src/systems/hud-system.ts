@@ -28,7 +28,7 @@ import { itemName } from '../game/items.js';
 import { bagPrompt, gatherPrompt } from '../game/prompts.js';
 import { SatchelSystem } from './satchel-system.js';
 import { OBSERVATIONS } from '../game/observations.js';
-import { LESSONS } from '../game/curriculum/registry.js';
+import { LESSONS, lessonById, playableLessons } from '../game/curriculum/registry.js';
 import { Gatherable, SatchelItem, SnapSpot, StructurePart, WorldDropItem } from '../components/game-components.js';
 import { REACH, ResourceSystem } from './resource-system.js';
 import { PanelTouch } from './panel-touch.js';
@@ -196,14 +196,18 @@ export class HudSystem extends createSystem({
     // While the beginner objectives run, the objective card is the one place that names the task.
     const tutorial = game.guiding();
     this.hud.requireElementById('quest-num').setProperties({ display: tutorial ? 'none' : 'flex' });
-    text('quest-num', lesson ? `LESSON ${String(lesson.n).padStart(2, '0')} OF ${String(LESSONS.length).padStart(2, '0')}` : 'ALL LESSONS COMPLETE');
+    // Only the playable levels are listed (registry.ts); finishing them is not finishing the whole curriculum.
+    const allDone = game.lessons.allDone;
+    text('quest-num', lesson ? `LESSON ${String(lesson.n).padStart(2, '0')} OF ${String(LESSONS.length).padStart(2, '0')}` : allDone ? 'ALL LESSONS COMPLETE' : 'LEVEL COMPLETE');
     text('level', `Rank ${game.level}   ${game.xp} XP`);
     this.hud.requireElementById('quest-title').setProperties({ display: tutorial ? 'none' : 'flex' });
     text('quest-title', lesson ? lesson.name : 'Life at your camp');
-    text('quest-desc', lesson ? lesson.goal : 'Keep exploring - can you find every observation?');
-    // The five lessons, ticked off as they finish.
+    text('quest-desc', lesson ? lesson.goal : allDone ? 'Keep exploring - can you find every observation?' : 'More levels are coming soon. Keep exploring your camp.');
+    // The playable lessons, ticked off as they finish.
+    const shown = playableLessons();
     for (let i = 0; i < STEP_LINES; i++) {
-      const l = LESSONS[i];
+      const id = shown[i];
+      const l = id ? lessonById(id) : undefined;
       const el = this.hud.requireElementById<UIKit.Text>(`step-${i}`);
       el.setProperties({ display: l ? 'flex' : 'none' });
       if (l) {

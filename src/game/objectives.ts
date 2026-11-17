@@ -98,7 +98,7 @@ const workbenchStage = (g: Game): 0 | 1 | 2 | 3 => {
 };
 
 /** Where the nearest thing this objective needs is, or the landmark it asks you to reach. */
-function whereFor(o: Objective, g: Game): string | null {
+export function whereFor(o: Objective, g: Game): string | null {
   if (o.structure) return materialsLine(o.structure, g);
   if (o.place) return whereLandmark(o.place, g.player, g.facingYaw);
   const items = o.find?.(g);
@@ -719,6 +719,8 @@ export interface ObjectiveView {
   step: number;
   total: number;
   hintLevel: number;
+  /** The lesson this step belongs to (curriculum); absent for the old beginner sequence. */
+  lesson?: { id: string; n: number; name: string };
 }
 
 export interface ObjectivesSave {

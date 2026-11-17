@@ -51,6 +51,8 @@ import { CONTINUOUS, type IntentAction, type IntentTarget, resolveIntent } from 
 import { type InteractionId, type Objective, ObjectiveTracker, type ObjectivesSave } from './objectives.js';
 import { QUESTS, type QuestStep } from './quests.js';
 import { LANDMARKS, type Landmark } from './world-layout.js';
+import type { NextLesson } from './curriculum/tracker.js';
+import type { LessonId } from './curriculum/types.js';
 
 export type FlagId =
   | 'cordMade'
@@ -90,6 +92,7 @@ export type GameEvent =
   /** Lashing progress on a joint (0..1) for the wraps on the joint. */
   | { type: 'lash'; id: number; index: number; progress: number }
   | { type: 'objectiveDone'; id: string; message: string }
+  | { type: 'lessonComplete'; lesson: LessonId; n: number; name: string; next: NextLesson | null }
   | { type: 'questComplete'; index: number; title: string; roadmapNode: string | null }
   | { type: 'levelComplete'; level: number; name: string; next: GameLevel | null }
   | { type: 'discovered'; landmark: Landmark }

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { bearingTo, campOf, COMPASS_SPAN, headingOf, tapePos } from '../src/game/directions.js';
 import { Game } from '../src/game/game.js';
 import { cardView, nextActionLine, partsLine } from '../src/game/objectives.js';
+import { jumpTo } from './helpers/lessons.js';
 
 describe('objective card content', () => {
   it('every active objective in a fresh game says what to do, how far along it is and the next action', () => {
@@ -18,7 +19,7 @@ describe('objective card content', () => {
 
   it('the next action follows the player: a contextual line wins, then the first open substep', () => {
     const g = new Game();
-    const o = g.objectives.current!;
+    const o = g.lessons.current!;
     expect(nextActionLine(o, g, 'This stone fits here.', null, [])).toBe('This stone fits here.');
     expect(nextActionLine(o, g, null, null, [{ text: 'Place the slab', done: false }])).toBe('Next: place the slab');
     expect(nextActionLine(o, g, null, 'You have everything.', [])).toBe('You have everything.');
@@ -26,8 +27,8 @@ describe('objective card content', () => {
 
   it('a build objective lists its materials in its own line, not twice', () => {
     const g = new Game();
-    while (g.objectives.current && g.objectives.current.id !== 'workbench') g.objectives.index++;
-    const o = g.objectives.current!;
+    jumpTo(g, 'workbench');
+    const o = g.lessons.current!;
     expect(o.structure).toBe('workbench');
     expect(partsLine(o, g)).toBeNull();
     expect(cardView(g)!.where).toMatch(/Stones \d\/3, flat stone \d\/1/);

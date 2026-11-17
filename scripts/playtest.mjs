@@ -7,7 +7,17 @@
 
 const SHOTS = process.env.PRIMAL_SHOTS;
 
-export default async function run({ page }) {
+export default async function run(ctx) {
+  const results = [];
+  try {
+    return await play(ctx, results);
+  } catch (err) {
+    // Report how far the play-test got instead of only the exception.
+    return { results, error: String(err?.stack ?? err).split('\n').slice(0, 3).join(' | ') };
+  }
+}
+
+async function play({ page }, results) {
   let app = page.mainFrame();
   // The app runs inside the managed workspace's iframe, which a reload replaces.
   const findApp = async () => {
@@ -23,7 +33,6 @@ export default async function run({ page }) {
     const el = await app.frameElement().catch(() => null);
     return el ? el.boundingBox() : { x: 0, y: 0 };
   };
-  const results = [];
   const check = (name, ok, detail = '') => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ` (${detail})` : ''}`);
   const P = (fn, arg) => app.evaluate(fn, arg);
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -33,14 +42,20 @@ export default async function run({ page }) {
 
   // Fresh start.
   app = await findApp();
-  await P(() => localStorage.clear());
-  await page.reload();
+  // A cleared browser opens the tutorial ("The First Steps"); this play-test covers the survival game.
+  // reset() blocks the autosave on unload, so the old game cannot write itself back.
+  await P(() => {
+    localStorage.clear();
+    localStorage.setItem('primal-first-fire.mode.v1', 'survival');
+    window.__primal.reset();
+  }).catch(() => {});
+  await wait(1500);
   app = await findApp();
   await wait(2500);
   await shot('01-title');
   await P(() => window.__primal.begin());
   await wait(500);
-  check('wakes in the Scavenger quest', (await P(() => window.__primal.game.quest?.title)) === 'Scavenger');
+  check('wakes in Lesson 01 (Shelter) at the first stone', (await P(() => `${window.__primal.game.lessons.lesson?.id}/${window.__primal.game.focus()?.id}`)) === 'shelter/firstStone');
 
   // Real input: click a resource on the canvas (RayInteractable path).
   const target = await P(() => {
@@ -130,7 +145,9 @@ export default async function run({ page }) {
   check('workbench outline placed on open ground', placed === true);
   const bench = await P(() => window.__primal.build('workbench')[0]);
   for (let i = 0; i < 3; i++) await P(([id, i]) => window.__primal.fill(id, i), [bench.id, i]);
-  check('three stone legs finish the workbench', await P(() => window.__primal.game.hasStructure('workbench')));
+  // The slab (still in hand: it goes on last) is lowered onto the three legs with both hands.
+  await P(([id, x, z]) => window.__primal.game.placeKey(id, x, z, 2), [bench.id, bench.x, bench.z]);
+  check('three stone legs and the slab finish the workbench', await P(() => window.__primal.game.hasStructure('workbench')));
   check('"Three legs never wobble" recorded', await P(() => window.__primal.game.notebook.includes('b_tripod')));
 
   // Friction tool parts, cord and bow drill at the bench.
@@ -143,8 +160,11 @@ export default async function run({ page }) {
     return [p.craft('cord'), p.craft('bowDrill')];
   });
   check('crafts cord and bow drill at the workbench', crafted.join() === 'true,true');
-  check('Scavenger complete -> First Fire', (await P(() => window.__primal.game.quest?.title)) === 'First Fire');
+  check('cord made at the bench counts for the cord step', await P(() => window.__primal.game.flag('cordMade')));
 
+  // Lesson 01 only offers the structure its step builds; the fire pit belongs to Lesson 02, so work on that now.
+  check('Lesson 01 offers no fire pit outline', (await P(() => window.__primal.game.wantedStructure())) !== 'firePit');
+  await P(() => window.__primal.game.lessons.setResume('fire'));
   // Fire pit: start with a wet stone (allowed - it will matter once fire burns).
   await P(() => {
     const p = window.__primal;
@@ -159,17 +179,22 @@ export default async function run({ page }) {
   await shot('04-firepit-snap-spots');
   for (let i = 0; i < 3; i++) await P(([id, i]) => window.__primal.fill(id, i), [pit.id, i]);
   check('fire pit finished', await P(() => window.__primal.game.hasStructure('firePit')));
-  check('First Fire step 1 (a safe place) done', (await P(() => window.__primal.game.currentStep()?.index)) === 1);
+  check('the card shows Lesson 02', (await P(() => window.__primal.game.steps.view()?.lesson?.n)) === 2);
 
-  // Hints escalate to a direction + beacon.
-  const hints = await P(() => {
+  // The hint button opens the picture hint for the step on the card, at its first level.
+  const hint = await P(() => {
     const p = window.__primal;
+    // The help system may already have opened it for a player who looks stuck: start from closed.
+    const already = window.__hint?.state().opened;
+    if (already) p.world.globals.ui.openHint(already); // the same id again closes it
     p.hint();
-    p.hint();
-    p.hint();
-    return p.world.scene.getObjectByName('HintBeacon').visible;
+    const id = p.game.focus()?.id;
+    return { id, level: id ? p.game.steps.hintLevel(id) : 0 };
   });
-  check('third hint lights a beacon', hints === true);
+  await wait(400);
+  const opened = await P(() => window.__hint?.state().opened ?? null);
+  check('the hint button opens the step hint', hint.level >= 1 && opened === hint.id, JSON.stringify({ ...hint, opened }));
+  await P(() => window.__primal.hint());
 
   // Satchel and notebook panels open.
   await P(() => window.__primal.satchel());
@@ -186,8 +211,8 @@ export default async function run({ page }) {
   await page.reload();
   app = await findApp();
   await wait(1500);
-  const restored = await P(() => ({ q: window.__primal.game.quest?.title, s: window.__primal.game.structures.length }));
-  check('progress survives a reload', restored.q === 'First Fire' && restored.s === 2, JSON.stringify(restored));
+  const restored = await P(() => ({ l: window.__primal.game.lessons.lesson?.id, done: window.__primal.game.lessons.completed.size, s: window.__primal.game.structures.length }));
+  check('progress survives a reload', restored.l === 'fire' && restored.done > 0 && restored.s === 2, JSON.stringify(restored));
 
   const errors = [];
   const state = await P(() => ({ xp: window.__primal.game.xp, level: window.__primal.game.level, notebook: window.__primal.game.notebook.length }));

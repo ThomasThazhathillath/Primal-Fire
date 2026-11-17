@@ -12,7 +12,9 @@ const at = (g: Game, id: number, i: number) => {
 describe('build book entries', () => {
   it('lists every structure and bench recipe', () => {
     const ids = new Game().bookEntries().map((e) => e.id);
-    for (const k of ['firePit', 'workbench', 'filter', 'shelter', 'storage']) expect(ids).toContain(k);
+    for (const k of ['firePit', 'workbench', 'filter', 'leanTo', 'bedding', 'storage']) expect(ids).toContain(k);
+    // The old 4-spot shelter was replaced by the lean-to and is no longer offered.
+    expect(ids).not.toContain('shelter');
     expect(ids).toContain('recipe:axe');
   });
 
@@ -20,7 +22,7 @@ describe('build book entries', () => {
     const g = new Game();
     expect(entry(g, 'firePit').unlocked).toBe(true);
     expect(entry(g, 'workbench').unlocked).toBe(true);
-    for (const id of ['filter', 'shelter', 'storage', 'recipe:axe']) {
+    for (const id of ['filter', 'leanTo', 'storage', 'recipe:axe']) {
       expect(entry(g, id).unlocked).toBe(false);
       expect(entry(g, id).hint.length).toBeGreaterThan(5);
     }

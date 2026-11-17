@@ -100,7 +100,6 @@ export class LessonTracker {
   }
 
   private recompute(): void {
-    const prev = this.cur?.step.id;
     this.cur = null;
     for (let guard = 0; guard < LESSONS.length + 1; guard++) {
       const lesson = this.activeLesson();
@@ -114,7 +113,8 @@ export class LessonTracker {
       const step = stepById(id);
       if (!step) throw new Error(`Lesson ${lesson.id} names unknown step ${id}`);
       this.cur = { lesson, step };
-      if (id !== prev && this.bases[id] === undefined) this.bases[id] = step.baseline?.(this.game) ?? 0;
+      // Progress on a counted step starts from when it became current.
+      if (this.bases[id] === undefined) this.bases[id] = step.baseline?.(this.game) ?? 0;
       return;
     }
   }

@@ -124,7 +124,7 @@ export class FireState {
       g.toast('The fire lay is ready. Now make an ember.', 'good');
       g.addXp(20);
     }
-    g.checkQuests();
+    g.checkProgress();
     g.notifyFire();
     return true;
   }
@@ -173,7 +173,7 @@ export class FireState {
     g.observe('f_drill');
     g.science('fire.drill.ember');
     g.toast('An ember! Carry it to the tinder before it dies.', 'good');
-    g.checkQuests();
+    g.checkProgress();
     g.notifyFire();
   }
 
@@ -225,7 +225,7 @@ export class FireState {
     g.science('fire.lit');
     g.addXp(40);
     g.toast('Fire!', 'good');
-    g.checkQuests();
+    g.checkProgress();
     g.notifyFire(first);
   }
 

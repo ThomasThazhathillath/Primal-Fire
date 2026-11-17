@@ -1178,18 +1178,12 @@ export class GuideTracker {
       const o = GUIDE_BY_ID[objectiveGuide];
       if (o && unfinished(o)) return o;
     }
-    // 3. The current quest step's guide.
-    const step = g.currentStep()?.step;
-    if (step?.guide) {
-      const q = GUIDE_BY_ID[step.guide];
-      if (q && unfinished(q)) return q;
-    }
-    if (step) {
-      const t = step.target;
-      const byTarget = GUIDES.find(
-        (gd) => unfinished(gd) && (('structure' in t && gd.goal.structure === t.structure) || (gd.goal.item && t.items.includes(gd.goal.item))),
-      );
-      if (byTarget) return byTarget;
+    // 3. A guide for what the step on the card builds or asks you to find.
+    const f = g.focus?.();
+    if (f) {
+      const want = f.find?.(g) ?? [];
+      const byFocus = GUIDES.find((gd) => unfinished(gd) && ((f.structure && gd.goal.structure === f.structure) || (gd.goal.item && want.includes(gd.goal.item))));
+      if (byFocus) return byFocus;
     }
     // 4. Something in progress: a placed but unfinished structure, or a guide with failures.
     const inProgress = GUIDES.find(

@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { apparentDepth, COOK_SECONDS, GROW_SECONDS, spearHit, WATER_INDEX, WATER_Y, WILD_TUBERS } from '../src/game/food.js';
-import { Game } from '../src/game/game.js';
+import { Game, LESSON_XP } from '../src/game/game.js';
 import { GAME_LEVELS, levelForQuest, levelStart, migrateQuestIndex, QUESTS_VERSION } from '../src/game/levels.js';
 import { ITEMS } from '../src/game/items.js';
 import { BENCH_BY_ID } from '../src/game/bench.js';
 import { QUESTS } from '../src/game/quests.js';
 import { BOIL_SECONDS, MOUND_MIN_STREAM, POT_DRY_SECONDS, POT_FIRE_SECONDS, SMOKE_BLUE_AT } from '../src/game/water.js';
 import { nearestTreeDistance, streamDistance } from '../src/game/world-layout.js';
+import { jumpTo } from './helpers/lessons.js';
+import { LESSONS } from '../src/game/curriculum/registry.js';
 
 /** Dry, open ground for a charcoal pit within reach of the fire at the origin. */
 function moundSite(): { x: number; z: number } {
@@ -47,26 +49,18 @@ describe('levels', () => {
     expect(levelForQuest(QUESTS.length).n).toBe(4);
   });
 
-  it('completes a level with a level-complete event and XP', () => {
+  it('finishing a lesson emits lessonComplete with the next lesson, and gives XP', () => {
     const g = new Game();
     const events: unknown[] = [];
-    g.on((e) => e.type === 'levelComplete' && events.push(e));
-    g.questIndex = 1; // First Fire
-    g.setFlag('fireLit');
-    g.setFlag('fireLayBuilt');
-    g.setFlag('emberMade');
-    g.addItem('dryStone', 5);
-    g.takeOut('dryStone');
-    const res = g.placeBlueprint('firePit', 0, 0);
-    g.addItem('dryStone', 3);
+    g.on((e) => e.type === 'lessonComplete' && events.push(e));
+    jumpTo(g, 'charcoal');
     const xp0 = g.xp;
-    res.structure!.spots.forEach((_, i) => g.fillSpot(res.structure!.id, i));
-    g.checkQuests();
-    expect(g.gameLevel.n).toBe(2);
-    expect(g.levelReached).toBe(2);
+    g.setFlag('charcoalMade');
+    g.checkProgress();
     expect(events).toHaveLength(1);
-    expect(events[0]).toMatchObject({ level: 1, name: 'First Fire', next: { n: 2 } });
-    expect(g.xp - xp0).toBeGreaterThanOrEqual(GAME_LEVELS[0].xp);
+    expect(events[0]).toMatchObject({ lesson: 'fire', n: 2, next: { id: 'water', n: 3 } });
+    expect(g.xp - xp0).toBeGreaterThanOrEqual(LESSON_XP);
+    expect(g.lessons.lesson?.id).toBe('water');
   });
 
   it('migrates old saves to the right level', () => {
@@ -76,10 +70,13 @@ describe('levels', () => {
     expect(QUESTS[migrateQuestIndex(10, undefined)].title).toBe('First Lab');
     expect(migrateQuestIndex(6, QUESTS_VERSION)).toBe(6);
     const old = new Game().snapshot();
-    const save = { ...old, questIndex: 8, questsVersion: undefined, levelReached: undefined };
+    // A version-1 save: no lesson progress of its own.
+    const save = { ...old, v: 1, lessons: undefined, questIndex: 8, questsVersion: undefined, levelReached: undefined };
     const g = Game.restore(JSON.parse(JSON.stringify(save)));
-    expect(g.gameLevel.name).toBe('Camp');
-    expect(g.levelReached).toBe(3);
+    // The old quest position only says which lesson the player was in the middle of.
+    expect(g.questIndex).toBe(migrateQuestIndex(8, undefined));
+    const title = QUESTS[g.questIndex].title;
+    expect(g.lessons.resume).toBe(LESSONS.find((l) => l.legacyQuests?.includes(title))?.id ?? null);
   });
 });
 

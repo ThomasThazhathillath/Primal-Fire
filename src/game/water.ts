@@ -108,7 +108,7 @@ export class WaterState {
       if (this.potDry >= POT_DRY_SECONDS) {
         g.setFlag('potDry');
         g.toast('Your clay pot is bone dry: ready to fire.', 'good');
-        g.checkQuests();
+        g.checkProgress();
       }
     }
     // The pot in the fire: firing, then boiling.
@@ -122,7 +122,7 @@ export class WaterState {
           g.setFlag('potFired');
           g.science('pottery.fired');
           g.toast('The pot rings when you tap it: ceramic.', 'good');
-          g.checkQuests();
+          g.checkProgress();
         }
       } else if (this.potWater === 'raw' || this.potWater === 'filtered') {
         this.boil += dt;
@@ -156,7 +156,7 @@ export class WaterState {
       g.science('water.boil.murky');
       g.toast('Boiled, but still full of grit. Filter it first, then boil.', 'bad');
     }
-    g.checkQuests();
+    g.checkProgress();
   }
 
   /** What you can do here with what you hold. `held` defaults to the game's held item. */
@@ -245,7 +245,7 @@ export class WaterState {
         this.potWater = 'empty';
         g.science('body.drink');
         g.toast('Cool, clean water.', 'good');
-        g.checkQuests();
+        g.checkProgress();
         return true;
       case 'digMound': {
         if (g.count('logs') < 2 || this.mound) return false;
@@ -263,7 +263,7 @@ export class WaterState {
         this.mound = { x: at.x, z: at.z, sealed: false, burn: -1 };
         g.setFlag('moundBuilt');
         g.toast('Logs stacked in the pit and covered with earth. Seal the vents, or leave them open?', 'info');
-        g.checkQuests();
+        g.checkProgress();
         return true;
       }
       case 'sealMound':
@@ -279,7 +279,7 @@ export class WaterState {
         if (this.mound.sealed) {
           g.setFlag('kilnLit');
           g.toast('Lit. Watch the smoke: white, then yellow, then thin blue.', 'info');
-          g.checkQuests();
+          g.checkProgress();
         } else {
           g.toast('Flames lick out of the open vents...', 'info');
         }
@@ -294,7 +294,7 @@ export class WaterState {
           g.setFlag('charcoalMade');
           g.science('charcoal.done');
           g.toast('Light, black charcoal: three pieces.', 'good');
-          g.checkQuests();
+          g.checkProgress();
         } else {
           g.science('charcoal.early');
           g.toast('Opened too early: black outside, brown and damp inside. Dig again and wait for thin blue smoke.', 'bad');

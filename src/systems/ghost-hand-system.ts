@@ -67,6 +67,17 @@ export const OBJECTIVE_CLIPS: Record<string, GhostClip> = {
   fireLit: 'fan',
   pot: 'carry',
   shelter: 'carry',
+  // Curriculum lesson steps (src/game/curriculum/lessons).
+  pole: 'carry',
+  frame: 'twist',
+  roof: 'release',
+  bed: 'release',
+  axe: 'twist',
+  split: 'knap',
+  spear: 'twist',
+  fish: 'grab',
+  cook: 'hold',
+  grow: 'grab',
 };
 /** The VR movement signs, for the menu / hint to show on request. */
 export const MOVE_CLIPS: GhostClip[] = ['teleport', 'turn'];

@@ -297,7 +297,7 @@ export class AudioSystem extends createSystem({}) {
       case 'levelUp':
         [523, 659, 784, 1047].forEach((f, i) => this.tone(f, 0.25, 'triangle', 0.2, i * 0.1));
         break;
-      case 'levelComplete':
+      case 'lessonComplete':
         [392, 523, 659, 784, 1047, 1319].forEach((f, i) => this.tone(f, 0.5, 'triangle', 0.24, i * 0.14));
         break;
       case 'hintGiven':
@@ -313,9 +313,6 @@ export class AudioSystem extends createSystem({}) {
         // Subtle: two soft rising notes.
         this.tone(660, 0.2, 'sine', 0.1);
         this.tone(990, 0.35, 'sine', 0.09, 0.11);
-        break;
-      case 'questComplete':
-        [392, 523, 659, 784].forEach((f, i) => this.tone(f, 0.35, 'sine', 0.22, i * 0.12));
         break;
       case 'discovered':
         this.tone(440, 0.3, 'sine', 0.18);

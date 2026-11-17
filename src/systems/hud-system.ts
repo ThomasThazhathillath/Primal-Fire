@@ -28,7 +28,7 @@ import { itemName } from '../game/items.js';
 import { bagPrompt, gatherPrompt } from '../game/prompts.js';
 import { SatchelSystem } from './satchel-system.js';
 import { OBSERVATIONS } from '../game/observations.js';
-import { QUESTS } from '../game/quests.js';
+import { LESSONS } from '../game/curriculum/registry.js';
 import { Gatherable, SatchelItem, SnapSpot, StructurePart, WorldDropItem } from '../components/game-components.js';
 import { REACH, ResourceSystem } from './resource-system.js';
 import { PanelTouch } from './panel-touch.js';
@@ -223,25 +223,24 @@ export class HudSystem extends createSystem({
   renderQuest(): void {
     if (!this.ready) return;
     const game = getGame(this.world);
-    const q = game.quest;
     const text = (id: string, t: string) => this.hud.requireElementById<UIKit.Text>(id).setProperties({ text: uiText(t) });
-    const lv = game.gameLevel;
-    const inLevel = lv.quests.indexOf(q?.title ?? '');
+    const lesson = game.lessons.lesson;
     // While the beginner objectives run, the objective card is the one place that names the task.
     const tutorial = !game.guiding();
     this.hud.requireElementById('quest-num').setProperties({ display: tutorial ? 'none' : 'flex' });
-    text('quest-num', q ? `LEVEL ${lv.n}: ${lv.name.toUpperCase()}${inLevel >= 0 ? `  ${inLevel + 1}/${lv.quests.length}` : ''}` : 'CHAPTER 1');
+    text('quest-num', lesson ? `LESSON ${String(lesson.n).padStart(2, '0')} OF ${LESSONS.length}: ${lesson.name.toUpperCase()}` : 'ALL LESSONS COMPLETE');
     text('level', `Rank ${game.level}   ${game.xp} XP`);
     this.hud.requireElementById('quest-title').setProperties({ display: tutorial ? 'none' : 'flex' });
-    text('quest-title', q ? q.title : 'Complete');
-    text('quest-desc', q ? q.desc : 'Keep exploring - can you find every observation?');
+    text('quest-title', lesson ? lesson.title : 'Life at your camp');
+    text('quest-desc', lesson ? lesson.goal : 'Keep exploring - can you find every observation?');
+    // The five lessons, ticked off as they finish.
     for (let i = 0; i < STEP_LINES; i++) {
-      const step = q?.steps[i];
+      const l = LESSONS[i];
       const el = this.hud.requireElementById<UIKit.Text>(`step-${i}`);
-      el.setProperties({ display: step ? 'flex' : 'none' });
-      if (step) {
-        const done = step.done(game);
-        el.setProperties({ text: uiText(`${done ? '[x]' : '[ ]'} ${step.text(game)}`), color: done ? '#7fd37f' : undefined });
+      el.setProperties({ display: l ? 'flex' : 'none' });
+      if (l) {
+        const done = game.lessons.lessonDone.has(l.id);
+        el.setProperties({ text: uiText(`${done ? '[x]' : '[ ]'} Lesson ${String(l.n).padStart(2, '0')}: ${l.name}`), color: done ? '#7fd37f' : undefined });
       }
     }
     // The non-linear field tasks (Phase 3): the one you are furthest along, and its next step.

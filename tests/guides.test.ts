@@ -5,6 +5,7 @@ import { GUIDE_FAILURES, GUIDE_MARKS, GUIDES, type GuideFailureCode } from '../s
 import { ITEMS, type ItemId } from '../src/game/items.js';
 import { QUESTS } from '../src/game/quests.js';
 import { isScienceEvent } from '../src/game/science-events.js';
+import { jumpTo } from './helpers/lessons.js';
 
 const nonEmpty = (s: unknown) => typeof s === 'string' && s.trim().length > 0;
 const satchel = (g: Game) => JSON.stringify([...g.satchel].sort());
@@ -143,9 +144,8 @@ describe('context and hints', () => {
   });
   it('follows the objective card, not the quest list behind it (the card went blank after the flint)', () => {
     const g = new Game();
-    g.objectives.index = g.objectives.index + 5; // firstStone → stoneTools
-    expect(g.objectives.current?.id).toBe('stoneTools');
-    expect(g.currentStep()?.step.target).toMatchObject({ items: ['dryGrass'] });
+    jumpTo(g, 'stoneTools');
+    expect(g.lessons.current?.id).toBe('stoneTools');
     // Flint stowed again, nothing in hand: still the knapping guide.
     expect(g.guide.select()!.id).toBe('knap');
     g.addItem('flint');

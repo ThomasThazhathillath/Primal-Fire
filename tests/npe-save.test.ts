@@ -20,7 +20,7 @@ describe('save compatibility', () => {
     const old = { v: 1, time: 50, xp: 0, level: 1, questIndex: 0, satchel: { dryStone: 1 }, gathered: { dryStone: 1 }, notebook: [], structures: [], discovered: [], flags: [], player: { x: 1, z: 2 } } as unknown as SaveData;
     const g = Game.restore(old);
     expect(g.count('dryStone')).toBe(1);
-    const v = g.objectives.view();
+    const v = g.lessons.view();
     expect(v).not.toBeNull();
     expect(v!.instruction.length).toBeGreaterThan(0);
   });

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { openMarks, releaseStuck } from '../src/game/assist.js';
 import { Game } from '../src/game/game.js';
 import { materialsLine, OBJECTIVES, readyToBuild } from '../src/game/objectives.js';
+import { finishAll } from './helpers/lessons.js';
 
 const toWorkbench = (g: Game) => {
   for (let i = 0; i < 4; i++) g.gather('dryStone');
@@ -14,21 +15,21 @@ describe('contextual messages', () => {
     const g = new Game();
     g.gather('dryStone');
     g.tick(3); // the first-stone celebration ends; the message is still showing
-    expect(g.objectives.view()!.message).toBe('Stone collected!');
+    expect(g.lessons.view()!.message).toBe('Stone collected!');
     g.tick(5);
-    expect(g.objectives.view()!.message).toBeNull();
+    expect(g.lessons.view()!.message).toBeNull();
   });
   it('holding a slab with no workbench says to find ground; near an unfinished one says what it needs', () => {
     const g = new Game();
     g.addItem('slab');
     g.takeOut('slab');
     g.tick(0.6);
-    expect(g.objectives.view()!.message).toMatch(/open ground/);
+    expect(g.lessons.view()!.message).toMatch(/open ground/);
     const h = new Game();
     h.addItem('dryStone', 3);
     h.placeFromBook('workbench', 0, -1);
     h.tick(0.6);
-    expect(h.objectives.view()!.message).toMatch(/3 more parts needed/);
+    expect(h.lessons.view()!.message).toMatch(/3 more parts needed/);
   });
   it('a fitting part held near its mark says it fits and where to put it', () => {
     const g = new Game();
@@ -40,14 +41,14 @@ describe('contextual messages', () => {
     g.takeOut('dryStone');
     g.tick(6);
     g.tick(0.6);
-    expect(g.objectives.view()!.message).toMatch(/Let go here/);
+    expect(g.lessons.view()!.message).toMatch(/Let go here/);
   });
   it('every failure reason shows on the card, on any objective, and then clears', () => {
     const g = new Game();
     g.toast('Too close to the stream. Find firmer ground.', 'bad');
-    expect(g.objectives.view()!.feedback).toBe('Too close to the stream. Find firmer ground.');
+    expect(g.lessons.view()!.feedback).toBe('Too close to the stream. Find firmer ground.');
     g.tick(10);
-    expect(g.objectives.view()!.feedback).toBeNull();
+    expect(g.lessons.view()!.feedback).toBeNull();
   });
   it('messages are not repeated every few seconds', () => {
     const g = new Game();
@@ -55,7 +56,7 @@ describe('contextual messages', () => {
     g.tick(8);
     g.gather('dryStone');
     g.tick(3);
-    expect(g.objectives.view()!.message).toBeNull();
+    expect(g.lessons.view()!.message).toBeNull();
   });
 });
 
@@ -63,11 +64,11 @@ describe('material counts and ready to build', () => {
   it('shows stones and the flat stone as counts and says when you can start', () => {
     const g = new Game();
     toWorkbench(g);
-    expect(g.objectives.current!.id).toBe('workbench');
+    expect(g.lessons.current!.id).toBe('workbench');
     expect(materialsLine('workbench', g)).toBe('Stones 3/3, flat stone 1/1');
-    expect(g.objectives.view()!.where).toBe('Stones 3/3, flat stone 1/1');
+    expect(g.lessons.view()!.where).toBe('Stones 3/3, flat stone 1/1');
     expect(readyToBuild(g)).toMatch(/Ready! Open Build, choose Workbench/);
-    expect(g.objectives.view()!.next).toMatch(/Ready!/);
+    expect(g.lessons.view()!.next).toMatch(/Ready!/);
   });
   it('counts what you hold and what is already placed, and drops the note once building starts', () => {
     const g = new Game();
@@ -90,8 +91,8 @@ describe('hint chime and unsticking', () => {
     const g = new Game();
     const levels: number[] = [];
     g.on((e) => e.type === 'hintGiven' && levels.push(e.level));
-    g.objectives.unlockHint('firstStone');
-    g.objectives.unlockHint('firstStone');
+    g.lessons.unlockHint('firstStone');
+    g.lessons.unlockHint('firstStone');
     expect(levels).toEqual([1, 2]);
   });
   it('anything resting inside an obstacle is moved to the free point, and nothing else is touched', () => {
@@ -114,7 +115,7 @@ describe('only the wanted structure may start an outline', () => {
     for (let i = 0; i < 4; i++) g.gather('dryStone');
     g.gather('slab');
     g.tick(3);
-    expect(g.objectives.current!.id).toBe('workbench');
+    expect(g.lessons.current!.id).toBe('workbench');
     expect(g.wantedStructure()).toBe('workbench');
     g.tutorialStructure = 'firePit';
     expect(g.wantedStructure()).toBe('firePit');
@@ -125,7 +126,7 @@ describe('only the wanted structure may start an outline', () => {
   });
   it('once the beginner objectives are over any structure may start', () => {
     const g = new Game();
-    g.objectives.done = true;
+    finishAll(g);
     expect(g.wantedStructure()).toBeUndefined();
   });
 });

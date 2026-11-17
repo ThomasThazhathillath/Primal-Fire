@@ -1,10 +1,10 @@
-// Level title cards: "Level N: name" when a level starts, and a
-// level-complete card with a recap of the science learned in it.
+// Lesson cards: "Lesson 0N: name" when a lesson starts (story and survival goal), and a lesson-complete
+// card with the science discovered in it and what it opens up. For now both go to the HUD message line.
 
 import { createSystem, RayInteractable, type UIKit, type UIKitMLAsset } from '@iwsdk/core';
 import type { GameEvent } from '../game/game.js';
-import { GAME_LEVELS, type GameLevel } from '../game/levels.js';
-import { QUESTS } from '../game/quests.js';
+import { LESSONS, lessonById } from '../game/curriculum/registry.js';
+import type { LessonDef, LessonId } from '../game/curriculum/types.js';
 import { getGame, hidePanel, placeInFront, uiText } from './shared.js';
 import { WorldSystem } from './world-system.js';
 
@@ -30,7 +30,7 @@ export class LevelSystem extends createSystem({}) {
     this.cleanupFuncs.push(
       () => ok.removeEventListener('click', next),
       getGame(this.world).on((e: GameEvent) => {
-        if (e.type === 'levelComplete') this.levelDone(e.level, e.next);
+        if (e.type === 'lessonComplete') this.lessonDone(e.lesson, e.next?.id ?? null);
       }),
     );
   }
@@ -41,7 +41,8 @@ export class LevelSystem extends createSystem({}) {
     if (started && !this.wasStarted) {
       this.wasStarted = true;
       // Resumed saves have played time; a fresh start has at most a frame or two.
-      this.titleCard(getGame(this.world).gameLevel, getGame(this.world).time > 1);
+      const lesson = getGame(this.world).lessons.lesson;
+      if (lesson) this.titleCard(lesson, getGame(this.world).time > 1);
     }
     if (this.pending && (this.timer -= delta) <= 0) {
       this.pending = false;
@@ -49,19 +50,17 @@ export class LevelSystem extends createSystem({}) {
     }
   }
 
-  private titleCard(lv: GameLevel, resumed: boolean): void {
-    this.show(`LEVEL ${lv.n} OF ${GAME_LEVELS.length}`, lv.name, resumed ? `Welcome back. ${lv.intro}` : lv.intro, '', resumed ? 'Continue' : 'Begin');
+  private titleCard(l: LessonDef, resumed: boolean): void {
+    const num = `LESSON ${String(l.n).padStart(2, '0')} OF ${String(LESSONS.length).padStart(2, '0')}`;
+    this.show(num, l.name, resumed ? `Welcome back. ${l.goal}` : `${l.story} Goal: ${l.goal}`, '', resumed ? 'Continue' : 'Begin');
   }
 
-  private levelDone(n: number, next: GameLevel | null): void {
-    const lv = GAME_LEVELS[n - 1];
-    const learned = lv.quests
-      .map((t) => QUESTS.find((q) => q.title === t)?.recap)
-      .filter(Boolean)
-      .map((r) => `- ${r}`)
-      .join('\n');
-    this.show(`LEVEL ${n} COMPLETE`, lv.name, next ? `Next: Level ${next.n}, ${next.name}.` : 'You have finished all three levels of Chapter 1.', learned, 'Continue');
-    if (next) this.queue.push(() => this.titleCard(next, false));
+  private lessonDone(id: LessonId, next: LessonId | null): void {
+    const l = lessonById(id)!;
+    const learned = l.science.map((s) => `- ${s}`).join('\n');
+    const after = next ? lessonById(next) : null;
+    this.show(`LESSON ${String(l.n).padStart(2, '0')} COMPLETE`, l.name, `${l.complete}${after ? ` Next: Lesson ${String(after.n).padStart(2, '0')}, ${after.name}.` : ' Every lesson is complete.'}`, learned, 'Continue');
+    if (after) this.queue.push(() => this.titleCard(after, false));
   }
 
   private show(eyebrow: string, title: string, body: string, learned: string, button: string): void {

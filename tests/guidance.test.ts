@@ -80,7 +80,7 @@ describe('objective cards', () => {
     }
     expect(seen.size).toBe(ids.length);
     // The live card carries it from the first objective.
-    expect(g.objectives.view()!.where).toMatch(/metres|beside you/);
+    expect(g.lessons.view()!.where).toMatch(/metres|beside you/);
   });
   it('the science objective points to the ruins', () => {
     expect(OBJECTIVES.find((o) => o.id === 'science')!.place).toBe('ruins');
@@ -139,8 +139,8 @@ describe('the objective decides which outline a held part offers', () => {
     for (let i = 0; i < 4; i++) g.gather('dryStone');
     g.gather('slab');
     g.tick(3);
-    expect(g.objectives.current!.id).toBe('workbench');
-    expect(g.objectives.current!.structure).toBe('workbench');
+    expect(g.lessons.current!.id).toBe('workbench');
+    expect(g.lessons.current!.structure).toBe('workbench');
   });
 });
 

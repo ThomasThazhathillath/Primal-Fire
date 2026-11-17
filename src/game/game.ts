@@ -34,7 +34,7 @@ import { observationsForEvent, OBSERVATIONS } from './observations.js';
 import { isScienceEvent } from './science-events.js';
 import { GuideTracker, isGuideFailure, type GuideSave } from './guides.js';
 import { FoodState, type FoodSave } from './food.js';
-import { GAME_LEVELS, levelForQuest, migrateQuestIndex, QUESTS_VERSION, type GameLevel } from './levels.js';
+import { migrateQuestIndex, QUESTS_VERSION } from './levels.js';
 import { WaterState, type WaterSave } from './water.js';
 
 /** Interaction failures whose guide wording lives under a different code. */
@@ -48,11 +48,12 @@ import { ASSIST, needText, openMarks, resolveTarget, snapVerdict, type Candidate
 import { Adaptive, type AssistSave, StruggleTracker } from './adaptive.js';
 import { frameDone, inside as insideShelter, leakingPanels, RAIN_MAX, roofed, ShelterTest, type ShelterTestSave, stageCount } from './shelter.js';
 import { CONTINUOUS, type IntentAction, type IntentTarget, resolveIntent } from './intent.js';
-import { type InteractionId, type Objective, ObjectiveTracker, type ObjectivesSave } from './objectives.js';
-import { QUESTS, type QuestStep } from './quests.js';
+import type { InteractionId, ObjectivesSave } from './objectives.js';
 import { LANDMARKS, type Landmark } from './world-layout.js';
-import type { NextLesson } from './curriculum/tracker.js';
-import type { LessonId } from './curriculum/types.js';
+import { deriveLessons } from './curriculum/migrate.js';
+import { LessonTracker, type LessonsSave, type NextLesson } from './curriculum/tracker.js';
+import type { LessonId, Step } from './curriculum/types.js';
+import { SAVE_VERSION } from './save.js';
 
 export type FlagId =
   | 'cordMade'
@@ -93,8 +94,6 @@ export type GameEvent =
   | { type: 'lash'; id: number; index: number; progress: number }
   | { type: 'objectiveDone'; id: string; message: string }
   | { type: 'lessonComplete'; lesson: LessonId; n: number; name: string; next: NextLesson | null }
-  | { type: 'questComplete'; index: number; title: string; roadmapNode: string | null }
-  | { type: 'levelComplete'; level: number; name: string; next: GameLevel | null }
   | { type: 'discovered'; landmark: Landmark }
   | { type: 'fire'; stage: FireStage; first?: boolean }
   | { type: 'arrow'; hit: boolean }
@@ -109,6 +108,9 @@ export type GameEvent =
 
 /** XP needed to reach each level (index = level − 1). */
 export const LEVELS = [0, 100, 250, 450, 700, 1000, 1400, 99999];
+/** XP for finishing a lesson step, and for finishing a whole lesson. */
+export const STEP_XP = 30;
+export const LESSON_XP = 150;
 /** Visible wrap steps while lashing a joint (BuildSystem redraws the joint once per step). */
 export const LASH_STEPS = 8;
 /** While building, refill your hand with the next part only within this distance (m) of the build. */
@@ -238,20 +240,22 @@ export class Game {
   readonly discovered = new Set<string>(LANDMARKS.filter((l) => l.known).map((l) => l.id));
   readonly log: EventLog;
   readonly fire = new FireState(this);
-  /** Beginner objectives: one at a time, over the existing quests (objectives.ts). */
-  readonly objectives: ObjectiveTracker = new ObjectiveTracker(this, (e) => this.emit(e));
+  /** The five-lesson curriculum: the one progression driver (curriculum/tracker.ts). */
+  readonly lessons: LessonTracker = new LessonTracker(this, (e) => this.emit(e));
+  /** A message to show once play starts (e.g. after an old save was moved into lessons). */
+  startupNotice: string | null = null;
 
   // ------------------------------------------------------------ focus API
   // Systems ask these instead of reaching into objectives, quests or story flags, so the tracker
   // behind them (beginner objectives today, lessons next) can change without touching every system.
 
   /** The step tracker the card, hints and help read: hint levels, short messages, the card view. */
-  get steps(): ObjectiveTracker {
-    return this.objectives;
+  get steps(): LessonTracker {
+    return this.lessons;
   }
 
   /** The step on the card: the one thing to do next (null when no step is being guided). */
-  focus(): Objective | null {
+  focus(): Step | null {
     return this.steps.current;
   }
 
@@ -277,7 +281,7 @@ export class Game {
 
   /** Controls learned so far (carried over from the tutorial). */
   learnedControls(): InteractionId[] {
-    return this.steps.snapshot().learned as InteractionId[];
+    return this.steps.learnedList();
   }
   /** Chapter 1 story beats: once each, saved (story.ts). */
   readonly story: StoryTracker = new StoryTracker(this);
@@ -295,7 +299,6 @@ export class Game {
   /** Uses left on each tool in the satchel (absent = full). */
   readonly toolUses = new Map<ItemId, number>();
   private flags = new Set<FlagId>();
-  private hintLevels = new Map<string, number>();
   private listeners = new Set<(e: GameEvent) => void>();
   private nextStructureId = 1;
   /** Game time of the last "you need cord" toast while lashing (so it is not repeated every frame). */
@@ -321,7 +324,10 @@ export class Game {
   }
 
   private emit(e: GameEvent): void {
-    this.objectives?.observe(e);
+    this.lessons?.observe(e);
+    // Finishing a step or a lesson is worth XP (migration settles silently, without these events).
+    if (e.type === 'objectiveDone') this.addXp(STEP_XP);
+    if (e.type === 'lessonComplete') this.addXp(LESSON_XP);
     this.story?.observe(e);
     for (const l of this.listeners) l(e);
   }
@@ -527,7 +533,7 @@ export class Game {
     this.toast(`Made: ${itemName(r.output)}`, 'good');
     if (r.observation) this.observe(r.observation);
     for (const ev2 of r.science ?? []) this.science(ev2);
-    this.checkQuests();
+    this.checkProgress();
     this.emit({ type: 'bench', state: 'done' });
   }
 
@@ -569,7 +575,7 @@ export class Game {
     if (r.observation) this.observe(r.observation);
     for (const ev of r.science ?? []) this.science(ev);
     this.log.add(`bound ${r.output}`, 'ok');
-    this.checkQuests();
+    this.checkProgress();
     return true;
   }
 
@@ -698,7 +704,7 @@ export class Game {
     if (a.outputs.cord) this.setFlag('cordMade');
     if (a.observation) this.observe(a.observation);
     if (a.science) this.science(a.science);
-    this.checkQuests();
+    this.checkProgress();
     return true;
   }
 
@@ -745,14 +751,8 @@ export class Game {
     return SATCHEL_ORDER.filter((id) => this.count(id) > 0).map((id) => ({ id, count: this.count(id) }));
   }
 
-  get quest() {
-    return QUESTS[this.questIndex] ?? null;
-  }
 
   /** The game level (1-3) you are playing, from your quest progress. */
-  get gameLevel(): GameLevel {
-    return levelForQuest(this.questIndex);
-  }
 
   /** XP progress through the current level, 0..1. */
   get levelProgress(): number {
@@ -765,10 +765,16 @@ export class Game {
 
   tick(dt: number): void {
     this.time += dt;
-    this.objectives.tick(dt);
+    this.lessons.tick(dt);
+    if (this.startupNotice) {
+      this.toast(this.startupNotice, 'note');
+      this.startupNotice = null;
+    }
+    // The slow step (4 Hz): shelter rain test and lesson progress from state.
     if ((this.shelterT += dt) >= 0.25) {
       this.tickShelter(this.shelterT);
       this.shelterT = 0;
+      this.lessons.update();
     }
     this.fire.tick(dt);
     this.water.tick(dt);
@@ -901,7 +907,7 @@ export class Game {
     this.toast(big ? `+1 ${itemName(id)}` : `+1 ${itemName(id)} (${this.count(id)} in bag)`);
     const obs = ITEMS[id].firstObservation;
     if (first && obs) this.observe(obs);
-    this.checkQuests();
+    this.checkProgress();
     return true;
   }
 
@@ -1273,8 +1279,7 @@ export class Game {
    */
   wantedStructure(): StructureKind | null | undefined {
     if (this.tutorialStructure !== undefined) return this.tutorialStructure;
-    if (this.objectives.done) return undefined;
-    return this.objectives.current?.structure ?? null;
+    return this.lessons.buildFocus();
   }
 
   /**
@@ -1618,7 +1623,7 @@ export class Game {
       if (s.spots.includes('dryGrass')) this.science('shelter.bed.insulated');
       this.science('shelter.wind.blocked');
     }
-    this.checkQuests();
+    this.checkProgress();
   }
 
   // ------------------------------------------------------------ Chapter 2: the shelter
@@ -1658,7 +1663,7 @@ export class Game {
       this.toast('The roof is on. Will it keep the rain out? We are about to find out.', 'good');
       this.emit({ type: 'shelterStage', stage: 7, id: s.id });
     }
-    this.checkQuests();
+    this.checkProgress();
   }
 
   /** The nearest unfinished lashing joint within `reach` m of a point (the hand), or null. */
@@ -1801,7 +1806,7 @@ export class Game {
       default:
         break;
     }
-    if (ev) this.checkQuests();
+    if (ev) this.checkProgress();
   }
 
   nearbyWorkbench(): PlacedStructure | null {
@@ -1838,7 +1843,7 @@ export class Game {
     this.toast(`Made: ${itemName(recipe.output)}`, 'good');
     this.observe(recipe.observation);
     this.science(recipe.id === 'cord' ? 'craft.cord' : 'craft.bowdrill');
-    this.checkQuests();
+    this.checkProgress();
     return true;
   }
 
@@ -1860,7 +1865,7 @@ export class Game {
     this.events.add(event);
     this.log.add(`event: ${event}`, 'ok');
     for (const id of observationsForEvent(event)) this.observe(id);
-    this.checkQuests();
+    this.checkProgress();
     this.checkLiving();
   }
 
@@ -1916,85 +1921,37 @@ export class Game {
 
   // -------------------------------------------------------------- quests
 
-  /** The first unfinished step of the current quest. */
-  currentStep(): { step: QuestStep; index: number } | null {
-    const q = this.quest;
-    if (!q) return null;
-    const index = q.steps.findIndex((s) => !s.done(this));
-    return index < 0 ? null : { step: q.steps[index], index };
-  }
-
-  checkQuests(): void {
-    // Chapter 2 opens the moment its first quest is the current one.
-    if (this.quest?.title === 'A Place to Call Home') this.science('story.ch2.begin');
-    while (this.quest && this.quest.steps.every((s) => s.done(this))) {
-      const q = this.quest;
-      const index = this.questIndex;
-      this.questIndex++;
-      this.log.add(`quest complete: ${q.title}`, 'ok');
-      this.addXp(100);
-      this.toast(
-        q.roadmapNode ? `Quest complete: ${q.title} — a node on the Roadmap will light up.` : `Quest complete: ${q.title}. Time for science.`,
-        'good',
-      );
-      if (q.recap) this.toast(q.recap, 'note');
-      this.emit({ type: 'questComplete', index, title: q.title, roadmapNode: q.roadmapNode });
-      const before = levelForQuest(index);
-      // The level's last quest just finished.
-      if (q.title === before.quests[before.quests.length - 1]) {
-        this.levelReached = Math.max(this.levelReached, Math.min(GAME_LEVELS.length, before.n + 1));
-        this.addXp(before.xp);
-        this.log.add(`level complete: ${before.name}`, 'ok');
-        this.emit({ type: 'levelComplete', level: before.n, name: before.name, next: before.n < GAME_LEVELS.length ? GAME_LEVELS[before.n] : null });
-      }
-    }
-    this.objectives.update();
-    this.emit({ type: 'quest', index: this.questIndex });
+  /** Something changed: settle lesson progress (and open the shelter story when its work begins). */
+  checkProgress(): void {
+    if (this.focusIs('pole', 'frame', 'roof', 'rainTest', 'bed')) this.science('story.ch2.begin');
+    this.lessons.update();
   }
 
   /**
-   * Hints escalate each time you ask about the same step: the science clue,
-   * then the kind of place, then a direction and distance.
+   * The H key / hint button with no card open: the next hint level of the step on the card (science clue,
+   * then what it looks like, then where, then exactly what to do), pointing the way from level 3.
    */
   hint(locate: Locator): HintResult | null {
-    const cur = this.currentStep();
-    if (!cur) return null;
-    const key = `${this.questIndex}.${cur.index}`;
-    const level = Math.min(2, this.hintLevels.get(key) ?? 0) as 0 | 1 | 2;
-    this.hintLevels.set(key, level + 1);
-    const { step } = cur;
-    let result: HintResult;
-    // An active crafting guide supplies the text; the quest's own hints otherwise.
-    const guided = this.guide.hintText(level);
-    if (guided && guided.level < 2) {
-      result = { level: guided.level, text: guided.text };
-    } else if (guided) {
-      result = { level: 2, text: guided.text, target: this.directionHint(step, locate).target };
-    } else if (level === 0 || level === 1) {
-      result = { level, text: step.hints[level] };
-    } else {
-      result = this.directionHint(step, locate);
-    }
-    this.log.add(`hint ${key} level ${result.level}`);
-    this.toast(`💡 ${result.text}`, 'note');
+    const step = this.focus();
+    if (!step) return null;
+    const level = this.steps.unlockHint(step.id);
+    // An active crafting guide supplies the text; the step's own four hint levels otherwise.
+    const guided = this.guide.hintText(Math.min(2, level - 1) as 0 | 1 | 2);
+    const text = guided ? guided.text : step.hint.levels[level - 1];
+    const result: HintResult = level >= 3 ? { ...this.directionHint(step, locate), level: 2, text } : { level: (level - 1) as 0 | 1, text };
+    this.log.add(`hint ${step.id} level ${level}`);
+    this.toast(`💡 ${text}`, 'note');
     return result;
   }
 
-  private directionHint(step: QuestStep, locate: Locator): HintResult {
-    const t = step.target;
-    if ('structure' in t) {
-      const built = this.structures.find((s) => s.kind === t.structure);
-      if (built) return this.pointTo(built.x, built.z, `your ${BLUEPRINTS[t.structure].name.toLowerCase()}`);
-      // Not built yet: if you already carry the key part, advise on ground;
-      // otherwise point to where the key part can be found.
-      const def = BLUEPRINTS[t.structure];
-      const hasKey = def.keyAccepts.some((id) => this.count(id) > 0 || this.held === id);
-      if (hasKey || t.items.length === 0) return { level: 2, text: `Build it on ${def.groundAdvice.charAt(0).toLowerCase()}${def.groundAdvice.slice(1)}` };
+  private directionHint(step: Step, locate: Locator): Omit<HintResult, 'text'> & { text?: string } {
+    if (step.structure) {
+      const built = this.structures.find((s) => s.kind === step.structure);
+      if (built) return this.pointTo(built.x, built.z, `your ${BLUEPRINTS[step.structure].name.toLowerCase()}`);
     }
-    const wanted = t.items.filter((id) => !this.isUniqueAndOwned(id));
+    const wanted = (step.find?.(this) ?? []).filter((id) => !this.isUniqueAndOwned(id));
     const spot = wanted.length ? locate(wanted, this.player) : null;
-    if (!spot) return { level: 2, text: step.hints[1] };
-    return this.pointTo(spot.x, spot.z, 'what you need');
+    return spot ? this.pointTo(spot.x, spot.z, 'what you need') : { level: 2 };
   }
 
   private isUniqueAndOwned(id: ItemId): boolean {
@@ -2020,7 +1977,7 @@ export class Game {
 
   snapshot(): SaveData {
     return {
-      v: 1,
+      v: SAVE_VERSION,
       time: this.time,
       xp: this.xp,
       level: this.level,
@@ -2054,7 +2011,7 @@ export class Game {
       drops: this.drops.map((d) => ({ ...d })),
       toolUses: Object.fromEntries(this.toolUses),
       fire: this.fire.snapshot(),
-      objectives: this.objectives.snapshot(),
+      lessons: this.lessons.snapshot(),
       story: this.story.snapshot(),
       assist: this.assist.snapshot(),
       shelterTest: this.shelterTest.snapshot(),
@@ -2067,8 +2024,9 @@ export class Game {
     g.time = data.time;
     g.xp = data.xp;
     g.level = data.level;
+    // The old quest chain no longer drives anything; its position is kept only so saves stay readable.
     g.questIndex = migrateQuestIndex(data.questIndex, data.questsVersion);
-    g.levelReached = Math.max(data.levelReached ?? 1, g.gameLevel.n);
+    g.levelReached = data.levelReached ?? 1;
     if (data.water) g.water.restore(data.water);
     if (data.food) g.food.restore(data.food);
     for (const [k, v] of Object.entries(data.satchel)) g.satchel.set(k as ItemId, v);
@@ -2102,7 +2060,12 @@ export class Game {
     // Saves from before the day/night clock: wake up in the morning, not at whatever hour the play time implies.
     if (!data.env) g.env.hourOffset = -(((g.time / g.env.dayLength) * 24) % 24);
     g.held = data.held && data.held in ITEMS ? data.held : null;
-    g.objectives.restore(data.objectives);
+    if (data.lessons) g.lessons.restore(data.lessons);
+    else {
+      // A version-1 save: work out lesson progress from what it holds (curriculum/migrate.ts).
+      deriveLessons(g.lessons, g, { objectives: data.objectives, questIndex: data.questIndex, questsVersion: data.questsVersion });
+      if (g.lessons.completed.size > 0) g.startupNotice = 'Your progress now follows five lessons: Shelter, Fire, Water, Tools, Food. Everything you did still counts.';
+    }
     g.assist.restore(data.assist);
     g.shelterTest.restore(data.shelterTest);
     g.story.restore(data.story);
@@ -2111,9 +2074,12 @@ export class Game {
 }
 
 export interface SaveData {
-  v: 1;
+  /** 1: before lessons; 2: lesson progress saved in `lessons`. */
+  v: 1 | 2;
+  /** Curriculum progress; absent in version-1 saves (worked out from the state, curriculum/migrate.ts). */
+  lessons?: LessonsSave;
   fire?: FireSave;
-  /** Beginner objectives; absent in older saves (migrated from the rest of the state). */
+  /** Version-1 beginner objectives (read only, for migration; no longer written). */
   objectives?: ObjectivesSave;
   /** Chapter 1 story; absent in older saves (beats already past are marked seen, story.ts). */
   story?: StorySave;

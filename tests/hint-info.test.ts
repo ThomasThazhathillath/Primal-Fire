@@ -70,13 +70,13 @@ describe('hint info', () => {
 describe('hint levels persist', () => {
   it('unlocking goes one level at a time, never past four, and survives a save', () => {
     const g = new Game();
-    expect(g.objectives.hintLevel('flatStone')).toBe(0);
-    expect(g.objectives.unlockHint('flatStone')).toBe(1);
-    expect(g.objectives.unlockHint('flatStone')).toBe(2);
-    for (let i = 0; i < 6; i++) g.objectives.unlockHint('flatStone');
-    expect(g.objectives.hintLevel('flatStone')).toBe(4);
+    expect(g.lessons.hintLevel('flatStone')).toBe(0);
+    expect(g.lessons.unlockHint('flatStone')).toBe(1);
+    expect(g.lessons.unlockHint('flatStone')).toBe(2);
+    for (let i = 0; i < 6; i++) g.lessons.unlockHint('flatStone');
+    expect(g.lessons.hintLevel('flatStone')).toBe(4);
     const back = Game.restore(JSON.parse(JSON.stringify(g.snapshot())));
-    expect(back.objectives.hintLevel('flatStone')).toBe(4);
-    expect(back.objectives.hintLevel('firstStone')).toBe(0);
+    expect(back.lessons.hintLevel('flatStone')).toBe(4);
+    expect(back.lessons.hintLevel('firstStone')).toBe(0);
   });
 });

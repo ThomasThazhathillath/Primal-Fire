@@ -35,12 +35,12 @@ export default async function run({ page }) {
   const state = await app.evaluate(() => {
     const p = window.__primal;
     const g = p.game;
-    const card = g.objectives?.view?.() ?? null;
+    const card = g.steps.view();
     return {
-      quest: g.quest?.title ?? null,
-      objective: g.objectives?.current?.id ?? null,
-      card: card ? { title: card.title, step: card.step, total: card.total } : null,
-      lesson: g.lessons?.current ? { id: g.lessons.current.id, step: g.focus?.()?.id ?? null } : null,
+      lesson: g.lessons.lesson?.id ?? null,
+      step: g.focus()?.id ?? null,
+      done: [...g.lessons.lessonDone],
+      card: card ? { title: card.title, step: card.step, total: card.total, lesson: card.lesson?.n ?? null } : null,
       structures: g.structures.map((s) => `${s.kind}${s.complete ? '' : '*'}`),
       notebook: g.notebook.length,
       flags: [...(g['flags'] ?? [])],

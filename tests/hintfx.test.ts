@@ -3,11 +3,12 @@ import { Game } from '../src/game/game.js';
 import { arrived, planHint, PULSE_MAX } from '../src/game/hintfx.js';
 import { OBJECTIVES } from '../src/game/objectives.js';
 import { RESOURCES } from '../src/game/world-layout.js';
+import { jumpTo } from './helpers/lessons.js';
 
 const spots = RESOURCES.map((r) => ({ id: r.id, x: r.x, z: r.z, item: r.itemId }));
 const level = (g: Game, n: number) => {
-  const id = g.objectives.current!.id;
-  for (let i = g.objectives.hintLevel(id); i < n; i++) g.objectives.unlockHint(id);
+  const id = g.lessons.current!.id;
+  for (let i = g.lessons.hintLevel(id); i < n; i++) g.lessons.unlockHint(id);
 };
 
 describe('hint effects follow the hint level', () => {
@@ -41,14 +42,14 @@ describe('hint effects follow the hint level', () => {
     level(g, 4);
     const p = planHint(g, spots);
     expect(p.effects).toMatchObject({ beacon: true, exact: true });
-    expect(g.objectives.current!.id).toBe('firstStone');
-    expect(g.objectives.completed).toHaveLength(0);
+    expect(g.lessons.current!.id).toBe('firstStone');
+    expect(g.lessons.completed).toHaveLength(0);
   });
   it('the beacon target follows what is still needed and where you stand', () => {
     const g = new Game();
     for (let i = 0; i < 4; i++) g.gather('dryStone');
     g.tick(3);
-    expect(g.objectives.current!.id).toBe('flatStone');
+    expect(g.lessons.current!.id).toBe('flatStone');
     level(g, 3);
     const p = planHint(g, spots);
     const slabs = RESOURCES.filter((r) => r.itemId === 'slab');
@@ -67,11 +68,11 @@ describe('hint effects follow the hint level', () => {
     const t = planHint(g, spots).target!;
     expect(arrived(planHint(g, spots), t.x + 1, t.z)).toBe(true);
     expect(arrived(planHint(g, spots), t.x + 20, t.z)).toBe(false);
-    g.objectives.dismissHintFx();
+    g.lessons.dismissHintFx();
     expect(planHint(g, spots).level).toBe(0);
     expect(planHint(g, spots).target).toBeNull();
     // A higher level turns them back on.
-    g.objectives.unlockHint('firstStone');
+    g.lessons.unlockHint('firstStone');
     expect(planHint(g, spots).level).toBeGreaterThan(0);
     // Completing the objective ends them for good: the next objective starts with none.
     g.gather('dryStone');
@@ -83,7 +84,7 @@ describe('hint effects follow the hint level', () => {
     for (let i = 0; i < 4; i++) g.gather('dryStone');
     g.gather('slab');
     g.tick(3);
-    expect(g.objectives.current!.id).toBe('workbench');
+    expect(g.lessons.current!.id).toBe('workbench');
     g.placeFromBook('workbench', 0, -1);
     level(g, 4);
     const p = planHint(g, spots);
@@ -94,10 +95,8 @@ describe('hint effects follow the hint level', () => {
     const g = new Game();
     g.gather('dryGrass');
     g.gather('dryGrass');
-    g.objectives.index = OBJECTIVES.findIndex((o) => o.id === 'stoneTools');
-    expect(g.objectives.current?.id).toBe('stoneTools');
-    // The quest list behind the card is still on "twigs and logs" (what the hint button used to point at).
-    expect(g.currentStep()?.step.target).toMatchObject({ items: ['twigs', 'logs'] });
+    jumpTo(g, 'stoneTools');
+    expect(g.lessons.current?.id).toBe('stoneTools');
     level(g, 3);
     const p = planHint(g, spots);
     expect(p.needed).toEqual(['flint']);
@@ -106,8 +105,8 @@ describe('hint effects follow the hint level', () => {
   });
   it('the science objective points at the ruins', () => {
     const g = new Game();
-    g.objectives.index = OBJECTIVES.findIndex((o) => o.id === 'science');
-    expect(g.objectives.current?.id).toBe('science');
+    jumpTo(g, 'science');
+    expect(g.lessons.current?.id).toBe('science');
     level(g, 3);
     const p = planHint(g, spots);
     expect(p.target!.id).toBe('place_ruins');
@@ -123,7 +122,7 @@ describe('ground glow', () => {
     level(g, 3);
     const p = planHint(g, spots);
     expect(glowFor(p)).toBe(p.target);
-    g.objectives.dismissHintFx();
+    g.lessons.dismissHintFx();
     expect(glowFor(planHint(g, spots))).toBeNull();
   });
 });

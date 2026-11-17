@@ -6,8 +6,8 @@ export default async function run({ page }) {
     const p = window.__primal;
     const ui = p.world.globals.ui;
     if (mode === 'begin') p.begin();
-    else if (mode === 'close') ui.openHint(p.game.objectives.view().id);
-    else ui.openHint(p.game.objectives.view().id);
+    else if (mode === 'close') ui.openHint(p.game.steps.view().id);
+    else ui.openHint(p.game.steps.view().id);
     await new Promise((r) => setTimeout(r, 800));
     return { cardVisible: window.__objcard.panel.visible, hintOpen: ui.hintOpen?.(), hint: window.__hint?.state?.() };
   }, process.env.MODE ?? 'open');

@@ -9,7 +9,8 @@
 // (src/game/ui-touch.ts) like the icon bar, never a pinch or controller button.
 
 import { createSystem, type Entity, findUIKitDocument, RayInteractable, ScreenSpace, type UIKit, type UIKitMLAsset, VisibilityState } from '@iwsdk/core';
-import { cardView, objectiveById, type ObjectiveView } from '../game/objectives.js';
+import { cardView, type ObjectiveView } from '../game/objectives.js';
+import { stepById } from '../game/curriculum/registry.js';
 import { PanelTouch } from './panel-touch.js';
 import { PopIn } from './ui-fx.js';
 import { OBJECTIVE_CLIPS } from './ghost-hand-system.js';
@@ -157,7 +158,7 @@ export class ObjectiveCardSystem extends createSystem({}) {
     }
     const game = getGame(this.world);
     const level = game.steps.unlockHint(v.id);
-    const o = objectiveById(v.id);
+    const o = stepById(v.id);
     if (o) game.toast(`Hint ${level}/4: ${o.hint.levels[level - 1]}`, 'note');
     this.dirty = true;
   }

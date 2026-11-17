@@ -22,7 +22,8 @@ import {
   VisibilityState,
 } from '@iwsdk/core';
 import { hintInfo, hintView } from '../game/hint-info.js';
-import { cardView, objectiveById } from '../game/objectives.js';
+import { cardView } from '../game/objectives.js';
+import { stepById } from '../game/curriculum/registry.js';
 import { type HintImages, sharedImages } from './hint-images.js';
 import { PanelTouch } from './panel-touch.js';
 import { PopIn } from './ui-fx.js';
@@ -111,7 +112,7 @@ export class HintPanelSystem extends createSystem({}) {
   }
 
   open(id: string): void {
-    if (!this.ready || !objectiveById(id)) return;
+    if (!this.ready || !stepById(id)) return;
     const game = getGame(this.world);
     // Opening always shows the first level; the rest are asked for one at a time.
     if (game.steps.hintLevel(id) < 1) {
@@ -156,7 +157,7 @@ export class HintPanelSystem extends createSystem({}) {
 
   private render(): void {
     const id = this.opened;
-    const o = id ? objectiveById(id) : null;
+    const o = id ? stepById(id) : null;
     if (!id || !o) return;
     const game = getGame(this.world);
     const level = Math.max(1, game.steps.hintLevel(id));
@@ -192,11 +193,11 @@ export class HintPanelSystem extends createSystem({}) {
     if (!this.ready || !this.opened) return;
     this.idle += delta;
     if (this.idle > IDLE_CLOSE) return this.close();
-    // The objective moved on (or the tutorial ended): the panel goes with it.
+    // The step moved on (or the lessons ended): the panel goes with it. Compared with the current step, not
+    // the card, which still shows the step just finished while it is celebrated.
     if ((this.watch += delta) > 0.25) {
       this.watch = 0;
-      const v = cardView(getGame(this.world));
-      if (!v || v.id !== this.opened) return this.close();
+      if (getGame(this.world).focus()?.id !== this.opened) return this.close();
     }
     this.place();
     if (!this.vr) return;

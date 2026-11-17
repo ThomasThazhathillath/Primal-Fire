@@ -8,6 +8,7 @@ import { BLUEPRINTS, checkPlacement, type PlacedStructure, type StructureKind } 
 import { BENCH_RECIPES } from './bench.js';
 import type { Game } from './game.js';
 import { itemName, type ItemId } from './items.js';
+import type { LessonId } from './curriculum/types.js';
 
 export interface BookPart {
   /** "Stone", "Forked stick"... what the slot takes (alternatives joined by " or "). */
@@ -32,8 +33,8 @@ export interface BookEntry {
 }
 
 interface Unlock {
-  /** Open at this game level or later. */
-  level?: number;
+  /** Open once the player has reached this lesson. */
+  lesson?: LessonId;
   /** ...or once you have gathered any of these. */
   gathered?: ItemId[];
   /** ...or once any of these science events fired. */
@@ -57,16 +58,17 @@ const DESCRIPTIONS: Record<StructureKind, string> = {
 };
 
 const UNLOCKS: Record<StructureKind, Unlock> = {
-  firePit: { level: 1, hint: '' },
-  workbench: { level: 1, hint: '' },
-  storage: { level: 3, gathered: ['cane'], hint: 'Find hollow cane by the stream, or reach the Camp level.' },
-  filter: { level: 2, gathered: ['charcoal'], hint: 'Make charcoal, or reach the Clean Water level.' },
-  shelter: { level: 3, gathered: ['twigs'], events: ['shelter.site.chosen'], hint: 'Gather twigs, or reach the Camp level.' },
-  leanTo: { events: ['story.ch2.begin'], gathered: ['pole'], hint: 'Chapter 2: find long straight poles in the forest.' },
+  firePit: { lesson: 'shelter', hint: '' },
+  workbench: { lesson: 'shelter', hint: '' },
+  storage: { lesson: 'food', gathered: ['cane'], hint: 'Find hollow cane by the stream, or reach Lesson 05.' },
+  filter: { lesson: 'water', gathered: ['charcoal'], hint: 'Make charcoal, or reach Lesson 03: Water.' },
+  // The old 4-spot shelter: hidden from the book (the lean-to replaced it); kept so saved ones still load.
+  shelter: { events: ['shelter.site.chosen'], hint: 'Replaced by the lean-to.' },
+  leanTo: { events: ['story.ch2.begin'], gathered: ['pole'], hint: 'Find long straight poles in the forest.' },
   drainage: { events: ['shelter.rain.begin'], hint: 'Dug during the rain test.' },
-  dryingRack: { level: 3, events: ['food.fish.caught', 'farm.harvested'], hint: 'Catch a fish or bring in a harvest, or reach the Camp level.' },
-  woodStack: { level: 3, events: ['story.ch2.begin'], hint: 'Begin Chapter 2, or reach the Camp level.' },
-  bedding: { level: 3, events: ['story.ch2.begin'], hint: 'Begin Chapter 2, or reach the Camp level.' },
+  dryingRack: { lesson: 'food', events: ['food.fish.caught', 'farm.harvested'], hint: 'Catch a fish or bring in a harvest, or reach Lesson 05.' },
+  woodStack: { lesson: 'fire', events: ['story.ch2.begin'], hint: 'Start your shelter, or reach Lesson 02: Fire.' },
+  bedding: { lesson: 'fire', events: ['story.ch2.begin'], hint: 'Start your shelter, or reach Lesson 02: Fire.' },
 };
 
 const RECIPE_UNLOCK: Unlock = { built: 'workbench', hint: 'Build a workbench first.' };
@@ -95,7 +97,7 @@ function groupParts(game: Game, slots: ItemId[][]): BookPart[] {
 }
 
 function isUnlocked(game: Game, u: Unlock): boolean {
-  if (u.level !== undefined && game.gameLevel.n >= u.level) return true;
+  if (u.lesson !== undefined && game.lessons.reached(u.lesson)) return true;
   if (u.gathered?.some((id) => game.gatheredCount(id) > 0)) return true;
   if (u.events?.some((e) => game.events.has(e))) return true;
   if (u.built && game.structures.some((s) => s.kind === u.built && s.complete)) return true;
@@ -106,6 +108,7 @@ export function bookEntries(game: Game): BookEntry[] {
   const out: BookEntry[] = [];
   for (const def of Object.values(BLUEPRINTS)) {
     if (def.kind === 'drainage') continue; // dug during the rain test, never placed from the book
+    if (def.kind === 'shelter') continue; // replaced by the lean-to (saved ones still load and show in the world)
     const slots: ItemId[][] = [def.keyAccepts, ...def.spots.map((s) => s.accepts)];
     const parts = groupParts(game, slots);
     out.push({

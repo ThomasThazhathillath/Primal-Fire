@@ -23,8 +23,8 @@ export default async function run({ page }) {
       const ghost = p.world.scene.getObjectByName('BlueprintGhost');
       return {
         head: head.toArray().map((n) => +n.toFixed(2)),
-        quest: p.game.quest?.title,
-        step: p.game.currentStep()?.index,
+        lesson: p.game.lessons.lesson?.id ?? null,
+        step: p.game.focus()?.id ?? null,
         held: p.game.held,
         satchel: p.game.satchelContents(),
         ghost: { visible: ghost.visible, x: +ghost.position.x.toFixed(2), z: +ghost.position.z.toFixed(2) },

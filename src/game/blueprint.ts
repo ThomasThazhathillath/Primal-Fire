@@ -326,6 +326,10 @@ export type PlacementResult =
   | { ok: true }
   | { ok: false; reason: 'bounds' | 'bank' | 'trees' | 'structure' | 'unfinished'; message: string };
 
+/** Structures built inside another on purpose: a bed goes under the shelter roof. */
+const NESTS: Partial<Record<StructureKind, readonly StructureKind[]>> = { bedding: ['leanTo', 'shelter', 'drainage'] };
+const nests = (a: StructureKind, b: StructureKind): boolean => !!NESTS[a]?.includes(b) || !!NESTS[b]?.includes(a);
+
 export function checkPlacement(
   kind: StructureKind,
   x: number,
@@ -347,6 +351,7 @@ export function checkPlacement(
     return { ok: false, reason: 'trees', message: 'Too cramped between the trees.' };
   }
   for (const s of structures) {
+    if (nests(kind, s.kind)) continue;
     const gap = Math.hypot(s.x - x, s.z - z);
     if (gap < BLUEPRINTS[s.kind].radius + def.radius + 0.3) {
       return {

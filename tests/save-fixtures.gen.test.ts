@@ -65,7 +65,7 @@ function toEmber(g: Game): void {
   gathered(g, { dryStone: 8, slab: 1, flint: 1, flake: 1, twigs: 5, logs: 3, dryGrass: 3, fibers: 3, spindle: 1, board: 1, greenBranch: 1, cane: 1 });
   built(g, 'workbench', 3, -4);
   built(g, 'firePit', -2, -3);
-  g.objectives.learn('bench');
+  g.learn('bench');
   events(g, ['build.workbench.done', 'tool.knap.flake', 'tool.edge.cut', 'craft.cord', 'craft.bowdrill']);
   flags(g, ['cordMade', 'hasDrill', 'fireLayBuilt']);
   g.addItem('bowDrill');
@@ -106,13 +106,13 @@ const STATES: Record<string, () => Record<string, unknown>> = {
   'at-ember': () => {
     const g = new Game();
     toEmber(g);
-    g.checkQuests();
+    g.checkProgress();
     return g.snapshot() as unknown as Record<string, unknown>;
   },
   'make-camp': () => {
     const g = new Game();
     toCamp(g);
-    g.checkQuests();
+    g.checkProgress();
     return g.snapshot() as unknown as Record<string, unknown>;
   },
   'ch2-mid-frame': () => {

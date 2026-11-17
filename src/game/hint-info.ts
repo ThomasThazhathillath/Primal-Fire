@@ -7,6 +7,7 @@
 
 import { BLUEPRINTS } from './blueprint.js';
 import type { ItemId } from './items.js';
+import { LESSON_HINTS } from './curriculum/registry.js';
 
 /** One object in a reference picture, laid out on the ground plane (metres). */
 export type HintPiece =
@@ -223,13 +224,14 @@ export const HINT_INFO: Record<string, HintInfo> = {
   },
 };
 
+/** Picture hint for a step: the beginner objectives' here, the lessons' own from curriculum/registry.ts. */
 export function hintInfo(id: string): HintInfo | undefined {
-  return HINT_INFO[id];
+  return HINT_INFO[id] ?? LESSON_HINTS[id];
 }
 
 /** The picture to show at a hint level (1..4): the first at level 1, the second from level 2 if there is one. */
 export function hintView(id: string, level: number): HintView | null {
-  const v = HINT_INFO[id]?.views;
+  const v = hintInfo(id)?.views;
   if (!v?.length) return null;
   return v[level >= 2 ? Math.min(1, v.length - 1) : 0];
 }
@@ -238,5 +240,5 @@ export function hintView(id: string, level: number): HintView | null {
 export function structureView(kind: string): HintView | null {
   const map: Record<string, string> = { workbench: 'workbench', firePit: 'firePit', shelter: 'shelter' };
   const id = map[kind];
-  return id ? (HINT_INFO[id]?.views[0] ?? null) : null;
+  return id ? (hintInfo(id)?.views[0] ?? null) : null;
 }

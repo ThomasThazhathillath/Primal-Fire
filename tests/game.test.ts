@@ -141,18 +141,16 @@ describe('game flow', () => {
     expect(g.held).toBe('dryStone');
   });
 
-  it('plays the Scavenger quest through to First Fire', () => {
+  it('plays the opening: wood, a workbench, cord, then the bow drill', () => {
     const g = new Game();
-    expect(g.quest?.title).toBe('Scavenger');
+    expect(g.lessons.lesson?.id).toBe('shelter');
     gatherN(g, 'dryGrass', 2);
     gatherN(g, 'twigs', 3);
     gatherN(g, 'logs', 2);
     expect(g.notebook).toContain('g_dead');
-    expect(g.currentStep()?.index).toBe(2); // the workbench step
 
     const bench = build(g, 'workbench', -1, 2, 'slab', 'dryStone');
     expect(g.notebook).toContain('b_tripod');
-    expect(g.currentStep()?.index).toBe(3);
 
     gatherN(g, 'spindle', 1);
     gatherN(g, 'board', 1);
@@ -167,11 +165,11 @@ describe('game flow', () => {
     expect(g.craft('bowDrill')).toBe(true);
     expect(g.count('bowDrill')).toBe(1);
 
-    expect(g.quest?.title).toBe('First Fire');
+    expect(g.flag('cordMade')).toBe(true);
     expect(g.notebook).toEqual(expect.arrayContaining(['g_cord', 'g_bow', 'g_green']));
 
     build(g, 'firePit', -1, -2, 'wetStone', 'dryStone');
-    expect(g.currentStep()?.index).toBe(1); // fire lay next
+    expect(g.hasStructure('firePit')).toBe(true);
   });
 
   it('levels up as XP accumulates', () => {
@@ -186,8 +184,9 @@ describe('game flow', () => {
     expect(g.hint(locateFromLayout)?.level).toBe(1);
     const third = g.hint(locateFromLayout)!;
     expect(third.level).toBe(2);
+    // From the third ask the hint also points the way to what the step needs.
     expect(third.target).toBeDefined();
-    expect(third.text).toMatch(/north|east|south|west/);
+    expect(third.text).toBe(g.focus()!.hint.levels[2]);
   });
 
   it('sources workbench hints from the guide once you carry its key part', () => {

@@ -14,7 +14,7 @@ export const SURVIVAL_SAVE_KEY = 'primal-first-fire.save.v1';
 /** A copy of the last save written before the format was upgraded. */
 export const SURVIVAL_BACKUP_KEY = 'primal-first-fire.save.v1.bak';
 /** The format `Game.snapshot()` writes today. */
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 
 /** The part of Storage the save needs (tests pass a Map-backed fake). */
 export interface SaveStore {
@@ -40,7 +40,8 @@ export function saveVersion(raw: SaveData): number {
  */
 export function migrateSave(raw: unknown): SaveData | null {
   if (!isSave(raw)) return null;
-  // Version 1 is today's format; later versions add steps here, oldest first.
+  // Version 1 saves have no lesson progress: Game.restore works it out from their state (curriculum/migrate.ts).
+  // Later format changes add steps here, oldest first.
   return raw;
 }
 

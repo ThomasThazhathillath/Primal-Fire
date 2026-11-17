@@ -265,7 +265,7 @@ export class FoodState {
       g.science('food.fish.caught');
       if (best.f.size === 2) g.science('food.fish.large');
       g.toast(best.f.size === 2 ? 'A big one! Plenty of meat on it.' : 'Got one! A fish flaps on the spear.', 'good');
-      g.checkQuests();
+      g.checkProgress();
       return 'hit';
     }
     best.f.scared = 2.5;
@@ -342,7 +342,7 @@ export class FoodState {
         st.store[h] = (st.store[h] ?? 0) + 1;
         g.science('food.rack.loaded');
         g.toast('Hung in the open air. Dry food keeps because there is no water left for germs to grow in.', 'note');
-        g.checkQuests();
+        g.checkProgress();
         return true;
       }
       case 'collectDried': {
@@ -361,7 +361,7 @@ export class FoodState {
         st.store ??= {};
         st.store[h] = (st.store[h] ?? 0) + 1;
         g.science('camp.wood.stored');
-        g.checkQuests();
+        g.checkProgress();
         return true;
       }
       case 'takeWood': {
@@ -377,7 +377,7 @@ export class FoodState {
       case 'rest':
         g.science('camp.bed.rested');
         g.toast('Off the cold ground, you can rest properly. Soft layers trap warm air.', 'note');
-        g.checkQuests();
+        g.checkProgress();
         return true;
       default:
         return false;
@@ -506,7 +506,7 @@ export class FoodState {
     g.science('food.cooked');
     g.science('food.fish.opaque');
     g.toast('The flesh turned white and opaque and flakes apart: cooked through.', 'good');
-    g.checkQuests();
+    g.checkProgress();
     return true;
   }
 
@@ -553,7 +553,7 @@ export class FoodState {
         this.plots.push({ id: this.nextId++, x: a.at.x, z: a.at.z, crop: null, growth: 0, moist: 0, shaded: nearestTreeDistance(a.at.x, a.at.z) < SHADE_DISTANCE });
         g.science('farm.plot.dug');
         g.toast('Loose, dark soil: ready to plant.', 'info');
-        g.checkQuests();
+        g.checkProgress();
         return true;
       case 'plant': {
         if (!plot || plot.crop || (g.held !== 'tuber' && g.held !== 'seeds')) return false;
@@ -564,7 +564,7 @@ export class FoodState {
           g.science('farm.shade');
           g.toast('Planted, but the trees shade this plot. It will grow slowly.', 'info');
         } else g.toast('Planted. Now it needs water.', 'info');
-        g.checkQuests();
+        g.checkProgress();
         return true;
       }
       case 'water':
@@ -573,7 +573,7 @@ export class FoodState {
         plot.moist = MOIST_SECONDS;
         g.science('farm.watered');
         g.toast('You soak the soil around the plant.', 'info');
-        g.checkQuests();
+        g.checkProgress();
         return true;
       case 'harvest':
         if (!plot || !plot.crop || plot.growth < 1) return false;
@@ -586,7 +586,7 @@ export class FoodState {
         plot.growth = 0;
         g.science('farm.harvested');
         g.toast('A good harvest: fat tubers, full of stored starch.', 'good');
-        g.checkQuests();
+        g.checkProgress();
         return true;
       case 'cook':
         g.toast('Hold it there until it turns opaque...', 'info');
@@ -596,7 +596,7 @@ export class FoodState {
         g.useItem('cookedFish');
         g.science('body.eat');
         g.toast('Hot, flaky fish. Your strength comes back.', 'good');
-        g.checkQuests();
+        g.checkProgress();
         return true;
       case 'gatherWild': {
         const i = a.wildIndex ?? -1;
@@ -606,7 +606,7 @@ export class FoodState {
         g.addItem('seeds');
         g.gathered.set('tuber', (g.gathered.get('tuber') ?? 0) + 1);
         g.toast('A knobbly tuber, and a pinch of seeds from the flower head.', 'good');
-        g.checkQuests();
+        g.checkProgress();
         return true;
       }
       case 'inspect': {
@@ -616,7 +616,7 @@ export class FoodState {
         g.toast(fp.look, fp.edible ? 'note' : 'bad');
         g.science('food.forage.inspected');
         g.science(fp.edible ? 'food.forage.identified' : 'food.forage.avoided');
-        g.checkQuests();
+        g.checkProgress();
         return true;
       }
       case 'forage': {
@@ -632,7 +632,7 @@ export class FoodState {
         g.gathered.set(fp.yield, (g.gathered.get(fp.yield) ?? 0) + 2);
         g.science('food.forage.picked');
         g.toast('Picked what you could name. It will regrow in time.', 'good');
-        g.checkQuests();
+        g.checkProgress();
         return true;
       }
       case 'eatItem': {
@@ -642,14 +642,14 @@ export class FoodState {
         g.science('body.eat');
         if (h === 'driedFish') g.science('food.preserved.eaten');
         g.toast(h === 'driedFish' ? 'Chewy and salty-smoky: dried fish keeps and still feeds.' : 'A small, sweet, filling handful.', 'good');
-        g.checkQuests();
+        g.checkProgress();
         return true;
       }
       case 'cleanFish':
         if (g.held !== 'fish') return false;
         g.science('food.fish.cleaned');
         g.toast('Gutted with a sharp edge and rinsed in running water: the guts spoil first, and they carry the germs.', 'note');
-        g.checkQuests();
+        g.checkProgress();
         return true;
       case 'hang':
       case 'collectDried':

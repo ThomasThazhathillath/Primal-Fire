@@ -130,6 +130,6 @@ export class IntroSystem extends createSystem({}) {
     if (game.time > 0 || !story) game.toast(game.time > 0 ? 'Welcome back.' : 'You wake with nothing. Look around.', 'note');
     // A new game: the awakening (dark fade-in and first thoughts), once.
     story?.awaken();
-    game.checkQuests();
+    game.checkProgress();
   }
 }

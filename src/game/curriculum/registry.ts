@@ -10,6 +10,7 @@ import { FOOD } from './lessons/food/lesson.js';
 import { SHELTER } from './lessons/shelter/lesson.js';
 import { TOOLS } from './lessons/tools/lesson.js';
 import { WATER } from './lessons/water/lesson.js';
+import type { ExperimentDef } from '../science/experiments.js';
 import type { LessonDef, LessonId, LessonModule, Step } from './types.js';
 
 /** Play order: 01 Shelter, 02 Fire, 03 Water, 04 Tools, 05 Food & Navigation. */
@@ -27,6 +28,9 @@ export const STEP_LIBRARY: ReadonlyMap<string, Step> = new Map<string, Step>([
   ...LESSON_MODULES.flatMap((m) => (m.steps ?? []).map((s) => [s.id, s] as const)),
 ]);
 export const stepById = (id: string): Step | undefined => STEP_LIBRARY.get(id);
+
+/** Every experiment, in lesson order. */
+export const EXPERIMENTS: readonly ExperimentDef[] = LESSON_MODULES.flatMap((m) => m.experiments ?? []);
 
 /** Picture hints for steps the lessons added (the beginner objectives' live in hint-info.ts). */
 export const LESSON_HINTS: Readonly<Record<string, HintInfo>> = Object.assign({}, ...LESSON_MODULES.map((m) => m.hints ?? {}));

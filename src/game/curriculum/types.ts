@@ -8,6 +8,7 @@
 
 import type { HintInfo } from '../hint-info.js';
 import type { Objective } from '../objectives.js';
+import type { ExperimentDef } from '../science/experiments.js';
 
 /** Stable lesson ids: saves store these, never lesson numbers, so lessons can be reordered safely. */
 export type LessonId = 'shelter' | 'fire' | 'water' | 'tools' | 'food';
@@ -49,4 +50,6 @@ export interface LessonModule {
   lesson: LessonDef;
   steps?: Step[];
   hints?: Record<string, HintInfo>;
+  /** Experiments run in this lesson (science/experiments.ts). */
+  experiments?: ExperimentDef[];
 }

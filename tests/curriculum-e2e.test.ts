@@ -66,20 +66,37 @@ describe('a fresh game through the curriculum', () => {
     for (const i of roles('lattice')) expect(g.fillSpot(s.id, i)).toBe(true);
     run(g, 0.5);
     expect(step(g)).toBe('shelter/roof');
-    for (const role of ['roofBark', 'roofLeaf']) for (const i of roles(role)) expect(g.fillSpot(s.id, i)).toBe(true);
+    // Bark everywhere, leaves on two panels: the third panel has a single layer (a fair comparison).
+    for (const i of roles('roofBark')) expect(g.fillSpot(s.id, i)).toBe(true);
+    const leaves = roles('roofLeaf');
+    for (const i of leaves.slice(0, 2)) expect(g.fillSpot(s.id, i)).toBe(true);
     run(g, 0.5);
     expect(step(g)).toBe('shelter/rainTest');
+    // The roof-layer experiment opened with the roof: predict before the rain comes.
+    expect(g.experiments.phase('roofLayers')).toBe('predict');
+    expect(g.experiments.predict('roofLayers', 'two')).toBe(true);
     // Stand inside; the rain comes, the channel plan appears, dig it, stay dry.
     g.player.x = s.x;
     g.player.z = s.z - 0.2;
     run(g, 30);
     expect(g.shelterTest.raining).toBe(true);
+    // The single-layer panel drips; patch it with a second layer (both trials are now real evidence).
+    expect(g.experiments.state('roofLayers').trials.get('1')).toBe('leaks');
+    expect(g.fillSpot(s.id, leaves[2])).toBe(true);
+    run(g, 0.5);
+    expect(g.experiments.phase('roofLayers')).toBe('result');
+    expect(g.experiments.predictedRight('roofLayers')).toBe(true);
     const drain = g.structures.find((t) => t.kind === 'drainage')!;
     g.takeOut('diggingStick');
     for (let i = 0; i < 3; i++) expect(g.fillSpot(drain.id, i)).toBe(true);
     g.stow();
     run(g, HOLD_DRY + 5);
     expect(g.flag('shelterTested')).toBe(true);
+    expect(step(g)).toBe('shelter/roofLayers');
+    g.experiments.acknowledge('roofLayers');
+    expect(g.experiments.answer('roofLayers', 'flat')?.correct).toBe(false);
+    expect(g.experiments.answer('roofLayers', 'layer')?.correct).toBe(true);
+    run(g, 0.5);
     expect(step(g)).toBe('shelter/bed');
     g.addItem('leafLitter', 5);
     g.takeOut('leafLitter');

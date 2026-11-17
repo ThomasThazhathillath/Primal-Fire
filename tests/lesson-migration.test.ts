@@ -25,8 +25,8 @@ const EXPECT: Record<string, [string, string, string[]]> = {
   'make-camp': ['shelter', 'pole', ['fire', 'water']],
   'pre-quests-version': ['shelter', 'pole', ['fire', 'water']],
   'ch2-mid-frame': ['shelter', 'frame', ['fire', 'water']],
-  // Everything of the old game done: only the new bed step is left of Lesson 01.
-  'rain-tested': ['shelter', 'bed', ['fire', 'water']],
+  // Everything of the old game done: only the new roof experiment and the bed are left of Lesson 01.
+  'rain-tested': ['shelter', 'roofLayers', ['fire', 'water']],
 };
 
 describe('version-1 saves migrate into lessons', () => {

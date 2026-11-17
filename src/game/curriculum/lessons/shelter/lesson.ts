@@ -1,5 +1,6 @@
 // Lesson 01: Understanding Nature & Building Shelter.
 import type { LessonModule } from '../../types.js';
+import { SHELTER_EXPERIMENTS } from './experiments.js';
 import { SHELTER_HINTS, SHELTER_STEPS } from './steps.js';
 
 export const SHELTER: LessonModule = {
@@ -11,7 +12,7 @@ export const SHELTER: LessonModule = {
     story: 'You wake in an unfamiliar forest with nothing. Night is coming, and nothing here keeps off the wind, the rain or the cold ground.',
     goal: 'Build a shelter that protects you from wind, rain and heat loss into the ground.',
     science: ['Heat transfer: conduction, convection, radiation', 'Insulation', 'Wind and weather', 'Drainage and slope', 'Triangles, tension and load'],
-    steps: ['firstStone', 'moreStones', 'flatStone', 'workbench', 'exploreBench', 'cord', 'pole', 'frame', 'roof', 'rainTest', 'bed'],
+    steps: ['firstStone', 'moreStones', 'flatStone', 'workbench', 'exploreBench', 'cord', 'pole', 'frame', 'roof', 'rainTest', 'roofLayers', 'bed'],
     strictBuild: true,
     unlocks: ['Lesson 02: Fire', 'Rest in your shelter'],
     complete: 'You built a shelter that keeps off wind, rain and the cold ground. Next: warmth.',
@@ -19,4 +20,5 @@ export const SHELTER: LessonModule = {
   },
   steps: SHELTER_STEPS,
   hints: SHELTER_HINTS,
+  experiments: SHELTER_EXPERIMENTS,
 };

@@ -46,11 +46,13 @@ const GUIDE_CODE_FOR: Partial<Record<GuideFailureCode, string>> = {
 };
 import { ASSIST, needText, openMarks, resolveTarget, snapVerdict, type Candidate } from './assist.js';
 import { Adaptive, type AssistSave, StruggleTracker } from './adaptive.js';
-import { frameDone, inside as insideShelter, leakingPanels, RAIN_MAX, roofed, ShelterTest, type ShelterTestSave, stageCount } from './shelter.js';
+import { frameDone, inside as insideShelter, leakingPanels, panelLayers, RAIN_MAX, roofed, ShelterTest, type ShelterTestSave, stageCount } from './shelter.js';
 import { CONTINUOUS, type IntentAction, type IntentTarget, resolveIntent } from './intent.js';
 import type { InteractionId, ObjectivesSave } from './objectives.js';
 import { LANDMARKS, type Landmark } from './world-layout.js';
 import { deriveLessons } from './curriculum/migrate.js';
+import { EXPERIMENTS } from './curriculum/registry.js';
+import { type ExperimentPhase, ExperimentTracker, type ExperimentsSave } from './science/experiments.js';
 import { LessonTracker, type LessonsSave, type NextLesson } from './curriculum/tracker.js';
 import type { LessonId, Step } from './curriculum/types.js';
 import { SAVE_VERSION } from './save.js';
@@ -97,6 +99,7 @@ export type GameEvent =
   | { type: 'objectiveDone'; id: string; message: string }
   | { type: 'lessonComplete'; lesson: LessonId; n: number; name: string; next: NextLesson | null }
   | { type: 'body'; need: Need; level: Level }
+  | { type: 'experiment'; id: string; phase: ExperimentPhase }
   | { type: 'discovered'; landmark: Landmark }
   | { type: 'fire'; stage: FireStage; first?: boolean }
   | { type: 'arrow'; hit: boolean }
@@ -249,6 +252,10 @@ export class Game {
   startupNotice: string | null = null;
   /** Warmth, water, food, rest and wetness (survival/body.ts), stepped in the 4 Hz slow tick. */
   readonly body: Body = new Body((e) => this.onBodyLevel(e.need, e.level));
+  /** Experiments the lessons run (science/experiments.ts), fed by the real simulation. */
+  readonly experiments: ExperimentTracker = new ExperimentTracker(EXPERIMENTS, (e) => this.emit(e));
+  /** Seconds of a shower asked for to test the roof ("Wait for rain"). */
+  private showerLeft = 0;
   /** What the body felt on the last slow tick (for feedback and the notebook). */
   climate: Microclimate | null = null;
   private lastBodyPos = { x: 0, z: 0 };
@@ -785,6 +792,7 @@ export class Game {
     if ((this.shelterT += dt) >= 0.25) {
       this.tickShelter(this.shelterT);
       this.tickBody(this.shelterT);
+      this.experiments.update(this);
       this.shelterT = 0;
       this.lessons.update();
     }
@@ -1571,8 +1579,11 @@ export class Game {
       this.toast('The fire pit stays where it is.', 'note');
       return false;
     }
-    if (s.kind === 'leanTo' || s.kind === 'drainage') {
-      this.toast('Poles, lashings and layers stay where you set them.', 'note');
+    // Roof layers come off again (to test one layer against two); poles, lashings and the channel stay.
+    const role = index >= 0 ? def.spots[index]?.role : undefined;
+    const roofLayer = s.kind === 'leanTo' && (role === 'roofBark' || role === 'roofLeaf' || role === 'roofGrass');
+    if ((s.kind === 'leanTo' && !roofLayer) || s.kind === 'drainage') {
+      this.toast('Poles and lashings stay where you set them. Roof layers can come off.', 'note');
       return false;
     }
     if (this.storedCount(s) > 0) {
@@ -1598,8 +1609,9 @@ export class Game {
     }
     if (s.complete) {
       s.complete = false;
-      this.toast(`${def.name} taken apart.`, 'note');
+      if (!roofLayer) this.toast(`${def.name} taken apart.`, 'note');
     }
+    if (roofLayer) this.toast('You took a layer off that roof panel. Fewer layers: will it still keep the rain out?', 'note');
     if (this.held) this.stow();
     this.held = item;
     this.log.add(`took ${item} back from ${s.kind}#${s.id}`);
@@ -1755,6 +1767,18 @@ export class Game {
     return this.structures.some((t) => t.kind === 'drainage' && t.complete);
   }
 
+  /**
+   * Skip ahead to the next shower (the experiment card's "Wait for rain"): about half a minute of heavy rain
+   * on a roofed lean-to. Returns false when there is no roof to test or it is already raining.
+   */
+  waitForRain(): boolean {
+    const s = this.leanTo();
+    if (!s || !roofed(s) || this.shelterTest.raining || this.showerLeft > 0 || this.env.rain > 0.3) return false;
+    this.showerLeft = 30;
+    this.log.add('shower requested for the roof test');
+    return true;
+  }
+
   /** Is a point under the shelter roof? */
   insideShelter(x: number, z: number): boolean {
     const s = this.leanTo();
@@ -1775,12 +1799,21 @@ export class Game {
     const leaks = leakingPanels(s);
     const readyForRain = roofed(s) && this.time - this.lastBuildAt > 20;
     const ev = test.update(dt, { roofed: readyForRain, leaks: leaks.length, drained: this.drained(), inside: this.insideShelter(this.player.x, this.player.z) });
-    if (test.raining && !this.forcedRain) {
+    if (this.showerLeft > 0) this.showerLeft = Math.max(0, this.showerLeft - dt);
+    const wantRain = test.raining || this.showerLeft > 0;
+    if (wantRain && !this.forcedRain) {
       this.env.forceWeather = 'heavyRain';
       this.forcedRain = true;
-    } else if (!test.raining && this.forcedRain) {
+    } else if (!wantRain && this.forcedRain) {
       this.env.forceWeather = null;
       this.forcedRain = false;
+    }
+    // The roof-layer experiment: while rain falls on the roof, each covered panel is a trial.
+    if (roofed(s) && (wantRain || this.env.rain > 0.3)) {
+      for (let p = 0; p < 3; p++) {
+        const n = panelLayers(s, p).length;
+        if (n > 0) this.experiments.trial('roofLayers', n >= 2 ? '2' : '1', leaks.includes(p) ? 'leaks' : 'dry');
+      }
     }
     if (test.raining && RAIN_MAX - test.rainLeft > 8 && leaks.length < 3) this.science('shelter.roof.sheds');
     switch (ev) {
@@ -2078,6 +2111,7 @@ export class Game {
       fire: this.fire.snapshot(),
       lessons: this.lessons.snapshot(),
       body: this.body.snapshot(),
+      experiments: this.experiments.snapshot(),
       story: this.story.snapshot(),
       assist: this.assist.snapshot(),
       shelterTest: this.shelterTest.snapshot(),
@@ -2127,6 +2161,7 @@ export class Game {
     if (!data.env) g.env.hourOffset = -(((g.time / g.env.dayLength) * 24) % 24);
     g.held = data.held && data.held in ITEMS ? data.held : null;
     g.body.restore(data.body);
+    g.experiments.restore(data.experiments);
     if (data.lessons) g.lessons.restore(data.lessons);
     else {
       // A version-1 save: work out lesson progress from what it holds (curriculum/migrate.ts).
@@ -2147,6 +2182,8 @@ export interface SaveData {
   lessons?: LessonsSave;
   /** Warmth, water, food, rest; absent in older saves (you start comfortable). */
   body?: BodySave;
+  /** Experiments run so far (predictions, trials, results). */
+  experiments?: ExperimentsSave;
   fire?: FireSave;
   /** Version-1 beginner objectives (read only, for migration; no longer written). */
   objectives?: ObjectivesSave;

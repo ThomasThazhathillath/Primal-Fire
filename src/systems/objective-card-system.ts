@@ -164,6 +164,13 @@ export class ObjectiveCardSystem extends createSystem({}) {
   }
 
   private toggleHow(): void {
+    // On an experiment's step, Why? opens the experiment card: the experiment is the why.
+    const game = getGame(this.world);
+    const id = this.view?.id;
+    if (id && game.experiments.def(id) && game.experiments.phase(id) !== 'locked') {
+      getUi(this.world).openExperiment?.(id);
+      return;
+    }
     this.howOpen = !this.howOpen;
     ghost.how = this.howOpen ? (OBJECTIVE_CLIPS[this.view?.id ?? ''] ?? null) : null;
     this.sig = ''; // re-render now

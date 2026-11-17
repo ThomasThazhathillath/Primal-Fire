@@ -153,6 +153,39 @@ export const SHELTER_STEPS: Step[] = [
     },
   },
   {
+    id: 'roofLayers',
+    structure: 'leanTo',
+    title: 'Test it: how many layers?',
+    short: 'Compare one layer and two',
+    instruction: 'Find out what keeps rain out: give one roof panel a single layer and another two, and watch them in the rain.',
+    doneMessage: 'Evidence, not a guess: one layer leaks, overlapping layers hold.',
+    howTo: (g) => {
+      const s = g.experiments.state('roofLayers');
+      if (s.phase === 'predict') return 'Open the experiment card and choose what you predict.';
+      if (s.phase === 'testing') return s.trials.get('1') ? 'Now make sure one panel has two or more layers and watch it in the rain.' : 'Take a layer off one roof panel (pinch it) so it has only one, then watch it in the rain.';
+      return null;
+    },
+    substeps: (g) => {
+      const s = g.experiments.state('roofLayers');
+      return [
+        sub('Predict what will happen', !!s.prediction),
+        sub('Watch a one-layer panel in the rain', s.trials.has('1')),
+        sub('Watch a two-layer panel in the rain', s.trials.has('2')),
+        sub('Check what you learned', s.phase === 'done'),
+      ];
+    },
+    done: (g) => g.experiments.done('roofLayers'),
+    hint: {
+      ref: 'bark',
+      levels: [
+        'A fair test changes one thing at a time: here, the number of layers.',
+        'Compare a panel with one layer and a panel with two, in the same rain.',
+        'Stand under your lean-to while it rains and look up at each panel.',
+        'Pinch a roof layer to take it back so a panel has one layer, wait for rain, then add it again.',
+      ],
+    },
+  },
+  {
     id: 'bed',
     structure: 'bedding',
     find: (g) => (have(g, 'leafLitter') + have(g, 'dryGrass') >= 5 ? [] : ['leafLitter', 'dryGrass']),
@@ -205,6 +238,13 @@ export const SHELTER_HINTS: Record<string, HintInfo> = {
     why: 'Testing shows whether your design works. The fix is evidence-based: add a layer exactly where it leaks.',
     avoid: 'Standing outside the shelter, or digging the channel on the downhill side.',
     views: [{ pieces: [item('diggingStick')], caption: 'The digging stick cuts the channel' }],
+  },
+  roofLayers: {
+    name: 'Roof layer test',
+    look: 'Your roof panels: one with a single layer, one with two or more.',
+    why: 'Comparing them in the same rain shows what actually keeps water out.',
+    avoid: 'Changing two things at once (layers and slope): then you cannot tell which one mattered.',
+    views: [{ pieces: [item('bark', -0.3, 0), item('leafLitter', 0.3, 0)], caption: 'One layer, then two' }],
   },
   bed: {
     name: 'Leaf bed',

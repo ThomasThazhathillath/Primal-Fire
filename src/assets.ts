@@ -78,4 +78,5 @@ export default defineAssets({
   'turn-panel': uikitml('turn.uikitml', 'Turn Button'),
   'tutorial-panel': uikitml('tutorial.uikitml', 'Tutorial Tracker'),
   'body-panel': uikitml('body.uikitml', 'Body Status'),
+  'experiment-panel': uikitml('experiment.uikitml', 'Experiment Card'),
 });

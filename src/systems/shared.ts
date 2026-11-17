@@ -54,6 +54,8 @@ export interface UiHooks {
   paused?(): boolean;
   /** Open the Settings card (pause card and title menu). */
   openSettings?(): void;
+  /** Open the experiment card (ExperimentSystem). */
+  openExperiment?(id: string): void;
   /** Open the pause card (the menu's Pause icon in the headset). */
   openPause?(): void;
   /** True while the Settings card is open. */

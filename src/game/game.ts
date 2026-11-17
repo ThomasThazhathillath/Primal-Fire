@@ -13,6 +13,7 @@ import { checkPlace, FAILURE_TEXT, GrabTracker, slabStability, SUPPORT_NAMES, ty
 import { HAND_RECIPES, TOOLS } from './tools.js';
 import { capacityFor, itemsCount, itemsWeight, moveLimits, PACK_UPGRADES, type MoveLimits, type PackUpgrade } from './backpack.js';
 import { FireState, type FireSave, type FireStage } from './fire.js';
+import { FuelMoisture, type FuelMoistureSave } from './fuel-moisture.js';
 import {
   BLUEPRINTS,
   CAMP_RADIUS,
@@ -248,6 +249,8 @@ export class Game {
   readonly discovered = new Set<string>(LANDMARKS.filter((l) => l.known).map((l) => l.id));
   readonly log: EventLog;
   readonly fire = new FireState(this);
+  /** How wet the fuel you carry is (Lesson 02: rain soaks it, a fire or a roof dries it). */
+  readonly fuelWet = new FuelMoisture(this);
   /** The five-lesson curriculum: the one progression driver (curriculum/tracker.ts). */
   readonly lessons: LessonTracker = new LessonTracker(this, (e) => this.emit(e));
   /** Gather spots the player dragged somewhere else (heavy logs): where they now lie, by spot id. */
@@ -448,6 +451,7 @@ export class Game {
       this.held = d.item;
       this.emit({ type: 'held', item: d.item });
     } else this.addItem(d.item);
+    this.fuelWet.picked(d.item, d.x, d.z);
     this.toast(`+1 ${itemName(d.item)}`);
     this.emit({ type: 'drops' });
     return true;
@@ -798,6 +802,7 @@ export class Game {
     if ((this.shelterT += dt) >= 0.25) {
       this.tickShelter(this.shelterT);
       this.tickBody(this.shelterT);
+      this.fuelWet.tick(this.shelterT);
       this.experiments.update(this);
       this.shelterT = 0;
       this.lessons.update();
@@ -913,6 +918,7 @@ export class Game {
       this.actionProgress = 0;
       this.emit({ type: 'held', item: id });
     } else this.addItem(id);
+    this.fuelWet.picked(id, this.player.x, this.player.z);
     this.lastToolUsed = null;
     // A flake held in the hand cuts soft, fibrous things free: your first cut with an edge.
     if (this.held === 'flake' && CUTTABLE.includes(id) && !this.hasEvent('tool.edge.cut')) {
@@ -1383,6 +1389,9 @@ export class Game {
         break;
       case 'carryEmber':
         ok = this.fire.transferEmber();
+        break;
+      case 'smotherFire':
+        ok = this.fire.smother();
         break;
       case 'firePot':
       case 'boilPot':
@@ -2120,6 +2129,7 @@ export class Game {
       drops: this.drops.map((d) => ({ ...d })),
       toolUses: Object.fromEntries(this.toolUses),
       fire: this.fire.snapshot(),
+      fuelWet: this.fuelWet.snapshot(),
       lessons: this.lessons.snapshot(),
       body: this.body.snapshot(),
       experiments: this.experiments.snapshot(),
@@ -2169,6 +2179,7 @@ export class Game {
     g.nextDropId = Math.max(0, ...g.drops.map((d) => d.id)) + 1;
     for (const u of data.packUpgrades ?? []) g.packUpgrades.add(u);
     if (data.fire) g.fire.restore(data.fire);
+    g.fuelWet.restore(data.fuelWet);
     g.env.restore(data.env);
     // Saves from before the day/night clock: wake up in the morning, not at whatever hour the play time implies.
     if (!data.env) g.env.hourOffset = -(((g.time / g.env.dayLength) * 24) % 24);
@@ -2205,6 +2216,8 @@ export interface SaveData {
   /** Gather spots dragged to a new place: [spot id, x, z, yaw]. */
   movedSpots?: Array<[string, number, number, number]>;
   fire?: FireSave;
+  /** Weather water in carried fuel, by item (Lesson 02); absent in older saves (all dry). */
+  fuelWet?: FuelMoistureSave;
   /** Version-1 beginner objectives (read only, for migration; no longer written). */
   objectives?: ObjectivesSave;
   /** Chapter 1 story; absent in older saves (beats already past are marked seen, story.ts). */

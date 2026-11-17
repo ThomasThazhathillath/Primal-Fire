@@ -73,7 +73,22 @@ times" better than air (about 0.6 vs 0.026 W/m K) ✅.
 | Plant needs | Farm plots | Loose soil, water and light; wilting is loss of water pressure in cells; shade slows photosynthesis | `farm.plot.dug`, `farm.watered`, `farm.dry`, `farm.shade` | `fm_dig`, `fm_water`, `fm_dry`, `fm_shade` | ✅ |
 | Propagation | Harvesting tubers | Tubers store starch made from sunlight; a piece can grow a new plant | `farm.harvested` | `fm_harvest` | ✅ |
 
+### Lesson 02: Fire
+
+| Topic | Mechanic | Core idea | Events | Entries | Conf. |
+|---|---|---|---|---|---|
+| Friction: speed and pressure | Bow drill (VR stroke, browser drag + Shift) | Friction heat grows with rubbing speed and with how hard the surfaces press; hot dust loses heat faster, so slow or light sawing levels off | `fire.drill.slow`, `fire.drill.light` | `f_speed`, `f_pressure` | ✅ (heat ~ force x speed is standard; the game's numbers are game-scale) |
+| Ignition temperature | Feeding the fire | Fuel must be heated to ignition; water must boil off first; thick fuel takes longer (surface area per mass) | `fire.fuel.wet`, `fire.fuel.ladder`, `fire.fuel.dried` | `f_steam`, `f_ladder`, `f_dried` | ✅ |
+| Oxygen and airflow | Fanning, wind, smothering with earth | Burning is fast oxidation: more air, hotter and faster; no air, it dies | `fire.air.fanned`, `fire.air.wind`, `fire.air.smothered` | `f_fanned`, `f_wind`, `f_smother` | ✅ |
+| Green wood | Green branch on the fire | Sap is mostly water: green wood smoulders, smokes and gives less net heat | `fire.signal.smoke` | `f_smoke` | ✅ |
+| Charcoal burns hotter | Charcoal on the fire | Mostly carbon, its water and volatiles already gone: hot, little smoke; gives off carbon monoxide | `fire.charcoal.burn` | `f_charcoal` | ✅ |
+| Keeping a fire | The practical | A fire burns its fuel away and must be fed | `fire.night.kept` | `f_night` | ✅ |
+
 ## Simplifications (say so in the game)
+
+- Fire (Lesson 02): heat, air, water and burn times are game-scale numbers chosen to show the right trends (thin
+  before thick, dry before damp, more air hotter); no temperatures or real burn times are stated. Pressure on the
+  bow drill is two levels (light, firm); the real "too much pressure stalls the bow" is only mentioned in the text.
 
 - Ignition: we show fuels catching fire in order of size but do not state ignition
   temperatures in the game.

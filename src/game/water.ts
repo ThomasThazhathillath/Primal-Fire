@@ -137,6 +137,7 @@ export class WaterState {
         // Open vents: plenty of oxygen, the wood just burns away.
         this.mound = null;
         g.science('charcoal.ash');
+        g.experiments.trial('charcoalAir', 'open', 'ash');
         g.toast('Flames roared out of the open mound and left only grey ash.', 'bad');
       }
     }
@@ -305,12 +306,14 @@ export class WaterState {
         this.mound = null;
         if (this.smoke() === 'blue' || m.burn >= SMOKE_BLUE_AT) {
           g.addItem('charcoal', 3);
+          g.experiments.trial('charcoalAir', 'sealed', 'charcoal');
           g.setFlag('charcoalMade');
           g.science('charcoal.done');
           g.toast('Light, black charcoal: three pieces.', 'good');
           g.checkProgress();
         } else {
           g.science('charcoal.early');
+          g.experiments.trial('charcoalAir', 'sealed', 'part');
           g.toast('Opened too early: black outside, brown and damp inside. Dig again and wait for thin blue smoke.', 'bad');
         }
         return true;

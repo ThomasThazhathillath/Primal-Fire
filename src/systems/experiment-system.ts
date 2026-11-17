@@ -27,6 +27,8 @@ export class ExperimentSystem extends createSystem({}) {
   private opened: string | null = null;
   /** The check question's last answer feedback ("Right: ..." / "Not quite: ..."). */
   private feedback: string | null = null;
+  /** An experiment that opened while the card was showing another: shown when that one is closed. */
+  private pending: string | null = null;
 
   async init(): Promise<void> {
     const panel = await this.world.assets.instantiate<UIKitMLAsset>('experiment-panel');
@@ -64,7 +66,9 @@ export class ExperimentSystem extends createSystem({}) {
       game.on((e) => {
         if (e.type !== 'experiment' || currentMode() === 'tutorial') return;
         // Something to do: the card comes up by itself. Otherwise just refresh it if it is open.
-        if (e.phase === 'predict' || e.phase === 'result') this.open(e.id);
+        // A new experiment never covers another one the player is still reading: it waits until that card closes.
+        if (e.phase === 'predict' && this.opened && this.opened !== e.id) this.pending = e.id;
+        else if (e.phase === 'predict' || e.phase === 'result') this.open(e.id);
         else if (this.opened === e.id) this.render();
       }),
     );
@@ -128,7 +132,7 @@ export class ExperimentSystem extends createSystem({}) {
     const g = getGame(this.world);
     const phase = g.experiments.phase(d.id);
     if (phase === 'testing') {
-      if (g.waitForRain()) g.toast('Clouds gather. Stand under your roof and watch each panel.', 'note');
+      if (d.id === 'roofLayers' && g.waitForRain()) g.toast('Clouds gather. Stand under your roof and watch each panel.', 'note');
       menu.back();
       return;
     }
@@ -167,7 +171,8 @@ export class ExperimentSystem extends createSystem({}) {
       case 'testing':
         body = `Your prediction: ${predicted} ${d.howTo}`;
         showTrials = true;
-        action = g.leanTo() && !g.shelterTest.raining ? 'Wait for rain' : 'Keep testing';
+        // Only the roof test can ask for rain; every other experiment is tested by doing it.
+        action = d.id === 'roofLayers' && g.leanTo() && !g.shelterTest.raining ? 'Wait for rain' : 'Keep testing';
         break;
       case 'result': {
         const right = g.experiments.predictedRight(d.id);
@@ -212,6 +217,12 @@ export class ExperimentSystem extends createSystem({}) {
 
   update(delta: number): void {
     if (this.pop?.busy) this.pop.update(delta);
+    // The experiment that waited for the last card: open it once no panel is in the way.
+    if (this.pending && !this.opened && !this.pop?.busy && menu.current === null) {
+      const next = this.pending;
+      this.pending = null;
+      if (getGame(this.world).experiments.phase(next) === 'predict') this.open(next);
+    }
     if (!this.ready || !this.opened) return;
     this.place();
     if (this.vr) this.touch.update(delta);

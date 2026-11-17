@@ -138,14 +138,16 @@ describe('rain and fire', () => {
     expect(fireExposed([], 0, 0)).toBe(true);
   });
 
-  it('rain eats burn time but never ends the fire by itself in one step', () => {
+  it('rain wets the fuel of an exposed fire but never ends the fire by itself in one step', () => {
+    // Lesson 02: rain no longer eats burn time directly; it soaks the fuel, and wet fuel is put out over time.
     const g = new Game();
     g.fire.stage = 'burning';
-    g.fire.burnLeft = 30;
+    const log = g.fire.hearth.add('logs', 0, false)!;
+    g.fire.hearth.ignite(log);
     g.fire.weather(2, 5);
-    expect(g.fire.burnLeft).toBe(20);
+    expect(log.wet).toBeCloseTo(0.2);
     g.fire.weather(2, 100);
-    expect(g.fire.burnLeft).toBeGreaterThan(0);
+    expect(log.wet).toBe(1);
     expect(g.fire.stage).toBe('burning');
   });
 });

@@ -39,7 +39,7 @@ export interface UiHooks {
   questOpen(): boolean;
   /** Notebook entries recorded since it was last opened. */
   newNotes(): number;
-  /** Snap-turn the view by `deg` degrees (positive = left), pivoting on your head. */
+  /** Turn the view by `deg` degrees (positive = left) in a short eased pan, pivoting on your head. */
   snapTurn(deg: number): void;
   /** Write the save now (before a reload). */
   saveNow(): void;
@@ -704,8 +704,9 @@ export const menu = new MenuStack();
  * Where every card sits in the headset (the "not in your face" layout). distance (m) in front, side (m, + right),
  * down (m below the eyes; negative is above), scale (on top of the card's own VR scale, about the distance ratio so
  * text stays readable).
- *  - One short row low in front, within a seated arm's reach (tap or hand-ray pinch): Left, Menu, Right. Pause is
- *    inside the menu; Left and Right step aside while the menu or a panel from it is open.
+ *  - Within a seated arm's reach (tap or hand-ray pinch): Left and Right low at the sides, Menu higher and between
+ *    them (icon-bar-system.ts BAR_BOTTOM). Pause is inside the menu; Left and Right step aside while the menu or a
+ *    panel from it is open.
  *  - Away from the face, up top and beyond reach (pinch with the hand ray): the goal card in the middle, the tutorial
  *    step on the left, the crafting guide on the right, the compass above; messages low and far, like subtitles.
  *  - Opened on demand (bag, bench, notebook, hint, book) at arm's length and a little low, where a raised hand ray
@@ -713,7 +714,7 @@ export const menu = new MenuStack();
  */
 export const VR_LAYOUT = {
   turnLeft: { distance: 0.4, side: -0.14, down: 0.27, scale: 0.8 },
-  menu: { distance: 0.4, side: 0, down: 0.27, scale: 1 },
+  menu: { distance: 0.4, side: 0, down: 0.15, scale: 1 },
   pause: { distance: 0.42, side: 0.17, down: 0.33, scale: 0.75 },
   turnRight: { distance: 0.4, side: 0.14, down: 0.27, scale: 0.8 },
   objective: { distance: 1.4, side: 0, down: -0.3, scale: 2.2 },

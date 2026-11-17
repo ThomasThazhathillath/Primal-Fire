@@ -45,6 +45,8 @@ export const SETTLE_SECONDS = 15;
 export const STONE_HEAT_SECONDS = 8;
 /** Hot stones it takes to bring a pot to the boil. */
 export const BOIL_STONES = 2;
+/** Fire heat (fire.ts `flame`, 0..1) at which pots fire and water boils at full speed (a fed fire is above it). */
+export const FULL_HEAT_FLAME = 0.45;
 /** How close (m) to the low edge of your roof the pot catches its runoff. */
 export const RAIN_CATCH_RADIUS = 1.5;
 
@@ -125,6 +127,8 @@ export class WaterState {
   source: 'stream' | 'rain' | null = null;
   /** Dry stones heating in the fire for stone boiling. */
   stones: { n: number; heat: number } | null = null;
+  /** The "fire is low" note was given for this time on the fire. */
+  private lowFireSaid = false;
   /** Lesson 03: clay test cups. */
   readonly clay: ClayLab;
   /** What the last pour through the filter gave (for the objective card; not saved). */
@@ -158,6 +162,16 @@ export class WaterState {
   /** Stone boiling makes sense: your pot is fired and holds water to boil. */
   private stoneBoilUseful(): boolean {
     return this.g.flag('potFired') && BOILABLE.includes(this.potWater);
+  }
+
+  /**
+   * How hard your fire heats a pot, 0..1, from the fire's own heat (fire.ts `flame`): a well-fed fire works at full
+   * speed, a fire burned down to embers barely at all. Firing clay needs flames; embers do not fire it.
+   */
+  fireHeat(): number {
+    const f = this.g.fire;
+    if (f.stage !== 'burning') return 0;
+    return Math.min(1, f.flame / FULL_HEAT_FLAME);
   }
 
   private firingTestOpen(): boolean {
@@ -249,11 +263,15 @@ export class WaterState {
       }
     }
     // The pot in the fire: firing, then boiling.
+    if (this.onFire && this.fireHeat() < 0.3 && !this.lowFireSaid && g.fire.stage === 'burning') {
+      this.lowFireSaid = true;
+      g.toast('Your fire is burning low: feed it, or the pot barely heats.', 'note');
+    }
     if (this.onFire) {
       if (g.fire.stage !== 'burning' || !this.hasPot) {
         this.onFire = false;
       } else if (!g.flag('potFired')) {
-        this.potHeat += dt;
+        this.potHeat += dt * this.fireHeat();
         if (this.potHeat >= POT_FIRE_SECONDS) {
           this.onFire = false;
           g.setFlag('potFired');
@@ -263,7 +281,7 @@ export class WaterState {
           g.checkProgress();
         }
       } else if (BOILABLE.includes(this.potWater)) {
-        this.boil += dt;
+        this.boil += dt * this.fireHeat();
         if (this.boil >= BOIL_SECONDS) this.finishBoil();
       }
     }
@@ -281,10 +299,10 @@ export class WaterState {
     } else if (this.potWater === 'raw') this.settle = 0;
     // Stones heating in the fire.
     if (this.stones) {
-      if (g.fire.stage === 'burning') this.stones.heat += dt;
+      if (g.fire.stage === 'burning') this.stones.heat += dt * this.fireHeat();
       else if (this.stones.heat > 0) this.stones.heat = Math.max(0, this.stones.heat - dt);
     }
-    this.clay.tick(dt, g.fire.stage === 'burning');
+    this.clay.tick(dt, g.fire.stage === 'burning', this.fireHeat());
     // The mound burns.
     const m = this.mound;
     if (m && m.burn >= 0) {
@@ -293,6 +311,7 @@ export class WaterState {
         // Open vents: plenty of oxygen, the wood just burns away.
         this.mound = null;
         g.science('charcoal.ash');
+        g.experiments.trial('charcoalAir', 'open', 'ash');
         g.toast('Flames roared out of the open mound and left only grey ash.', 'bad');
       }
     }
@@ -400,6 +419,7 @@ export class WaterState {
           return true;
         }
         this.onFire = true;
+        this.lowFireSaid = false;
         g.toast('The pot sits in the flames. Keep the fire going.', 'info');
         return true;
       }
@@ -431,6 +451,7 @@ export class WaterState {
       case 'boil':
         if (!this.burningFireNear(at) || !BOILABLE.includes(this.potWater)) return false;
         this.onFire = true;
+        this.lowFireSaid = false;
         this.boil = 0;
         g.toast('The pot is on the fire. Wait for a rolling boil.', 'info');
         return true;
@@ -514,12 +535,14 @@ export class WaterState {
         this.mound = null;
         if (this.smoke() === 'blue' || m.burn >= SMOKE_BLUE_AT) {
           g.addItem('charcoal', 3);
+          g.experiments.trial('charcoalAir', 'sealed', 'charcoal');
           g.setFlag('charcoalMade');
           g.science('charcoal.done');
           g.toast('Light, black charcoal: three pieces.', 'good');
           g.checkProgress();
         } else {
           g.science('charcoal.early');
+          g.experiments.trial('charcoalAir', 'sealed', 'part');
           g.toast('Opened too early: black outside, brown and damp inside. Dig again and wait for thin blue smoke.', 'bad');
         }
         return true;

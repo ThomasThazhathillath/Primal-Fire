@@ -6,6 +6,7 @@ import { ClayLab, cracksWhileDrying, dryingStrain, firingOutcome, PIECE_FIRE_SEC
 import { CLAY_TEMPER, FILTER_ORDER, POT_FIRING, TREATMENT, WATER_SOURCE } from '../src/game/curriculum/lessons/water/experiments.js';
 import { filterLayers, filterResult, filterWorks, LAYER_SPOTS } from '../src/game/curriculum/lessons/water/filter.js';
 import { legacyWater } from '../src/game/curriculum/lessons/water/steps.js';
+import { LAY_NEEDS, PRESSURE } from '../src/game/fire.js';
 import { Game } from '../src/game/game.js';
 import { resolveIntent } from '../src/game/intent.js';
 import type { ItemId } from '../src/game/items.js';
@@ -13,8 +14,12 @@ import { BOIL_SECONDS, SETTLE_SECONDS } from '../src/game/water.js';
 import { jumpTo } from './helpers/lessons.js';
 
 const STREAM = { x: 4.4, z: 3 };
+/** Run the game; a burning fire is kept stocked with logs (the fire is the setting here, not the thing tested). */
 const run = (g: Game, seconds: number) => {
-  for (let t = 0; t < seconds; t += 0.25) g.tick(0.25);
+  for (let t = 0; t < seconds; t += 0.25) {
+    if (g.fire.stage === 'burning' && g.fire.hearth.count() < 3) g.fire.hearth.add('logs', 0, true);
+    g.tick(0.25);
+  }
 };
 
 /** A finished filter at (0, 0) with these layers, bottom to top. */
@@ -26,17 +31,48 @@ function filter(g: Game, layers: ItemId[]): PlacedStructure {
   return s;
 }
 
-/** A game with a fired pot and a burning fire pit at (-3, -3). */
+/** A real fire pit near (-3, -3) with a fire lit by the fire's own rules (lay, bow-drill ember, fanning). */
+function lightFire(g: Game): void {
+  g.addItem('dryStone', 4);
+  g.takeOut('dryStone');
+  let pit: PlacedStructure | undefined;
+  for (const [x, z] of [[-3, -3], [-4, 3], [3, 5], [-3, -5], [5, -3], [-5, -1], [2, 6], [6, 1]]) pit ??= g.placeBlueprint('firePit', x, z, 0).structure;
+  if (!pit) throw new Error('no open ground for the pit');
+  g.addItem('dryStone', 3);
+  pit.spots.forEach((_, i) => g.fillSpot(pit!.id, i));
+  g.stow();
+  g.addItem('dryGrass', LAY_NEEDS.tinder);
+  g.addItem('twigs', LAY_NEEDS.twigs);
+  g.addItem('logs', LAY_NEEDS.logs);
+  while (!g.fire.layBuilt) expect(g.fire.addFuel()).toBe(true);
+  g.addItem('bowDrill');
+  g.takeOut('bowDrill');
+  for (let i = 0; i < 400 && !g.fire.carrying; i++) {
+    g.fire.saw(1.5 * 0.05, 0.05, PRESSURE.firm, 1);
+    g.fire.tick(0.05);
+  }
+  g.stow();
+  expect(g.fire.transferEmber()).toBe(true);
+  for (let i = 0; i < 40 && g.fire.stage !== 'burning'; i++) g.fire.fan(0.8, 0.25);
+  expect(g.fire.stage).toBe('burning');
+  // Let it get going: a just-lit fire is still weak.
+  run(g, 10);
+  expect(g.water.fireHeat()).toBeGreaterThan(0.5);
+}
+
+/** A game with a fired pot in the bag and a burning fire. */
 function camp(): Game {
   const g = new Game();
   g.setFlag('potFired');
-  g.structures.push({ id: 90, kind: 'firePit', x: -3, z: -3, rotY: 0, key: 'dryStone', spots: [], complete: true });
-  g.fire.stage = 'burning';
-  g.fire.burnLeft = 1e6;
+  lightFire(g);
   g.addItem('pot');
   return g;
 }
-const FIRE = { x: -2.4, z: -3 };
+/** Where to stand to use the fire. */
+const FIRE_AT = (g: Game) => {
+  const pit = g.structures.find((s) => s.kind === 'firePit')!;
+  return { x: pit.x + 0.6, z: pit.z };
+};
 
 describe('filter layers (filter.ts)', () => {
   it('every layer mark takes any layer, and the layers fill from the bottom up', () => {
@@ -148,10 +184,26 @@ describe('settling, rain and boiling (water.ts)', () => {
     for (const [start, end] of [['raw', 'boiledRaw'], ['settled', 'boiledRaw'], ['filtered', 'safe'], ['rain', 'safe']] as const) {
       const g = camp();
       g.water.potWater = start;
-      expect(g.water.perform('boil', FIRE)).toBe(true);
+      expect(g.water.perform('boil', FIRE_AT(g))).toBe(true);
       run(g, BOIL_SECONDS + 1);
       expect(g.water.potWater, start).toBe(end);
     }
+  });
+
+  it('the pot heats only as hard as your own fire burns, and stops when it goes out', () => {
+    const g = camp();
+    g.water.potWater = 'filtered';
+    g.takeOut('pot');
+    expect(g.water.perform('boil', FIRE_AT(g))).toBe(true);
+    run(g, 3);
+    expect(g.water.boil).toBeGreaterThan(1.5);
+    // All the fuel gone: the fire burns out by its own rules and the pot stops heating.
+    g.fire.hearth.clear();
+    for (let t = 0; t < 2; t += 0.25) g.tick(0.25);
+    expect(g.fire.stage).not.toBe('burning');
+    expect(g.water.fireHeat()).toBe(0);
+    expect(g.water.onFire).toBe(false);
+    expect(g.water.potWater).toBe('filtered');
   });
 
   it('rain runoff is caught only while it rains, at the low edge of a roofed lean-to', () => {
@@ -173,20 +225,21 @@ describe('settling, rain and boiling (water.ts)', () => {
   it('two dry stones heated in the fire boil the pot (stone boiling)', () => {
     const g = camp();
     g.water.potWater = 'filtered';
+    const stones = g.count('dryStone');
     g.addItem('dryStone', 2);
     for (let i = 0; i < 2; i++) {
       g.takeOut('dryStone');
-      expect(g.water.available(FIRE)?.id).toBe('heatStone');
-      expect(g.water.perform('heatStone', FIRE)).toBe(true);
+      expect(g.water.available(FIRE_AT(g))?.id).toBe('heatStone');
+      expect(g.water.perform('heatStone', FIRE_AT(g))).toBe(true);
     }
-    expect(g.count('dryStone')).toBe(0);
+    expect(g.count('dryStone')).toBe(stones);
     g.takeOut('pot');
-    expect(g.water.available(FIRE)?.id).toBe('boil');
+    expect(g.water.available(FIRE_AT(g))?.id).toBe('boil');
     run(g, 9);
-    expect(g.water.available(FIRE)?.id).toBe('stoneBoil');
-    expect(g.water.perform('stoneBoil', FIRE)).toBe(true);
+    expect(g.water.available(FIRE_AT(g))?.id).toBe('stoneBoil');
+    expect(g.water.perform('stoneBoil', FIRE_AT(g))).toBe(true);
     expect(g.water.potWater).toBe('safe');
-    expect(g.count('dryStone')).toBe(2);
+    expect(g.count('dryStone')).toBe(stones + 2);
     expect(g.notebook).toContain('w_hotstones');
   });
 
@@ -195,7 +248,7 @@ describe('settling, rain and boiling (water.ts)', () => {
     g.water.potWater = 'raw';
     g.addItem('wetStone');
     g.takeOut('wetStone');
-    expect(g.water.available(FIRE)).toBeNull();
+    expect(g.water.available(FIRE_AT(g))).toBeNull();
   });
 
   it('the browser can tip water out where an empty pot is wanted (never on the way to the fire)', () => {
@@ -261,9 +314,9 @@ describe('clay test cups (clay.ts)', () => {
     g.experiments.predict('potFiring', 'damp');
     const lab = g.water.clay;
     lab.make();
-    expect(g.water.available(FIRE, null)?.id).toBe('fireTest');
+    expect(g.water.available(FIRE_AT(g), null)?.id).toBe('fireTest');
     expect(lab.nextToFire()).toMatchObject({ dry: false });
-    expect(g.water.perform('fireTest', FIRE)).toBe(true);
+    expect(g.water.perform('fireTest', FIRE_AT(g))).toBe(true);
     run(g, 2);
     expect(lab.count('temper', 'burst')).toBe(1);
     expect(g.experiments.state('potFiring').trials.get('damp')).toBe('burst');
@@ -284,7 +337,7 @@ describe('clay test cups (clay.ts)', () => {
   it('test cups are only offered for the fire while the firing test is open', () => {
     const g = camp();
     g.water.clay.make();
-    expect(g.water.available(FIRE, null)).toBeNull();
+    expect(g.water.available(FIRE_AT(g), null)).toBeNull();
   });
 
   it('saves and restores a cup in the fire', () => {
@@ -302,14 +355,12 @@ describe('clay test cups (clay.ts)', () => {
 
   it('the real pot feeds the firing test too', () => {
     const fresh = new Game();
-    fresh.structures.push({ id: 90, kind: 'firePit', x: -3, z: -3, rotY: 0, key: 'dryStone', spots: [], complete: true });
-    fresh.fire.stage = 'burning';
-    fresh.fire.burnLeft = 1e6;
+    lightFire(fresh);
     jumpTo(fresh, 'potFiring');
     run(fresh, 0.5);
     fresh.addItem('pot');
     fresh.takeOut('pot');
-    expect(fresh.water.perform('firePot', FIRE)).toBe(true);
+    expect(fresh.water.perform('firePot', FIRE_AT(fresh))).toBe(true);
     expect(fresh.experiments.state('potFiring').trials.get('damp')).toBe('burst');
   });
 });
@@ -350,7 +401,7 @@ describe('experiment conclusions follow the evidence', () => {
     run(g, 0.5);
     g.water.potWater = 'rain';
     g.water.source = 'rain';
-    g.water.perform('boil', FIRE);
+    g.water.perform('boil', FIRE_AT(g));
     run(g, BOIL_SECONDS + 1);
     expect(g.water.potWater).toBe('safe');
     expect(g.experiments.state('treatment').trials.size).toBe(0);

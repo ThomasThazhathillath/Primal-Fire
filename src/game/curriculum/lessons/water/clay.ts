@@ -76,8 +76,8 @@ export class ClayLab {
     this.g.toast('Three test cups the same size: one clay only, two with sand. They dry in your bag.', 'good');
   }
 
-  /** Drying and firing, a few times a second. `burning`: is your fire burning? */
-  tick(dt: number, burning: boolean): void {
+  /** Drying and firing. `burning`: is your fire burning? `heat`: how hard it heats, 0..1 (water.ts fireHeat). */
+  tick(dt: number, burning: boolean, heat = 1): void {
     const g = this.g;
     let dried = false;
     for (const p of this.pieces) {
@@ -115,7 +115,7 @@ export class ClayLab {
       g.toast('The fire went out: your test cup is back, unfired.', 'note');
       return;
     }
-    f.t += dt;
+    f.t += dt * heat;
     const outcome = firingOutcome(f.dry);
     if (outcome === 'burst' && f.t >= PIECE_BURST_SECONDS) {
       p.state = 'burst';

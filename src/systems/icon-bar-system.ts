@@ -86,10 +86,12 @@ const DEFS: Def[] = [
 
 /** Where the bar hangs (m): within a seated arm's reach, below eye level, either hand. */
 export const BAR_DISTANCE = 0.4;
-// Up and to the left, its bottom edge a little above eye level (NPE simplicity round): the old row at chest height
-// caught resting and gathering hands (Quest log: dozens of 'pinching on menu/slot-14' a minute). Up here only a
-// raised, deliberate hand reaches it; an unfolded row grows upward, so it never covers the ground you work on.
-export const BAR_BOTTOM = 0.3;
+// Centred, above and between Left and Right (which stay lower, at the sides), its bottom edge 0.2 m below the eyes:
+// the Menu button sits about 20 degrees below where you look, in the clear part of the lenses. At 0.3 m (about 35
+// degrees down) it was on the blurry bottom edge of the Quest's view and players could not find it (Quest test
+// 2026-11-17). Chest height caught resting and gathering hands (dozens of 'pinching on menu/slot-14' a minute), so
+// it stays above that: only a raised, deliberate hand reaches it. An unfolded row grows upward from this edge.
+export const BAR_BOTTOM = 0.2;
 export const BAR_DOWN = BAR_BOTTOM;
 export const BAR_SIDE = 0;
 

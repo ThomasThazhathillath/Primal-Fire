@@ -9,7 +9,7 @@ export default async function run({ page }) {
     const thumbs = () => sys.panel.children.filter((c) => c.isMesh && c.geometry?.type === 'PlaneGeometry' && c.visible).length;
     const more = () => sys.panel.getElementById('bench-more')?.properties?.peek?.()?.display ?? sys.panel.getElementById('bench-more')?.display?.peek?.();
     if (a === 'list') {
-      window.__title?.tap('begin-button') || p.begin(); await wait(800);
+      window.__title?.play?.() || p.begin(); await wait(800);
       g.allowsBuild = () => true; g.addItem('dryStone', 3); g.addItem('slab'); g.addItem('fibers', 6);
       g.armFromBook('workbench'); p.place(0, -1.6); await wait(300);
       const s = g.structures[g.structures.length - 1]; s.complete = true;

@@ -1,8 +1,13 @@
-// The title menu: PRIMAL over the calm forest. Play / Continue, Tutorial, New Game, Enter VR (flat view) and Quit.
+// The title menu: EUREKA over the calm forest. Play / Continue, Tutorial, New Game, Enter VR (flat view) and Quit.
 // Fingertip tap and gaze + pinch in the headset (PanelTouch), mouse in the browser. Big targets. In the headset it
-// hangs in front of you until you press Play; nothing starts on its own.
+// hangs in front of you until you choose a level; nothing starts on its own.
+// Play opens the level list on the same card: each level on its own, only the playable ones (registry.ts), with how
+// far you got. On the tutorial page the tutorial is listed too, and choosing a level leaves it for survival.
 
 import { createSystem, type UIKit, type UIKitMLAsset, VisibilityState } from '@iwsdk/core';
+import { isPlayable, LESSON_IDS, lessonById, playableLessons } from '../game/curriculum/registry.js';
+import type { LessonId } from '../game/curriculum/types.js';
+import { currentMode } from '../game/tutorial-mode.js';
 import { HudSystem } from './hud-system.js';
 import { PanelTouch } from './panel-touch.js';
 import { StorySystem } from './story-system.js';
@@ -14,6 +19,8 @@ const VR_SCALE = 0.1;
 const FLAT_SCALE = 0.26;
 /** A second tap on New Game must come within this long (ms). */
 const CONFIRM_MS = 4000;
+/** Set when the tutorial page reloads into survival for a chosen level: the survival title opens on the level list. */
+const LEVELS_NEXT_KEY = 'eureka.title.levels';
 
 export class IntroSystem extends createSystem({}) {
   private panel: UIKitMLAsset | undefined;
@@ -23,6 +30,10 @@ export class IntroSystem extends createSystem({}) {
   private newArmedAt = -1e9;
   private open = true;
   private flatPos: [number, number, number] | null = null;
+  /** The level list is showing instead of the title buttons. */
+  private levelsOpen = false;
+  /** This page is the tutorial ("The First Steps"), not survival. */
+  private tutorialPage = false;
 
   init(): void {
     const game = getGame(this.world);
@@ -48,16 +59,35 @@ export class IntroSystem extends createSystem({}) {
       this.cleanupFuncs.push(() => b.removeEventListener('click', click));
       this.touch!.add(id, fn);
     };
-    wire('begin-button', () => {
+    this.tutorialPage = currentMode() === 'tutorial';
+    wire('begin-button', () => this.showLevels(true));
+    wire('levels-back', () => this.showLevels(false));
+    wire('lvl-tutorial', () => {
       getUi(this.world).titlePlay?.();
       this.begin();
     });
+    for (const id of LESSON_IDS) wire(`lvl-${id}`, () => this.playLevel(id));
     wire('tutorial-button', () => getUi(this.world).titleTutorial?.());
     wire('new-button', () => this.newGame());
     wire('xr-button', () => void this.world.launchXR());
     wire('quit-button', () => this.quit());
     wire('settings-button', () => getUi(this.world).openSettings?.());
-    (window as unknown as { __title?: unknown }).__title = { tap: (id: string) => this.touch?.tapById(id) ?? false, open: () => this.open };
+    (window as unknown as { __title?: unknown }).__title = {
+      tap: (id: string) => this.touch?.tapById(id) ?? false,
+      open: () => this.open,
+      levels: () => this.levelsOpen,
+      // Checks and scripts: what Play then the first entry does (the tutorial on its page, else the first playable level).
+      play: () => {
+        if (!this.open) return false;
+        if (this.tutorialPage) {
+          getUi(this.world).titlePlay?.();
+          this.begin();
+        } else this.playLevel(playableLessons()[0]);
+        return true;
+      },
+    };
+    this.refreshLevels();
+    if (takeFlag(LEVELS_NEXT_KEY)) this.showLevels(true);
     this.cleanupFuncs.push(
       this.world.visibilityState.subscribe((v) => {
         this.vr = v !== VisibilityState.NonImmersive;
@@ -72,6 +102,51 @@ export class IntroSystem extends createSystem({}) {
         }
       }),
     );
+  }
+
+  /** Show the level list (Play) or the title buttons (Back). */
+  private showLevels(on: boolean): void {
+    const p = this.panel;
+    if (!p) return;
+    this.levelsOpen = on;
+    p.getElementById('title-menu')?.setProperties({ display: on ? 'none' : 'flex' });
+    p.getElementById('levels')?.setProperties({ display: on ? 'flex' : 'none' });
+    if (on) this.refreshLevels();
+    // The buttons under the fingertip just changed: start the touch tracking afresh.
+    this.touch?.reset();
+  }
+
+  /** One row per playable level: its name, how far you got (survival page) and its goal. */
+  private refreshLevels(): void {
+    const p = this.panel;
+    if (!p) return;
+    const g = getGame(this.world);
+    p.getElementById('lvl-row-tutorial')?.setProperties({ display: this.tutorialPage ? 'flex' : 'none' });
+    for (const id of LESSON_IDS) {
+      const l = lessonById(id);
+      const on = !!l && isPlayable(id);
+      p.getElementById(`lvl-row-${id}`)?.setProperties({ display: on ? 'flex' : 'none' });
+      if (!l || !on) continue;
+      p.getElementById<UIKit.Text>(`lvl-${id}-label`)?.setProperties({ text: `Level ${l.n}: ${l.name}` });
+      // The tutorial page runs its own game: the survival progress is not loaded here.
+      const done = g.lessons.lessonDone.has(id);
+      const steps = l.steps.filter((s) => g.lessons.completed.has(s)).length;
+      const status = done ? 'Complete' : steps > 0 ? `In progress: ${steps} of ${l.steps.length} steps` : 'Not started';
+      p.getElementById<UIKit.Text>(`lvl-${id}-note`)?.setProperties({ text: this.tutorialPage ? l.goal : `${status}. ${l.goal}` });
+    }
+  }
+
+  /** Start (or go on with) a level. From the tutorial page this leaves the tutorial for survival first. */
+  private playLevel(id: LessonId): void {
+    if (!isPlayable(id)) return;
+    if (this.tutorialPage) {
+      setFlag(LEVELS_NEXT_KEY);
+      getUi(this.world).titleTutorial?.();
+      return;
+    }
+    getGame(this.world).lessons.setResume(id);
+    getUi(this.world).titlePlay?.();
+    this.begin();
   }
 
   /** New Game: needs a second tap, then wipes the survival save and starts over. */
@@ -131,5 +206,24 @@ export class IntroSystem extends createSystem({}) {
     // A new game: the awakening (dark fade-in and first thoughts), once.
     story?.awaken();
     game.checkProgress();
+  }
+}
+
+/** One-shot flags that survive a reload (sessionStorage; absent or blocked storage simply means no flag). */
+function setFlag(key: string): void {
+  try {
+    sessionStorage.setItem(key, '1');
+  } catch {
+    /* ignore */
+  }
+}
+
+function takeFlag(key: string): boolean {
+  try {
+    const on = sessionStorage.getItem(key) === '1';
+    sessionStorage.removeItem(key);
+    return on;
+  } catch {
+    return false;
   }
 }

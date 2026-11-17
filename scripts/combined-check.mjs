@@ -10,7 +10,7 @@ export default async function run({ page }) {
       const t = window.__title;
       return { hasTitle: !!t, open: t?.open?.() };
     }
-    if (a === 'begin') { window.__title?.tap('begin-button') || p.begin(); await wait(800); return { titleOpen: window.__title?.open?.() }; }
+    if (a === 'begin') { window.__title?.play?.() || p.begin(); await wait(800); return { titleOpen: window.__title?.open?.() }; }
     if (a === 'discard') {
       g.addItem('dryStone', 3); p.satchel(); await wait(1200);
       const T = window.__touch.bag; const ids = T.targets().map((t) => t.id);

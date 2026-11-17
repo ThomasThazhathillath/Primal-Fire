@@ -22,13 +22,13 @@ import {
   findUIKitDocument,
   type Object3D,
 } from '@iwsdk/core';
-import { spotWorldPosition, BLUEPRINTS } from '../game/blueprint.js';
+import { markDef, spotWorldPosition } from '../game/blueprint.js';
 import type { GameEvent } from '../game/game.js';
 import { itemName } from '../game/items.js';
 import { bagPrompt, gatherPrompt } from '../game/prompts.js';
 import { SatchelSystem } from './satchel-system.js';
 import { OBSERVATIONS } from '../game/observations.js';
-import { LESSONS } from '../game/curriculum/registry.js';
+import { LESSONS, lessonById, playableLessons } from '../game/curriculum/registry.js';
 import { Gatherable, SatchelItem, SnapSpot, StructurePart, WorldDropItem } from '../components/game-components.js';
 import { REACH, ResourceSystem } from './resource-system.js';
 import { PanelTouch } from './panel-touch.js';
@@ -196,14 +196,18 @@ export class HudSystem extends createSystem({
     // While the beginner objectives run, the objective card is the one place that names the task.
     const tutorial = game.guiding();
     this.hud.requireElementById('quest-num').setProperties({ display: tutorial ? 'none' : 'flex' });
-    text('quest-num', lesson ? `LESSON ${String(lesson.n).padStart(2, '0')} OF ${String(LESSONS.length).padStart(2, '0')}` : 'ALL LESSONS COMPLETE');
+    // Only the playable levels are listed (registry.ts); finishing them is not finishing the whole curriculum.
+    const allDone = game.lessons.allDone;
+    text('quest-num', lesson ? `LESSON ${String(lesson.n).padStart(2, '0')} OF ${String(LESSONS.length).padStart(2, '0')}` : allDone ? 'ALL LESSONS COMPLETE' : 'LEVEL COMPLETE');
     text('level', `Rank ${game.level}   ${game.xp} XP`);
     this.hud.requireElementById('quest-title').setProperties({ display: tutorial ? 'none' : 'flex' });
     text('quest-title', lesson ? lesson.name : 'Life at your camp');
-    text('quest-desc', lesson ? lesson.goal : 'Keep exploring - can you find every observation?');
-    // The five lessons, ticked off as they finish.
+    text('quest-desc', lesson ? lesson.goal : allDone ? 'Keep exploring - can you find every observation?' : 'More levels are coming soon. Keep exploring your camp.');
+    // The playable lessons, ticked off as they finish.
+    const shown = playableLessons();
     for (let i = 0; i < STEP_LINES; i++) {
-      const l = LESSONS[i];
+      const id = shown[i];
+      const l = id ? lessonById(id) : undefined;
       const el = this.hud.requireElementById<UIKit.Text>(`step-${i}`);
       el.setProperties({ display: l ? 'flex' : 'none' });
       if (l) {
@@ -311,10 +315,19 @@ export class HudSystem extends createSystem({
     } else {
       const s = game.structures.find((t) => t.id === e.getValue(SnapSpot, 'structureId'));
       if (!s) return;
-      const spotDef = BLUEPRINTS[s.kind].spots[e.getValue(SnapSpot, 'index') ?? 0];
-      title = spotDef.label;
-      sub = `Hold ${spotDef.accepts.map((id) => itemName(id).toLowerCase()).join(' or ')} and set it down on the glow`;
-      const p = spotWorldPosition(s, e.getValue(SnapSpot, 'index') ?? 0);
+      const index = e.getValue(SnapSpot, 'index') ?? 0;
+      const mark = markDef(s.kind, index);
+      if (!mark) return;
+      if (index < 0) {
+        // The top (a workbench slab): one press on its glow lays it on from your bag.
+        const vr = this.world.visibilityState.peek() !== VisibilityState.NonImmersive;
+        title = itemName(s.key);
+        sub = `${vr ? 'Pinch' : 'Click'} the glow to lay it on top`;
+      } else {
+        title = mark.label;
+        sub = `Hold ${mark.accepts.map((id) => itemName(id).toLowerCase()).join(' or ')} and set it down on the glow`;
+      }
+      const p = spotWorldPosition(s, index);
       this.tmp.set(p.x, p.y + 0.35, p.z);
     }
     // Shown on the HUD's hover line, not as a card floating over the object.

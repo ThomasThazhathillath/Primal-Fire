@@ -161,15 +161,14 @@ export const WATER_SOURCE: ExperimentDef = {
       { id: 'filter', text: 'Filter it, then drink it.', why: 'A filter takes out particles, not germs. Boil it.' },
     ],
   },
-  testAction: (g) => {
-    const s = g.leanTo();
-    if (!s || g.env.rain > 0.3 || g.shelterTest.raining) return null;
-    return {
-      label: 'Wait for rain',
-      run: () => {
-        if (g.waitForRain()) g.toast('Clouds gather. Take your empty pot to the low back edge of your roof.', 'note');
-      },
-    };
+  testAction: {
+    label: (g) => (g.leanTo() && g.env.rain <= 0.3 ? 'Wait for rain' : 'Keep testing'),
+    run: (g) => (g.waitForRain() ? 'Clouds gather. Take your empty pot to the low back edge of your roof.' : null),
+  },
+  readout: (g) => {
+    const w = g.water.potWater;
+    if (w === 'empty') return g.env.rain > 0.3 ? 'It is raining. Your pot is empty.' : 'Your pot is empty.';
+    return `In your pot: ${w === 'rain' ? 'rainwater, much clearer' : w === 'raw' ? 'stream water, cloudy with mud' : w}.`;
   },
   opens: (g) => g.focusIs('waterSource'),
 };

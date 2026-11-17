@@ -96,8 +96,13 @@ export class LevelSystem extends createSystem({}) {
     const g = getGame(this.world);
     const found = conceptsOf(id).filter((c) => discovered(c, g.notebook)).map((c) => `- ${c.name}`);
     const after = next ? lessonById(next) : null;
-    const opens = l.unlocks.length ? ` Opens: ${l.unlocks.join(', ')}.` : '';
-    this.show(`LESSON ${two(l.n)} COMPLETE`, l.name, `${l.complete}${opens}`, 'YOU DISCOVERED', found.join('\n') || '- Open the Lab Notebook to see what you found.', after ? 'Next lesson' : 'Done');
+    // The last playable level with more still being built (registry.ts): the guide stops here for now, so it does not
+    // promise the next lesson.
+    const soon = !after && !g.lessons.allDone;
+    const unlocks = soon ? l.unlocks.filter((u) => !/^Lesson \d/.test(u)) : l.unlocks;
+    const opens = unlocks.length ? ` Opens: ${unlocks.join(', ')}.` : '';
+    const more = soon ? ' More levels are coming soon. Keep exploring your camp.' : '';
+    this.show(`LESSON ${two(l.n)} COMPLETE`, l.name, `${l.complete}${opens}${more}`, 'YOU DISCOVERED', found.join('\n') || '- Open the Lab Notebook to see what you found.', after ? 'Next lesson' : 'Done');
     if (after) this.queue.push(() => this.titleCard(after, false));
   }
 

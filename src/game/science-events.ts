@@ -28,6 +28,15 @@ export const SCIENCE_EVENTS = {
   'fire.fuel.none': 'Flame burned out with nothing larger to catch.',
   'fire.lit': 'A stable fire was established.',
   'fire.charcoal.burn': 'Charcoal was burned on a fire.',
+  // --- Lesson 02 (fire.ts): the bow drill, fuel moisture and size, air
+  'fire.drill.slow': 'Slow bow-drill strokes warmed the dust but never made it smoke.',
+  'fire.drill.light': 'Fast strokes with a light press only polished the hearth board.',
+  'fire.fuel.wet': 'Damp fuel hissed and steamed on the fire before it could burn.',
+  'fire.fuel.dried': 'Damp fuel dried out beside the fire or under a roof.',
+  'fire.fuel.ladder': 'A dry log took far longer to catch than a dry twig.',
+  'fire.air.fanned': 'Fanning made a burning fire flare up.',
+  'fire.air.wind': 'Wind fanned an open fire and it burned faster.',
+  'fire.air.smothered': 'Earth over the fire cut off its air and it died.',
   'pottery.untempered.crack': 'A clay-only pot cracked while drying.',
   'pottery.wet.burst': 'A damp pot burst in the fire.',
   'pottery.fired': 'A pot was fired successfully.',
@@ -147,6 +156,17 @@ export const SCIENCE_EVENTS = {
   'camp.wood.wet': 'Uncovered firewood was rained on.',
   'camp.bed.rested': 'The player rested on a made bed.',
   'water.sediment.settle': 'Muddy water was left to stand and cleared.',
+
+  // --- Lesson 01 (Shelter), Phase 2: site, frame, bed and night tests
+  'shelter.site.hollow': 'A lean-to was started in a low hollow and the site check turned it down.',
+  'shelter.site.raised': 'A lean-to was started on slightly raised ground.',
+  'shelter.frame.racked': 'The bare frame (posts and ridge only) leaned right over when pushed.',
+  'shelter.bed.dry': 'Rested on a whole bed of dry grass or dry leaves and measured the heat flow into the ground.',
+  'shelter.bed.damp': 'Rested on a whole bed of damp moss and measured the heat flow into the ground.',
+  'shelter.bed.compared': 'The bed test compared bare ground, dry and damp beds.',
+  'shelter.night.exposed': 'Stood still out in the open on a cold night.',
+  'shelter.night.warm': 'Rested on the bed in the shelter on a cold night and warmth held steady.',
+
   // --- Lesson 03: Water (curriculum/lessons/water)
   'pottery.test.made': 'Clay test cups were made: one of clay only, two with sand.',
   'pottery.clay.reclaimed': 'A cracked, unfired clay piece was soaked back into clay.',

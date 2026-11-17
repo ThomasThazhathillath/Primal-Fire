@@ -1,6 +1,6 @@
-# PRIMAL: First Fire
+# EUREKA: Survive through Science
 
-A hands-first VR science-survival game for the **Meta VR Start Developer Competition 2026** (Gaming · New Experience). You wake on the forest floor with nothing. Every machine is gone; the science isn't. Gather, build and experiment your way from bare hands to fire, charcoal and clean water.
+A hands-first VR science-survival game (formerly *PRIMAL: First Fire*, made for the **Meta VR Start Developer Competition 2026**, Gaming · New Experience). You wake on the forest floor with nothing. Every machine is gone; the science isn't. Five lessons take you from bare hands to shelter, fire, clean water, tools and food, and every step is an experiment.
 
 Built with Meta's **Immersive Web SDK (IWSDK)** on three.js and WebXR, and shipped as a link (GitHub Pages). Design and plans live in [`docs/`](docs/): start with [PROJECT_STATUS.md](docs/PROJECT_STATUS.md) (current state and the docs index) and [DESIGN.md](docs/DESIGN.md). The original browser prototype is in [docs/prototype/](docs/prototype/README.md).
 

@@ -1,4 +1,4 @@
-# Primal Fire: science curriculum
+# EUREKA: science curriculum
 
 Every mechanic should teach one true idea. This page maps mechanics to the science
 behind them, how the game shows it, and where it is simplified.
@@ -43,6 +43,10 @@ Quests (`src/game/quests.ts`) wait on events and give recaps when they finish.
 | Biomechanics | Carrying | Work against gravity = m g h | `body.carry.heavy` | `y_carry` | ✅ |
 | Heat loss | Cold, wet, wind | Conduction, convection and evaporation carry heat away; water conducts far faster than air | `body.cold.wet`, `shelter.wind.blocked` | `y_wet`, `s_wind` | ✅ |
 | Insulation | Shelter bed | Dry debris traps still air, which conducts poorly | `shelter.bed.insulated` | `s_bed` | ✅ |
+| Insulation (test) | Bed materials | Still air insulates; water in damp bedding conducts heat and soaks you | `shelter.bed.dry`, `shelter.bed.damp`, `shelter.bed.compared` | `l1_stems`, `l1_damp`, `l1_air` | ✅ (relative values) |
+| Heat budget | A night in the shelter | A shelter makes no heat; it cuts losses until body heat is enough | `shelter.night.exposed`, `shelter.night.warm` | `l1_open`, `l1_night` | ✅ (simplified) |
+| Terrain | Site check | Cold air drains downhill and pools in hollows; raised ground sheds water | `shelter.site.hollow`, `shelter.site.raised` | `l1_hollow`, `l1_rise` | ✅ |
+| Racking | Push test | A box folds without any side changing length; triangles do not | `shelter.frame.racked` | `l1_rack` | ✅ |
 | Shelter siting and shape | Shelter | Cold air sinks; water runs downhill; steep layered roofs shed rain | `shelter.site.chosen`, `shelter.roof.covered` | `s_site`, `s_roof` | ✅ |
 | Wound care | First aid | Dirt carries bacteria; washing lowers infection risk; inflammation is the body’s response | `body.wound.*` | `y_wound_clean`, `y_wound_dirty` | ✅ (game only; not medical advice) |
 | Ecology | Animals | Producers, herbivores and carnivores; energy is lost at each step | `nature.foodchain.seen` | `n_chain` | ✅ / 🟡 (10% rule) |
@@ -62,6 +66,16 @@ The game is played as five lessons (see [CURRICULUM.md](CURRICULUM.md)): 01 Shel
 "How many roof layers keep the rain out?": each roof panel under rain is a trial, with the shelter rules
 deciding whether it leaks (one layer of bark, leaves or grass leaks; two or more overlapping layers hold).
 
+Lesson 01 adds three more ✅ (simplified models, stated as such):
+- "What stops a frame from folding over?" Pushing the lean-to: posts and a ridge make a box that leans right over;
+  ribs make triangles and cross-supports tie them, so it holds (`shelter.ts framePush`, a teaching model of racking).
+- "What makes a warm bed?" Resting under the roof, the body's conduction into the ground is compared with bare
+  ground. Insulation per material is relative (`survival/materials.ts`: dry grass 0.9, dry leaves 0.85, damp moss
+  0.3 of the ground's pull stopped); still air conducts about 0.026 W/m K, water about 0.6.
+- "How much warmth does your shelter save at night?" Heat out over heat made, in the open and on a dry bed under the
+  roof (`heatRatio`). Cold air pooling in hollows on calm nights ✅ (radiative cooling + cold-air drainage), modelled
+  as up to 2.5 C colder air.
+
 **The body** (`src/game/survival/`) is a simplified teaching model: heat in (metabolism, a fire) minus heat out
 (cold air, faster in wind, much faster when wet, and into the ground when resting without a bed). The game shows
 "warmth", never a body temperature, so it states no hypothermia figures. Water conducts heat "more than twenty
@@ -74,7 +88,22 @@ times" better than air (about 0.6 vs 0.026 W/m K) ✅.
 | Plant needs | Farm plots | Loose soil, water and light; wilting is loss of water pressure in cells; shade slows photosynthesis | `farm.plot.dug`, `farm.watered`, `farm.dry`, `farm.shade` | `fm_dig`, `fm_water`, `fm_dry`, `fm_shade` | ✅ |
 | Propagation | Harvesting tubers | Tubers store starch made from sunlight; a piece can grow a new plant | `farm.harvested` | `fm_harvest` | ✅ |
 
+### Lesson 02: Fire
+
+| Topic | Mechanic | Core idea | Events | Entries | Conf. |
+|---|---|---|---|---|---|
+| Friction: speed and pressure | Bow drill (VR stroke, browser drag + Shift) | Friction heat grows with rubbing speed and with how hard the surfaces press; hot dust loses heat faster, so slow or light sawing levels off | `fire.drill.slow`, `fire.drill.light` | `f_speed`, `f_pressure` | ✅ (heat ~ force x speed is standard; the game's numbers are game-scale) |
+| Ignition temperature | Feeding the fire | Fuel must be heated to ignition; water must boil off first; thick fuel takes longer (surface area per mass) | `fire.fuel.wet`, `fire.fuel.ladder`, `fire.fuel.dried` | `f_steam`, `f_ladder`, `f_dried` | ✅ |
+| Oxygen and airflow | Fanning, wind, smothering with earth | Burning is fast oxidation: more air, hotter and faster; no air, it dies | `fire.air.fanned`, `fire.air.wind`, `fire.air.smothered` | `f_fanned`, `f_wind`, `f_smother` | ✅ |
+| Green wood | Green branch on the fire | Sap is mostly water: green wood smoulders, smokes and gives less net heat | `fire.signal.smoke` | `f_smoke` | ✅ |
+| Charcoal burns hotter | Charcoal on the fire | Mostly carbon, its water and volatiles already gone: hot, little smoke; gives off carbon monoxide | `fire.charcoal.burn` | `f_charcoal` | ✅ |
+| Keeping a fire | The practical | A fire burns its fuel away and must be fed | `fire.night.kept` | `f_night` | ✅ |
+
 ## Simplifications (say so in the game)
+
+- Fire (Lesson 02): heat, air, water and burn times are game-scale numbers chosen to show the right trends (thin
+  before thick, dry before damp, more air hotter); no temperatures or real burn times are stated. Pressure on the
+  bow drill is two levels (light, firm); the real "too much pressure stalls the bow" is only mentioned in the text.
 
 - Ignition: we show fuels catching fire in order of size but do not state ignition
   temperatures in the game.

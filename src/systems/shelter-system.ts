@@ -3,6 +3,9 @@
 // water standing on the floor when there is no channel, and water running in a dug channel. It also
 // wets the shelter's wood and leaves, and darkens and quietens things while you are inside.
 // Everything is pooled: 3 wet patches, one flood disc, 24 drip points, 6 splash rings.
+// Lesson 01 site choice (game/sites.ts): each low hollow is a dark, damp patch that shines after rain and fills
+// with low mist on calm nights (cold air pooling); each slight rise is a pale, dry patch. Static meshes whose
+// shader uniforms change twice a second.
 
 import { roundPoints } from './round-points.js';
 import {
@@ -18,12 +21,37 @@ import {
   Points,
   PointsMaterial,
   RingGeometry,
+  ShaderMaterial,
 } from '@iwsdk/core';
+import { SITE_FEATURES } from '../game/sites.js';
 import { type PlacedStructure } from '../game/blueprint.js';
 import { leakingPanels, panelCentre, PANELS } from '../game/shelter.js';
 import { shelterMaterial } from '../scene-assets/leanto.js';
 import { groundHeight } from '../game/world-layout.js';
 import { getGame } from './shared.js';
+
+/** A soft, ragged-edged ground patch: `tint` fades to nothing at the rim; `sheen` adds a wet, sky-grey shine. */
+function patchMaterial(tint: [number, number, number], alpha: number, ragged: number): ShaderMaterial {
+  return new ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -2,
+    uniforms: { uAlpha: { value: alpha }, uSheen: { value: 0 }, uTint: { value: tint } },
+    vertexShader: 'varying vec2 vUv; void main() { vUv = uv * 2.0 - 1.0; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: `varying vec2 vUv;
+      uniform float uAlpha; uniform float uSheen; uniform vec3 uTint;
+      float h(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      float n(vec2 p) { vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f); return mix(mix(h(i), h(i + vec2(1.0, 0.0)), u.x), mix(h(i + vec2(0.0, 1.0)), h(i + vec2(1.0, 1.0)), u.x), u.y); }
+      void main() {
+        float r = length(vUv) + (n(vUv * 4.0) - 0.5) * ${ragged.toFixed(2)};
+        float a = smoothstep(1.0, 0.3, r) * uAlpha;
+        vec3 c = uTint * (0.8 + 0.4 * n(vUv * 11.0));
+        c = mix(c, vec3(0.42, 0.5, 0.56), uSheen * smoothstep(0.75, 0.1, r));
+        gl_FragColor = vec4(c, a * (1.0 + 0.4 * uSheen));
+      }`,
+  });
+}
 
 const DROPS = 24;
 const SPLASHES = 6;
@@ -48,6 +76,9 @@ export class ShelterSystem extends createSystem({}) {
   private waterT = 0;
   private cos = 1;
   private sin = 0;
+  /** Site patches (hollows shine when the ground is wet) and the mist that pools in hollows on calm nights. */
+  private hollowMat!: ShaderMaterial;
+  private mistMat!: ShaderMaterial;
 
   init(): void {
     this.root.name = 'ShelterWeather';
@@ -72,12 +103,40 @@ export class ShelterSystem extends createSystem({}) {
     for (let i = 0; i < DROPS; i++) this.dripPos[i * 3 + 1] = -10;
     this.root.add(this.drips);
     const ringGeo = new RingGeometry(0.05, 0.07, 14);
+    this.buildSites();
     for (let i = 0; i < SPLASHES; i++) {
       const r = new Mesh(ringGeo, new MeshBasicMaterial({ color: 0xcfeaf7, transparent: true, opacity: 0.8, depthWrite: false, side: DoubleSide }));
       r.rotation.x = -Math.PI / 2;
       r.visible = false;
       this.root.add(r);
       this.splashes.push(r);
+    }
+  }
+
+  /** The hollows and rises of the Waking Clearing (game/sites.ts), drawn once. */
+  private buildSites(): void {
+    this.hollowMat = patchMaterial([0.13, 0.16, 0.09], 0.62, 0.35);
+    const riseMat = patchMaterial([0.6, 0.52, 0.34], 0.42, 0.45);
+    this.mistMat = patchMaterial([0.86, 0.9, 0.94], 0, 0.6);
+    const disc = new CircleGeometry(1, 28);
+    for (const f of SITE_FEATURES) {
+      const patch = new Mesh(disc, f.kind === 'hollow' ? this.hollowMat : riseMat);
+      patch.name = `Site_${f.id}`;
+      patch.rotation.x = -Math.PI / 2;
+      patch.position.set(f.x, groundHeight(f.x, f.z) + 0.006, f.z);
+      patch.scale.setScalar(f.r * 1.15);
+      this.root.add(patch);
+      if (f.kind !== 'hollow') continue;
+      // Two thin sheets of mist low over the hollow (seen from eye height they read as a pool of fog).
+      for (const [y, k] of [[0.12, 0.95], [0.32, 0.75]] as const) {
+        const mist = new Mesh(disc, this.mistMat);
+        mist.name = `SiteMist_${f.id}`;
+        mist.rotation.x = -Math.PI / 2;
+        mist.position.set(f.x, groundHeight(f.x, f.z) + y, f.z);
+        mist.scale.setScalar(f.r * k);
+        mist.renderOrder = 2;
+        this.root.add(mist);
+      }
     }
   }
 
@@ -103,6 +162,10 @@ export class ShelterSystem extends createSystem({}) {
     // Which shelter and how it stands: rescanned a couple of times a second.
     if ((this.scan -= dt) <= 0) {
       this.scan = 0.5;
+      // Hollows hold water after rain, and cold air (mist) pools there on calm nights.
+      const env = game.env;
+      this.hollowMat.uniforms.uSheen.value = Math.min(1, env.wet * 1.4);
+      this.mistMat.uniforms.uAlpha.value = 0.38 * env.night * Math.max(0, 1 - 1.2 * env.windStrength);
       this.shelter = game.leanTo();
       if (this.shelter) {
         this.cos = Math.cos(this.shelter.rotY);

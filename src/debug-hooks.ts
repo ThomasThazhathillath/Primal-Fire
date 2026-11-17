@@ -7,6 +7,7 @@ import type { StructureKind } from './game/blueprint.js';
 import type { Recipe } from './game/game.js';
 import type { ItemId } from './game/items.js';
 import { RESOURCES } from './game/world-layout.js';
+import { quality } from './game/quality.js';
 import { cards } from './systems/shared.js';
 import { Gatherable } from './components/game-components.js';
 import { BuildSystem } from './systems/build-system.js';
@@ -94,10 +95,44 @@ export function streamPlaytestLog(world: World): void {
       }
     },
   );
+  // Where the frame goes, measured on the device (dev only): ms per frame of each system's update and of the render,
+  // logged with every heartbeat as the slowest few. Timing ~80 systems costs a few hundredths of a millisecond.
+  const sysMs = new Map<string, number>();
+  for (const sys of world.getSystems()) {
+    const name = sys.constructor.name || 'System';
+    const update = sys.update.bind(sys);
+    sysMs.set(name, 0);
+    sys.update = (delta: number, time: number) => {
+      const t0 = performance.now();
+      update(delta, time);
+      sysMs.set(name, (sysMs.get(name) ?? 0) + performance.now() - t0);
+    };
+  }
+  const em = world.entityManager as unknown as { entityIndex: number; poolSize: number };
+  const liveEntities = () => em.entityIndex - em.poolSize;
+  let renderMs = 0;
+  const render = world.renderer.render.bind(world.renderer);
+  world.renderer.render = (scene, camera) => {
+    const t0 = performance.now();
+    render(scene, camera);
+    renderMs += performance.now() - t0;
+  };
   let lastT = performance.now();
   setInterval(() => {
     const now = performance.now();
     const fps = (frames * 1000) / (now - lastT);
+    if (frames > 0) {
+      let total = 0;
+      for (const v of sysMs.values()) total += v;
+      const top = [...sysMs.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 8)
+        .map(([n, v]) => `${n.replace(/System$/, '')} ${(v / frames).toFixed(2)}`)
+        .join(', ');
+      push(`perf systems=${(total / frames).toFixed(2)}ms render=${(renderMs / frames).toFixed(2)}ms quality=${quality.tier} entities=${liveEntities()} top: ${top}`);
+    }
+    for (const k of sysMs.keys()) sysMs.set(k, 0);
+    renderMs = 0;
     const slowest = worst * 1000;
     frames = 0;
     worst = 0;

@@ -9,7 +9,7 @@ objective card, experiments the player runs with real variables, and a short che
 | 02 | Fire | warmth, cooking, heat for materials | wood, tinder, bow-drill parts, bow drill, fire pit, fire lay, ember, fire, **stroke-speed**, **pressure**, **damp-or-dry**, **twig-or-log**, **dead-or-green-wood** experiments, charcoal, **air-and-charcoal** and **air-on-the-fire** experiments, the **practical** (light and keep your own fire) |
 | 03 | Water | a safe water supply | **clay-temper test**, **firing test**, clay pot, **stream or rain**, **filter layer order**, **settle / filter / boil**, **closing check** (limits of filtration) |
 | 04 | Tools | make tools, test materials, move a boulder no one could lift | sharp flake, **strike-angle experiment**, cut with it, **cord-strength experiment**, stone axe, split a log, tool kit (knife + hammer), **frame-bracing experiment**, **lever-pivot experiment**, roll the boulder off the flint seam (challenge), tool test |
-| 05 | Food & Navigation | self-sufficiency | fishing spear, catch a fish, cook it, grow food, follow a trail, reach the Science Roadmap |
+| 05 | Food & Navigation | self-sufficiency | fishing spear, catch a fish, cook it, **plant judgement**, **nutrition**, grow food, basket, **fresh vs dried**, follow a trail, **overharvest**, **read the sky**, **the sun's path**, the long trek (no compass), closing check |
 
 Fire comes before Water so that pottery firing and boiling use the player's own fire, and the filter uses the
 player's own charcoal.
@@ -158,6 +158,60 @@ src/systems/          experiment-system, notebook-system, body-system, level-sys
 - **Saves:** version 2 (`src/game/save.ts`). Lessons, body, experiments and the notebook's read count are saved;
   a version-1 save is backed up once and migrated. `tests/fixtures/saves/` holds frozen version-1 saves.
 
+## Lesson 05: Food, Navigation & Long-Term Survival
+
+Story: the camp works; now the player must become self-sufficient. Content lives in `lessons/food/`:
+`steps.ts`, `experiments.ts` (six), `nutrition.ts` (what each food is made of), `field.ts` (`FieldLesson`, on
+`game.field`: plant-judgement and trek cards, sky and sun reading, the trek, the closing check, food-chain hooks).
+Food rules stay in `src/game/food.ts` and `src/game/forage.ts`; digestion is in `survival/body.ts`.
+
+Level 5 is on the title list. Played on from Level 4 the player's own camp is used. Chosen from the title in a game
+with no camp yet (no workbench or fire pit), `FieldLesson.ensureCamp` sets one up once: a workbench, a burning fire
+pit, a drying rack and a bed, plus a spindle, flake, cord, knife, digging stick and a fired pot (the story starts at a
+working camp). Finishing `finalCheck` finishes the last lesson (`tracker.allDone`).
+
+| Experiment | Variable (values) | Trials come from |
+|---|---|---|
+| `plantId` Can you trust a plant that looks like food? | match with the field guide (all / most) | `food.judge`: what the judged plant really was |
+| `nutrition` Which food keeps you going longest? | food (berries / nuts / fish) | `Body.digest` -> `onMeal`: how long the meal kept feeding you |
+| `dryingTest` Does drying make food keep longer? | food carried (fresh / dried fish) | spoilage: both carried for fresh fish's "going off" age |
+| `overharvest` What happens if you strip a patch bare? | picking (some / all) | patch stocks: how each patch actually grew back |
+| `skyTest` Do dark, building clouds warn of rain? | sky when you looked up (dark building / clear) | `Environment`: cloud cover when read, then rain within 60 s or not |
+| `sunPath` Where does the sun rise and set? | time of day (morning / afternoon) | the sun path (`sunDirection`) when you faced the sun |
+
+- **Plant judgement:** looking closely at a patch opens the choice card (`choice-system.ts`, `public/ui/choice.uikitml`):
+  the plant's fruit, stem, leaves and smell next to the field guide's food plant. The player decides safe / not safe /
+  not sure; the truth is shown after. Calling a look-alike or an unlisted plant safe means tasting it: `Body.poison()`
+  (queasy for 90 s, a little food lost), never worse. The plants are made up (docs/SCIENCE.md); look-alikes share the
+  colour and differ in two features, and two plants are not in the guide at all (right answer: not sure).
+- **Nutrition:** `nutrition.ts` keeps the old food points (fish 40, dried fish 35, nuts 25, berries 15) and adds the
+  main nutrient and how fast it arrives: sugar almost at once, fat and protein over two minutes or so; protein also
+  speeds rest recovery for a while.
+- **Patches** carry 3 handfuls; a handful grows back every 80 s while some is left. Stripped bare, a patch waits 240 s
+  and comes back with 1 handful and a lower maximum, which recovers as it regrows. The basket (pack upgrade) picks two.
+- **Weather:** clouds now build during the last 75 s before every scheduled rain spell (rain timing unchanged), and
+  the cloud experiment's "Watch the sky" button brews a shower (`Environment.brewRain`: 60 s of building cloud, 120 s
+  of light rain). Reading the sky = looking up (pitch above about 35 degrees) for 1.5 s outdoors by day, in Lesson 05
+  until the test is done. "Dark" = cloud 0.7+ and building; "clear" = under 0.3 and not building; grey is not read.
+  Each kind is read once per experiment (the first evidence counts), then watched 60 s for rain.
+- **Sun:** facing within about 25 degrees of the sun for 1 s reads its direction for the hour; "Rest until afternoon" /
+  "Rest until morning" skip the clock. From Lesson 05, resting on a bed at night sleeps until 6:30.
+- **The long trek** (`trek`): after the briefing card, being at camp and then leaving it (10 m) in daylight starts it and
+  covers the compass (`compass-system.ts`). Goals: reach the Ruins,
+  gather 4 food on the way, eat on the way, be back at camp (6 m) before dark. Nightfall or coming home unfinished
+  uncovers the compass and lets you try again. Then `finalCheck`: four questions on the choice card.
+- **Desktop:** U looks closely (also while holding a tool) / eats as before; the choice card is clicked or answered with
+  1-3 and Enter; mouse-look up reads the sky; turning to the sun reads it. VR: reach out to act; the choice card hangs
+  at hand-ray distance (`StaticAnchor.slot('panel')`) and its buttons answer the hand ray or a controller ray + trigger
+  through `PanelTouch`, like the experiment card.
+- **Card order:** an experiment's predict or result card waits while the choice card is open (the experiment card's
+  `pending` queue), so a judgement's answer is read before the experiment result appears.
+- Live checks: `scripts/lesson5-check.mjs` (desktop, real clicks and keys through the plant test, sky, sun, trek and the
+  check) and `scripts/lesson5-timed.mjs` (the timed experiments in phases: `PHASE=setup|meals|watch|sky|sun|report`).
+- Debug handle: `window.__choice` (`state()`, `choose(i)`, `act()`); `__primal.game.field` holds the lesson state.
+- Saves: `FoodSave` gains optional `stock`, `cap`, `regrow`, `stripped`, `judged`; `BodySave` optional `repair`,
+  `meals`; `SaveData.field` (trek, check, judgement counts). All absent in older saves and defaulted safely.
+
 ## Adding to a lesson
 
 1. **A step:** add it to `lessons/<id>/steps.ts` (with four hint levels and a `HintInfo` picture) and to the
@@ -240,6 +294,7 @@ npm run build
 `tests/curriculum-e2e.test.ts` plays a fresh game through all five lessons (Lessons 01, 02 and 03 by real actions).
 `tests/fire-lesson.test.ts` covers the Lesson 02 rules and runs every fire experiment through the real fire;
 `tests/lesson-water.test.ts` covers every Lesson 03 rule and experiment.
+`tests/lesson5.test.ts` covers every Lesson 05 rule and experiment; the e2e test plays Lesson 05's new steps by real actions.
 In the running game (`npx @iwsdk/cli dev up --headless --allow-browser-automation`):
 
 - `scripts/playtest.mjs`: the survival opening, 20 checks.
@@ -250,7 +305,7 @@ In the running game (`npx @iwsdk/cli dev up --headless --allow-browser-automatio
   first), e.g. `OBJ=FramePush_1_0` pushes the lean-to frame. In emulated XR, `xr look-at` targets are in the
   headset's reference space (relative to the player rig), not world coordinates.
 
-Debug handles: `window.__experiment`, `window.__notebook`, `window.__body`, `window.__lessonCard`.
+Debug handles: `window.__experiment`, `window.__notebook`, `window.__body`, `window.__lessonCard`, `window.__choice`.
 The Tool Yard's state is `g.yard` (in `scripts/eval.mjs` snippets).
 Lesson 01 in the running game: `g.shelterRules` (`lastPush`, `lastBed`, `lastNight`, `nightAdvice(g)`), `g.pushFrame(id)`,
 `g.waitForNight()`. Unit tests: `tests/lesson01.test.ts`.

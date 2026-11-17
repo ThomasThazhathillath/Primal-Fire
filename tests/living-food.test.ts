@@ -35,29 +35,35 @@ describe('crops', () => {
 });
 
 describe('foraging', () => {
-  it('you must look before you pick, and a look-alike is refused', () => {
+  it('you must look and judge before you pick, and a look-alike is refused', () => {
     const g = new Game();
-    const bad = FORAGE_PATCHES.find((p) => !p.edible)!;
+    const bad = FORAGE_PATCHES.find((p) => p.truth === 'lookalike')!;
     g.setPlayerPosition(bad.x, bad.z);
     const look = g.food.available(g.player, null)!;
     expect(look.id).toBe('inspect');
     g.food.perform(look);
+    // Looking closely opens the judge card; you decide (here: not safe).
+    expect(g.field.prompt?.key).toBe(`judge:${bad.id}`);
+    g.field.choose(1);
     expect(g.hasEvent('food.forage.avoided')).toBe(true);
     const pick = g.food.available(g.player, null)!;
     expect(pick.id).toBe('forage');
     g.food.perform(pick);
     expect(g.count(bad.yield)).toBe(0);
   });
-  it('an edible patch gives food, then regrows slowly, and the timer is saved', () => {
+  it('an edible patch judged safe gives food a handful at a time, and what is left is saved', () => {
     const g = new Game();
     const ok = FORAGE_PATCHES.find((p) => p.edible && p.kind === 'berry')!;
     g.setPlayerPosition(ok.x, ok.z);
     g.food.perform(g.food.available(g.player, null)!);
-    g.food.perform(g.food.available(g.player, null)!);
+    g.field.choose(0); // Safe to eat: picked at once
     expect(g.count('berries')).toBe(2);
     expect(g.hasEvent('food.forage.picked')).toBe(true);
+    g.food.perform(g.food.available(g.player, null)!);
+    expect(g.count('berries')).toBe(4);
     const g2 = Game.restore(JSON.parse(JSON.stringify(g.snapshot())));
-    expect(g2.food.forage[ok.id]).toBeGreaterThan(0);
+    expect(g2.food.stock[ok.id]).toBe(1);
+    expect(g2.food.judged.get(ok.id)).toBe('safe');
   });
 });
 

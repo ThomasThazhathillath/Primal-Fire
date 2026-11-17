@@ -65,6 +65,7 @@ import { bedParts, bedUnder, COLD_HOUR, NIGHT_COLD, ShelterRules } from './curri
 import { bedInsulation, bedMoisture } from './survival/materials.js';
 import { hollowDepth, siteAt } from './sites.js';
 import type { FramePushResult } from './shelter.js';
+import { FieldLesson, type FieldSave } from './curriculum/lessons/food/field.js';
 
 export type FlagId =
   | 'cordMade'
@@ -326,6 +327,8 @@ export class Game {
   readonly water = new WaterState(this);
   /** Level 3: fishing, cooking and farming (food.ts). */
   readonly food = new FoodState(this);
+  /** Lesson 05 field rules: judging plants, the sky, the sun, the long trek, the closing check. */
+  readonly field: FieldLesson = new FieldLesson(this);
   /** Highest game level reached (1-3). */
   levelReached = 1;
   readonly packUpgrades = new Set<string>();
@@ -819,6 +822,7 @@ export class Game {
       this.tickShelter(this.shelterT);
       this.tickBody(this.shelterT);
       this.fuelWet.tick(this.shelterT);
+      this.field.update(this.shelterT);
       this.experiments.update(this);
       this.yard.tick(this.shelterT);
       this.shelterT = 0;
@@ -884,6 +888,10 @@ export class Game {
     }
     for (const e of w.events) {
       if (e.species === 'deer' && e.kind === 'flee') this.science('wild.deer.fled');
+      if (e.species === 'deer' && e.kind === 'alert') {
+        const a = w.animals.find((x) => x.id === e.id);
+        if (a) this.field.preyAlert(a.heading, a.x, a.z);
+      }
       if (e.species === 'deer' && e.kind === 'drink' && Math.hypot(e.x - this.player.x, e.z - this.player.z) < 30) this.science('wild.deer.drank');
       if ((e.kind === 'call' || e.kind === 'startle') && this.wildAudio.length < 8) this.wildAudio.push(e);
     }
@@ -1021,6 +1029,11 @@ export class Game {
   /** The fire changed; `first` = this is the very first time a fire caught in this game. */
   notifyFire(first = false): void {
     this.emit({ type: 'fire', stage: this.fire.stage, ...(first ? { first } : {}) });
+  }
+
+  /** A structure was added or changed outside the build flow (Lesson 05's starter camp): draw it. */
+  notifyStructure(s: PlacedStructure): void {
+    this.emit({ type: 'structure', structure: s });
   }
 
   /** Use up what you hold (the Tool Yard: a pole laid as a lever, fibres that snapped). */
@@ -2218,6 +2231,7 @@ export class Game {
       body: this.body.snapshot(),
       experiments: this.experiments.snapshot(),
       yard: this.yard.snapshot(),
+      field: this.field.snapshot(),
       notebookSeen: this.notebookSeen,
       movedSpots: [...this.movedSpots].map(([id, p]) => [id, p.x, p.z, p.ry] as [string, number, number, number]),
       story: this.story.snapshot(),
@@ -2272,6 +2286,7 @@ export class Game {
     g.body.restore(data.body);
     g.experiments.restore(data.experiments);
     g.yard.restore(data.yard);
+    g.field.restore(data.field);
     // Older saves did not track it: treat what they had as read.
     g.notebookSeen = Math.min(g.notebook.length, data.notebookSeen ?? g.notebook.length);
     for (const [id, x, z, ry] of data.movedSpots ?? []) g.movedSpots.set(id, { x, z, ry });
@@ -2299,6 +2314,8 @@ export interface SaveData {
   experiments?: ExperimentsSave;
   /** Lesson 04's Tool Yard (boulder, lever, frame, seam, tool jobs); absent in older saves. */
   yard?: YardSave;
+  /** Lesson 05: the long trek, the closing check, plant judgements; absent in older saves. */
+  field?: FieldSave;
   /** Notebook entries already seen (absent in older saves: all of them). */
   notebookSeen?: number;
   /** Gather spots dragged to a new place: [spot id, x, z, yaw]. */

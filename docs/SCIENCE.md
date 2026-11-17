@@ -90,6 +90,13 @@ times" better than air (about 0.6 vs 0.026 W/m K) ✅.
 | Cooking | Fish over the fire | Heat denatures proteins (flesh turns opaque) and kills bacteria and parasites | `food.fish.opaque`, `food.cooked`, `food.raw.refused` | `fd_opaque`, `y_cook`, `fd_raw` | ✅ (63 °C figure is the US FDA guidance) |
 | Plant needs | Farm plots | Loose soil, water and light; wilting is loss of water pressure in cells; shade slows photosynthesis | `farm.plot.dug`, `farm.watered`, `farm.dry`, `farm.shade` | `fm_dig`, `fm_water`, `fm_dry`, `fm_shade` | ✅ |
 | Propagation | Harvesting tubers | Tubers store starch made from sunlight; a piece can grow a new plant | `farm.harvested` | `fm_harvest` | ✅ |
+| Plant toxicity | Judging wild plants against a field guide | Look-alikes share features with food plants; only a full match identifies a plant; not sure means no | `food.forage.sick`, `food.forage.unsure`, `food.forage.avoided` | `fd_sick`, `fd_unknown`, `l_lookalike` | ✅ (plants are made up) |
+| Nutrition | Eating berries, nuts, fish (digestion in body.ts) | Fat about 9 kcal/g, sugar and protein about 4; sugar is taken up fast, fat and protein slowly; protein builds and repairs tissue | `food.ate.sugar`, `food.ate.fat`, `food.ate.protein` | `fd_sugar`, `fd_fat`, `fd_protein` | ✅ / 🟡 (how long food "lasts" is a rule of thumb) |
+| Preservation | Fresh vs dried fish carried for the same time | Microbes need water; drying slows spoiling | `food.fish.ageing`, `food.dried.keeps` | `fd_offfish`, `fd_driedkeeps` | ✅ |
+| Sustainable harvest | Patch stocks and regrowth | What is left fruits and spreads seed; a stripped patch recovers slowly | `food.patch.thin`, `food.patch.recovered` | `fd_overharvest`, `fd_recover` | ✅ (rates are invented) |
+| Navigation | Facing the sun; the long trek without a compass | The sun rises in the east, is south at midday (northern half of the world), sets in the west | `nav.sun.*`, `nav.trek.*` | `nv_sunrise`, `nv_sunset`, `nv_noon`, `nv_trek`, `nv_home` | ✅ |
+| Weather | Looking up before rain (clouds build before rain spells) | Rising moist air cools and condenses; building dark clouds often bring rain | `weather.sky.read` | `x_sky` | 🟡 (rule of thumb) |
+| Food chains | Watching plant-eaters, eating fish; a deer spotting you from the side | Producers, herbivores, carnivores (you); side-set prey eyes | `nature.foodchain.seen`, `nature.predator.near` | `n_chain`, `n_eyes` | ✅ / 🟡 |
 
 ### Lesson 02: Fire
 
@@ -123,6 +130,8 @@ push. The lever law itself is exact (✅).
 - Growth and drying times are compressed to minutes of game time.
 - Lesson 03: pots dry in 45 s and test cups in 30 s (real pots take days); boiling takes 12 s; rain runoff is caught
   in one go. The filter's result depends only on the order of its layers, and a clear result always says germs remain.
+- Lesson 05's wild plants (Redcane berry, Ringnut, Featherroot and their look-alikes) are made up; eating a look-alike
+  only makes you ill for a while. Digestion times, patch regrowth and spoiling are compressed teaching numbers.
 
 ## Uncertain claims (the game avoids these)
 

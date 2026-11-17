@@ -28,7 +28,20 @@ export interface BodySave {
   rest: number;
   wet: number;
   queasy: number;
+  /** Seconds of faster recovery left (protein); absent in older saves. */
+  repair?: number;
+  /** Meals still being digested: [points left, points per second, seconds so far, tag]; absent in older saves. */
+  meals?: Array<[number, number, number, string]>;
 }
+
+/** A meal being digested: its energy reaches the food need over time (sugar fast, fat and protein slowly). */
+interface Meal {
+  left: number;
+  rate: number;
+  t: number;
+  tag: string;
+}
+const MEAL_SLOTS = 4;
 
 export interface BodyEvent {
   type: 'level';
@@ -85,11 +98,18 @@ export class Body {
   readonly flow: HeatFlow = { gain: 0, loss: 0, ground: 0 };
   private levels: Record<Need, Level> = { warmth: 'ok', water: 'ok', food: 'ok', rest: 'ok' };
   private rawDrinks = 0;
+  /** Seconds of faster recovery left: protein gives the body what it repairs muscle with. */
+  repair = 0;
+  /** Meals being digested (at most MEAL_SLOTS; the oldest is finished at once when a fifth arrives). */
+  private readonly meals: Meal[] = [];
+  /** Told when a meal has been fully digested: its tag and how many seconds it kept you fed. */
+  onMeal: ((tag: string, seconds: number) => void) | null = null;
 
   constructor(private readonly onEvent: (e: BodyEvent) => void = () => {}) {}
 
   /** Advance `dt` seconds. `resting`: standing still inside a shelter (you would sit or lie down). */
   tick(dt: number, m: Microclimate, resting: boolean): void {
+    if (dt > 0) this.digestTick(dt);
     const rate = PRESSURE_RATE[this.pressure];
     // The physics is the same at every setting (readouts use it); the setting only scales what it does to you.
     heatFlow(m, this.wet, resting, this.flow);
@@ -119,7 +139,7 @@ export class Body {
     // ---- Rest: used while active; recovered resting under a roof, best on a bed. Short of water or food,
     // you recover less: dehydration caps how rested you can get.
     if (resting && m.sheltered) {
-      const recover = (m.onBed ? 0.8 : 0.4) * fed * (this.queasy > 0 ? 0.5 : 1);
+      const recover = (m.onBed ? 0.8 : 0.4) * fed * (this.queasy > 0 ? 0.5 : 1) * (this.repair > 0 ? 1.5 : 1);
       this.rest = Math.min(clamp(this.rest + recover * dt), this.restCap());
     } else {
       this.rest = clamp(this.rest - 0.03 * rate * dt);
@@ -127,6 +147,61 @@ export class Body {
 
     if (this.queasy > 0) this.queasy = Math.max(0, this.queasy - dt);
     this.checkLevels();
+  }
+
+  /**
+   * Eat a portion worth `points` of food energy: `quick` of it (0..1) arrives at once, the rest over `release`
+   * seconds as it is digested; `repair` seconds of faster recovery (protein). `tag` names the meal for onMeal.
+   */
+  digest(points: number, quick: number, release: number, repair = 0, tag = ''): void {
+    const now = points * Math.max(0, Math.min(1, quick));
+    this.food = clamp(this.food + now);
+    this.repair = Math.max(this.repair, repair);
+    const slow = points - now;
+    if (slow > 0.01 && release > 0) {
+      if (this.meals.length >= MEAL_SLOTS) this.finishMeal(0, true);
+      this.meals.push({ left: slow, rate: slow / release, t: 0, tag });
+    } else this.onMeal?.(tag, 0);
+    this.checkLevels();
+  }
+
+  /** Energy still to come from meals being digested (food points). */
+  digesting(): number {
+    let n = 0;
+    for (const m of this.meals) n += m.left;
+    return n;
+  }
+
+  private digestTick(dt: number): void {
+    if (this.repair > 0) this.repair = Math.max(0, this.repair - dt);
+    for (let i = this.meals.length - 1; i >= 0; i--) {
+      const meal = this.meals[i];
+      const take = Math.min(meal.left, meal.rate * dt);
+      meal.left -= take;
+      meal.t += dt;
+      this.food = clamp(this.food + take);
+      if (meal.left <= 1e-6) this.finishMeal(i, false);
+    }
+  }
+
+  private finishMeal(i: number, rush: boolean): void {
+    const meal = this.meals[i];
+    if (rush) this.food = clamp(this.food + meal.left);
+    this.meals.splice(i, 1);
+    // A meal cut short (too many at once) is reported as -1: it says nothing about how long that food lasts.
+    this.onMeal?.(meal.tag, rush ? -1 : meal.t);
+  }
+
+  /**
+   * You ate something that is not food (a poisonous look-alike). Gentle by design: an upset stomach for a while
+   * (thirst and hunger come faster, rest slower) and a little lost food; never worse. Returns whether it took hold.
+   */
+  poison(): boolean {
+    if (this.pressure === 'off') return false;
+    this.queasy = Math.max(this.queasy, this.pressure === 'realistic' ? 150 : 90);
+    this.food = clamp(this.food - 8);
+    this.checkLevels();
+    return true;
   }
 
   /** How rested you can get: short of water, not fully. */
@@ -192,7 +267,17 @@ export class Body {
   }
 
   snapshot(): BodySave {
-    return { v: 1, warmth: this.warmth, water: this.water, food: this.food, rest: this.rest, wet: this.wet, queasy: this.queasy };
+    return {
+      v: 1,
+      warmth: this.warmth,
+      water: this.water,
+      food: this.food,
+      rest: this.rest,
+      wet: this.wet,
+      queasy: this.queasy,
+      repair: this.repair,
+      meals: this.meals.map((m) => [m.left, m.rate, m.t, m.tag] as [number, number, number, string]),
+    };
   }
 
   /** Restore; a save without a body (older versions) starts comfortable. */
@@ -205,6 +290,11 @@ export class Body {
     this.rest = clamp(n(s.rest, 100));
     this.wet = clamp(n(s.wet, 0), 0, 1);
     this.queasy = Math.max(0, n(s.queasy, 0));
+    this.repair = Math.max(0, n(s.repair, 0));
+    this.meals.length = 0;
+    for (const m of Array.isArray(s.meals) ? s.meals.slice(0, MEAL_SLOTS) : []) {
+      if (Array.isArray(m) && m[0] > 0 && m[1] > 0) this.meals.push({ left: n(m[0], 0), rate: n(m[1], 1), t: n(m[2], 0), tag: String(m[3] ?? '') });
+    }
     for (const need of ['warmth', 'water', 'food', 'rest'] as const) this.levels[need] = this.level(need);
   }
 }

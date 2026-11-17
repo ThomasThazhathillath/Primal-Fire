@@ -1,0 +1,78 @@
+<!--
+  The choice card (Lesson 05): a question with up to three answers. Used to judge a wild plant against the
+  field guide (two side-by-side boxes), for the trek briefing and for the closing check. ChoiceSystem fills it
+  from game.field.prompt; unused rows and buttons are hidden. Same look and width as the experiment card.
+-->
+<style>
+.theme-begin { display: flex; }
+  .t-root { background-color: rgba(24, 16, 10, 0.98); border-radius: 18px; border-width: 8px; border-color: #6b4524; }
+  .t-banner { flex-direction: row; align-items: center; justify-content: space-between; background-color: #5a2f16; border-radius: 12px; border-bottom-width: 4px; border-color: #c4893f; padding-top: 8px; padding-bottom: 8px; padding-left: 14px; padding-right: 10px; flex-shrink: 0; }
+  .t-bannertext { color: #fbf0d6; font-size: 24px; font-weight: 700; letter-spacing: 1px; }
+  .t-head { background-color: #5e6e34; border-radius: 12px; padding: 8px; }
+  .t-headtext { color: #fbf0d6; font-size: 20px; font-weight: 700; }
+  .t-title { color: #f3e6cc; font-size: 24px; font-weight: 700; line-height: 1.15; }
+  .t-name { color: #f3e6cc; font-size: 20px; font-weight: 700; }
+  .t-lead { color: #f3e6cc; font-size: 20px; line-height: 1.25; }
+  .t-body { color: #f3e6cc; font-size: 19px; line-height: 1.3; }
+  .t-muted { color: #cdb894; font-size: 18px; line-height: 1.3; }
+  .t-small { color: #f3e6cc; font-size: 15px; font-weight: 700; }
+  .t-label { color: #f0a54e; font-size: 13px; font-weight: 700; letter-spacing: 1.5px; }
+  .t-accent { color: #f0a54e; font-size: 20px; font-weight: 700; }
+  .t-note { color: #e2b77a; font-size: 17px; line-height: 1.25; }
+  .t-ok { color: #8fd49b; font-size: 18px; font-weight: 700; line-height: 1.25; }
+  .t-bad { color: #ff8f73; font-size: 18px; font-weight: 700; line-height: 1.25; }
+  .t-row { background-color: #3a2716; border-radius: 12px; border-width: 2px; border-color: #86643c; }
+  .t-slot { background-color: #3a2716; border-radius: 12px; border-width: 2px; border-color: #86643c; }
+  .t-slottext { color: #f3e6cc; font-weight: 600; }
+  .t-tile { flex-direction: column; align-items: center; justify-content: flex-end; background-color: #3a2716; border-radius: 12px; padding-bottom: 8px; padding-left: 6px; padding-right: 6px; }
+  .t-tiletext { color: #f3e6cc; font-size: 15px; font-weight: 700; line-height: 1.2; text-align: center; }
+  .t-detail { background-color: rgba(255, 220, 170, 0.08); border-radius: 12px; padding: 10px; color: #f3e6cc; font-size: 18px; line-height: 1.3; flex-shrink: 0; }
+  .t-rule { height: 2px; background-color: rgba(196, 137, 63, 0.55); flex-shrink: 0; }
+  .t-btn { background-color: #5e6e34; border-radius: 12px; }
+  .t-go { background-color: #f0a54e; border-radius: 12px; }
+  .t-track { background-color: rgba(255, 225, 180, 0.16); border-radius: 4px; }
+  .t-fill { background-color: #f0a54e; border-radius: 4px; }
+.theme-end { display: flex; }
+  .box { flex-direction: column; background-color: #3a2716; border-radius: 12px; border-width: 2px; border-color: #86643c; padding-top: 8px; padding-bottom: 10px; padding-left: 10px; padding-right: 10px; gap: 4px; }
+  .boxhead { color: #f0a54e; font-size: 16px; font-weight: 700; }
+  .boxtext { color: #f3e6cc; font-size: 16px; line-height: 1.3; }
+  .root { flex-direction: column; width: 600px; padding-top: 18px; padding-bottom: 20px; padding-left: 20px; padding-right: 20px; gap: 10px; }
+  .head { flex-direction: row; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  .titlebox { flex-direction: column; width: 440px; gap: 4px; }
+  .body { width: 560px; line-height: 1.3; }
+  .cols { flex-direction: row; width: 560px; gap: 10px; }
+  .col { width: 275px; }
+  .opt { width: 560px; height: 60px; justify-content: flex-start; padding-left: 16px; padding-right: 16px; }
+  .opttext { color: #fbf0d6; font-size: 18px; font-weight: 600; }
+  .close { width: 120px; height: 52px; }
+  .action { width: 260px; height: 60px; }
+  .actions { flex-direction: row; justify-content: flex-end; width: 560px; }
+</style>
+<div class="root t-root">
+  <div class="head">
+    <div class="titlebox">
+      <div id="ch-label" class="t-label">CHOICE</div>
+      <div id="ch-title" class="t-title">-</div>
+    </div>
+    <Button id="ch-close" class="close t-btn" size="lg" variant="secondary"><ButtonIcon><X></X></ButtonIcon><ButtonLabel>Close</ButtonLabel></Button>
+  </div>
+  <div class="t-rule"></div>
+  <div id="ch-body" class="body t-body">-</div>
+  <div id="ch-cols" class="cols">
+    <div class="col box">
+      <div id="ch-col-0-head" class="boxhead">-</div>
+      <div id="ch-col-0-text" class="boxtext">-</div>
+    </div>
+    <div class="col box">
+      <div id="ch-col-1-head" class="boxhead">-</div>
+      <div id="ch-col-1-text" class="boxtext">-</div>
+    </div>
+  </div>
+  <Button id="ch-opt-0" class="opt t-btn" size="lg"><ButtonLabel id="ch-opt-0-label" class="opttext">-</ButtonLabel></Button>
+  <Button id="ch-opt-1" class="opt t-btn" size="lg"><ButtonLabel id="ch-opt-1-label" class="opttext">-</ButtonLabel></Button>
+  <Button id="ch-opt-2" class="opt t-btn" size="lg"><ButtonLabel id="ch-opt-2-label" class="opttext">-</ButtonLabel></Button>
+  <div id="ch-note" class="body t-note">-</div>
+  <div class="actions">
+    <Button id="ch-action" class="action t-go" size="lg"><ButtonLabel id="ch-action-label" class="opttext">Done</ButtonLabel></Button>
+  </div>
+</div>

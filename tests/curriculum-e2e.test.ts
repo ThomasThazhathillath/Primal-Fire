@@ -11,16 +11,20 @@ import { describe, expect, it } from 'vitest';
 import { BLUEPRINTS, spotWorldPosition } from '../src/game/blueprint.js';
 import { LAYER_SPOTS } from '../src/game/curriculum/lessons/water/filter.js';
 import { KEEP_SECONDS, PRESSURE } from '../src/game/fire.js';
+import { Environment } from '../src/game/environment.js';
 import { Game, type GameEvent } from '../src/game/game.js';
 import type { ItemId } from '../src/game/items.js';
 import { HOLD_DRY } from '../src/game/shelter.js';
 import { knap } from '../src/game/interact.js';
 import { YARD } from '../src/game/curriculum/lessons/tools/engineering.js';
 import { MOUND_MIN_STREAM, SMOKE_BLUE_AT } from '../src/game/water.js';
-import { nearestTreeDistance, streamDistance } from '../src/game/world-layout.js';
+import { LANDMARK_BY_ID, nearestTreeDistance, streamDistance } from '../src/game/world-layout.js';
 import { SITE_FEATURES } from '../src/game/sites.js';
 import { GUIDES } from '../src/game/guides.js';
 import { NIGHT_HOLD } from '../src/game/curriculum/lessons/shelter/rules.js';
+import { FINAL_CHECK } from '../src/game/curriculum/lessons/food/field.js';
+import { campOf } from '../src/game/directions.js';
+import { FORAGE_PATCHES } from '../src/game/forage.js';
 
 const roles = (role: string) => BLUEPRINTS.leanTo.spots.map((s, i) => (s.role === role ? i : -1)).filter((i) => i >= 0);
 const step = (g: Game) => `${g.lessons.lesson?.id ?? '-'}/${g.focus()?.id ?? '-'}`;
@@ -99,7 +103,7 @@ function layBed(g: Game, item: 'leafLitter' | 'dryGrass' | 'dampMoss', x: number
 }
 
 describe('a fresh game through the curriculum', () => {
-  it('plays Lessons 01 (Shelter) and 02 (Fire) by real actions, then Lessons 03 to 05 in order', () => {
+  it('plays Lessons 01 (Shelter), 02 (Fire), 04 (Tools) and 05 (Food) by real actions, then all five are done', () => {
     const g = new Game();
     const done: string[] = [];
     g.on((e: GameEvent) => e.type === 'lessonComplete' && done.push(e.lesson));
@@ -691,12 +695,163 @@ describe('a fresh game through the curriculum', () => {
     for (const id of ['t_crumble', 't_twist', 't_kit', 'b_triangle', 't_pivot', 't_lever']) expect(g.notebook, id).toContain(id);
     expect(step(g)).toBe('food/spear');
 
-    // ---- Lesson 05: Food & Navigation
+    // ---- Lesson 05: Food, Navigation & Long-Term Survival. The new steps by real actions: judging plants,
+    // eating, carrying food, picking patches, looking at the sky and the sun, the trek and the check.
+    // (The running game updates the weather every frame; here `live` does it.)
+    const live = (seconds: number, dt = 0.25) => {
+      for (let t = 0; t < seconds; t += dt) {
+        g.tick(dt);
+        g.env.update(g.time, dt);
+      }
+    };
+    const view = (yaw: number, pitch: number, seconds: number) => {
+      for (let t = 0; t < seconds; t += 0.1) {
+        g.field.observeView(yaw, pitch, 0.1);
+        live(0.1, 0.1);
+      }
+    };
+    const eat = (id: ItemId) => {
+      g.addItem(id);
+      g.takeOut(id);
+      expect(g.food.perform(g.food.available(g.player, id)!)).toBe(true);
+    };
+    const predict = (id: string, choice: string) => {
+      live(0.5);
+      expect(step(g)).toBe(`food/${id}`);
+      expect(g.experiments.predict(id, choice)).toBe(true);
+    };
+    const patches = FORAGE_PATCHES.filter((p) => p.truth === 'food');
+    /** Walk to a patch, look closely, and judge it on the card. */
+    const judge = (p: (typeof FORAGE_PATCHES)[number], option: number) => {
+      g.setPlayerPosition(p.x, p.z);
+      expect(g.food.perform(g.food.available(g.player, null)!)).toBe(true);
+      expect(g.field.prompt?.key).toBe(`judge:${p.id}`);
+      g.field.choose(option);
+      expect(g.field.prompt?.action).toBe('Done');
+      g.field.act();
+    };
+    const sunYaw = () => Math.atan2(-g.env.sunDir[0], -g.env.sunDir[2]);
+    g.env.skipTo(g.time, 8);
     g.addItem('fishingSpear');
-    for (const e of ['food.fish.caught', 'food.fish.opaque', 'farm.harvested']) g.science(e);
+    for (const e of ['food.fish.caught', 'food.fish.opaque']) g.science(e);
+    // Judge plants: a food plant (safe), a look-alike (not safe).
+    predict('plantId', 'all');
+    judge(patches[0], 0);
+    judge(FORAGE_PATCHES.find((p) => p.truth === 'lookalike')!, 1);
+    expect(g.experiments.phase('plantId')).toBe('result');
+    g.experiments.acknowledge('plantId');
+    g.experiments.answer('plantId', 'no');
+    // Nutrition: eat berries, nuts and fish and let the body digest each.
+    predict('nutrition', 'slow');
+    eat('berries');
+    live(20);
+    eat('nuts');
+    live(160);
+    eat('cookedFish');
+    live(130);
+    expect(g.experiments.state('nutrition').supported).toBe('slow');
+    g.experiments.acknowledge('nutrition');
+    g.experiments.answer('nutrition', 'nuts');
+    // Grow food (the farm has its own tests), then weave the basket.
+    g.science('farm.harvested');
+    live(0.5);
+    expect(step(g)).toBe('food/basket');
+    g.addItem('cane', 3);
+    g.addItem('cord', 2);
+    expect(g.upgradePack('basket')).toBe(true);
+    // Fresh vs dried: carry both for the same time.
+    predict('dryingTest', 'dry');
+    g.addItem('fish');
+    g.addItem('driedFish');
+    live(230);
+    expect(g.experiments.state('dryingTest').supported).toBe('dry');
+    g.experiments.acknowledge('dryingTest');
+    g.experiments.answer('dryingTest', 'wet');
     g.living.add('hiddenTrail');
-    g.setFlag('finale');
+    // Overharvest: one patch picked with care (the basket takes two handfuls), one stripped bare.
+    predict('overharvest', 'less');
+    judge(patches[1], 0);
+    judge(patches[2], 0);
+    g.food.perform(g.food.available(g.player, null)!);
+    expect(g.food.stock[patches[2].id]).toBe(0);
+    live(250);
+    expect(g.experiments.state('overharvest').supported).toBe('less');
+    g.experiments.acknowledge('overharvest');
+    g.experiments.answer('overharvest', 'some');
+    // The sky: a clear sky stays dry; then dark clouds build ("Watch the sky") and rain follows.
+    g.env.skipTo(g.time, 9); // a night's sleep on the bed: the sky is read by day
+    predict('skyTest', 'clouds');
+    g.setPlayerPosition(0, 8);
+    g.env.forceWeather = 'clear';
+    view(0, 1, 2);
+    live(95);
+    g.env.forceWeather = null;
+    // Wait for a dry stretch of the real weather schedule (a scheduled shower would mix with the brewed one).
+    const probe = new Environment();
+    probe.seed = g.env.seed;
+    probe.hourOffset = g.env.hourOffset;
+    const dryFor = (t0: number) => {
+      for (let t = t0; t < t0 + 140; t += 5) {
+        probe.update(t, 0);
+        if (probe.rain > 0.05) return false;
+      }
+      return true;
+    };
+    for (let k = 0; k < 200 && !dryFor(g.time); k++) live(10);
+    g.env.skipTo(g.time, 9); // and a night's sleep, if that took until dark
+    live(1);
+    expect(g.experiments.def('skyTest')!.testAction!.run(g)).toBeTruthy();
+    live(45);
+    view(0, 1, 2);
+    live(40);
+    expect(g.experiments.state('skyTest').supported).toBe('clouds');
+    expect(g.notebook).toContain('x_sky');
+    g.experiments.acknowledge('skyTest');
+    g.experiments.answer('skyTest', 'cover');
+    // The sun: face it in the morning and, after a rest, in the afternoon (once the shower has passed).
+    live(140);
+    expect(g.env.brew).toBeNull();
+    g.env.skipTo(g.time, 8);
+    g.env.forceWeather = 'clear'; // thick cloud hides the sun; wait for a clear day
+    predict('sunPath', 'eastWest');
+    view(sunYaw(), 0.2, 2);
+    g.experiments.def('sunPath')!.testAction!.run(g);
+    live(0.5);
+    view(sunYaw(), 0.2, 2);
+    expect(g.experiments.state('sunPath').supported).toBe('eastWest');
+    g.env.forceWeather = null;
+    g.experiments.acknowledge('sunPath');
+    g.experiments.answer('sunPath', 'east');
+    // The long trek: the briefing opens, the compass is covered once you leave camp.
+    g.env.skipTo(g.time, 8);
+    live(0.5);
+    expect(step(g)).toBe('food/trek');
+    expect(g.field.prompt?.key).toBe('trek');
+    g.field.act();
+    const home = campOf(g);
+    g.setPlayerPosition(home.x, home.z); // the trek starts from camp
+    live(0.5);
+    g.setPlayerPosition(home.x + 12, home.z);
+    live(0.5);
+    expect(g.field.compassCovered()).toBe(true);
+    g.setPlayerPosition(LANDMARK_BY_ID.ruins.x, LANDMARK_BY_ID.ruins.z);
+    live(0.5);
+    judge(patches[3], 0);
+    judge(patches[4], 0);
+    eat('nuts');
+    g.setPlayerPosition(home.x, home.z);
+    live(0.5);
+    expect(g.field.trek.phase).toBe('done');
+    // The closing check opens by itself.
+    live(2);
+    expect(step(g)).toBe('food/finalCheck');
+    for (let q = 0; q < FINAL_CHECK.length; q++) {
+      expect(g.field.prompt?.key).toBe(`check:${q}`);
+      g.field.choose(FINAL_CHECK[q].options.findIndex((o) => o.correct));
+      g.field.act();
+    }
     run(g, 0.5);
+    for (const e of ['n_chain', 'fd_sugar', 'fd_driedkeeps', 'fd_overharvest', 'nv_sunrise', 'nv_home']) expect(g.notebook).toContain(e);
     expect(done).toEqual(['shelter', 'fire', 'water', 'tools', 'food']);
     expect(g.lessons.done).toBe(true);
     expect(g.focus()).toBeNull();
@@ -706,5 +861,5 @@ describe('a fresh game through the curriculum', () => {
     const back = Game.restore(JSON.parse(JSON.stringify(g.snapshot())));
     expect(back.lessons.done).toBe(true);
     expect([...back.lessons.lessonDone]).toEqual(['shelter', 'fire', 'water', 'tools', 'food']);
-  }, 120_000);
+  }, 240_000);
 });

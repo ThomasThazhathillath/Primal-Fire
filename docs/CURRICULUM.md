@@ -5,7 +5,7 @@ objective card, experiments the player runs with real variables, and a short che
 
 | # | Lesson | Survival goal | Steps today |
 |---|---|---|---|
-| 01 | Shelter | protection from wind, rain and the cold ground before night | stones, workbench, explore the bench, cord, start the lean-to, frame, roof, rain test, **roof-layer experiment**, bed |
+| 01 | Shelter | protection from wind, rain and the cold ground before night | stones, workbench, explore the bench, cord, start the lean-to (site check), frame, **push test**, roof, rain test, **roof-layer experiment**, bed, **bed test**, **a night in it** |
 | 02 | Fire | warmth, cooking, heat for materials | wood, tinder, bow-drill parts, bow drill, fire pit, fire lay, ember, fire, charcoal |
 | 03 | Water | a safe water supply | clay pot, filter + boil ("clear is not safe") |
 | 04 | Tools | make tools | sharp flake, cut with it, stone axe, split a log |
@@ -13,6 +13,38 @@ objective card, experiments the player runs with real variables, and a short che
 
 Fire comes before Water so that pottery firing and boiling use the player's own fire, and the filter uses the
 player's own charcoal.
+
+## Lesson 01: Understanding Nature & Building Shelter
+
+The player wakes with nothing and night is coming. Every experiment is decided by the real rules: the
+lean-to's filled spots (`shelter.ts`), the body simulation (`survival/body.ts` `heatFlow`) and the weather.
+The lesson's own rules live in `lessons/shelter/rules.ts` (`ShelterRules`, run from `Game.tickBody` in the
+4 Hz slow step; nothing extra is saved except `PlacedStructure.pushFirst`).
+
+| Step | What the player does | What decides it |
+|---|---|---|
+| `pole` | carries the first pole to open ground | **site check** (`sites.ts`, `checkPlacement`): a lean-to is turned down in one of the authored low hollows (`site.lowGround`, entry `l1_hollow`) or under a dead tree (`site.deadBranches`); a slight rise is praised (`l1_rise`) |
+| `frame` | posts, ridge, **push the bare frame**, ribs, cross-supports, lashings, small branches | on the frame step the ribs wait for one push of the bare frame (`pushFirst`); pressing a post or the ridge (pinch, hand or controller ray, mouse) calls `Game.pushFrame` -> `framePush`. The press targets are double-sided spheres, so a hand pinching right at the pole hits them |
+| `framePush` | **experiment**: posts and ridge only vs with ribs and cross-supports | `framePush(s).rack`: the bare box leans right over, the braced frame holds (entry `l1_rack`) |
+| `roof`, `rainTest`, `roofLayers` | as in Phase 1; the rain test's card shows the water standing on the floor until the channel is dug | `ShelterTest.flood` |
+| `bed` | lays a bed under the roof (dry grass, dry leaves, now also damp moss) | the bed's parts |
+| `bedMaterials` | **experiment**: rests still under the roof on bare ground, a whole bed of dry grass or leaves, and a whole bed of damp moss | the body's conduction into the ground (`body.flow.ground`) against bare ground; the bed's material (`survival/materials.ts`: insulation and moisture per material) drives it; a damp bed also wets you |
+| `nightShelter` | **experiment + the lesson's practical check**: on a cold night (dark, air 12 C or less) stands still in the open, then rests on a whole dry bed under the roof | heat out over heat made (`heatRatio`) for each place; the step also needs the **proof**: resting on the bed under a roof that does not leak, warmth holds steady (ratio at most 1.3) for 12 s (`shelter.night.warm`) |
+
+Notes:
+- **Sites** are data, not terrain: `groundHeight` is shared by trees, tracks and wildlife and structures sit at
+  y = 0, so the four authored features (two hollows, two rises in the Waking Clearing) are drawn by
+  ShelterSystem as ground patches (hollows shine after rain and fill with low mist on calm nights). The body
+  feels a hollow: on calm nights its air is up to `HOLLOW_CHILL` (2.5 C) colder (`climate.ts`).
+- **Roof pitch** is not a variable: the lean-to's spot layout, its drawing (`leanto.ts` roof constants), the
+  drips and the interior all assume one slope. Drainage is taught through the rain test's channel and the site
+  check instead.
+- The experiment card shows up to four trial rows, an optional per-experiment button (`ExperimentDef.testAction`:
+  "Wait for rain", "Rest until midnight") and an optional live readout line (`ExperimentDef.readout`).
+- The `shelter` guide (`guides.ts`) now follows the lean-to stage by stage (site, posts, push, ribs, lashing, roof,
+  rain, bed, night); its id is unchanged so saved guide state still loads.
+- Old saves: `framePush` is implied when the shelter was already tested, the roof step was finished, or the ribs
+  went on without a push (`pushTooLate`); a finished Lesson 01 stays finished.
 
 ## How it is built
 
@@ -24,7 +56,7 @@ src/game/curriculum/
   migrate.ts          version-1 saves -> lesson progress, worked out from their state
   lessons/<id>/       one folder per lesson: lesson.ts, steps.ts, experiments.ts (add more files here)
 src/game/science/
-  concepts.ts         36 concepts; every notebook entry belongs to exactly one
+  concepts.ts         the science concepts; every notebook entry belongs to exactly one
   experiments.ts      ExperimentTracker: question -> prediction -> trials -> result -> check
   assessments.ts      one short check question with an explanation for every option
   notebook-view.ts    the Lab Notebook's pages (pure)
@@ -41,7 +73,8 @@ src/systems/          experiment-system, notebook-system, body-system, level-sys
 - **Experiments are fed by the simulation.** The code that runs a mechanic reports what actually happened:
   `game.experiments.trial(id, value, outcome)`. The tracker never invents an outcome. One variable per
   experiment; it concludes once every needed value has been tried.
-- **Every 4 Hz, inside `Game.tick`:** shelter rain test, body, experiments opening, lesson progress.
+- **Every 4 Hz, inside `Game.tick`:** shelter rain test, body (and Lesson 01's bed and night readings), experiments
+  opening, lesson progress.
 - **Saves:** version 2 (`src/game/save.ts`). Lessons, body, experiments and the notebook's read count are saved;
   a version-1 save is backed up once and migrated. `tests/fixtures/saves/` holds frozen version-1 saves.
 
@@ -80,5 +113,10 @@ In the running game (`npx @iwsdk/cli dev up --headless --allow-browser-automatio
 - `FIXTURE=<name> ... scripts/save-smoke.mjs`: load a frozen save and report the lesson and card.
 - `CODE='...' ... scripts/eval.mjs`: run a snippet in the game (`p` = `window.__primal`, `g` = the Game).
 - `PANEL=<object name> EL=<element id> ... scripts/click-element.mjs`: a real mouse click on a UI element.
+- `OBJ=<object name> ... scripts/click-object.mjs`: a real mouse click on a 3D object (it turns the view to face it
+  first), e.g. `OBJ=FramePush_1_0` pushes the lean-to frame. In emulated XR, `xr look-at` targets are in the
+  headset's reference space (relative to the player rig), not world coordinates.
 
 Debug handles: `window.__experiment`, `window.__notebook`, `window.__body`, `window.__lessonCard`.
+Lesson 01 in the running game: `g.shelterRules` (`lastPush`, `lastBed`, `lastNight`, `nightAdvice(g)`), `g.pushFrame(id)`,
+`g.waitForNight()`. Unit tests: `tests/lesson01.test.ts`.

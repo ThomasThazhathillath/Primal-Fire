@@ -56,6 +56,8 @@
   <div id="exp-body" class="body t-body">-</div>
   <div id="exp-trial-0" class="trial t-row t-body">-</div>
   <div id="exp-trial-1" class="trial t-row t-body">-</div>
+  <div id="exp-trial-2" class="trial t-row t-body">-</div>
+  <div id="exp-trial-3" class="trial t-row t-body">-</div>
   <Button id="exp-opt-0" class="opt t-btn" size="lg"><ButtonLabel id="exp-opt-0-label" class="opttext">-</ButtonLabel></Button>
   <Button id="exp-opt-1" class="opt t-btn" size="lg"><ButtonLabel id="exp-opt-1-label" class="opttext">-</ButtonLabel></Button>
   <Button id="exp-opt-2" class="opt t-btn" size="lg"><ButtonLabel id="exp-opt-2-label" class="opttext">-</ButtonLabel></Button>

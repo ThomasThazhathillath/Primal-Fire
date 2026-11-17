@@ -905,11 +905,88 @@ const LIVING_OBSERVATIONS: Record<string, Observation> = {
   },
 };
 
+/** Lesson 01 (Shelter), Phase 2: the site, frame, bed and night tests (lessons/shelter/rules.ts). */
+const SHELTER_LESSON_OBSERVATIONS: Record<string, Observation> = {
+  l1_hollow: {
+    group: 'shelter',
+    trigger: 'shelter.site.hollow',
+    title: 'Cold air drains downhill',
+    obs: 'The hollow was dark and damp, and on calm nights mist gathered in it.',
+    pri: 'Cold air is denser than warm air, so on still nights it slides downhill and pools in low ground, like water. Rain runoff collects there too.',
+    lim: 'Wind stirs the air and hides the effect; it is strongest on calm, clear nights.',
+    why: 'Where would cold air and rainwater end up at night?',
+  },
+  l1_rise: {
+    group: 'shelter',
+    trigger: 'shelter.site.raised',
+    title: 'High and dry',
+    obs: 'You started your shelter on a slight rise, where the ground was firm and dry.',
+    pri: 'Water and cold air both flow down and away from raised ground, so a gentle rise stays drier and warmer than the low ground around it.',
+    lim: 'Hilltops and ridges catch the wind; a gentle rise is the usual choice.',
+    why: 'Which way does water go from a rise?',
+  },
+  l1_rack: {
+    group: 'shelter',
+    trigger: 'shelter.frame.racked',
+    title: 'A box folds flat',
+    obs: 'With only two posts and a ridge, one push leaned the whole frame over.',
+    pri: 'A four-sided frame can change shape without any pole changing length: its corners just turn. A diagonal splits it into triangles, which cannot fold.',
+    lim: 'Real joints are never perfectly stiff, so even small frames need bracing.',
+    why: 'What could you add to stop the box folding?',
+  },
+  l1_stems: {
+    group: 'shelter',
+    trigger: 'shelter.bed.dry',
+    title: 'Plants built to hold air',
+    obs: 'A bed of dry grass or leaves sprang back when pressed and let little heat through.',
+    pri: 'Grass stems are hollow tubes, and dead leaves curl and stiffen as they dry, so a pile of them stays loose and full of still air.',
+    lim: 'Green, living leaves are full of water and lie flat; they insulate far less.',
+    why: 'Why does a loose pile hold more air than a packed one?',
+  },
+  l1_damp: {
+    group: 'shelter',
+    trigger: 'shelter.bed.damp',
+    title: 'Damp beds fail',
+    obs: 'On the damp moss bed the cold came through, and your clothes grew damp.',
+    pri: 'Water fills the air spaces in the moss, and water conducts heat more than twenty times better than air, so the bed stops little. Its water soaks into you too.',
+    lim: 'Even dry bedding draws damp from the ground over days; a layer of branches under it helps.',
+    why: 'What fills the gaps in a damp bed?',
+  },
+  l1_air: {
+    group: 'shelter',
+    trigger: 'shelter.bed.compared',
+    title: 'Still air insulates',
+    obs: 'Bare ground drew the most heat, damp moss a lot, and a dry bed very little.',
+    pri: 'Insulation works by trapping still air. Air conducts heat poorly as long as it cannot move, so dry, fluffy material with many small pockets slows heat flow the most.',
+    lim: 'Packed flat, a bed loses its air pockets: fluff it up and add more.',
+    why: 'Why must the air be still to insulate?',
+  },
+  l1_open: {
+    group: 'shelter',
+    trigger: 'shelter.night.exposed',
+    title: 'The open night',
+    obs: 'Out in the open on a cold night, the air and wind took heat from you faster than your body made it.',
+    pri: 'Moving air carries heat off your skin (convection), your warm body radiates heat to the cold sky, and wet clothes make it worse. When losses beat the heat you make, you cool.',
+    lim: 'A simplified heat budget: real bodies shiver and burn more energy to fight back.',
+    why: 'Which losses could a shelter stop?',
+  },
+  l1_night: {
+    group: 'shelter',
+    trigger: 'shelter.night.warm',
+    title: 'A shelter is a heat budget',
+    obs: 'Resting on your dry bed under the roof at night, you lost heat about as fast as your body made it.',
+    pri: 'A shelter makes no heat. It cuts the losses: the roof stops rain and most wind, and the bed stops the ground drawing heat, until your own body heat is enough.',
+    lim: 'On very cold nights a shelter alone is not enough: that is what fire is for.',
+    why: 'What would you add to stay warm on an even colder night?',
+  },
+};
+
 export const OBSERVATIONS: Record<string, Observation> = {};
 for (const [id, o] of Object.entries(BASE_OBSERVATIONS)) {
   OBSERVATIONS[id] = { ...o, ...BASE_META[id] };
 }
 Object.assign(OBSERVATIONS, SURVIVAL_OBSERVATIONS, LIVING_OBSERVATIONS);
+Object.assign(OBSERVATIONS, SHELTER_LESSON_OBSERVATIONS);
 
 export const OBSERVATION_COUNT = Object.keys(OBSERVATIONS).length;
 

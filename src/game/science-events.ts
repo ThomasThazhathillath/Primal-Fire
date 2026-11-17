@@ -147,6 +147,16 @@ export const SCIENCE_EVENTS = {
   'camp.wood.wet': 'Uncovered firewood was rained on.',
   'camp.bed.rested': 'The player rested on a made bed.',
   'water.sediment.settle': 'Muddy water was left to stand and cleared.',
+
+  // --- Lesson 01 (Shelter), Phase 2: site, frame, bed and night tests
+  'shelter.site.hollow': 'A lean-to was started in a low hollow and the site check turned it down.',
+  'shelter.site.raised': 'A lean-to was started on slightly raised ground.',
+  'shelter.frame.racked': 'The bare frame (posts and ridge only) leaned right over when pushed.',
+  'shelter.bed.dry': 'Rested on a whole bed of dry grass or dry leaves and measured the heat flow into the ground.',
+  'shelter.bed.damp': 'Rested on a whole bed of damp moss and measured the heat flow into the ground.',
+  'shelter.bed.compared': 'The bed test compared bare ground, dry and damp beds.',
+  'shelter.night.exposed': 'Stood still out in the open on a cold night.',
+  'shelter.night.warm': 'Rested on the bed in the shelter on a cold night and warmth held steady.',
 } as const;
 
 export type ScienceEventId = keyof typeof SCIENCE_EVENTS;

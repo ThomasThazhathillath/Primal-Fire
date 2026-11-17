@@ -1,13 +1,19 @@
 import { World } from '@iwsdk/core';
 import projectOptions from 'virtual:iwsdk-project';
 import { setEasyCarry } from './game/items.js';
+import { setPlayableLessons } from './game/curriculum/registry.js';
 
 // Play-testing: no pocket limit, no weight, everything goes in the bag. Set to false to test the real carry rules.
 setEasyCarry(true);
+// The levels on offer: one at a time while each lesson is finished and play-tested (title screen level list; the guide
+// stops after the last one). Add a lesson id here when its level is ready.
+setPlayableLessons(['shelter', 'fire', 'water', 'tools', 'food']);
 import { installDebugHooks, streamPlaytestLog } from './debug-hooks.js';
+import { guardSystems } from './system-guard.js';
 import { AudioSystem } from './systems/audio-system.js';
 import { CraftGestureSystem } from './systems/craft-gesture-system.js';
 import { BenchSystem } from './systems/bench-system.js';
+import { ToolYardSystem } from './systems/tool-yard-system.js';
 import { BuildBookSystem } from './systems/build-book-system.js';
 import { HighlightSystem } from './systems/highlight-system.js';
 import { LashSystem } from './systems/lash-system.js';
@@ -48,6 +54,7 @@ import { IconBarSystem } from './systems/icon-bar-system.js';
 import { PinchGrabSystem } from './systems/pinch-grab-system.js';
 import { GazeTargetSystem } from './systems/gaze-target-system.js';
 import { HintPanelSystem } from './systems/hint-panel-system.js';
+import { BeaconSystem } from './systems/beacon-system.js';
 import { PerfProbeSystem, PerfSystem } from './systems/perf-system.js';
 import { IntroSystem } from './systems/intro-system.js';
 import { ResourceSystem } from './systems/resource-system.js';
@@ -112,6 +119,7 @@ World.create(
     .registerSystem(CraftGestureSystem)
     .registerSystem(InteractionSystem)
     .registerSystem(BenchSystem)
+    .registerSystem(ToolYardSystem)
     .registerSystem(BuildBookSystem)
     .registerSystem(ObjectiveCardSystem)
     .registerSystem(HighlightSystem)
@@ -146,9 +154,16 @@ World.create(
     .registerSystem(AmbienceSystem)
     .registerSystem(PerfSystem)
     .registerSystem(HintPanelSystem)
+    .registerSystem(BeaconSystem)
     .registerSystem(GhostHandSystem)
     .registerSystem(TutorialSystem, { configData: { tutorial: mode === 'tutorial' } })
     .registerSystem(StorySystem, { configData: { tutorial: mode === 'tutorial' } });
   installDebugHooks(world);
   streamPlaytestLog(world);
+  // Last, so it covers every system above: a throw in one system is logged, not a frozen headset.
+  guardSystems(world.getSystems(), (msg, error) => {
+    console.error('[EUREKA] system error', error);
+    const at = error instanceof Error ? (error.stack?.split('\n').find((l) => l.includes('/src/')) ?? '').trim() : '';
+    game.log.add(`ERROR ${msg}${at ? ` ${at}` : ''}`, 'bad');
+  });
 });

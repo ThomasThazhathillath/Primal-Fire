@@ -15,6 +15,7 @@ export type IntentAction =
   | 'feedFire'
   | 'sawDrill'
   | 'carryEmber'
+  | 'smotherFire'
   | 'firePot'
   | 'boilPot'
   | 'cookFish'
@@ -35,7 +36,10 @@ export type IntentAction =
 /** Actions that are a continuous motion done by their own system (sawing, knapping, cutting, chopping), not a one-shot. */
 export const CONTINUOUS: ReadonlySet<IntentAction> = new Set<IntentAction>(['sawDrill', 'knap', 'cut', 'chop', 'cookFish']);
 
-export type PotWater = 'empty' | 'raw' | 'filtered' | 'safe' | 'boiledRaw';
+export type PotWater = 'empty' | 'raw' | 'filtered' | 'safe' | 'boiledRaw' | 'settled' | 'rain';
+/** Untreated water the filter takes, and water that can be boiled (water.ts FILTERABLE / BOILABLE). */
+const FILTERABLE: readonly PotWater[] = ['raw', 'settled', 'rain'];
+const BOILABLE: readonly PotWater[] = ['raw', 'settled', 'rain', 'filtered'];
 
 export interface IntentTarget {
   kind: TargetKind;
@@ -69,17 +73,20 @@ export function resolveIntent(held: ItemId | null, t: IntentTarget): IntentActio
       const f = t.fire;
       if (!f) return null;
       if (held === null) return f.carrying ? 'carryEmber' : null;
-      if (held === 'bowDrill') return f.layBuilt && f.stage === 'lay' && !f.carrying ? 'sawDrill' : null;
+      // The drill saws at the pit whenever no ember is out (beside a burning fire too: the drill experiments).
+      if (held === 'bowDrill') return !f.carrying && !f.embedded && ((f.layBuilt && f.stage === 'lay') || f.burning) ? 'sawDrill' : null;
+      // Earth scraped over a burning fire smothers it (the airflow experiment; putting a fire out safely).
+      if (held === 'diggingStick' && f.burning) return 'smotherFire';
       if (FUEL_ITEMS[held] && !f.embedded) return 'feedFire';
       if (held === 'pot' && t.pot?.fired === false && f.burning) return 'firePot';
-      if (held === 'pot' && t.pot?.fired && f.burning && (t.pot.water === 'raw' || t.pot.water === 'filtered')) return 'boilPot';
+      if (held === 'pot' && t.pot?.fired && f.burning && BOILABLE.includes(t.pot.water)) return 'boilPot';
       if (held === 'fish' && f.burning) return 'cookFish';
       return null;
     }
     case 'stream':
       return held === 'pot' && t.pot?.fired && (t.pot.water === 'empty' || t.pot.water === 'boiledRaw') ? 'fillPot' : null;
     case 'filter':
-      return held === 'pot' && t.pot?.fired && t.pot.water === 'raw' ? 'pourFilter' : null;
+      return held === 'pot' && t.pot?.fired && FILTERABLE.includes(t.pot.water) ? 'pourFilter' : null;
     case 'mound': {
       const m = t.mound;
       if (!m) return null;

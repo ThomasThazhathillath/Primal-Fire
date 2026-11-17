@@ -27,7 +27,7 @@ import {
   TEACH,
   whereFor,
 } from '../objectives.js';
-import { LESSON_IDS, LESSONS, lessonById, lessonIndex, stepById } from './registry.js';
+import { isPlayable, LESSON_IDS, LESSONS, lessonById, lessonIndex, stepById } from './registry.js';
 import type { LessonDef, LessonId, Step } from './types.js';
 
 export interface LessonsSave {
@@ -78,25 +78,30 @@ export class LessonTracker {
 
   // ------------------------------------------------------------ position
 
-  /** The lesson being worked on (null once every lesson is finished). */
+  /** The lesson being worked on (null once every playable lesson is finished). */
   get lesson(): LessonDef | null {
     return this.cur?.lesson ?? null;
   }
 
-  /** The step on the card (null once every lesson is finished). */
+  /** The step on the card (null once every playable lesson is finished). */
   get current(): Step | null {
     return this.cur?.step ?? null;
   }
 
-  /** Every lesson finished: step-by-step guidance is over. */
+  /** Every playable lesson finished: step-by-step guidance is over. */
   get done(): boolean {
     return this.cur === null;
   }
 
-  /** The lesson to work on now: `resume` while it is unfinished, else the first unfinished lesson. */
+  /** The lesson to work on now: `resume` while it is unfinished, else the first unfinished playable lesson. */
   private activeLesson(): LessonDef | null {
-    if (this.resume && !this.lessonDone.has(this.resume)) return lessonById(this.resume) ?? null;
-    return LESSONS.find((l) => !this.lessonDone.has(l.id)) ?? null;
+    if (this.resume && !this.lessonDone.has(this.resume) && isPlayable(this.resume)) return lessonById(this.resume) ?? null;
+    return LESSONS.find((l) => isPlayable(l.id) && !this.lessonDone.has(l.id)) ?? null;
+  }
+
+  /** Every lesson finished, not just the playable ones. */
+  get allDone(): boolean {
+    return LESSONS.every((l) => this.lessonDone.has(l.id));
   }
 
   private recompute(): void {
@@ -128,7 +133,7 @@ export class LessonTracker {
 
   /** Work on this lesson now (the Menu lesson list). Finished lessons cannot be resumed. */
   setResume(id: LessonId | null): void {
-    this.resume = id && !this.lessonDone.has(id) ? id : null;
+    this.resume = id && !this.lessonDone.has(id) && isPlayable(id) ? id : null;
     this.feedback = null;
     this.recompute();
     this.emit({ type: 'objective', id: this.current?.id ?? null });

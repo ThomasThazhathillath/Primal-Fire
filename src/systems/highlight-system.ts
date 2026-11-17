@@ -23,10 +23,11 @@ import {
   Sprite,
   SpriteMaterial,
   Vector3,
+  VisibilityState,
 } from '@iwsdk/core';
 import { Gatherable, SnapSpot, StructurePart, WorldDropItem } from '../components/game-components.js';
 import { ASSIST, diffHighlights, type Highlight, type HighlightKind, highlightPriority, openMarks, type Mark, pickHighlights } from '../game/assist.js';
-import { BLUEPRINTS, spotWorldPosition } from '../game/blueprint.js';
+import { markDef, spotWorldPosition } from '../game/blueprint.js';
 import type { GameEvent } from '../game/game.js';
 import { itemName } from '../game/items.js';
 import { groundHeight } from '../game/world-layout.js';
@@ -178,10 +179,17 @@ export class HighlightSystem extends createSystem({
       const s = game.structures.find((t) => t.id === eSpot.getValue(SnapSpot, 'structureId'));
       const idx = (eSpot.getValue(SnapSpot, 'index') as number) ?? 0;
       if (!s) return null;
-      const def = BLUEPRINTS[s.kind].spots[idx];
+      const def = markDef(s.kind, idx);
+      if (!def) return null;
       const p = spotWorldPosition(s, idx);
-      const fits = !!game.held && def.accepts.includes(game.held);
-      this.setLabel(`${def.label}: needs ${def.accepts.map((i) => itemName(i).toLowerCase()).join(' or ')}${game.held ? (fits ? ' - yours fits, let go here' : ' - yours does not fit') : ''}`, !game.held || fits);
+      if (idx < 0) {
+        // The top (a workbench slab) goes on with one press on its glow, from your bag: nothing to let go of here.
+        const vr = this.world.visibilityState.peek() !== VisibilityState.NonImmersive;
+        this.setLabel(`${itemName(s.key)}: ${vr ? 'pinch' : 'click'} the glow to lay it on top`, true);
+      } else {
+        const fits = !!game.held && def.accepts.includes(game.held);
+        this.setLabel(`${def.label}: needs ${def.accepts.map((i) => itemName(i).toLowerCase()).join(' or ')}${game.held ? (fits ? ' - yours fits, let go here' : ' - yours does not fit') : ''}`, !game.held || fits);
+      }
       this.tx = p.x;
       this.ty = p.y;
       this.tz = p.z;

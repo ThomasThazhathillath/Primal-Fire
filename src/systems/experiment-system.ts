@@ -5,7 +5,7 @@
 // mouse. VR: a world panel held by StaticAnchor, pressed by fingertip, hand ray or gaze + pinch (PanelTouch).
 
 import { createSystem, type Entity, RayInteractable, type UIKit, type UIKitMLAsset, VisibilityState } from '@iwsdk/core';
-import { lessonById } from '../game/curriculum/registry.js';
+import { EXPERIMENTS, lessonById } from '../game/curriculum/registry.js';
 import type { ExperimentDef } from '../game/science/experiments.js';
 import { currentMode } from '../game/tutorial-mode.js';
 import { PanelTouch } from './panel-touch.js';
@@ -29,6 +29,15 @@ export class ExperimentSystem extends createSystem({}) {
   private opened: string | null = null;
   /** The check question's last answer feedback ("Right: ..." / "Not quite: ..."). */
   private feedback: string | null = null;
+  /** An experiment that opened while the card was showing another: shown when that one is closed. */
+  private pending: string | null = null;
+  /** Experiments shown this session: one still waiting for a prediction (missed at a reload, a title screen or a
+   * game start) comes up by itself once, when nothing else is in the way. */
+  private shown = new Set<string>();
+  private waitT = 0;
+  /** The live readout line shown in the note while testing (refreshed twice a second, set only when it changes). */
+  private shownNote = '';
+  private noteT = 0;
 
   async init(): Promise<void> {
     const panel = await this.world.assets.instantiate<UIKitMLAsset>('experiment-panel');
@@ -66,7 +75,11 @@ export class ExperimentSystem extends createSystem({}) {
       game.on((e) => {
         if (e.type !== 'experiment' || currentMode() === 'tutorial') return;
         // Something to do: the card comes up by itself. Otherwise just refresh it if it is open.
-        if (e.phase === 'predict' || e.phase === 'result') this.open(e.id);
+        // A new experiment never covers another one the player is still reading: it waits until that card closes.
+        // A lesson's closing question (kind 'check') opens straight to its question.
+        const check = e.phase === 'check' && game.experiments.def(e.id)?.kind === 'check';
+        if ((e.phase === 'predict' || check) && this.opened && this.opened !== e.id) this.pending = e.id;
+        else if (e.phase === 'predict' || e.phase === 'result' || check) this.open(e.id);
         else if (this.opened === e.id) this.render();
       }),
     );
@@ -87,6 +100,7 @@ export class ExperimentSystem extends createSystem({}) {
   open(id: string): void {
     if (!this.ready || !getGame(this.world).experiments.def(id)) return;
     this.opened = id;
+    this.shown.add(id);
     this.feedback = null;
     menu.open('experiment');
     this.render();
@@ -123,17 +137,15 @@ export class ExperimentSystem extends createSystem({}) {
     this.render();
   }
 
-  /** The big button: Wait for rain (testing), Continue (result), Done. */
+  /** The big button: the experiment's own test action or Keep testing (testing), Continue (result), Done. */
   private action(): void {
     const d = this.def();
     if (!d) return;
     const g = getGame(this.world);
     const phase = g.experiments.phase(d.id);
     if (phase === 'testing') {
-      if (d.testAction) {
-        const said = d.testAction.run(g);
-        if (said) g.toast(said, 'note');
-      } else if (g.waitForRain()) g.toast('Clouds gather. Stand under your roof and watch each panel.', 'note');
+      const said = d.testAction?.run(g) ?? null;
+      if (said) g.toast(said, 'note');
       menu.back();
       return;
     }
@@ -154,7 +166,7 @@ export class ExperimentSystem extends createSystem({}) {
     const text = (id: string, t: string) => p.requireElementById<UIKit.Text>(id).setProperties({ text: uiText(t || ' ') });
     const show = (id: string, on: boolean) => p.requireElementById(id).setProperties({ display: on ? 'flex' : 'none' });
     const lesson = lessonById(d.lesson);
-    text('exp-label', `EXPERIMENT - LESSON ${String(lesson?.n ?? 0).padStart(2, '0')}`);
+    text('exp-label', `${d.kind === 'check' ? 'CHECK' : 'EXPERIMENT'} - LESSON ${String(lesson?.n ?? 0).padStart(2, '0')}`);
     text('exp-title', d.question);
     const outcomeText = (o: string) => d.outcomes.find((x) => x.id === o)?.text ?? o;
     const predicted = d.predictions.find((x) => x.id === s.prediction)?.text ?? '';
@@ -172,7 +184,8 @@ export class ExperimentSystem extends createSystem({}) {
       case 'testing':
         body = `Your prediction: ${predicted} ${d.howTo}`;
         showTrials = true;
-        action = d.testAction ? d.testAction.label(g) : g.leanTo() && !g.shelterTest.raining ? 'Wait for rain' : 'Keep testing';
+        action = d.testAction?.label(g) ?? 'Keep testing';
+        note = d.readout?.(g) ?? '';
         break;
       case 'result': {
         const right = g.experiments.predictedRight(d.id);
@@ -180,6 +193,7 @@ export class ExperimentSystem extends createSystem({}) {
         body = `${right ? 'Your prediction was right.' : 'The evidence says otherwise.'} Result: ${supported} ${d.principle}`;
         showTrials = true;
         action = 'Continue';
+        note = d.readout?.(g) ?? '';
         break;
       }
       case 'check':
@@ -206,6 +220,7 @@ export class ExperimentSystem extends createSystem({}) {
     }
     show('exp-note', !!note);
     if (note) text('exp-note', note);
+    this.shownNote = note;
     show('exp-action', !!action);
     if (action) text('exp-action-label', action);
   }
@@ -215,10 +230,49 @@ export class ExperimentSystem extends createSystem({}) {
     else placeInFront(this.panel, this.camera, 0.5, 0, 0.06);
   }
 
+  /** Keep the readout current while the card is open (only the note changes, and only when its text does). */
+  private refreshReadout(): void {
+    const d = this.def();
+    if (!d?.readout) return;
+    const g = getGame(this.world);
+    const phase = g.experiments.phase(d.id);
+    if (phase !== 'testing' && phase !== 'result') return;
+    const note = d.readout(g) ?? '';
+    if (note === this.shownNote) return;
+    this.shownNote = note;
+    this.panel.requireElementById('exp-note').setProperties({ display: note ? 'flex' : 'none' });
+    if (note) this.panel.requireElementById<UIKit.Text>('exp-note').setProperties({ text: uiText(note) });
+  }
+
+  /** Waiting for the player to start it: a prediction, or a lesson's closing question (kind 'check'). */
+  private waiting(id: string): boolean {
+    const g = getGame(this.world);
+    const p = g.experiments.phase(id);
+    return p === 'predict' || (p === 'check' && g.experiments.def(id)?.kind === 'check');
+  }
+
   update(delta: number): void {
     if (this.pop?.busy) this.pop.update(delta);
+    // The experiment that waited for the last card: open it once no panel is in the way.
+    if (this.pending && !this.opened && !this.pop?.busy && menu.current === null) {
+      const next = this.pending;
+      this.pending = null;
+      if (this.waiting(next)) this.open(next);
+    }
+    if (this.ready && !this.opened && !this.pending && (this.waitT += delta) >= 1) {
+      this.waitT = 0;
+      const ui = getUi(this.world);
+      const g = getGame(this.world);
+      const lesson = g.lessons.lesson?.id;
+      const id = EXPERIMENTS.find((d) => d.lesson === lesson && this.waiting(d.id) && !this.shown.has(d.id))?.id;
+      if (id && menu.current === null && !this.pop?.busy && !ui.titleOpen?.() && !ui.paused?.() && currentMode() !== 'tutorial') this.open(id);
+    }
     if (!this.ready || !this.opened) return;
     this.place();
     if (this.vr) this.touch.update(delta);
+    if ((this.noteT += delta) >= 0.5) {
+      this.noteT = 0;
+      this.refreshReadout();
+    }
   }
 }

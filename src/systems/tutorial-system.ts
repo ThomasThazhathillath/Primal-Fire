@@ -1,4 +1,4 @@
-// "THE FIRST STEPS": the guided opening of PRIMAL (docs/TUTORIAL_USABILITY_SPEC.md,
+// "THE FIRST STEPS": the guided opening of EUREKA (docs/TUTORIAL_USABILITY_SPEC.md,
 // part A), told as your first afternoon in the forest rather than a training
 // course. Two jobs:
 //  - Survival page: the start choice. The welcome panel offers the guided

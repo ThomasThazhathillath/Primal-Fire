@@ -5,6 +5,7 @@
 // curriculum notes and confidence flags live in docs/SCIENCE.md.
 
 import type { ScienceEventId } from './science-events.js';
+import { FIRE_LESSON_OBSERVATIONS } from './curriculum/lessons/fire/observations.js';
 
 export type ObservationGroup =
   | 'living'
@@ -147,7 +148,7 @@ const BASE_OBSERVATIONS: Record<string, Observation> = {
   f_oxygen: {
     group: 'fire',
     title: 'Fire breathes',
-    obs: 'Left alone, the ember glowed, dimmed and went dark.',
+    obs: 'Left alone in the tinder, the ember only smouldered and dimmed. It brightened again as soon as air reached it.',
     pri: 'Burning is rapid oxidation — fuel reacting with oxygen. Gentle airflow delivers fresh O₂ to the glowing ember.',
     lim: 'Blow too hard on a weak ember and you can cool it or scatter it.',
   },
@@ -204,6 +205,15 @@ const BASE_OBSERVATIONS: Record<string, Observation> = {
     obs: 'After the fire, the pot rang when tapped and no longer softened in water.',
     pri: 'Above about 550 °C, the water bound inside the clay minerals leaves for good and the grains begin to fuse (sintering). The change can’t be undone: it is now ceramic.',
     lim: 'Open-fire pottery stays porous, unlike glazed, kiln-fired ware.',
+  },
+  p_reclaim: {
+    group: 'pottery',
+    trigger: 'pottery.clay.reclaimed',
+    title: 'Unfired clay comes back',
+    obs: 'Soaked in water, the cracked clay-only cup softened into clay you could shape again.',
+    pri: 'Drying only takes away the water between the clay plates, so adding water makes it plastic again. Firing changes the minerals themselves, and that cannot be undone.',
+    lim: 'Fired pottery never turns back into clay, but crushed it can be kneaded into new clay as grit.',
+    why: 'What is the difference between dry clay and fired clay?',
   },
 
   // ------------------------------------------------------------- charcoal
@@ -262,7 +272,7 @@ const BASE_OBSERVATIONS: Record<string, Observation> = {
   w_odor: {
     group: 'water',
     title: 'Clear, but not clean',
-    obs: 'The water looked clear, yet the lens still shows dissolved compounds tinting it.',
+    obs: 'With no charcoal in the filter, the water ran clear but still smelled and tasted earthy.',
     pri: 'Sand only strains particles. Charcoal is extremely porous: its huge internal surface adsorbs (binds) some odour- and taste-causing compounds.',
     lim: 'Homemade charcoal is far weaker than activated charcoal — and neither reliably removes pathogens.',
   },
@@ -288,6 +298,15 @@ const BASE_OBSERVATIONS: Record<string, Observation> = {
     obs: 'After a rolling boil, the microbes under the lens no longer move.',
     pri: 'A rolling boil denatures the proteins and structures many pathogens need to survive.',
     lim: 'Boil about 1 minute (3 at high altitude). Boiling does NOT remove chemicals like heavy metals — it can even concentrate them.',
+  },
+  w_cycle: {
+    group: 'water',
+    trigger: 'water.rain.caught',
+    title: 'The water cycle',
+    obs: 'Rain running off your roof filled the pot with water far clearer than the stream.',
+    pri: 'Sunshine evaporates water from seas, lakes and leaves. The vapour leaves mud and salt behind, cools into clouds and falls as rain, which soaks into the ground and runs into streams, picking up soil on the way.',
+    lim: 'Rain collects dust in the air, and dirt and germs from the roof it runs over. Treat it before drinking.',
+    why: 'Why is rain cleaner than the stream it ends up in?',
   },
 };
 
@@ -428,11 +447,11 @@ const SURVIVAL_OBSERVATIONS: Record<string, Observation> = {
   t_crumble: {
     group: 'tools',
     trigger: 'tool.knap.fail',
-    title: 'Not every rock will do',
-    obs: 'The coarse, speckled stone crumbled into gritty pieces instead of flaking.',
-    pri: 'Coarse-grained rocks are made of separate mineral crystals that break apart at their boundaries, so they do not give clean sharp edges.',
-    lim: '',
-    why: 'What would you look for in a stone before you hit it?',
+    title: 'Crushed, not flaked',
+    obs: 'Struck straight down (or far too hard), the flint edge crushed into white grit instead of flaking.',
+    pri: 'A blow starts a cone of fracture in the stone. Near the edge and at an angle, the cone breaks out through the side as a flake; square on, the force drives inward and crushes the stone under the hammer.',
+    lim: 'Coarse-grained rock such as granite crumbles at any angle: its separate crystals part at their boundaries.',
+    why: 'What would you change about a blow that crushed the edge?',
   },
   t_pressure: {
     group: 'tools',
@@ -488,6 +507,63 @@ const SURVIVAL_OBSERVATIONS: Record<string, Observation> = {
     pri: 'Gentle heat drives water out of the wood, making it harder and stiffer. Good for digging sticks and spear points.',
     lim: 'Too much heat chars the wood and weakens it.',
     why: 'What did the fire take out of the wood?',
+  },
+  t_strand: {
+    group: 'tools',
+    trigger: 'tool.cord.snapped',
+    title: 'Loose fibres snap one by one',
+    obs: 'A bundle of loose fibres snapped as soon as the test stone left the ground.',
+    pri: 'Untwisted, the fibres do not share the pull. The tightest few carry it first and break, then the next, and short fibres simply slide apart.',
+    lim: 'Our strengths are rough teaching numbers, not measurements of any one plant.',
+    why: 'Why did a bundle of many fibres hold so little?',
+  },
+  t_twist: {
+    group: 'tools',
+    trigger: 'tool.cord.held',
+    xp: 20,
+    title: 'Twist shares the load',
+    obs: 'The same fibres, twisted into cord, lifted the stone easily.',
+    pri: 'Twisting presses the fibres against each other. Friction then passes the pull from fibre to fibre, so they all carry it together: the cord has a far higher tensile strength.',
+    lim: 'Wet or rotten cord is weaker, and over-twisted cord kinks.',
+    why: 'What does the twist do to the fibres inside the cord?',
+  },
+  t_pivot: {
+    group: 'tools',
+    trigger: 'tool.lever.stuck',
+    title: 'A pivot in the wrong place',
+    obs: 'With the pivot stone far from the boulder, all your weight on the pole moved nothing.',
+    pri: 'Effort x effort arm = load x load arm. When your side of the pole is short and the boulder side long, the effort needed is several times the load.',
+    lim: 'The numbers on screen are rough: a real boulder, pole and push all vary.',
+    why: 'Which arm of the pole should be the long one?',
+  },
+  t_kit: {
+    group: 'tools',
+    trigger: 'tool.kit.made',
+    xp: 25,
+    title: 'A material for each job',
+    obs: 'Knife, axe and hammer: each pairs a stone with a wooden handle and cord.',
+    pri: 'Each material is chosen for one property: flint for a hard, sharp edge; a tough cobble that does not shatter for blows; straight dry wood, stiff and light, for reach; twisted cord, strong in tension, to bind.',
+    lim: 'A head can still work loose: lashings stretch and wood shrinks as it dries.',
+    why: 'Why not make the hammer head from flint?',
+  },
+  b_rack: {
+    group: 'build',
+    trigger: 'build.frame.racked',
+    title: 'Squares fold',
+    obs: 'A gentle push leaned the square stick frame over until it folded flat. No stick bent.',
+    pri: 'Lashed joints turn a little, like hinges. A four-sided frame can then change shape into a slanted parallelogram without any side changing length.',
+    lim: 'Very stiff joints (nailed or glued) resist for a while, but bracing is still how frames are made rigid.',
+    why: 'What did the joints do when you pushed?',
+  },
+  b_triangle: {
+    group: 'build',
+    trigger: 'build.frame.braced',
+    xp: 20,
+    title: 'Triangles hold their shape',
+    obs: 'With one diagonal brace, the same frame shrugged off the push.',
+    pri: 'Three sides of fixed length allow only one triangle, so a triangle cannot change shape unless a stick stretches, squashes or breaks. A diagonal splits a square into two triangles.',
+    lim: 'A thin brace can still buckle under a big squashing load.',
+    why: 'How many diagonals does a square frame need to be rigid?',
   },
 
   // -------------------------------------------------------------- shelter
@@ -776,8 +852,8 @@ const SURVIVAL_OBSERVATIONS: Record<string, Observation> = {
   f_smoke: {
     group: 'fire',
     trigger: 'fire.signal.smoke',
-    title: 'Green leaves make white smoke',
-    obs: 'Adding green leaves to the fire sent up a thick, pale column of smoke.',
+    title: 'Green wood makes white smoke',
+    obs: 'A green, living branch on the fire sent up a thick, pale column of smoke.',
     pri: 'Damp fuel makes steam and unburned particles. The thick, pale smoke is easy to see against dark trees.',
     lim: 'It also smells and stings your eyes, and a signal fire can spread. Keep it small and watched.',
     why: 'Why is thick white smoke easier to see than clear heat?',
@@ -786,7 +862,7 @@ const SURVIVAL_OBSERVATIONS: Record<string, Observation> = {
     group: 'fire',
     trigger: 'fire.night.kept',
     title: 'A fire is a chore',
-    obs: 'Through the night the fire needed fuel and attention several times.',
+    obs: 'To keep the fire going for minutes it needed fuel and attention again and again.',
     pri: 'Fire keeps burning only while it has fuel, air and heat. Large, dense logs burn slowly and keep going far longer than twigs.',
     lim: '',
     why: 'Which fuel would last the night, twigs or thick logs?',
@@ -1036,11 +1112,90 @@ const LIVING_OBSERVATIONS: Record<string, Observation> = {
   },
 };
 
+/** Lesson 01 (Shelter), Phase 2: the site, frame, bed and night tests (lessons/shelter/rules.ts). */
+const SHELTER_LESSON_OBSERVATIONS: Record<string, Observation> = {
+  l1_hollow: {
+    group: 'shelter',
+    trigger: 'shelter.site.hollow',
+    title: 'Cold air drains downhill',
+    obs: 'The hollow was dark and damp, and on calm nights mist gathered in it.',
+    pri: 'Cold air is denser than warm air, so on still nights it slides downhill and pools in low ground, like water. Rain runoff collects there too.',
+    lim: 'Wind stirs the air and hides the effect; it is strongest on calm, clear nights.',
+    why: 'Where would cold air and rainwater end up at night?',
+  },
+  l1_rise: {
+    group: 'shelter',
+    trigger: 'shelter.site.raised',
+    title: 'High and dry',
+    obs: 'You started your shelter on a slight rise, where the ground was firm and dry.',
+    pri: 'Water and cold air both flow down and away from raised ground, so a gentle rise stays drier and warmer than the low ground around it.',
+    lim: 'Hilltops and ridges catch the wind; a gentle rise is the usual choice.',
+    why: 'Which way does water go from a rise?',
+  },
+  l1_rack: {
+    group: 'shelter',
+    trigger: 'shelter.frame.racked',
+    title: 'A box folds flat',
+    obs: 'With only two posts and a ridge, one push leaned the whole frame over.',
+    pri: 'A four-sided frame can change shape without any pole changing length: its corners just turn. A diagonal splits it into triangles, which cannot fold.',
+    lim: 'Real joints are never perfectly stiff, so even small frames need bracing.',
+    why: 'What could you add to stop the box folding?',
+  },
+  l1_stems: {
+    group: 'shelter',
+    trigger: 'shelter.bed.dry',
+    title: 'Plants built to hold air',
+    obs: 'A bed of dry grass or leaves sprang back when pressed and let little heat through.',
+    pri: 'Grass stems are hollow tubes, and dead leaves curl and stiffen as they dry, so a pile of them stays loose and full of still air.',
+    lim: 'Green, living leaves are full of water and lie flat; they insulate far less.',
+    why: 'Why does a loose pile hold more air than a packed one?',
+  },
+  l1_damp: {
+    group: 'shelter',
+    trigger: 'shelter.bed.damp',
+    title: 'Damp beds fail',
+    obs: 'On the damp moss bed the cold came through, and your clothes grew damp.',
+    pri: 'Water fills the air spaces in the moss, and water conducts heat more than twenty times better than air, so the bed stops little. Its water soaks into you too.',
+    lim: 'Even dry bedding draws damp from the ground over days; a layer of branches under it helps.',
+    why: 'What fills the gaps in a damp bed?',
+  },
+  l1_air: {
+    group: 'shelter',
+    trigger: 'shelter.bed.compared',
+    title: 'Still air insulates',
+    obs: 'Bare ground drew the most heat, damp moss a lot, and a dry bed very little.',
+    pri: 'Insulation works by trapping still air. Air conducts heat poorly as long as it cannot move, so dry, fluffy material with many small pockets slows heat flow the most.',
+    lim: 'Packed flat, a bed loses its air pockets: fluff it up and add more.',
+    why: 'Why must the air be still to insulate?',
+  },
+  l1_open: {
+    group: 'shelter',
+    trigger: 'shelter.night.exposed',
+    title: 'The open night',
+    obs: 'Out in the open on a cold night, the air and wind took heat from you faster than your body made it.',
+    pri: 'Moving air carries heat off your skin (convection), your warm body radiates heat to the cold sky, and wet clothes make it worse. When losses beat the heat you make, you cool.',
+    lim: 'A simplified heat budget: real bodies shiver and burn more energy to fight back.',
+    why: 'Which losses could a shelter stop?',
+  },
+  l1_night: {
+    group: 'shelter',
+    trigger: 'shelter.night.warm',
+    title: 'A shelter is a heat budget',
+    obs: 'Resting on your dry bed under the roof at night, you lost heat about as fast as your body made it.',
+    pri: 'A shelter makes no heat. It cuts the losses: the roof stops rain and most wind, and the bed stops the ground drawing heat, until your own body heat is enough.',
+    lim: 'On very cold nights a shelter alone is not enough: that is what fire is for.',
+    why: 'What would you add to stay warm on an even colder night?',
+  },
+};
+
 export const OBSERVATIONS: Record<string, Observation> = {};
 for (const [id, o] of Object.entries(BASE_OBSERVATIONS)) {
   OBSERVATIONS[id] = { ...o, ...BASE_META[id] };
 }
-Object.assign(OBSERVATIONS, SURVIVAL_OBSERVATIONS, LIVING_OBSERVATIONS, FOOD_LESSON_OBSERVATIONS);
+Object.assign(OBSERVATIONS, SURVIVAL_OBSERVATIONS, LIVING_OBSERVATIONS);
+Object.assign(OBSERVATIONS, SHELTER_LESSON_OBSERVATIONS);
+Object.assign(OBSERVATIONS, FIRE_LESSON_OBSERVATIONS);
+Object.assign(OBSERVATIONS, FOOD_LESSON_OBSERVATIONS);
 
 export const OBSERVATION_COUNT = Object.keys(OBSERVATIONS).length;
 

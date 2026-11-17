@@ -28,6 +28,15 @@ export const SCIENCE_EVENTS = {
   'fire.fuel.none': 'Flame burned out with nothing larger to catch.',
   'fire.lit': 'A stable fire was established.',
   'fire.charcoal.burn': 'Charcoal was burned on a fire.',
+  // --- Lesson 02 (fire.ts): the bow drill, fuel moisture and size, air
+  'fire.drill.slow': 'Slow bow-drill strokes warmed the dust but never made it smoke.',
+  'fire.drill.light': 'Fast strokes with a light press only polished the hearth board.',
+  'fire.fuel.wet': 'Damp fuel hissed and steamed on the fire before it could burn.',
+  'fire.fuel.dried': 'Damp fuel dried out beside the fire or under a roof.',
+  'fire.fuel.ladder': 'A dry log took far longer to catch than a dry twig.',
+  'fire.air.fanned': 'Fanning made a burning fire flare up.',
+  'fire.air.wind': 'Wind fanned an open fire and it burned faster.',
+  'fire.air.smothered': 'Earth over the fire cut off its air and it died.',
   'pottery.untempered.crack': 'A clay-only pot cracked while drying.',
   'pottery.wet.burst': 'A damp pot burst in the fire.',
   'pottery.fired': 'A pot was fired successfully.',
@@ -38,7 +47,7 @@ export const SCIENCE_EVENTS = {
   'water.raw.inspected': 'Stream water inspected with the lens.',
   'water.filter.washout': 'A filter with no cloth support was used.',
   'water.filter.clog': 'A filter with fine layers above coarse ones was used.',
-  'water.filter.odour': 'Filtered, un-charcoaled water inspected.',
+  'water.filter.odour': 'Stream water ran clear through a filter with no charcoal in it.',
   'water.filter.microbes': 'Filtered water inspected with the lens.',
   'water.boil.murky': 'Unfiltered water was boiled.',
   'water.boil.done': 'Water was boiled to a rolling boil.',
@@ -66,13 +75,20 @@ export const SCIENCE_EVENTS = {
 
   // --- tools
   'tool.knap.flake': 'A flake was struck from a fine-grained stone.',
-  'tool.knap.fail': 'A coarse stone was struck and crumbled.',
+  'tool.knap.fail': 'A blow crushed a stone edge instead of flaking it.',
   'tool.edge.cut': 'Something was cut with a sharp stone edge.',
   'tool.lash.hold': 'A lashing held a load.',
   'tool.axe.made': 'A stone head was lashed to a handle.',
   'tool.lever.used': 'A stick was used as a lever to move something heavy.',
   'tool.wedge.split': 'A log was split with an axe or wedge.',
   'tool.point.hardened': 'A wooden point was hardened over embers.',
+  // Lesson 04 Tool Yard (curriculum/lessons/tools/yard.ts)
+  'tool.cord.snapped': 'Loose fibres snapped lifting the test stone.',
+  'tool.cord.held': 'Twisted cord lifted the test stone.',
+  'tool.lever.stuck': 'A lever with its pivot far from the load could not move it.',
+  'tool.kit.made': 'A knife, an axe and a hammer have all been hafted.',
+  'build.frame.racked': 'A square stick frame folded when its top was pushed.',
+  'build.frame.braced': 'A braced stick frame stood firm when its top was pushed.',
 
   // --- hunting and nature
   'hunt.track.found': 'Animal tracks were found.',
@@ -147,6 +163,22 @@ export const SCIENCE_EVENTS = {
   'camp.wood.wet': 'Uncovered firewood was rained on.',
   'camp.bed.rested': 'The player rested on a made bed.',
   'water.sediment.settle': 'Muddy water was left to stand and cleared.',
+
+  // --- Lesson 01 (Shelter), Phase 2: site, frame, bed and night tests
+  'shelter.site.hollow': 'A lean-to was started in a low hollow and the site check turned it down.',
+  'shelter.site.raised': 'A lean-to was started on slightly raised ground.',
+  'shelter.frame.racked': 'The bare frame (posts and ridge only) leaned right over when pushed.',
+  'shelter.bed.dry': 'Rested on a whole bed of dry grass or dry leaves and measured the heat flow into the ground.',
+  'shelter.bed.damp': 'Rested on a whole bed of damp moss and measured the heat flow into the ground.',
+  'shelter.bed.compared': 'The bed test compared bare ground, dry and damp beds.',
+  'shelter.night.exposed': 'Stood still out in the open on a cold night.',
+  'shelter.night.warm': 'Rested on the bed in the shelter on a cold night and warmth held steady.',
+
+  // --- Lesson 03: Water (curriculum/lessons/water)
+  'pottery.test.made': 'Clay test cups were made: one of clay only, two with sand.',
+  'pottery.clay.reclaimed': 'A cracked, unfired clay piece was soaked back into clay.',
+  'pottery.test.fired': 'A bone-dry test cup was fired to ceramic.',
+  'water.rain.caught': 'Rain running off the roof was caught in the pot.',
 
   // --- Lesson 05: food, navigation and long-term survival (curriculum/lessons/food/)
   'food.forage.sick': 'A look-alike or unknown plant was judged safe, tasted, and made the player ill.',

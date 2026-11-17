@@ -1,4 +1,4 @@
-// The satchel: a pouch on your hip (pinch it to open), a panel listing what
+// The satchel: opened from the Menu (Bag) it slides out from your hip, a panel listing what
 // you carry, and the item in your hand. Crafting buttons appear while you
 // stand at a finished workbench.
 
@@ -75,7 +75,9 @@ export class SatchelSystem extends createSystem({
     this.pouch = buildPouch();
     const pouchEntity = this.world.createTransformEntity(this.pouch);
     pouchEntity.addComponent(SatchelPouch);
-    pouchEntity.addComponent(RayInteractable);
+    // Hidden and not pressable (Quest test 2026-11-17: a pouch hovering by the hip "without any purpose"): the bag
+    // opens from the Menu (Bag) and a held item goes in with Stow. It still marks the hip the bag slides out from.
+    this.pouch.visible = false;
     this.cleanupFuncs.push(
       this.queries.pouchPressed.subscribe('qualify', () => {
         if (game.held) game.stow();

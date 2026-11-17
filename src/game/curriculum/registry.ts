@@ -18,6 +18,18 @@ export const LESSON_MODULES: readonly LessonModule[] = [SHELTER, FIRE, WATER, TO
 export const LESSONS: readonly LessonDef[] = LESSON_MODULES.map((m) => m.lesson);
 export const LESSON_IDS: readonly LessonId[] = LESSONS.map((l) => l.id);
 
+/**
+ * The levels players can choose now (the title screen's level list) and that the lesson guide moves through. A lesson
+ * outside it is still being built: finishing the last playable one ends step-by-step guidance instead of starting the
+ * next lesson. All five unless the app narrows it (src/index.ts); tests play all five.
+ */
+let playable: readonly LessonId[] = LESSON_IDS;
+export function setPlayableLessons(ids: readonly LessonId[]): void {
+  playable = LESSON_IDS.filter((id) => ids.includes(id));
+}
+export const playableLessons = (): readonly LessonId[] => playable;
+export const isPlayable = (id: LessonId): boolean => playable.includes(id);
+
 const BY_ID = new Map<LessonId, LessonDef>(LESSONS.map((l) => [l.id, l]));
 export const lessonById = (id: LessonId): LessonDef | undefined => BY_ID.get(id);
 export const lessonIndex = (id: LessonId): number => LESSON_IDS.indexOf(id);

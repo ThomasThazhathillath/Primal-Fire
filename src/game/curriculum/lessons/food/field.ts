@@ -6,6 +6,7 @@
 // (environment.ts), the real sun direction for the hour (sunDirection), the body's real digestion
 // (survival/body.ts onMeal), and the real plant behind each judgement (food.ts judge).
 
+import { BLUEPRINTS, checkPlacement, type PlacedStructure, type StructureKind } from '../../../blueprint.js';
 import { campOf } from '../../../directions.js';
 import { sunDirection } from '../../../environment.js';
 import { type ForagePatch, FEATURE_NAMES, FIELD_GUIDE, type PlantFeatures } from '../../../forage.js';
@@ -36,6 +37,8 @@ export type TrekPhase = 'idle' | 'active' | 'done';
 
 export interface FieldSave {
   v: 1;
+  /** A fresh Level 5 start was given a working camp (absent in older saves: no). */
+  campGiven?: boolean;
   trek: { phase: TrekPhase; reached: boolean; gathered: number; ate: boolean; tries: number };
   /** Closing check: questions answered right so far. */
   check: number;
@@ -122,6 +125,8 @@ export class FieldLesson {
   judgedCount = 0;
   judgedRight = 0;
   briefed = false;
+  /** Level 5 started without a camp (chosen from the title in a new game) got one: never twice. */
+  campGiven = false;
   private judging: number | null = null;
   private skyLook = 0;
   private sunLook = 0;
@@ -449,9 +454,56 @@ export class FieldLesson {
 
   // ------------------------------------------------------------ the slow step (4 Hz)
 
+  /**
+   * Lesson 05's story starts at a working camp. Chosen straight from the title in a new game, there is none: set one
+   * up once (a workbench, a burning fire pit, a drying rack, a bed) with the tools earlier lessons would have made.
+   * Played on from Lesson 04, the player's own camp is used and nothing is added.
+   */
+  private ensureCamp(): void {
+    const g = this.g;
+    if (this.campGiven || g.lessons.lesson?.id !== 'food') return;
+    if (g.structures.some((s) => s.kind === 'workbench' || s.kind === 'firePit')) return;
+    this.campGiven = true;
+    const spots: Array<[StructureKind, number, number]> = [
+      ['workbench', 2.5, -2],
+      ['firePit', -1.5, -3],
+      ['dryingRack', 3.5, 2.5],
+      ['bedding', -3.5, 1.5],
+    ];
+    const near: Array<[number, number]> = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1], [1.5, 1.5], [-1.5, -1.5], [2, -1], [-2, 1]];
+    let id = Math.max(0, ...g.structures.map((s) => s.id)) + 1;
+    for (const [kind, x0, z0] of spots) {
+      const def = BLUEPRINTS[kind];
+      const at = near.map(([dx, dz]) => [x0 + dx, z0 + dz]).find(([x, z]) => checkPlacement(kind, x, z, g.structures).ok);
+      if (!at) continue;
+      const s: PlacedStructure = {
+        id: id++,
+        kind,
+        x: at[0],
+        z: at[1],
+        rotY: 0,
+        key: def.keyAccepts[0],
+        spots: def.spots.map((sp) => sp.accepts[0]),
+        complete: true,
+        keyPlaced: true,
+        built: true,
+      };
+      g.structures.push(s);
+      g.notifyStructure(s);
+    }
+    // A fire already going (it burns down unless you feed it), and the tools of Lessons 01-04.
+    g.fire.restore({ tinder: 0, twigs: 0, logs: 0, fuelFirst: false, stage: 'burning', burnLeft: 300 });
+    g.notifyFire();
+    const kit: Array<[ItemId, number]> = [['spindle', 1], ['flake', 1], ['cord', 3], ['knife', 1], ['diggingStick', 1], ['pot', 1]];
+    for (const [item, n] of kit) g.addItem(item, n);
+    g.setFlag('potFired');
+    g.toast('Lesson 05 starts at a working camp: a workbench, a fire, a drying rack and a bed, with the tools you would have made (a fired pot, a knife, a digging stick).', 'note');
+  }
+
   update(dt: number): void {
     const g = this.g;
     const env = g.env;
+    this.ensureCamp();
     if (this.skyCooldown > 0) this.skyCooldown -= dt;
     // Are the clouds building? Compared with a few seconds ago.
     if ((this.cloudT += dt) >= 4) {
@@ -502,6 +554,7 @@ export class FieldLesson {
   snapshot(): FieldSave {
     return {
       v: 1,
+      campGiven: this.campGiven,
       trek: { ...this.trek, phase: this.trek.phase === 'active' ? 'idle' : this.trek.phase },
       check: this.check,
       checkDone: this.checkDone,
@@ -521,5 +574,6 @@ export class FieldLesson {
     this.judgedCount = n(s.judged);
     this.judgedRight = n(s.judgedRight);
     this.briefed = !!s.briefed;
+    this.campGiven = !!s.campGiven;
   }
 }

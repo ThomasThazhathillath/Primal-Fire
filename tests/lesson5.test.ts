@@ -54,6 +54,32 @@ describe('the lesson', () => {
   });
 });
 
+describe('Level 5 from the title', () => {
+  it('a new game that starts at Level 5 gets a working camp once; one that played on from Lesson 04 keeps its own', () => {
+    const g = new Game();
+    g.lessons.setResume('food');
+    run(g, 0.5);
+    expect(g.lessons.lesson?.id).toBe('food');
+    for (const k of ['workbench', 'firePit', 'dryingRack', 'bedding'] as const) expect(g.structures.some((s) => s.kind === k && s.complete), k).toBe(true);
+    expect(g.fire.stage).toBe('burning');
+    expect(g.count('spindle') + g.count('flake') + g.count('cord')).toBeGreaterThanOrEqual(3);
+    expect(g.flag('potFired')).toBe(true);
+    const n = g.structures.length;
+    g.structures.length = 0; // even if the camp is taken apart, it is not given twice
+    run(g, 0.5);
+    expect(g.structures.length).toBe(0);
+    expect(n).toBe(4);
+    const back = Game.restore(JSON.parse(JSON.stringify(g.snapshot())));
+    expect(back.field.campGiven).toBe(true);
+
+    const own = new Game();
+    own.structures.push({ id: 1, kind: 'workbench', x: 2, z: 2, rotY: 0, key: 'slab', spots: [], complete: true });
+    jumpTo(own, 'spear');
+    run(own, 0.5);
+    expect(own.structures).toHaveLength(1);
+  });
+});
+
 describe('nutrition: sugar, fat, protein', () => {
   it('sugar arrives at once and is soon done; fat and protein keep feeding for minutes', () => {
     const b = new Body();

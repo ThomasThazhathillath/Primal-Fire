@@ -1,4 +1,4 @@
-# PRIMAL: First Fire — Project Status
+# EUREKA (formerly PRIMAL: First Fire) — Project Status
 
 Meta VR Start Developer Competition 2026 · Gaming track · New Experience division
 **Deadline:** Nov 19, 01:30 IST (treat as end of **Nov 18**)

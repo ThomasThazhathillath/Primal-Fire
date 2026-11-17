@@ -1,4 +1,4 @@
-# Primal Fire: science curriculum
+# EUREKA: science curriculum
 
 Every mechanic should teach one true idea. This page maps mechanics to the science
 behind them, how the game shows it, and where it is simplified.
@@ -25,23 +25,31 @@ Quests (`src/game/quests.ts`) wait on events and give recaps when they finish.
 | Cordage | Cord from fibres | Twisting makes fibres press and grip by friction | `craft.cord`, `tool.lash.hold` | `g_cord`, `t_lash` | ✅ |
 | Tripod stability | Workbench | Three points always define a plane | `build.workbench.done` | `b_tripod` | ✅ |
 | Thermal shock | Wet stones in fire | Trapped water turns to steam and can burst stone | `build.firepit.wetstone`, `fire.hotstones.boil` | `b_wetstone`, `w_hotstones` | ✅ |
-| Stone fracture | Knapping | Fine-grained glassy stones fracture conchoidally; coarse ones crumble | `tool.knap.flake`, `tool.knap.fail` | `t_flake`, `t_crumble` | ✅ |
+| Stone fracture | Knapping (strike-angle experiment) | Fine-grained glassy stones fracture conchoidally; a flake needs an angled blow near the edge, a square blow crushes; coarse stones crumble | `tool.knap.flake`, `tool.knap.fail` | `t_flake`, `t_crumble` | ✅ (the 80 degree limit is a game threshold) |
 | Pressure | Cutting | Pressure = force / area | `tool.edge.cut` | `t_pressure` | ✅ |
-| Simple machines | Lever, wedge, axe | Lever: effort × arm = load × arm. Wedge turns push into sideways force. Longer handle gives a faster head | `tool.lever.used`, `tool.wedge.split`, `tool.axe.made` | `t_lever`, `t_wedge`, `t_axe` | ✅ |
+| Simple machines | Lever, wedge, axe | Lever: effort × arm = load × arm. Wedge turns push into sideways force. Longer handle gives a faster head | `tool.lever.used`, `tool.lever.stuck`, `tool.wedge.split`, `tool.axe.made` | `t_lever`, `t_pivot`, `t_wedge`, `t_axe` | ✅ (the newtons shown are rough model values 🟡) |
+| Tensile strength | Tool Yard test bough | Twisting presses fibres together so friction shares the load; loose fibres fail one by one | `tool.cord.snapped`, `tool.cord.held` | `t_strand`, `t_twist` | ✅ idea / 🟡 numbers |
+| Bracing | Tool Yard frame | Pin-like joints let a square rack into a parallelogram; a triangle is rigid | `build.frame.racked`, `build.frame.braced` | `b_rack`, `b_triangle` | ✅ |
+| Materials | Tool kit | Each material is chosen for one property (hardness, toughness, stiffness, tension) | `tool.kit.made` | `t_kit` | ✅ |
 | Wood structure | Splitting, hardening | Fibres run along the grain. Drying makes wood harder | `tool.wedge.split`, `tool.point.hardened` | `t_wedge`, `t_harden` | ✅ |
 | Elasticity and stored energy | Bow | Bent limbs store elastic potential energy released as kinetic energy | `hunt.bow.drawn` | `h_bow` | ✅ |
 | Projectile motion | Arrows | Constant horizontal motion plus gravity gives a curved path; drag shortens it | `hunt.arrow.fly`, `hunt.arrow.hit` | `h_arc`, `h_hit` | ✅ |
 | Stability in flight | Fletching | Drag at the tail keeps the tip pointing forward | `hunt.fletch.made` | `h_fletch` | ✅ |
-| Sedimentation | Settling water | Gravity pulls particles down; fine silt takes longer | `water.sediment.settle` | `w_settle` | ✅ |
-| Filtration | Layered filter | Coarse first, fine below, cloth support; charcoal adsorbs some chemicals | `water.filter.*` | `w_washout`, `w_clog`, `w_odor`, `w_microbes` | ✅ |
+| Sedimentation | Settling water (a full pot left still) | Gravity pulls particles down; fine silt takes longer; germs do not settle out reliably | `water.sediment.settle` | `w_settle` | ✅ |
+| Filtration | Layered filter, any order (Lesson 03 experiment) | Coarse first, fine below, cloth support; charcoal adsorbs some smell and taste compounds; germs pass through | `water.filter.*` | `w_washout`, `w_clog`, `w_odor`, `w_microbes` | ✅ (clog and washout are simplified to certain outcomes) |
+| Water cycle | Rain caught off the roof vs stream water | Evaporation leaves mud and salt behind; rain picks up dust and roof dirt; runoff gathers soil and germs | `water.rain.caught` | `w_cycle` | ✅ / 🟡 (roof runoff "much clearer" is a rule of thumb) |
 | Disinfection | Boiling | Boiling kills most pathogens but does not remove chemicals | `water.boil.*` | `w_boilmurky`, `w_boil` | ✅ |
 | Pyrolysis | Charcoal mound | Heating wood with limited oxygen leaves carbon | `charcoal.*` | `c_ash`, `c_early`, `c_success` | ✅ |
-| Clay and ceramics | Pottery | Clay is plastic when wet; grit prevents cracks; steam bursts damp pots; firing fuses minerals | `pottery.*` | `p_temper`, `p_dry`, `p_ceramic` | ✅ |
+| Clay and ceramics | Pottery, clay test cups (Lesson 03 experiments) | Clay is plastic when wet; grit prevents cracks; steam bursts damp pots; firing fuses minerals; unfired clay can be slaked back into clay | `pottery.*` | `p_temper`, `p_dry`, `p_ceramic`, `p_reclaim` | ✅ (the drying-strain curve is a teaching model, not measured data) |
 | Hydration | Water need (survival/body.ts), drinking at the stream or from the pot | Water is essential; thirst is a late signal; untreated water can carry germs | `body.thirst.warning`, `body.drink` | `y_thirst`, `y_drink` | ✅ |
 | Energy and nutrition | Hunger, cooking | Calories are energy; cooking kills microbes and aids digestion | `body.eat`, `food.cooked` | `y_eat`, `y_cook` | ✅ |
 | Biomechanics | Carrying | Work against gravity = m g h | `body.carry.heavy` | `y_carry` | ✅ |
 | Heat loss | Cold, wet, wind | Conduction, convection and evaporation carry heat away; water conducts far faster than air | `body.cold.wet`, `shelter.wind.blocked` | `y_wet`, `s_wind` | ✅ |
 | Insulation | Shelter bed | Dry debris traps still air, which conducts poorly | `shelter.bed.insulated` | `s_bed` | ✅ |
+| Insulation (test) | Bed materials | Still air insulates; water in damp bedding conducts heat and soaks you | `shelter.bed.dry`, `shelter.bed.damp`, `shelter.bed.compared` | `l1_stems`, `l1_damp`, `l1_air` | ✅ (relative values) |
+| Heat budget | A night in the shelter | A shelter makes no heat; it cuts losses until body heat is enough | `shelter.night.exposed`, `shelter.night.warm` | `l1_open`, `l1_night` | ✅ (simplified) |
+| Terrain | Site check | Cold air drains downhill and pools in hollows; raised ground sheds water | `shelter.site.hollow`, `shelter.site.raised` | `l1_hollow`, `l1_rise` | ✅ |
+| Racking | Push test | A box folds without any side changing length; triangles do not | `shelter.frame.racked` | `l1_rack` | ✅ |
 | Shelter siting and shape | Shelter | Cold air sinks; water runs downhill; steep layered roofs shed rain | `shelter.site.chosen`, `shelter.roof.covered` | `s_site`, `s_roof` | ✅ |
 | Wound care | First aid | Dirt carries bacteria; washing lowers infection risk; inflammation is the body’s response | `body.wound.*` | `y_wound_clean`, `y_wound_dirty` | ✅ (game only; not medical advice) |
 | Ecology | Animals | Producers, herbivores and carnivores; energy is lost at each step | `nature.foodchain.seen` | `n_chain` | ✅ / 🟡 (10% rule) |
@@ -60,6 +68,16 @@ The game is played as five lessons (see [CURRICULUM.md](CURRICULUM.md)): 01 Shel
 **Experiments** (`src/game/science/experiments.ts`) are fed by the real simulation. The first is Lesson 01's
 "How many roof layers keep the rain out?": each roof panel under rain is a trial, with the shelter rules
 deciding whether it leaks (one layer of bark, leaves or grass leaks; two or more overlapping layers hold).
+
+Lesson 01 adds three more ✅ (simplified models, stated as such):
+- "What stops a frame from folding over?" Pushing the lean-to: posts and a ridge make a box that leans right over;
+  ribs make triangles and cross-supports tie them, so it holds (`shelter.ts framePush`, a teaching model of racking).
+- "What makes a warm bed?" Resting under the roof, the body's conduction into the ground is compared with bare
+  ground. Insulation per material is relative (`survival/materials.ts`: dry grass 0.9, dry leaves 0.85, damp moss
+  0.3 of the ground's pull stopped); still air conducts about 0.026 W/m K, water about 0.6.
+- "How much warmth does your shelter save at night?" Heat out over heat made, in the open and on a dry bed under the
+  roof (`heatRatio`). Cold air pooling in hollows on calm nights ✅ (radiative cooling + cold-air drainage), modelled
+  as up to 2.5 C colder air.
 
 **The body** (`src/game/survival/`) is a simplified teaching model: heat in (metabolism, a fire) minus heat out
 (cold air, faster in wind, much faster when wet, and into the ground when resting without a bed). The game shows
@@ -80,7 +98,28 @@ times" better than air (about 0.6 vs 0.026 W/m K) ✅.
 | Weather | Looking up before rain (clouds build before rain spells) | Rising moist air cools and condenses; building dark clouds often bring rain | `weather.sky.read` | `x_sky` | 🟡 (rule of thumb) |
 | Food chains | Watching plant-eaters, eating fish; a deer spotting you from the side | Producers, herbivores, carnivores (you); side-set prey eyes | `nature.foodchain.seen`, `nature.predator.near` | `n_chain`, `n_eyes` | ✅ / 🟡 |
 
+### Lesson 02: Fire
+
+| Topic | Mechanic | Core idea | Events | Entries | Conf. |
+|---|---|---|---|---|---|
+| Friction: speed and pressure | Bow drill (VR stroke, browser drag + Shift) | Friction heat grows with rubbing speed and with how hard the surfaces press; hot dust loses heat faster, so slow or light sawing levels off | `fire.drill.slow`, `fire.drill.light` | `f_speed`, `f_pressure` | ✅ (heat ~ force x speed is standard; the game's numbers are game-scale) |
+| Ignition temperature | Feeding the fire | Fuel must be heated to ignition; water must boil off first; thick fuel takes longer (surface area per mass) | `fire.fuel.wet`, `fire.fuel.ladder`, `fire.fuel.dried` | `f_steam`, `f_ladder`, `f_dried` | ✅ |
+| Oxygen and airflow | Fanning, wind, smothering with earth | Burning is fast oxidation: more air, hotter and faster; no air, it dies | `fire.air.fanned`, `fire.air.wind`, `fire.air.smothered` | `f_fanned`, `f_wind`, `f_smother` | ✅ |
+| Green wood | Green branch on the fire | Sap is mostly water: green wood smoulders, smokes and gives less net heat | `fire.signal.smoke` | `f_smoke` | ✅ |
+| Charcoal burns hotter | Charcoal on the fire | Mostly carbon, its water and volatiles already gone: hot, little smoke; gives off carbon monoxide | `fire.charcoal.burn` | `f_charcoal` | ✅ |
+| Keeping a fire | The practical | A fire burns its fuel away and must be fed | `fire.night.kept` | `f_night` | ✅ |
+
+**Lesson 04 numbers** (`src/game/curriculum/lessons/tools/engineering.ts`) are teaching values, said to be rough
+wherever they appear: one plant fibre about 1.8 N, 30 fibres a strand, 15% of them sharing the pull when loose and
+75% when twisted (twist tilts fibres off the line of pull); a 20 N test stone; 700 N to tip the boulder (about
+half the weight of a ~140 kg boulder, the usual rule for tipping a block at one edge); 250 N as a person's best
+push. The lever law itself is exact (✅).
+
 ## Simplifications (say so in the game)
+
+- Fire (Lesson 02): heat, air, water and burn times are game-scale numbers chosen to show the right trends (thin
+  before thick, dry before damp, more air hotter); no temperatures or real burn times are stated. Pressure on the
+  bow drill is two levels (light, firm); the real "too much pressure stalls the bow" is only mentioned in the text.
 
 - Ignition: we show fuels catching fire in order of size but do not state ignition
   temperatures in the game.
@@ -89,6 +128,8 @@ times" better than air (about 0.6 vs 0.026 W/m K) ✅.
 - Food chain: the "10%" figure is a rule of thumb, flagged as one.
 - Refraction: fish images use the straight-down approximation (apparent depth = depth / 1.33); at slanted views the real shift is larger.
 - Growth and drying times are compressed to minutes of game time.
+- Lesson 03: pots dry in 45 s and test cups in 30 s (real pots take days); boiling takes 12 s; rain runoff is caught
+  in one go. The filter's result depends only on the order of its layers, and a clear result always says germs remain.
 - Lesson 05's wild plants (Redcane berry, Ringnut, Featherroot and their look-alikes) are made up; eating a look-alike
   only makes you ill for a while. Digestion times, patch regrowth and spoiling are compressed teaching numbers.
 

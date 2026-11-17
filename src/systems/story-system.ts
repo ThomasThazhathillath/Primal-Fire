@@ -23,6 +23,7 @@ import {
   SpriteMaterial,
   Types,
   Vector3,
+  VisibilityState,
   createSystem,
 } from '@iwsdk/core';
 import { ACTS, CLUES, MAST_TOP, type StoryEvent } from '../game/story.js';
@@ -30,7 +31,7 @@ import { mulberry32 } from '../game/rng.js';
 import { groundHeight } from '../game/world-layout.js';
 import { START_HOUR } from '../game/environment.js';
 import { hasCarry } from '../game/tutorial-mode.js';
-import { getGame, getUi } from './shared.js';
+import { getGame, getUi, menuUp } from './shared.js';
 
 const POLL_SECONDS = 0.25;
 /** Seconds between thought lines (each stays on the HUD line until the next or its own fade). */
@@ -134,12 +135,17 @@ export class StorySystem extends createSystem({}, { tutorial: { type: Types.Bool
     if (this.off) return;
     this.t += delta;
     const game = getGame(this.world);
-    if ((this.poll += delta) >= POLL_SECONDS) {
+    // Nothing is said over the title menu, the pause card or the Start Game screen: story moments wait until you
+    // are playing (a restored save used to fire them on load, and they talked over the title menu).
+    const held = menuUp(this.world);
+    if (!held && (this.poll += delta) >= POLL_SECONDS) {
       this.poll = 0;
       game.story.poll(this.lines.length > 0 || (this.lineTimer > 0 && this.showingThought));
       if (game.story.camp && !this.campMarker) this.buildCampMarker(game.story.camp.x, game.story.camp.z);
     }
-    if (this.lineTimer > 0) this.lineTimer -= delta;
+    if (held) {
+      // Waiting lines keep their place in the queue.
+    } else if (this.lineTimer > 0) this.lineTimer -= delta;
     else if (this.lines.length) {
       this.lineTimer = LINE_GAP;
       this.showingThought = true;
@@ -223,8 +229,10 @@ export class StorySystem extends createSystem({}, { tutorial: { type: Types.Bool
     d = Math.atan2(Math.sin(d), Math.cos(d));
     // Snap on first show, then drift after the head.
     this.lineYaw = this.lineAlpha < 0.05 ? yaw : this.lineYaw + d * Math.min(1, delta * 2.5);
-    line.position.set(this.camPos.x + Math.sin(this.lineYaw) * LINE_DIST, this.camPos.y - 0.27, this.camPos.z + Math.cos(this.lineYaw) * LINE_DIST);
-    line.rotation.set(-0.22, this.lineYaw + Math.PI, 0, 'YXZ');
+    // In the headset just under eye level, above the Left / Menu / Right row (which now hangs where it used to be).
+    const down = this.world.visibilityState.peek() === VisibilityState.NonImmersive ? 0.27 : 0.06;
+    line.position.set(this.camPos.x + Math.sin(this.lineYaw) * LINE_DIST, this.camPos.y - down, this.camPos.z + Math.cos(this.lineYaw) * LINE_DIST);
+    line.rotation.set(-Math.atan2(down, LINE_DIST), this.lineYaw + Math.PI, 0, 'YXZ');
   }
 
   // ------------------------------------------------------------ the evening (gradual, never a sudden night)

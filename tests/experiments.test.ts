@@ -17,8 +17,12 @@ describe('experiment definitions', () => {
   it('every experiment is complete and teaches a real concept', () => {
     for (const d of EXPERIMENTS) {
       expect(CONCEPTS.some((c) => c.id === d.concept), d.id).toBe(true);
-      expect(d.predictions.length).toBeGreaterThanOrEqual(2);
-      expect(d.variable.values.length).toBeGreaterThanOrEqual(2);
+      // A lesson's closing check has only its question.
+      if (d.kind !== 'check') {
+        expect(d.predictions.length).toBeGreaterThanOrEqual(2);
+        expect(d.variable.values.length).toBeGreaterThanOrEqual(2);
+        expect(d.variable.values.length, `${d.id}: the card shows 4 trial rows`).toBeLessThanOrEqual(4);
+      }
       expect(d.check.options.filter((o) => o.correct)).toHaveLength(1);
       for (const o of d.check.options) expect(o.why.length, d.id).toBeGreaterThan(10);
       for (const k of ['question', 'why', 'howTo', 'principle', 'apply', 'limits'] as const) expect(d[k].length, `${d.id}.${k}`).toBeGreaterThan(15);

@@ -300,7 +300,9 @@ export class TutorialSystem extends createSystem({}, { tutorial: { type: Types.B
       return;
     }
     const v = guidedReveal(r.current, r.done, r.finished);
-    reveal.menu = v.menu;
+    // The Menu is always there in the opening (Quest test 2026-11-17: hidden until the bag step, players thought it
+    // was missing); only the objective card still waits for the first discovery.
+    reveal.menu = true;
     reveal.objective = v.objective;
   }
 

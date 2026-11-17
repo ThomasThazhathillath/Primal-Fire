@@ -711,7 +711,7 @@ export const menu = new MenuStack();
  * Where every card sits in the headset (the "not in your face" layout). distance (m) in front, side (m, + right),
  * down (m below the eyes; negative is above), scale (on top of the card's own VR scale, about the distance ratio so
  * text stays readable).
- *  - At hand-ray distance (1 m, pinch with the hand ray): Left and Right low at the sides, Menu higher and between
+ *  - Within a seated arm's reach, touched with a fingertip: Left and Right low at the sides, Menu higher and between
  *    them (icon-bar-system.ts BAR_BOTTOM). Pause is inside the menu; Left and Right step aside while the menu or a
  *    panel from it is open.
  *  - Away from the face, up top and beyond reach (pinch with the hand ray): the goal card in the middle, the tutorial
@@ -720,13 +720,12 @@ export const menu = new MenuStack();
  *    lands without effort; Pause, Settings, the title and Start Game farther still.
  */
 export const VR_LAYOUT = {
-  // Left, Menu and Right at hand-ray distance (Quest test 2026-11-17): at 0.4 m the hand was level with them, so the
-  // ray could not point at them and only a deliberate fingertip poke worked; pinches were refused. Scaled with the
-  // distance so they look the same size.
-  turnLeft: { distance: 1, side: -0.36, down: 0.32, scale: 2 },
-  menu: { distance: 1, side: 0, down: 0.24, scale: 2.5 },
-  pause: { distance: 1, side: 0.42, down: 0.4, scale: 1.9 },
-  turnRight: { distance: 1, side: 0.36, down: 0.32, scale: 2 },
+  // Left, Menu and Right within finger reach, pressed with a fingertip (Quest test 2026-11-17: Left and Right here are
+  // "perfect"; at 1 m they were too far to touch). Menu sits higher, between them (icon-bar-system.ts BAR_BOTTOM).
+  turnLeft: { distance: 0.4, side: -0.14, down: 0.27, scale: 0.8 },
+  menu: { distance: 0.4, side: 0, down: 0.15, scale: 1 },
+  pause: { distance: 0.42, side: 0.17, down: 0.33, scale: 0.75 },
+  turnRight: { distance: 0.4, side: 0.14, down: 0.27, scale: 0.8 },
   // Closer and lower than it was (1.4 m, 0.3 m up): easier to read and to pinch Why? and the bulb with the hand ray.
   objective: { distance: 1.15, side: 0, down: -0.2, scale: 2.1 },
   tutorial: { distance: 1.4, side: -0.66, down: -0.24, scale: 1.9 },

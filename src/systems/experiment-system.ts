@@ -76,8 +76,10 @@ export class ExperimentSystem extends createSystem({}) {
         if (e.type !== 'experiment' || currentMode() === 'tutorial') return;
         // Something to do: the card comes up by itself. Otherwise just refresh it if it is open.
         // A new experiment never covers another one the player is still reading: it waits until that card closes.
-        if (e.phase === 'predict' && this.opened && this.opened !== e.id) this.pending = e.id;
-        else if (e.phase === 'predict' || e.phase === 'result') this.open(e.id);
+        // A lesson's closing question (kind 'check') opens straight to its question.
+        const check = e.phase === 'check' && game.experiments.def(e.id)?.kind === 'check';
+        if ((e.phase === 'predict' || check) && this.opened && this.opened !== e.id) this.pending = e.id;
+        else if (e.phase === 'predict' || e.phase === 'result' || check) this.open(e.id);
         else if (this.opened === e.id) this.render();
       }),
     );
@@ -164,7 +166,7 @@ export class ExperimentSystem extends createSystem({}) {
     const text = (id: string, t: string) => p.requireElementById<UIKit.Text>(id).setProperties({ text: uiText(t || ' ') });
     const show = (id: string, on: boolean) => p.requireElementById(id).setProperties({ display: on ? 'flex' : 'none' });
     const lesson = lessonById(d.lesson);
-    text('exp-label', `EXPERIMENT - LESSON ${String(lesson?.n ?? 0).padStart(2, '0')}`);
+    text('exp-label', `${d.kind === 'check' ? 'CHECK' : 'EXPERIMENT'} - LESSON ${String(lesson?.n ?? 0).padStart(2, '0')}`);
     text('exp-title', d.question);
     const outcomeText = (o: string) => d.outcomes.find((x) => x.id === o)?.text ?? o;
     const predicted = d.predictions.find((x) => x.id === s.prediction)?.text ?? '';
@@ -242,20 +244,27 @@ export class ExperimentSystem extends createSystem({}) {
     if (note) this.panel.requireElementById<UIKit.Text>('exp-note').setProperties({ text: uiText(note) });
   }
 
+  /** Waiting for the player to start it: a prediction, or a lesson's closing question (kind 'check'). */
+  private waiting(id: string): boolean {
+    const g = getGame(this.world);
+    const p = g.experiments.phase(id);
+    return p === 'predict' || (p === 'check' && g.experiments.def(id)?.kind === 'check');
+  }
+
   update(delta: number): void {
     if (this.pop?.busy) this.pop.update(delta);
     // The experiment that waited for the last card: open it once no panel is in the way.
     if (this.pending && !this.opened && !this.pop?.busy && menu.current === null) {
       const next = this.pending;
       this.pending = null;
-      if (getGame(this.world).experiments.phase(next) === 'predict') this.open(next);
+      if (this.waiting(next)) this.open(next);
     }
     if (this.ready && !this.opened && !this.pending && (this.waitT += delta) >= 1) {
       this.waitT = 0;
       const ui = getUi(this.world);
       const g = getGame(this.world);
       const lesson = g.lessons.lesson?.id;
-      const id = EXPERIMENTS.find((d) => d.lesson === lesson && g.experiments.phase(d.id) === 'predict' && !this.shown.has(d.id))?.id;
+      const id = EXPERIMENTS.find((d) => d.lesson === lesson && this.waiting(d.id) && !this.shown.has(d.id))?.id;
       if (id && menu.current === null && !this.pop?.busy && !ui.titleOpen?.() && !ui.paused?.() && currentMode() !== 'tutorial') this.open(id);
     }
     if (!this.ready || !this.opened) return;

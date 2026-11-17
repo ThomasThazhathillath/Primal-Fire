@@ -2,12 +2,16 @@
 // Lesson 01 is played entirely by real actions (gathering, building, crafting, lashing, the rain test).
 // Lesson 02 too: the bow drill, the pit, the lay, every experiment run by the fire's own rules, charcoal in a
 // sealed mound and the closing practical (a second fire lit and kept fed).
+// Lesson 03 too: clay test cups, firing on your own fire, stream and rain, the filter's layers (with your own
+// charcoal), settling and boiling, and the closing check.
 // Later lessons use real actions where the mechanic is cheap to drive here and the same state flags the
-// fire, water and food rules set (their mechanics have their own tests) where it is not.
+// fire and food rules set (their mechanics have their own tests) where it is not.
 import { describe, expect, it } from 'vitest';
 import { BLUEPRINTS, spotWorldPosition } from '../src/game/blueprint.js';
+import { LAYER_SPOTS } from '../src/game/curriculum/lessons/water/filter.js';
 import { KEEP_SECONDS, PRESSURE } from '../src/game/fire.js';
 import { Game, type GameEvent } from '../src/game/game.js';
+import type { ItemId } from '../src/game/items.js';
 import { HOLD_DRY } from '../src/game/shelter.js';
 import { MOUND_MIN_STREAM, SMOKE_BLUE_AT } from '../src/game/water.js';
 import { nearestTreeDistance, streamDistance } from '../src/game/world-layout.js';
@@ -402,13 +406,182 @@ describe('a fresh game through the curriculum', () => {
     expect(g.fire.kept).toBe(true);
     run(g, 0.5);
     expect(done).toEqual(['shelter', 'fire']);
-    expect(step(g)).toBe('water/pot');
+    expect(step(g)).toBe('water/clayTemper');
     for (const id of ['f_drill', 'f_speed', 'f_pressure', 'f_steam', 'f_ladder', 'f_smoke', 'f_fanned', 'f_smother', 'f_night', 'c_success']) expect(g.notebook, id).toContain(id);
 
-    // ---- Lesson 03: Water
-    g.setFlag('potFired');
-    g.setFlag('waterSafe');
-    run(g, 0.5);
+    // ---- Lesson 03: Water, by real actions on the player's own fire (kept fed) with the charcoal from the
+    // player's own mound: clay test cups, the pot, stream and rain, the filter's order, settle / filter / boil,
+    // and the closing check. Every result comes from the water and clay rules.
+    expect(g.fire.stage).toBe('burning');
+    /** Feed the fire when it runs low, keeping whatever is in hand. */
+    const keepFire = () => {
+      if (g.fire.stage !== 'burning' || (g.fire.hearth.count() >= 3 && g.fire.flame >= 0.45)) return;
+      const hand = g.held;
+      feed(g, g.fire.flame < 0.45 ? 'twigs' : 'logs');
+      if (hand) g.takeOut(hand);
+    };
+    const wait = (seconds: number) => {
+      for (let t = 0; t < seconds; t += 1) {
+        keepFire();
+        run(g, 1);
+      }
+    };
+    const atPit = () => g.setPlayerPosition(pit.x + 0.8, pit.z);
+    const atBench = () => g.setPlayerPosition(bench.x, bench.z + 0.8);
+    const stream = { x: 4.4, z: 3 };
+    const act = (id: Parameters<Game['water']['perform']>[0], at = g.player) => expect(g.water.perform(id, at), id).toBe(true);
+    const craft = (id: string) => {
+      atBench();
+      expect(g.startBench(id, bench.id)).toBe(true);
+      for (let i = 0; g.bench && i < 10000; i++) g.benchWork(g.bench.step!.motion, 0.05);
+    };
+    const ownCharcoal = g.count('charcoal');
+    expect(ownCharcoal).toBeGreaterThan(0);
+    wait(1);
+    expect(g.experiments.phase('clayTemper')).toBe('predict');
+    expect(g.experiments.predict('clayTemper', 'sand')).toBe(true);
+    wait(1);
+    // The firing test opens right after, so the same test cups serve both.
+    expect(g.experiments.phase('potFiring')).toBe('predict');
+    expect(g.experiments.predict('potFiring', 'dry')).toBe(true);
+    g.addItem('clay', 4);
+    g.addItem('sand', 2);
+    craft('clayTest');
+    expect(g.water.clay.pieces.map((p) => p.kind)).toEqual(['plain', 'temper', 'temper']);
+    const clayLeft = g.count('clay');
+    // A damp sand cup goes straight into the fire: steam bursts it.
+    atPit();
+    g.stow();
+    expect(g.water.available(g.player, null)?.id).toBe('fireTest');
+    act('fireTest');
+    wait(3);
+    expect(g.experiments.state('potFiring').trials.get('damp')).toBe('burst');
+    // The clay-only cup cracks as it dries (its clay comes back); the other sand cup dries whole.
+    wait(30);
+    expect(g.experiments.state('clayTemper').trials.get('none')).toBe('cracked');
+    expect(g.experiments.phase('clayTemper')).toBe('result');
+    expect(g.experiments.predictedRight('clayTemper')).toBe(true);
+    expect(g.hasEvent('pottery.untempered.crack')).toBe(true);
+    expect(g.count('clay')).toBe(clayLeft + 1);
+    g.stow();
+    act('fireTest');
+    wait(7);
+    expect(g.experiments.phase('potFiring')).toBe('result');
+    for (const id of ['clayTemper', 'potFiring']) g.experiments.acknowledge(id);
+    expect(g.experiments.answer('clayTemper', 'fire')?.correct).toBe(false);
+    expect(g.experiments.answer('clayTemper', 'temper')?.correct).toBe(true);
+    expect(g.experiments.answer('potFiring', 'wait')?.correct).toBe(true);
+    wait(1);
+    expect(step(g)).toBe('water/pot');
+    // The pot: tempered, dried in the bag, fired in the player's own fire.
+    craft('pot');
+    wait(46);
+    expect(g.flag('potDry')).toBe(true);
+    g.stow();
+    g.takeOut('pot');
+    atPit();
+    act('firePot');
+    wait(16);
+    expect(g.flag('potFired')).toBe(true);
+    wait(1);
+    expect(step(g)).toBe('water/waterSource');
+    // Stream water is muddy; rain off the roof is clearer.
+    expect(g.experiments.predict('waterSource', 'rain')).toBe(true);
+    act('fillPot', stream);
+    expect(g.water.potWater).toBe('raw');
+    act('pourOut');
+    const rain = g.experiments.def('waterSource')!.testAction!;
+    expect(rain.label(g)).toBe('Wait for rain');
+    expect(rain.run(g)).toMatch(/Clouds gather/);
+    for (let t = 0; t < 2; t += 0.25) {
+      g.tick(0.25);
+      g.env.update(g.time, 0.25);
+    }
+    const edge = g.water.roofEdge()!;
+    g.setPlayerPosition(edge.x, edge.z);
+    expect(g.water.available(g.player, 'pot')?.id).toBe('catchRain');
+    act('catchRain');
+    expect(g.water.potWater).toBe('rain');
+    expect(g.notebook).toContain('w_cycle');
+    wait(1);
+    expect(g.experiments.phase('waterSource')).toBe('result');
+    g.experiments.acknowledge('waterSource');
+    expect(g.experiments.answer('waterSource', 'boil')?.correct).toBe(true);
+    act('pourOut');
+    wait(1);
+    expect(step(g)).toBe('water/filterOrder');
+    // The filter: legs and spout, then the layers in the order they go in (bottom first), with your own charcoal.
+    expect(g.experiments.predict('filterOrder', 'coarse')).toBe(true);
+    g.addItem('forkedStick', 3);
+    g.addItem('cane');
+    for (const [id, n] of [['cloth', 1], ['sand', 1], ['gravel', 1]] as const) g.addItem(id, n);
+    g.stow();
+    g.takeOut('forkedStick');
+    const f = placeOpen(g, 'filter');
+    for (let i = 0; i < 3; i++) expect(g.fillSpot(f.id, i)).toBe(true);
+    const layer = (k: number, id: ItemId) => expect(g.fillSpot(f.id, LAYER_SPOTS[k], id)).toBe(true);
+    // First try: sand on top of the gravel.
+    (['cloth', 'charcoal', 'gravel', 'sand'] as const).forEach((id, k) => layer(k, id));
+    expect(f.complete).toBe(true);
+    expect(g.count('charcoal')).toBe(ownCharcoal - 1);
+    const pour = () => {
+      act('fillPot', stream);
+      act('pourFilter', { x: f.x, z: f.z });
+    };
+    g.takeOut('pot');
+    pour();
+    expect(g.water.lastFilter?.flow).toBe('clogged');
+    expect(g.notebook).toContain('w_clog');
+    // Swap the top two layers: gravel above sand.
+    for (const k of [3, 2]) {
+      expect(g.takeBack(f.id, LAYER_SPOTS[k])).toBe(true);
+      g.stow();
+    }
+    layer(2, 'sand');
+    layer(3, 'gravel');
+    g.takeOut('pot');
+    pour();
+    expect(g.water.potWater).toBe('filtered');
+    wait(1);
+    expect(g.experiments.phase('filterOrder')).toBe('result');
+    expect(g.experiments.predictedRight('filterOrder')).toBe(true);
+    g.experiments.acknowledge('filterOrder');
+    expect(g.experiments.answer('filterOrder', 'clear')?.correct).toBe(false);
+    expect(g.experiments.answer('filterOrder', 'boil')?.correct).toBe(true);
+    act('pourOut');
+    wait(1);
+    expect(step(g)).toBe('water/treatment');
+    // Settle, filter, boil unfiltered, then filter and boil (on the player's own fire).
+    expect(g.experiments.predict('treatment', 'each')).toBe(true);
+    act('fillPot', stream);
+    g.stow();
+    wait(16);
+    expect(g.water.potWater).toBe('settled');
+    g.takeOut('pot');
+    atPit();
+    act('boil');
+    wait(13);
+    expect(g.water.potWater).toBe('boiledRaw');
+    pour();
+    expect(g.water.potWater).toBe('filtered');
+    atPit();
+    act('boil');
+    wait(13);
+    expect(g.water.potWater).toBe('safe');
+    expect(g.flag('waterSafe')).toBe(true);
+    wait(1);
+    expect(g.experiments.phase('treatment')).toBe('result');
+    expect(g.experiments.predictedRight('treatment')).toBe(true);
+    g.experiments.acknowledge('treatment');
+    expect(g.experiments.answer('treatment', 'mud')?.correct).toBe(true);
+    wait(1);
+    expect(step(g)).toBe('water/waterSupply');
+    // The closing check opens straight to its question once the setup works.
+    wait(1);
+    expect(g.experiments.phase('waterSupply')).toBe('check');
+    expect(g.experiments.answer('waterSupply', 'clear')?.correct).toBe(false);
+    expect(g.experiments.answer('waterSupply', 'limits')?.correct).toBe(true);
+    wait(1);
     expect(done).toEqual(['shelter', 'fire', 'water']);
     expect(step(g)).toBe('tools/stoneTools');
 

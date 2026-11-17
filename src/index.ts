@@ -7,7 +7,7 @@ import { setPlayableLessons } from './game/curriculum/registry.js';
 setEasyCarry(true);
 // The levels on offer: one at a time while each lesson is finished and play-tested (title screen level list; the guide
 // stops after the last one). Add a lesson id here when its level is ready.
-setPlayableLessons(['shelter', 'fire']);
+setPlayableLessons(['shelter', 'fire', 'water']);
 import { installDebugHooks, streamPlaytestLog } from './debug-hooks.js';
 import { guardSystems } from './system-guard.js';
 import { AudioSystem } from './systems/audio-system.js';

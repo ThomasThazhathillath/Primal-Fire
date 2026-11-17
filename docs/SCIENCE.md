@@ -32,11 +32,12 @@ Quests (`src/game/quests.ts`) wait on events and give recaps when they finish.
 | Elasticity and stored energy | Bow | Bent limbs store elastic potential energy released as kinetic energy | `hunt.bow.drawn` | `h_bow` | ✅ |
 | Projectile motion | Arrows | Constant horizontal motion plus gravity gives a curved path; drag shortens it | `hunt.arrow.fly`, `hunt.arrow.hit` | `h_arc`, `h_hit` | ✅ |
 | Stability in flight | Fletching | Drag at the tail keeps the tip pointing forward | `hunt.fletch.made` | `h_fletch` | ✅ |
-| Sedimentation | Settling water | Gravity pulls particles down; fine silt takes longer | `water.sediment.settle` | `w_settle` | ✅ |
-| Filtration | Layered filter | Coarse first, fine below, cloth support; charcoal adsorbs some chemicals | `water.filter.*` | `w_washout`, `w_clog`, `w_odor`, `w_microbes` | ✅ |
+| Sedimentation | Settling water (a full pot left still) | Gravity pulls particles down; fine silt takes longer; germs do not settle out reliably | `water.sediment.settle` | `w_settle` | ✅ |
+| Filtration | Layered filter, any order (Lesson 03 experiment) | Coarse first, fine below, cloth support; charcoal adsorbs some smell and taste compounds; germs pass through | `water.filter.*` | `w_washout`, `w_clog`, `w_odor`, `w_microbes` | ✅ (clog and washout are simplified to certain outcomes) |
+| Water cycle | Rain caught off the roof vs stream water | Evaporation leaves mud and salt behind; rain picks up dust and roof dirt; runoff gathers soil and germs | `water.rain.caught` | `w_cycle` | ✅ / 🟡 (roof runoff "much clearer" is a rule of thumb) |
 | Disinfection | Boiling | Boiling kills most pathogens but does not remove chemicals | `water.boil.*` | `w_boilmurky`, `w_boil` | ✅ |
 | Pyrolysis | Charcoal mound | Heating wood with limited oxygen leaves carbon | `charcoal.*` | `c_ash`, `c_early`, `c_success` | ✅ |
-| Clay and ceramics | Pottery | Clay is plastic when wet; grit prevents cracks; steam bursts damp pots; firing fuses minerals | `pottery.*` | `p_temper`, `p_dry`, `p_ceramic` | ✅ |
+| Clay and ceramics | Pottery, clay test cups (Lesson 03 experiments) | Clay is plastic when wet; grit prevents cracks; steam bursts damp pots; firing fuses minerals; unfired clay can be slaked back into clay | `pottery.*` | `p_temper`, `p_dry`, `p_ceramic`, `p_reclaim` | ✅ (the drying-strain curve is a teaching model, not measured data) |
 | Hydration | Water need (survival/body.ts), drinking at the stream or from the pot | Water is essential; thirst is a late signal; untreated water can carry germs | `body.thirst.warning`, `body.drink` | `y_thirst`, `y_drink` | ✅ |
 | Energy and nutrition | Hunger, cooking | Calories are energy; cooking kills microbes and aids digestion | `body.eat`, `food.cooked` | `y_eat`, `y_cook` | ✅ |
 | Biomechanics | Carrying | Work against gravity = m g h | `body.carry.heavy` | `y_carry` | ✅ |
@@ -111,6 +112,8 @@ times" better than air (about 0.6 vs 0.026 W/m K) ✅.
 - Food chain: the "10%" figure is a rule of thumb, flagged as one.
 - Refraction: fish images use the straight-down approximation (apparent depth = depth / 1.33); at slanted views the real shift is larger.
 - Growth and drying times are compressed to minutes of game time.
+- Lesson 03: pots dry in 45 s and test cups in 30 s (real pots take days); boiling takes 12 s; rain runoff is caught
+  in one go. The filter's result depends only on the order of its layers, and a clear result always says germs remain.
 
 ## Uncertain claims (the game avoids these)
 

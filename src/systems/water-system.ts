@@ -21,7 +21,7 @@ import {
   VisibilityState,
 } from '@iwsdk/core';
 import type { FoodAction } from '../game/food.js';
-import type { WaterAction } from '../game/water.js';
+import { FILTERABLE, type WaterAction } from '../game/water.js';
 import { PourState, pourRate } from '../game/gestures.js';
 import { groundHeight } from '../game/world-layout.js';
 import { hands } from './hand-input-system.js';
@@ -50,6 +50,9 @@ export class WaterSystem extends createSystem({}) {
   private puffMat = new MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45, depthWrite: false });
   private pot!: Mesh;
   private steam!: Mesh;
+  /** A clay test cup in the fire, and stones heating there (Lesson 03). */
+  private cup!: Mesh;
+  private stoneMeshes: Mesh[] = [];
   private head = new Vector3();
   private hand = new Vector3();
   private t = 0;
@@ -74,6 +77,17 @@ export class WaterSystem extends createSystem({}) {
     this.steam = new Mesh(new SphereGeometry(0.09, 8, 6), new MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.35, depthWrite: false }));
     this.steam.visible = false;
     this.root.add(this.steam);
+    this.cup = new Mesh(new CylinderGeometry(0.05, 0.035, 0.06, 10), new MeshStandardMaterial({ color: 0xb06a45, roughness: 0.9 }));
+    this.cup.visible = false;
+    this.root.add(this.cup);
+    const stoneGeo = new SphereGeometry(0.05, 8, 6);
+    const stoneMat = new MeshStandardMaterial({ color: 0x8a6f62, roughness: 1, emissive: 0x401000 });
+    for (let i = 0; i < 2; i++) {
+      const m = new Mesh(stoneGeo, stoneMat);
+      m.visible = false;
+      this.root.add(m);
+      this.stoneMeshes.push(m);
+    }
 
     const down = (e: KeyboardEvent) => {
       if (e.code !== 'KeyU' || e.repeat) return;
@@ -91,10 +105,12 @@ export class WaterSystem extends createSystem({}) {
     );
   }
 
-  private current(): Action | null {
+  private current(vr: boolean): Action | null {
     const g = getGame(this.world);
     const f = g.food.available();
-    const w = g.water.available();
+    let w = g.water.available();
+    // In VR the pot is emptied by tipping it (pour below), never by a reach.
+    if (vr && w?.id === 'pourOut') w = null;
     // With logs in the bag, the digging stick digs the charcoal pit, not a planting plot
     // (the plot would otherwise always win, so the charcoal objective could not be done).
     if (f && !(f.id === 'digPlot' && w?.id === 'digMound')) return { kind: 'food', a: f };
@@ -116,7 +132,7 @@ export class WaterSystem extends createSystem({}) {
     const g = getGame(this.world);
     this.t += delta;
     const vr = this.world.visibilityState.peek() !== VisibilityState.NonImmersive;
-    const act = this.current();
+    const act = this.current(vr);
 
     // Prompt once when the available action changes.
     const label = act ? act.a.label : '';
@@ -181,7 +197,7 @@ export class WaterSystem extends createSystem({}) {
     }
     if (!this.pourState.empty) return;
     const filter = g.water.filterNear();
-    if (w === 'raw' && filter) g.water.perform('pourFilter');
+    if (FILTERABLE.includes(w) && filter) g.water.perform('pourFilter');
     else g.water.pourOut();
     this.pourState.refill();
   }
@@ -212,6 +228,16 @@ export class WaterSystem extends createSystem({}) {
       const k = (this.t * 0.8) % 1;
       this.steam.position.set(fire.x, 0.35 + k * 0.5, fire.z);
       this.steam.scale.setScalar(0.6 + k);
+    }
+    // A test cup in the fire, and stones heating for stone boiling.
+    const pit = g.water.clay.firing || g.water.stones ? g.structures.find((s) => s.kind === 'firePit' && s.complete) : null;
+    this.cup.visible = !!pit && !!g.water.clay.firing;
+    if (pit && this.cup.visible) this.cup.position.set(pit.x + 0.12, 0.12, pit.z - 0.08);
+    const n = pit ? (g.water.stones?.n ?? 0) : 0;
+    for (let i = 0; i < this.stoneMeshes.length; i++) {
+      const m = this.stoneMeshes[i];
+      m.visible = i < n;
+      if (m.visible && pit) m.position.set(pit.x - 0.14 + i * 0.1, 0.08, pit.z + 0.1);
     }
   }
 }

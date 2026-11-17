@@ -20,6 +20,7 @@ import {
   checkPlacement,
   DEFAULT_SPOT_TOLERANCE,
   isSpotLocked,
+  markDef,
   openStage,
   STAGE_NAMES,
   spotWorldPosition,
@@ -562,11 +563,14 @@ export class Game {
     // Done: the parts became the item.
     const r = b.recipe;
     this.bench = null;
-    this.addItem(r.output, r.count ?? 1);
-    this.toolUses.delete(r.output);
+    if (r.make) r.make(this);
+    else {
+      this.addItem(r.output, r.count ?? 1);
+      this.toolUses.delete(r.output);
+    }
     if (r.flag) this.setFlag(r.flag);
-    this.log.add(`bench: made ${r.output}`, 'ok');
-    this.toast(`Made: ${itemName(r.output)}`, 'good');
+    this.log.add(`bench: made ${r.make ? r.id : r.output}`, 'ok');
+    if (!r.make) this.toast(`Made: ${itemName(r.output)}`, 'good');
     if (r.observation) this.observe(r.observation);
     for (const ev2 of r.science ?? []) this.science(ev2);
     this.checkProgress();
@@ -1643,10 +1647,13 @@ export class Game {
       s.spots[index] = null;
       if (s.spotPos) s.spotPos[index] = null;
     }
+    // A filter layer comes out to change the order (Lesson 03); the next layer in fills the lowest gap.
+    const filterLayer = s.kind === 'filter' && index >= 0 && (markDef(s.kind, index)?.accepts.length ?? 0) > 1;
     if (s.complete) {
       s.complete = false;
-      if (!roofLayer) this.toast(`${def.name} taken apart.`, 'note');
+      if (!roofLayer && !filterLayer) this.toast(`${def.name} taken apart.`, 'note');
     }
+    if (filterLayer) this.toast('You took a layer out. The next layer you put in fills the lowest gap.', 'note');
     if (roofLayer) this.toast('You took a layer off that roof panel. Fewer layers: will it still keep the rain out?', 'note');
     if (this.held) this.stow();
     this.held = item;

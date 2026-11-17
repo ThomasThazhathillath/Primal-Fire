@@ -1,4 +1,4 @@
-# PRIMAL: First Fire — Chapter 1 Design (science-first)
+# EUREKA (formerly PRIMAL: First Fire) — Chapter 1 Design (science-first)
 
 The tone is inspired by the opening of *Dr. Stone*: one person, a ruined world, and the conviction that **science rebuilds everything, step by step**. Survival is only the backdrop. The game is about **experiments, the reasons behind them, and chaining one discovery into the next**.
 

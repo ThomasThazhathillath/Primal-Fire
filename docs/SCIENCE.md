@@ -1,4 +1,4 @@
-# Primal Fire: science curriculum
+# EUREKA: science curriculum
 
 Every mechanic should teach one true idea. This page maps mechanics to the science
 behind them, how the game shows it, and where it is simplified.

@@ -1,7 +1,7 @@
 // The survival save: one key and one place where the save format changes.
 //
-// The key keeps its old name ("save.v1") on purpose: the start screen, the
-// tutorial and old players' browsers all look for it. The format version lives
+// The key keeps its old name ("primal-first-fire.save.v1", from before the game was renamed EUREKA) on
+// purpose: the start screen, the tutorial and old players' browsers all look for it. Never rename it. The format version lives
 // inside the save (`SaveData.v`), and `migrateSave` brings any older save up to
 // the current shape before `Game.restore` reads it. Before a save is upgraded
 // for the first time, the original is copied to `SURVIVAL_BACKUP_KEY`, so a bad

@@ -1,4 +1,4 @@
-// The title menu: PRIMAL over the calm forest. Play / Continue, Tutorial, New Game, Enter VR (flat view) and Quit.
+// The title menu: EUREKA over the calm forest. Play / Continue, Tutorial, New Game, Enter VR (flat view) and Quit.
 // Fingertip tap and gaze + pinch in the headset (PanelTouch), mouse in the browser. Big targets. In the headset it
 // hangs in front of you until you press Play; nothing starts on its own.
 

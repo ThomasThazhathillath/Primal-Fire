@@ -1,6 +1,6 @@
 # Survive through Science: the curriculum
 
-PRIMAL is played as five lessons. Each lesson has a survival goal, the science it teaches, steps on the
+EUREKA is played as five lessons. Each lesson has a survival goal, the science it teaches, steps on the
 objective card, experiments the player runs with real variables, and a short check of what they learned.
 
 | # | Lesson | Survival goal | Steps today |

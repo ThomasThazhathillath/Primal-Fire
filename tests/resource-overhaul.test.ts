@@ -120,7 +120,7 @@ describe('layout: abundance, clusters, habitat', () => {
     const flint = RESOURCES.filter((r) => r.itemId === 'flint');
     expect(flint.length).toBeGreaterThanOrEqual(35);
     expect(flint.filter((r) => Math.hypot(r.x, r.z) < 22).length).toBeGreaterThanOrEqual(6);
-  });
+  }, 90_000); // ~2 s alone, but 30+ s while other sessions build and test on this machine
   it('rocky deposits hold 8-15 stones and 3-6 flint beside an outcrop', () => {
     const rocky = CLUSTERS.filter((c) => c.kind === 'rocky');
     expect(rocky.length).toBeGreaterThanOrEqual(4);

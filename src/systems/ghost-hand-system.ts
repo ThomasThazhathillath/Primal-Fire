@@ -169,7 +169,9 @@ export class GhostHandSystem extends createSystem({}) {
     if (assistFx.signFor > 0) assistFx.signFor -= delta;
     const help = assistFx.signFor > 0 ? assistFx.sign : null;
     // Help for what the player is stuck on right now wins over the lesson's own sign while it lasts (NPE C).
-    const clip = this.vr ? ((help ?? ghost.clip ?? ghost.how) as GhostClip | null) : null;
+    // A gesture already done once is only shown when asked for (a "How?" card), never again on its own.
+    const auto = help && !ghost.done.has(help) ? help : (ghost.clip ?? null);
+    const clip = this.vr ? ((ghost.how ?? auto) as GhostClip | null) : null;
     if (!clip || !this.hands) {
       this.root.visible = false;
       return;

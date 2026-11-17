@@ -330,7 +330,14 @@ export const clampSpot = (v: PanelSpot): PanelSpot => ({
 export const cards: Record<string, Object3D> = {};
 
 /** What the ghost hand should demonstrate right now (null = nothing), and next to which card. Set by the teaching cards. */
-export const ghost: { clip: string | null; card: string | null; how: string | null } = { clip: null, card: null, how: null };
+export const ghost: { clip: string | null; card: string | null; how: string | null; done: Set<string> } = {
+  clip: null,
+  card: null,
+  how: null,
+  /** Gestures the player has already done once (Quest test 2026-11-17: the teleport and pinch hands kept looping in
+   * front of the cards after the first time). Lesson and help signs skip them; a "How?" card still shows them. */
+  done: new Set<string>(),
+};
 
 /**
  * Progressive assistance output (NPE C), written by AssistanceSystem: a hand sign to show for a while, and one
@@ -711,23 +718,21 @@ export const menu = new MenuStack();
  * Where every card sits in the headset (the "not in your face" layout). distance (m) in front, side (m, + right),
  * down (m below the eyes; negative is above), scale (on top of the card's own VR scale, about the distance ratio so
  * text stays readable).
- *  - Within a seated arm's reach, touched with a fingertip: Left and Right low at the sides, Menu higher and between
- *    them (icon-bar-system.ts BAR_BOTTOM). Pause is inside the menu; Left and Right step aside while the menu or a
- *    panel from it is open.
+ *  - One short row low in front, within a seated arm's reach (tap or hand-ray pinch): Left, Menu, Right. Pause is
+ *    inside the menu; Left and Right step aside while the menu or a panel from it is open.
  *  - Away from the face, up top and beyond reach (pinch with the hand ray): the goal card in the middle, the tutorial
  *    step on the left, the crafting guide on the right, the compass above; messages low and far, like subtitles.
  *  - Opened on demand (bag, bench, notebook, hint, book) at arm's length and a little low, where a raised hand ray
  *    lands without effort; Pause, Settings, the title and Start Game farther still.
  */
 export const VR_LAYOUT = {
-  // Left, Menu and Right within finger reach, pressed with a fingertip (Quest test 2026-11-17: Left and Right here are
-  // "perfect"; at 1 m they were too far to touch). Menu sits higher, between them (icon-bar-system.ts BAR_BOTTOM).
   turnLeft: { distance: 0.4, side: -0.14, down: 0.27, scale: 0.8 },
-  menu: { distance: 0.4, side: 0, down: 0.15, scale: 1 },
+  menu: { distance: 0.4, side: 0, down: 0.27, scale: 1 },
   pause: { distance: 0.42, side: 0.17, down: 0.33, scale: 0.75 },
   turnRight: { distance: 0.4, side: 0.14, down: 0.27, scale: 0.8 },
-  // Closer and lower than it was (1.4 m, 0.3 m up): easier to read and to pinch Why? and the bulb with the hand ray.
-  objective: { distance: 1.15, side: 0, down: -0.2, scale: 2.1 },
+  // Close, big and just above eye level (Quest test 2026-11-17: at 1.4 m and 12 degrees up it was small and far, and
+  // no pinch on Why? or the bulb ever registered: a Quest hand ray only points that high with the hand at your face).
+  objective: { distance: 0.85, side: 0, down: -0.12, scale: 1.9 },
   tutorial: { distance: 1.4, side: -0.66, down: -0.24, scale: 1.9 },
   guide: { distance: 1.4, side: 0.68, down: -0.24, scale: 2 },
   compass: { distance: 1.4, side: 0, down: -0.6, scale: 1.8 },

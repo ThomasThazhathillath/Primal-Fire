@@ -48,6 +48,9 @@ export class TutorialSystem extends createSystem({}, { tutorial: { type: Types.B
   private expanded = false;
   private vr = false;
   private poll = 0;
+  /** The lesson whose gesture sign was last offered, and that gesture (marked done when the lesson moves on). */
+  private signLesson: string | null = null;
+  private signClip: string | null = null;
   private dirty = true;
   private choiceDone = false;
   private els: Record<string, UIKit.Text | null | undefined> = {};
@@ -382,9 +385,13 @@ export class TutorialSystem extends createSystem({}, { tutorial: { type: Types.B
     // Always show where the next thing is: one arrow and ring on the exact target of this step.
     const t = this.runner.finished || this.mode !== 'lesson' ? null : (this.runner.lesson.target?.(game) ?? null);
     assistFx.exact = t ? { id: `tut_${t.id}`, x: t.x, y: groundHeight(t.x, t.z), z: t.z } : null;
-    // The ghost hand shows the current lesson's gesture until its tasks are done.
+    // The ghost hand shows the current lesson's gesture until its tasks are done, and only the first time: a gesture
+    // done once (its lesson finished) is never demonstrated again on its own.
     const lc = this.runner.finished || this.mode !== 'lesson' ? undefined : LESSON_CLIPS[this.runner.lesson.id];
-    ghost.clip = lc && this.runner.nextTask() >= 0 ? lc : null;
+    if (this.signLesson && this.signLesson !== this.runner.lesson.id && this.signClip) ghost.done.add(this.signClip);
+    this.signLesson = this.runner.finished ? null : this.runner.lesson.id;
+    this.signClip = lc ?? null;
+    ghost.clip = lc && !ghost.done.has(lc) && this.runner.nextTask() >= 0 ? lc : null;
     ghost.card = 'tutorial';
     // The time of day on the card, every quarter hour.
     if (Math.floor(game.env.hour * 4) !== this.shownQuarter) this.dirty = true;

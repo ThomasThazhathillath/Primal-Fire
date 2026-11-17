@@ -286,6 +286,7 @@ export class PanelTouch implements GazeUiOwner {
         const t = this.active[hit];
         if (this.taps.length > 50) this.taps.shift();
         this.taps.push(t.id);
+        getGame(this.world).log.add(`tap on ${this.name}/${t.id} (${h === 0 ? 'left' : 'right'} hand)`);
         tapSound();
         haptic(this.world, h as 0 | 1);
         getGame(this.world).assist.success('tap');

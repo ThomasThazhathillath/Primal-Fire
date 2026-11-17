@@ -20,11 +20,11 @@ export const TOUCH_CONFIG = {
   /** Past this depth behind the surface (m) the fingertip is no longer in the icon. */
   throughDepth: -0.06,
   /** Minimum speed towards the surface (m/s) at the moment of crossing. */
-  minSpeed: 0.1,
+  minSpeed: 0.04,
   /** Finger direction · into-panel must exceed this (1 = pointing straight in). */
   minAim: 0.35,
   /** Icon hit radius = icon radius * this (a little forgiving). */
-  radiusScale: 1.05,
+  radiusScale: 1.25,
   /** Seconds after a tap before the same hand may tap again. */
   cooldown: 0.45,
   /** Must be this far (m) outside the icon region, or in front of it, to re-arm. */
@@ -40,7 +40,7 @@ export const TOUCH_CONFIG = {
    * frame and to the whole approach from the last time the tip was in front,
    * so sideways slides across icons never fire. 1.4 ≈ 54° off normal: a real hand drifts while it pokes (Quest log: 37 'slide' refusals at 0.9).
    */
-  maxSlideRatio: 1.4,
+  maxSlideRatio: 2.2,
   /** The approach (tip last seen >= armDepth in front) must be this recent (s). */
   approachWindow: 0.8,
   /**

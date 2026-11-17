@@ -59,7 +59,7 @@ describe('fingertip tap', () => {
 
   it('a slow drift onto the surface does not activate', () => {
     const t = new TouchTracker();
-    expect(run(t, [[0.05, 0, 0.05], [0.05, 0, -0.03]], 0.05)).toEqual([]);
+    expect(run(t, [[0.05, 0, 0.05], [0.05, 0, -0.03]], 0.03)).toEqual([]);
   });
 
   it('a finger not pointing into the panel does not activate', () => {

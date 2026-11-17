@@ -88,7 +88,7 @@ describe('rectangular rows and reasons', () => {
     expect(poke(new TouchTracker(), -0.12, -0.03, 0.4).hit).toBe(1);
   });
   it('a too-slow poke says tooSlow', () => {
-    const r = poke(new TouchTracker(), 0, 0.03, 0.09);
+    const r = poke(new TouchTracker(), 0, 0.03, 0.03);
     expect(r.hit).toBe(-1);
     expect(r.reason).toBe('tooSlow');
   });

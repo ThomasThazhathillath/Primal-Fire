@@ -31,6 +31,7 @@ import { ITEMS } from '../game/items.js';
 import { lambert } from '../scene-assets/materials.js';
 import { hands, mouse, pulse } from './hand-input-system.js';
 import { getGame, getUi, handPose, interactionsPaused } from './shared.js';
+import { yardPointer } from './tool-yard-system.js';
 
 const CORE_R = 0.045;
 const SCARS = 4;
@@ -189,7 +190,10 @@ export class CraftGestureSystem extends createSystem({}) {
     // The held flint is not finished yet, so it still has an edge to strike: never a dead end.
     if (this.core.flakesLeft <= 0) this.core = new Core(2);
     // Repeated misses widen the strike edge a little (adaptive.ts); a clean flake eases it back.
-    const r = this.core.strike(speed, edgeDist / game.assist.scale('knap'), angle);
+    const judged = edgeDist / game.assist.scale('knap');
+    const r = this.core.strike(speed, judged, angle);
+    // Lesson 04: every fair blow is a strike-angle trial, and a crushed edge is a notebook discovery.
+    game.yard.knapStrike(speed, judged, angle, r.outcome);
     if (r.outcome === 'flake') game.assist.success('knap');
     else if (r.code && r.code !== 'knap.coreSpent') game.assist.fail('knap');
     if (this.vr) pulse(this.renderer.xr.getSession(), 1, r.outcome === 'flake' ? 0.8 : 0.4, 50);
@@ -369,7 +373,7 @@ export class CraftGestureSystem extends createSystem({}) {
           const l = hands[0];
           const r = hands[1];
           if (l.tracked && r.tracked && l.grip && r.grip && l.pos.distanceTo(r.pos) < 0.3) this.enter('twist', true);
-        } else if (mouse.pressed) this.enter('twist', false);
+        } else if (mouse.pressed && !yardPointer.hover) this.enter('twist', false);
       }
     } else if (!a || (this.mode === 'knap' && a.motion !== 'knap') || (this.mode === 'twist' && a.motion !== 'rub')) {
       this.exit();

@@ -7,12 +7,13 @@ import { setPlayableLessons } from './game/curriculum/registry.js';
 setEasyCarry(true);
 // The levels on offer: one at a time while each lesson is finished and play-tested (title screen level list; the guide
 // stops after the last one). Add a lesson id here when its level is ready.
-setPlayableLessons(['shelter', 'fire', 'water']);
+setPlayableLessons(['shelter', 'fire', 'water', 'tools']);
 import { installDebugHooks, streamPlaytestLog } from './debug-hooks.js';
 import { guardSystems } from './system-guard.js';
 import { AudioSystem } from './systems/audio-system.js';
 import { CraftGestureSystem } from './systems/craft-gesture-system.js';
 import { BenchSystem } from './systems/bench-system.js';
+import { ToolYardSystem } from './systems/tool-yard-system.js';
 import { BuildBookSystem } from './systems/build-book-system.js';
 import { HighlightSystem } from './systems/highlight-system.js';
 import { LashSystem } from './systems/lash-system.js';
@@ -116,6 +117,7 @@ World.create(
     .registerSystem(CraftGestureSystem)
     .registerSystem(InteractionSystem)
     .registerSystem(BenchSystem)
+    .registerSystem(ToolYardSystem)
     .registerSystem(BuildBookSystem)
     .registerSystem(ObjectiveCardSystem)
     .registerSystem(HighlightSystem)

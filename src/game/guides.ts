@@ -67,7 +67,7 @@ export const GUIDE_FAILURES = {
   'cord.unravels': 'Twist each strand, then wrap together.',
   'knap.crushed': 'Hit nearer the edge, at an angle.',
   'knap.miss': 'Missed. Hit right at the edge.',
-  'knap.angleTooSteep': 'Find a sharper edge to hit.',
+  'knap.angleTooSteep': 'Strike at a slant near the edge, not straight down.',
   'knap.coarseStone': 'Crumbly stone. Use dark, glassy stone.',
   'axe.headLoose': 'Seat the head tighter first.',
   'swing.glancing': 'Hit square on.',

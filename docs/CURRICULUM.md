@@ -8,7 +8,7 @@ objective card, experiments the player runs with real variables, and a short che
 | 01 | Shelter | protection from wind, rain and the cold ground before night | stones, workbench, explore the bench, cord, start the lean-to (site check), frame, **push test**, roof, rain test, **roof-layer experiment**, bed, **bed test**, **a night in it** |
 | 02 | Fire | warmth, cooking, heat for materials | wood, tinder, bow-drill parts, bow drill, fire pit, fire lay, ember, fire, **stroke-speed**, **pressure**, **damp-or-dry**, **twig-or-log**, **dead-or-green-wood** experiments, charcoal, **air-and-charcoal** and **air-on-the-fire** experiments, the **practical** (light and keep your own fire) |
 | 03 | Water | a safe water supply | **clay-temper test**, **firing test**, clay pot, **stream or rain**, **filter layer order**, **settle / filter / boil**, **closing check** (limits of filtration) |
-| 04 | Tools | make tools | sharp flake, cut with it, stone axe, split a log |
+| 04 | Tools | make tools, test materials, move a boulder no one could lift | sharp flake, **strike-angle experiment**, cut with it, **cord-strength experiment**, stone axe, split a log, tool kit (knife + hammer), **frame-bracing experiment**, **lever-pivot experiment**, roll the boulder off the flint seam (challenge), tool test |
 | 05 | Food & Navigation | self-sufficiency | fishing spear, catch a fish, cook it, grow food, follow a trail, reach the Science Roadmap |
 
 Fire comes before Water so that pottery firing and boiling use the player's own fire, and the filter uses the
@@ -82,6 +82,49 @@ layer order read as cloth, charcoal, sand, gravel and run clear.
 **Experiment card:** Lesson 03 adds `ExperimentDef.kind = 'check'`: a lesson's closing question with no prediction or
 variable. It opens straight to its check question (label "CHECK"), waits behind another open card like a prediction
 does, and comes back up once per session while it waits.
+
+## Lesson 04: Tools, Materials & Primitive Engineering
+
+The player can survive; now they manufacture. Knapping and the bench crafts happen at the player's own camp;
+the physical experiments and the engineering challenge happen at the **Tool Yard**, on the north side of Split
+Rock (`lessons/tools/yard.ts`, drawn and driven by `src/systems/tool-yard-system.ts`).
+
+| Experiment | Variable (values) | What decides the outcome | Where the trial is reported |
+|---|---|---|---|
+| `strikeAngle` | angle of the blow (angled, straight down) | `knap()` in `interact.ts`: above `KNAP_ANGLE[1]` (80 deg) the edge crushes | `CraftGestureSystem.resolveKnap` -> `yard.knapStrike` (only fair blows: firm, near the edge) |
+| `cordStrength` | the strand (loose fibres, twisted cord) | `tensileTest()`: strand strength vs the 20 N test stone | `yard.liftTestStone` (lifting the stone under the test bough) |
+| `frameBracing` | bracing (square, diagonal brace) | `rackTest()`: hinge-like joints let a square fold; a triangle holds | `yard.pushFrame` (pushing the frame top sideways) |
+| `leverPivot` | pivot position (close to the boulder, in the middle, close to your hands) | `leverPush()`: effort x effort arm = load x load arm vs a 250 N best push | `yard.push` (pushing the pole end down) |
+
+Each card's testing phase shows a live readout from the simulation (`ExperimentDef.readout`): the last blow's angle and
+speed, the strands' strengths against the stone's 20 N, the frame's bracing, and the push the current pivot needs.
+
+- **The lever** (`engineering.ts`): a 2 m pole, the pivot stone on one of three marks (load arm 0.3 / 1.0 /
+  1.6 m), 700 N to tip the boulder. Only the near pivot (about 124 N) is within a person; the pole end
+  then travels about 0.34 m to lift the edge 6 cm, and the boulder rolls 0.7 m away from the lever. Two rolls
+  uncover the flint seam (`boulder` step, the challenge). Hands alone, or a short stick, say why they fail.
+- **Improved tools** make new jobs possible: the axe splits logs (wedge, grain), and the seam's nodules can only
+  be broken out with a hammer. A digging stick turned over a burning fire hardens (`t_harden`).
+- **Assessment**: each experiment ends with its check question; the lesson ends with a practical tool test
+  (`toolCheck`: the knife cuts fibres, the axe chops wood, the hammer breaks flint from the seam).
+- **Controls**: VR points the hand or controller ray at a yard object and pinches (each target offers the gaze
+  system a viewer-facing rectangle; head gaze no longer presses 'ui' targets), or pinches right at it with the hand
+  (a direct pinch wins over that hand's ray). Keep pinching and move the hand: push the pole end down, pull the
+  stone up, push the frame sideways. Desktop clicks, and presses and drags the same objects. `yardPointer` keeps
+  those presses from also turning the camera or starting a cord twist. Decorative yard meshes ignore raycasts so they
+  never hide a target; the hit shapes stay `visible` (IWSDK's pointer skips hidden meshes).
+- **Layout**: boulder at (-5.6, 22.3) with the lever pointing east, the test bough at (-5.5, 20), the frame ground at
+  (-3.6, 20.6). `tests/tools-lesson.test.ts` fails if a resource spot, tree, rock or log ever lands on the boulder's
+  roll path, the lever line, the bough or the frame (a loose stone there takes the clicks meant for the yard).
+- **Level 4** is in `setPlayableLessons` (src/index.ts) and follows Level 3 in the same game. Chosen from the title in
+  a fresh game, the steps say how to build a workbench and twist cord when the player has none (`find` lists the parts).
+- **Saves**: `SaveData.yard` (optional). Older saves load with the yard as the world made it.
+- **Live check**: `PHASE=knap|cord|frame|lever npx @iwsdk/cli browser run scripts/tools-yard-playtest.mjs --timeout
+  110000` (one phase per run: a browser run is capped at 110 s). `knap` starts a fresh game and picks Level 4 from
+  the title list; every mechanic is driven by real mouse input on the canvas. Debug handle: `window.__yard`.
+- **Crafting paths**: Lesson 04 adds no new crafting path (the tool kit is made at the workbench). The four
+  existing paths (`Game.craft`/`RECIPES`, `HAND_RECIPES`, `BENCH_RECIPES`, `ACTIONS`) are left as they are; see
+  the note in the coordinating session's notes folder for a proposed unification after the lesson merge.
 
 ## How it is built
 
@@ -208,5 +251,6 @@ In the running game (`npx @iwsdk/cli dev up --headless --allow-browser-automatio
   headset's reference space (relative to the player rig), not world coordinates.
 
 Debug handles: `window.__experiment`, `window.__notebook`, `window.__body`, `window.__lessonCard`.
+The Tool Yard's state is `g.yard` (in `scripts/eval.mjs` snippets).
 Lesson 01 in the running game: `g.shelterRules` (`lastPush`, `lastBed`, `lastNight`, `nightAdvice(g)`), `g.pushFrame(id)`,
 `g.waitForNight()`. Unit tests: `tests/lesson01.test.ts`.

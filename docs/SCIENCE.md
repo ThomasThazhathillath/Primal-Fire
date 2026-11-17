@@ -25,9 +25,12 @@ Quests (`src/game/quests.ts`) wait on events and give recaps when they finish.
 | Cordage | Cord from fibres | Twisting makes fibres press and grip by friction | `craft.cord`, `tool.lash.hold` | `g_cord`, `t_lash` | ✅ |
 | Tripod stability | Workbench | Three points always define a plane | `build.workbench.done` | `b_tripod` | ✅ |
 | Thermal shock | Wet stones in fire | Trapped water turns to steam and can burst stone | `build.firepit.wetstone`, `fire.hotstones.boil` | `b_wetstone`, `w_hotstones` | ✅ |
-| Stone fracture | Knapping | Fine-grained glassy stones fracture conchoidally; coarse ones crumble | `tool.knap.flake`, `tool.knap.fail` | `t_flake`, `t_crumble` | ✅ |
+| Stone fracture | Knapping (strike-angle experiment) | Fine-grained glassy stones fracture conchoidally; a flake needs an angled blow near the edge, a square blow crushes; coarse stones crumble | `tool.knap.flake`, `tool.knap.fail` | `t_flake`, `t_crumble` | ✅ (the 80 degree limit is a game threshold) |
 | Pressure | Cutting | Pressure = force / area | `tool.edge.cut` | `t_pressure` | ✅ |
-| Simple machines | Lever, wedge, axe | Lever: effort × arm = load × arm. Wedge turns push into sideways force. Longer handle gives a faster head | `tool.lever.used`, `tool.wedge.split`, `tool.axe.made` | `t_lever`, `t_wedge`, `t_axe` | ✅ |
+| Simple machines | Lever, wedge, axe | Lever: effort × arm = load × arm. Wedge turns push into sideways force. Longer handle gives a faster head | `tool.lever.used`, `tool.lever.stuck`, `tool.wedge.split`, `tool.axe.made` | `t_lever`, `t_pivot`, `t_wedge`, `t_axe` | ✅ (the newtons shown are rough model values 🟡) |
+| Tensile strength | Tool Yard test bough | Twisting presses fibres together so friction shares the load; loose fibres fail one by one | `tool.cord.snapped`, `tool.cord.held` | `t_strand`, `t_twist` | ✅ idea / 🟡 numbers |
+| Bracing | Tool Yard frame | Pin-like joints let a square rack into a parallelogram; a triangle is rigid | `build.frame.racked`, `build.frame.braced` | `b_rack`, `b_triangle` | ✅ |
+| Materials | Tool kit | Each material is chosen for one property (hardness, toughness, stiffness, tension) | `tool.kit.made` | `t_kit` | ✅ |
 | Wood structure | Splitting, hardening | Fibres run along the grain. Drying makes wood harder | `tool.wedge.split`, `tool.point.hardened` | `t_wedge`, `t_harden` | ✅ |
 | Elasticity and stored energy | Bow | Bent limbs store elastic potential energy released as kinetic energy | `hunt.bow.drawn` | `h_bow` | ✅ |
 | Projectile motion | Arrows | Constant horizontal motion plus gravity gives a curved path; drag shortens it | `hunt.arrow.fly`, `hunt.arrow.hit` | `h_arc`, `h_hit` | ✅ |
@@ -98,6 +101,12 @@ times" better than air (about 0.6 vs 0.026 W/m K) ✅.
 | Green wood | Green branch on the fire | Sap is mostly water: green wood smoulders, smokes and gives less net heat | `fire.signal.smoke` | `f_smoke` | ✅ |
 | Charcoal burns hotter | Charcoal on the fire | Mostly carbon, its water and volatiles already gone: hot, little smoke; gives off carbon monoxide | `fire.charcoal.burn` | `f_charcoal` | ✅ |
 | Keeping a fire | The practical | A fire burns its fuel away and must be fed | `fire.night.kept` | `f_night` | ✅ |
+
+**Lesson 04 numbers** (`src/game/curriculum/lessons/tools/engineering.ts`) are teaching values, said to be rough
+wherever they appear: one plant fibre about 1.8 N, 30 fibres a strand, 15% of them sharing the pull when loose and
+75% when twisted (twist tilts fibres off the line of pull); a 20 N test stone; 700 N to tip the boulder (about
+half the weight of a ~140 kg boulder, the usual rule for tipping a block at one edge); 250 N as a person's best
+push. The lever law itself is exact (✅).
 
 ## Simplifications (say so in the game)
 

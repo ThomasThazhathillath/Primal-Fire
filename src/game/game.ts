@@ -60,6 +60,7 @@ import type { LessonId, Step } from './curriculum/types.js';
 import { SAVE_VERSION } from './save.js';
 import { Body, type BodySave, type Level, type Need } from './survival/body.js';
 import { microclimate, type Microclimate } from './survival/climate.js';
+import { ToolYard, type YardSave } from './curriculum/lessons/tools/yard.js';
 import { bedParts, bedUnder, COLD_HOUR, NIGHT_COLD, ShelterRules } from './curriculum/lessons/shelter/rules.js';
 import { bedInsulation, bedMoisture } from './survival/materials.js';
 import { hollowDepth, siteAt } from './sites.js';
@@ -270,6 +271,8 @@ export class Game {
   readonly body: Body = new Body((e) => this.onBodyLevel(e.need, e.level));
   /** Experiments the lessons run (science/experiments.ts), fed by the real simulation. */
   readonly experiments: ExperimentTracker = new ExperimentTracker(EXPERIMENTS, (e) => this.emit(e));
+  /** Lesson 04's Tool Yard by Split Rock: test bough, frame ground, the boulder and its lever (lessons/tools/yard.ts). */
+  readonly yard: ToolYard = new ToolYard(this);
   /** Lesson 01's push, bed and night tests (curriculum/lessons/shelter/rules.ts). Not saved. */
   readonly shelterRules = new ShelterRules();
   /** Seconds of a shower asked for to test the roof ("Wait for rain"). */
@@ -359,6 +362,7 @@ export class Game {
 
   private emit(e: GameEvent): void {
     this.lessons?.observe(e);
+    this.yard?.observe(e);
     // Finishing a step or a lesson is worth XP (migration settles silently, without these events).
     if (e.type === 'objectiveDone') this.addXp(STEP_XP);
     if (e.type === 'lessonComplete') this.addXp(LESSON_XP);
@@ -816,6 +820,7 @@ export class Game {
       this.tickBody(this.shelterT);
       this.fuelWet.tick(this.shelterT);
       this.experiments.update(this);
+      this.yard.tick(this.shelterT);
       this.shelterT = 0;
       this.lessons.update();
     }
@@ -1016,6 +1021,11 @@ export class Game {
   /** The fire changed; `first` = this is the very first time a fire caught in this game. */
   notifyFire(first = false): void {
     this.emit({ type: 'fire', stage: this.fire.stage, ...(first ? { first } : {}) });
+  }
+
+  /** Use up what you hold (the Tool Yard: a pole laid as a lever, fibres that snapped). */
+  spendHeld(): ItemId | null {
+    return this.consumeHeld();
   }
 
   private consumeHeld(): ItemId | null {
@@ -1336,6 +1346,8 @@ export class Game {
    */
   wantedStructure(): StructureKind | null | undefined {
     if (this.tutorialStructure !== undefined) return this.tutorialStructure;
+    // At the Tool Yard a held pole is a lever and a stick a frame piece, not the start of a building.
+    if (this.yard.blocksBuilding()) return null;
     return this.lessons.buildFocus();
   }
 
@@ -2205,6 +2217,7 @@ export class Game {
       lessons: this.lessons.snapshot(),
       body: this.body.snapshot(),
       experiments: this.experiments.snapshot(),
+      yard: this.yard.snapshot(),
       notebookSeen: this.notebookSeen,
       movedSpots: [...this.movedSpots].map(([id, p]) => [id, p.x, p.z, p.ry] as [string, number, number, number]),
       story: this.story.snapshot(),
@@ -2258,6 +2271,7 @@ export class Game {
     g.held = data.held && data.held in ITEMS ? data.held : null;
     g.body.restore(data.body);
     g.experiments.restore(data.experiments);
+    g.yard.restore(data.yard);
     // Older saves did not track it: treat what they had as read.
     g.notebookSeen = Math.min(g.notebook.length, data.notebookSeen ?? g.notebook.length);
     for (const [id, x, z, ry] of data.movedSpots ?? []) g.movedSpots.set(id, { x, z, ry });
@@ -2283,6 +2297,8 @@ export interface SaveData {
   body?: BodySave;
   /** Experiments run so far (predictions, trials, results). */
   experiments?: ExperimentsSave;
+  /** Lesson 04's Tool Yard (boulder, lever, frame, seam, tool jobs); absent in older saves. */
+  yard?: YardSave;
   /** Notebook entries already seen (absent in older saves: all of them). */
   notebookSeen?: number;
   /** Gather spots dragged to a new place: [spot id, x, z, yaw]. */

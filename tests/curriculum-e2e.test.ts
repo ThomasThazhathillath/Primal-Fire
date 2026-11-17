@@ -4,6 +4,7 @@
 // sealed mound and the closing practical (a second fire lit and kept fed).
 // Lesson 03 too: clay test cups, firing on your own fire, stream and rain, the filter's layers (with your own
 // charcoal), settling and boiling, and the closing check.
+// Lesson 04 too: knapping blows, the Tool Yard experiments, bench crafts, the lever and the boulder challenge.
 // Later lessons use real actions where the mechanic is cheap to drive here and the same state flags the
 // fire and food rules set (their mechanics have their own tests) where it is not.
 import { describe, expect, it } from 'vitest';
@@ -13,6 +14,8 @@ import { KEEP_SECONDS, PRESSURE } from '../src/game/fire.js';
 import { Game, type GameEvent } from '../src/game/game.js';
 import type { ItemId } from '../src/game/items.js';
 import { HOLD_DRY } from '../src/game/shelter.js';
+import { knap } from '../src/game/interact.js';
+import { YARD } from '../src/game/curriculum/lessons/tools/engineering.js';
 import { MOUND_MIN_STREAM, SMOKE_BLUE_AT } from '../src/game/water.js';
 import { nearestTreeDistance, streamDistance } from '../src/game/world-layout.js';
 import { SITE_FEATURES } from '../src/game/sites.js';
@@ -585,10 +588,107 @@ describe('a fresh game through the curriculum', () => {
     expect(done).toEqual(['shelter', 'fire', 'water']);
     expect(step(g)).toBe('tools/stoneTools');
 
-    // ---- Lesson 04: Tools
-    for (const e of ['tool.knap.flake', 'tool.edge.cut', 'tool.axe.made', 'tool.wedge.split']) g.science(e);
+    // ---- Lesson 04: Tools, by real actions. Every experiment is fed by the knapping and Tool Yard rules.
+    const answer = (id: string) => {
+      g.experiments.acknowledge(id);
+      const right = g.experiments.def(id)!.check.options.find((o) => o.correct)!.id;
+      expect(g.experiments.answer(id, right)?.correct).toBe(true);
+      run(g, 0.5);
+    };
+    const holdItem = (id: Parameters<Game['addItem']>[0]) => {
+      g.stow();
+      g.addItem(id);
+      expect(g.takeOut(id)).toBe(true);
+    };
+    const make = (recipe: string) => {
+      expect(g.startBench(recipe, bench.id)).toBe(true);
+      for (let k = 0; k < 400 && g.bench; k++) g.benchWork(g.bench.step!.motion, 0.25);
+      expect(g.bench).toBeNull();
+    };
+    // Knapping: the strike-angle experiment opened with the step. Two angled flakes, one square blow.
+    expect(g.experiments.phase('strikeAngle')).toBe('predict');
+    g.experiments.predict('strikeAngle', 'angled');
+    g.satchel.clear();
+    g.addItem('dryStone');
+    holdItem('flint');
+    for (const angle of [50, 89, 45]) {
+      const r = knap(2, 0.01, angle);
+      g.yard.knapStrike(2, 0.01, angle, r.outcome);
+      if (r.outcome === 'flake') g.work(1);
+    }
+    expect(g.count('flake')).toBe(2);
+    run(g, 0.5);
+    expect(step(g)).toBe('tools/strikeAngle');
+    expect(g.experiments.predictedRight('strikeAngle')).toBe(true);
+    answer('strikeAngle');
+    expect(step(g)).toBe('tools/cutting');
+    expect(g.takeOut('flake')).toBe(true);
+    g.gather('cane');
+    run(g, 0.5);
+    expect(step(g)).toBe('tools/cordTest');
+    // At the Tool Yard by Split Rock: lift the test stone with loose fibres, then with cord.
+    g.stow();
+    g.setPlayerPosition(YARD.x, YARD.z);
+    run(g, 0.5);
+    g.experiments.predict('cordStrength', 'twisted');
+    holdItem('fibers');
+    expect(g.yard.liftTestStone()).toBe('snaps');
+    holdItem('cord');
+    expect(g.yard.liftTestStone()).toBe('holds');
+    g.stow();
+    answer('cordStrength');
+    expect(step(g)).toBe('tools/axe');
+    // Haft an axe at the workbench and split a log with it (the axe in the bag drives in like a wedge).
+    for (const [id, n] of [['dryStone', 2], ['spindle', 3], ['cord', 3]] as const) g.addItem(id, n);
+    make('axe');
+    run(g, 0.5);
+    expect(step(g)).toBe('tools/split');
+    g.gather('logs');
+    g.dropItem('logs', YARD.x + 1, YARD.z + 1);
+    run(g, 0.5);
+    expect(step(g)).toBe('tools/toolkit');
+    make('knife');
+    make('hammer');
+    run(g, 0.5);
+    expect(step(g)).toBe('tools/frameTest');
+    // A square frame folds under a push; with a diagonal brace it stands.
+    g.experiments.predict('frameBracing', 'braced');
+    g.addItem('spindle', 4);
+    for (let i = 0; i < 3; i++) g.yard.addFramePiece();
+    expect(g.yard.pushFrame(0.1)).toBe('folds');
+    expect(g.yard.addFramePiece()).toBe('raised');
+    expect(g.yard.addFramePiece()).toBe('brace');
+    expect(g.yard.pushFrame(0.1)).toBe('holds');
+    answer('frameBracing');
+    expect(step(g)).toBe('tools/leverTest');
+    // The lever: hands alone cannot; the pivot near your hands cannot; close to the boulder it lifts.
+    g.experiments.predict('leverPivot', 'near');
+    expect(g.yard.rigLever()).toBe('needPole');
+    holdItem('pole');
+    expect(g.yard.rigLever()).toBe('set');
+    g.yard.setPivot('far');
+    g.yard.beginPush();
+    expect(g.yard.push(0.3)!.moves).toBe(false);
+    g.yard.setPivot('near');
+    g.yard.beginPush();
+    expect(g.yard.push(0.1)!.moves).toBe(true);
+    answer('leverPivot');
+    expect(step(g)).toBe('tools/boulder');
+    // The engineering challenge: roll the boulder clear of the flint seam, setting the lever again after each roll.
+    for (let i = 0; i < 2; i++) {
+      g.yard.rigLever();
+      g.yard.beginPush();
+      g.yard.push(0.4);
+    }
+    expect(g.yard.seamOpen()).toBe(true);
+    run(g, 0.5);
+    expect(step(g)).toBe('tools/toolCheck');
+    // The tool test: the axe already chopped; the knife cuts fibres; the hammer breaks flint from the seam.
+    g.gather('fibers');
+    expect(g.yard.takeFlint()).toBe(true);
     run(g, 0.5);
     expect(done).toEqual(['shelter', 'fire', 'water', 'tools']);
+    for (const id of ['t_crumble', 't_twist', 't_kit', 'b_triangle', 't_pivot', 't_lever']) expect(g.notebook, id).toContain(id);
     expect(step(g)).toBe('food/spear');
 
     // ---- Lesson 05: Food & Navigation

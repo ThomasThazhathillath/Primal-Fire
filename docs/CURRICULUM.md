@@ -24,7 +24,7 @@ The lesson's own rules live in `lessons/shelter/rules.ts` (`ShelterRules`, run f
 | Step | What the player does | What decides it |
 |---|---|---|
 | `pole` | carries the first pole to open ground | **site check** (`sites.ts`, `checkPlacement`): a lean-to is turned down in one of the authored low hollows (`site.lowGround`, entry `l1_hollow`) or under a dead tree (`site.deadBranches`); a slight rise is praised (`l1_rise`) |
-| `frame` | posts, ridge, **push the bare frame**, ribs, cross-supports, lashings, small branches | on the frame step the ribs wait for one push of the bare frame (`pushFirst`); pressing a post or the ridge (pinch, hand ray, mouse) calls `Game.pushFrame` -> `framePush` |
+| `frame` | posts, ridge, **push the bare frame**, ribs, cross-supports, lashings, small branches | on the frame step the ribs wait for one push of the bare frame (`pushFirst`); pressing a post or the ridge (pinch, hand or controller ray, mouse) calls `Game.pushFrame` -> `framePush`. The press targets are double-sided spheres, so a hand pinching right at the pole hits them |
 | `framePush` | **experiment**: posts and ridge only vs with ribs and cross-supports | `framePush(s).rack`: the bare box leans right over, the braced frame holds (entry `l1_rack`) |
 | `roof`, `rainTest`, `roofLayers` | as in Phase 1; the rain test's card shows the water standing on the floor until the channel is dug | `ShelterTest.flood` |
 | `bed` | lays a bed under the roof (dry grass, dry leaves, now also damp moss) | the bed's parts |
@@ -113,6 +113,9 @@ In the running game (`npx @iwsdk/cli dev up --headless --allow-browser-automatio
 - `FIXTURE=<name> ... scripts/save-smoke.mjs`: load a frozen save and report the lesson and card.
 - `CODE='...' ... scripts/eval.mjs`: run a snippet in the game (`p` = `window.__primal`, `g` = the Game).
 - `PANEL=<object name> EL=<element id> ... scripts/click-element.mjs`: a real mouse click on a UI element.
+- `OBJ=<object name> ... scripts/click-object.mjs`: a real mouse click on a 3D object (it turns the view to face it
+  first), e.g. `OBJ=FramePush_1_0` pushes the lean-to frame. In emulated XR, `xr look-at` targets are in the
+  headset's reference space (relative to the player rig), not world coordinates.
 
 Debug handles: `window.__experiment`, `window.__notebook`, `window.__body`, `window.__lessonCard`.
 Lesson 01 in the running game: `g.shelterRules` (`lastPush`, `lastBed`, `lastNight`, `nightAdvice(g)`), `g.pushFrame(id)`,

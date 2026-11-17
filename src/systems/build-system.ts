@@ -106,6 +106,8 @@ const emberMat = new MeshBasicMaterial({ color: 0xff6a22 });
 const partGeo = new SphereGeometry(0.16, 8, 6);
 /** The press target on a lean-to post or ridge (bigger than a part: the poles are long). */
 const pushGeo = new SphereGeometry(0.24, 8, 6);
+/** Double-sided, so a hand pinching right at the pole (inside the target) still hits it. */
+const pushMat = new MeshBasicMaterial({ visible: false, side: DoubleSide });
 const partMat = new MeshBasicMaterial({ visible: false });
 
 interface StructureView {
@@ -525,7 +527,7 @@ export class BuildSystem extends createSystem({
     // Press targets on the posts and the ridge pole: pressing one pushes the frame (pinch, hand ray or mouse).
     if (s.kind === 'leanTo' && !s.keyOpen) {
       const pushAt = (index: number, lift: number) => {
-        const proxy = new Mesh(pushGeo, partMat);
+        const proxy = new Mesh(pushGeo, pushMat);
         const p = spotWorldPosition(s, index);
         proxy.position.set(p.x, p.y + lift, p.z);
         proxy.name = `FramePush_${s.id}_${index}`;

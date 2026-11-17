@@ -145,6 +145,23 @@ async function play({ page }, results) {
     game.addItem(id, n);
     return game.takeOut(id);
   }, { id, n });
+  /** Scenario reset so a phase can be re-run on the same game: the experiment back to unopened, the yard as new. */
+  const fresh = async (id) => {
+    // A reload (hot update, restored save) lands on the title, where the game is paused: leave it first.
+    if (await g(() => window.__title?.open?.() === true)) {
+      await g(() => window.__title.play());
+      await wait(1500);
+    }
+    return g(async (id) => {
+      const game = window.__primal.game;
+      const { BOULDER_START } = await import('/src/game/curriculum/lessons/tools/engineering.ts');
+      const st = game.experiments.state(id);
+      Object.assign(st, { phase: 'locked', prediction: null, supported: null });
+      st.trials.clear();
+      st.answers.length = 0;
+      game.yard.restore({ v: 1, boulder: { ...BOULDER_START }, rolls: 0, pole: 'none', pivot: 'middle', frame: { posts: 0, bar: false, brace: false, folded: false }, seam: 3, seamAt: 0, jobs: [] });
+    }, id);
+  };
   const phase = (id) => g((id) => window.__primal.game.experiments.phase(id), id);
   const trials = (id) => g((id) => Object.fromEntries(window.__primal.game.experiments.state(id).trials), id);
   /** Predict, then close the card (scenario setup for the experiments whose card UI is not under test). */
@@ -243,6 +260,7 @@ async function play({ page }, results) {
 
   async function cordPhase() {
   // ---------------------------------------------------------------- the tensile test at the Tool Yard
+  await fresh('cordStrength');
   await jump('cordTest');
   await wait(1200);
   await predict('cordStrength', 'twisted');
@@ -264,6 +282,7 @@ async function play({ page }, results) {
 
   async function framePhase() {
   // ---------------------------------------------------------------- frame: build, push, brace, push
+  await fresh('frameBracing');
   await jump('frameTest');
   await wait(1200);
   await predict('frameBracing', 'braced');
@@ -292,6 +311,7 @@ async function play({ page }, results) {
 
   async function leverPhase() {
   // ---------------------------------------------------------------- the lever and the boulder
+  await fresh('leverPivot');
   await jump('leverTest');
   await wait(1200);
   await predict('leverPivot', 'near');
@@ -303,13 +323,31 @@ async function play({ page }, results) {
   await holdItem('pole');
   await click(await worldOf('YardBoulder'));
   check('clicking the boulder with a pole lays the lever', (await g(() => window.__primal.game.yard.pole)) === 'set');
-  const poleEnd = () => worldOf('YardPole', { x: 1.8 });
+  /** Walk up to the pole's end and look at it (its height depends on where the pivot is), then return it. */
+  const poleEnd = async () => {
+    const e = await worldOf('YardPole', { x: 1.8 });
+    await stand(e.x + 1.4, e.z + 0.5, e.x, e.z, Math.atan2(e.y - 1.6, 1.5));
+    await wait(400);
+    return worldOf('YardPole', { x: 1.8 });
+  };
+  const viewLever = async () => {
+    const b = await worldOf('YardBoulder');
+    await stand(b.x + 2.6, b.z + 1.3, b.x + 0.6, b.z, -0.45);
+    await wait(400);
+  };
   await click(await worldOf('YardMark_pivotFar'));
   check('clicking a mark moves the pivot stone', (await g(() => window.__primal.game.yard.pivot)) === 'far');
   await drag(await poleEnd(), 0, 110);
   check('pivot close to your hands: pushing the end down moves nothing', (await trials('leverPivot')).far === 'stuck', await trials('leverPivot'));
   check('...and the boulder has not rolled', (await g(() => window.__primal.game.yard.rolls)) === 0);
-  await click(await worldOf('YardMark_pivotNear'));
+  await viewLever();
+  const nearMark = await worldOf('YardMark_pivotNear');
+  const nm = await screenOf(nearMark);
+  await page.mouse.move(nm.x, nm.y);
+  await wait(300);
+  const onMark = await g(() => window.__yard.hover());
+  await click(nearMark);
+  check('the pivot stone moved close to the boulder', (await g(() => window.__primal.game.yard.pivot)) === 'near', { pointerOn: onMark, screen: nm });
   await drag(await poleEnd(), 0, 45);
   check('pivot close to the boulder: it lifts', (await trials('leverPivot')).near === 'moves', await trials('leverPivot'));
   check('lever experiment concluded: near', (await g(() => window.__primal.game.experiments.state('leverPivot').supported)) === 'near');
@@ -318,6 +356,7 @@ async function play({ page }, results) {
   check('on to the engineering challenge', (await g(() => window.__primal.game.focus()?.id)) === 'boulder');
   await drag(await poleEnd(), 0, 140);
   check('a full push rolls the boulder', (await g(() => window.__primal.game.yard.rolls)) === 1);
+  await viewLever();
   await click(await worldOf('YardBoulder'));
   check('clicking the boulder sets the pole again', (await g(() => window.__primal.game.yard.pole)) === 'set');
   await drag(await poleEnd(), 0, 140);
@@ -329,9 +368,15 @@ async function play({ page }, results) {
   // ---------------------------------------------------------------- the seam needs a hammer
   const seam = await worldOf('YardSeam');
   await stand(seam.x + 1.6, seam.z + 0.8, seam.x, seam.z, -0.6);
-  await g(() => window.__primal.game.stow());
+  await g(() => {
+    const game = window.__primal.game;
+    game.stow();
+    game.satchel.delete('hammer');
+    game.yard.jobs.delete('hammer');
+  });
+  const flint0 = await g(() => window.__primal.game.count('flint'));
   await click(seam);
-  check('no hammer: the nodules stay put', !(await g(() => window.__primal.game.yard.jobs.has('hammer'))));
+  check('no hammer: the nodules stay put', (await g(() => window.__primal.game.count('flint'))) === flint0 && !(await g(() => window.__primal.game.yard.jobs.has('hammer'))));
   await g(() => window.__primal.game.addItem('hammer'));
   const flintBefore = await g(() => window.__primal.game.count('flint'));
   await click(seam);

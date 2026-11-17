@@ -3,9 +3,14 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { LESSON_IDS, setPlayableLessons } from '../src/game/curriculum/registry.js';
 import {
   blowAngle,
+  BOUGH,
+  BOULDER_R,
   BOULDER_START,
   dropToRoll,
+  FRAME_SPOT,
   FRAME_TRIAL,
+  LEVER_DIR,
+  POLE_LENGTH,
   HARDEN_SECONDS,
   leverEffort,
   leverMoves,
@@ -24,6 +29,7 @@ import {
 import { TOOLS_EXPERIMENTS } from '../src/game/curriculum/lessons/tools/experiments.js';
 import { Game } from '../src/game/game.js';
 import { KNAP_ANGLE, knap } from '../src/game/interact.js';
+import { BOULDERS, FALLEN_TRUNKS, RESOURCES, TREES } from '../src/game/world-layout.js';
 import { jumpTo } from './helpers/lessons.js';
 
 const run = (g: Game, seconds: number) => {
@@ -298,5 +304,24 @@ describe('Level 4 from the title list', () => {
     g.yard.setPivot('near');
     expect(card('leverPivot')).toMatch(/close to the boulder.*124 N/);
     expect(card('frameBracing')).toMatch(/0 of 2 posts/);
+  });
+});
+
+describe('the Tool Yard layout', () => {
+  it('stands clear of loose resources, trees, rocks and logs (they would take the clicks meant for it)', () => {
+    // The boulder's whole roll path, the lever line with its pivot marks, the test bough and the frame ground.
+    const D = LEVER_DIR;
+    const keep: Array<{ name: string; x: number; z: number; r: number }> = [];
+    for (let k = 0; k <= 2; k++) keep.push({ name: `boulder after ${k} rolls`, x: BOULDER_START.x - D.x * ROLL_STEP * k, z: BOULDER_START.z - D.z * ROLL_STEP * k, r: BOULDER_R + 0.3 });
+    for (let t = 0; t <= POLE_LENGTH + 0.4; t += 0.25) keep.push({ name: `lever line +${t}`, x: BOULDER_START.x + D.x * t, z: BOULDER_START.z + D.z * t, r: 0.45 });
+    keep.push({ name: 'test bough', x: BOUGH.x, z: BOUGH.z, r: 0.9 }, { name: 'frame ground', x: FRAME_SPOT.x, z: FRAME_SPOT.z, r: 0.7 });
+    const clash: string[] = [];
+    for (const k of keep) {
+      for (const s of RESOURCES) if (Math.hypot(s.x - k.x, s.z - k.z) < k.r + 0.15) clash.push(`${k.name}: ${s.id}`);
+      for (const t of TREES) if (Math.hypot(t.x - k.x, t.z - k.z) < k.r + 0.4) clash.push(`${k.name}: tree ${t.x.toFixed(1)},${t.z.toFixed(1)}`);
+      for (const b of BOULDERS) if (Math.hypot(b.x - k.x, b.z - k.z) < k.r + b.size) clash.push(`${k.name}: boulder`);
+      for (const f of FALLEN_TRUNKS) if (Math.hypot(f.x - k.x, f.z - k.z) < k.r + f.length / 2) clash.push(`${k.name}: trunk`);
+    }
+    expect(clash).toEqual([]);
   });
 });

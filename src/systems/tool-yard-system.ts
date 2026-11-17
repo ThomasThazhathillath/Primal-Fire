@@ -46,6 +46,7 @@ import {
   YARD,
 } from '../game/curriculum/lessons/tools/engineering.js';
 import { collisionWorld } from '../game/collision.js';
+import type { GazeRect } from '../game/gaze.js';
 import { groundHeight } from '../game/world-layout.js';
 import { lambert } from '../scene-assets/materials.js';
 import { hands, mouse, pulse } from './hand-input-system.js';
@@ -60,6 +61,7 @@ const PIVOT_OF: Partial<Record<TargetId, PivotId>> = { pivotNear: 'near', pivotM
 /** Gaze radius (m) of each target, and how close (m) a pinching hand must be to take hold directly. */
 const GAZE_R: Record<TargetId, number> = { boulder: 0.5, pivotNear: 0.14, pivotMiddle: 0.14, pivotFar: 0.14, poleEnd: 0.16, stone: 0.16, frame: 0.4, seam: 0.35 };
 const NEAR_GRAB = 0.28;
+const NEAR_TARGETS: readonly TargetId[] = ['poleEnd', 'stone', 'frame'];
 /** You must stand this close (m) to a target to use it. */
 const USE_REACH = 3;
 /** The update does nothing beyond this distance (m) from the yard centre. */
@@ -86,7 +88,7 @@ const gripMat = lambert(0x5a4630);
 const markMat = new MeshBasicMaterial({ color: 0xffe9a8, transparent: true, opacity: 0.55, depthWrite: false });
 const markOnMat = new MeshBasicMaterial({ color: 0x7fe08a, transparent: true, opacity: 0.7, depthWrite: false });
 const focusMat = new MeshBasicMaterial({ color: 0xfff3d0, transparent: true, opacity: 0.8, depthWrite: false });
-/** Hit shapes: hidden (no draw call), but still hit by the mouse ray (raycasting ignores `visible`). */
+/** Hit shapes: they draw no colour, but must stay `visible`: IWSDK's pointer skips hidden meshes. */
 const hitMat = new MeshBasicMaterial({ colorWrite: false, depthWrite: false });
 const FIBRE_COLOR = 0x7a9a42;
 const CORD_COLOR = 0xc9b48a;
@@ -139,6 +141,9 @@ export class ToolYardSystem extends createSystem({
   private tmp = new Vector3();
   private axis = new Vector3();
   private q = new Quaternion();
+  private head = new Vector3();
+  /** One rectangle per target, facing the viewer: the hand / controller ray picks it (read at once by the gaze system). */
+  private rect: GazeRect = { ux: 1, uy: 0, uz: 0, vx: 0, vy: 1, vz: 0, hw: 0.2, hh: 0.2 };
 
   init(): void {
     this.gy = groundHeight(YARD.x, YARD.z);
@@ -251,6 +256,13 @@ export class ToolYardSystem extends createSystem({
     this.focus.rotation.x = -Math.PI / 2;
     this.focus.visible = false;
     add(this.focus);
+    // Decoration never takes the pointer: the pole lying over a pivot mark, the seam's nodules or the frame's
+    // sticks must not hide the target behind them (the targets are the boulder, the stone and the hit shapes).
+    for (const o of [this.seam, this.pivotStone, this.pole, bough, this.strand, this.frame, this.focus, ...this.marks]) {
+      o.traverse((m) => {
+        if ((m as Mesh).isMesh) (m as Mesh).raycast = () => {};
+      });
+    }
 
     this.queries.hovered.subscribe('qualify', (e) => {
       const id = this.hits.get(e);
@@ -263,12 +275,18 @@ export class ToolYardSystem extends createSystem({
     const prev = ui.capturesPointer;
     ui.capturesPointer = () => yardPointer.hover || yardPointer.holding || (prev?.() ?? false);
     const owner: GazeUiOwner = {
-      gazeActivate: (i) => this.activate(TARGETS[i], -1),
+      // A hand pinching right at a target takes it, whatever its ray points at (one pinch, one action).
+      gazeActivate: (i) => {
+        const h = this.pinchHand();
+        this.activate(this.nearHold(h) ?? TARGETS[i], h);
+      },
       gazeHover: (i, on) => {
         this.gazeId = on ? TARGETS[i] : this.gazeId === TARGETS[i] ? null : this.gazeId;
       },
     };
     gazeUi.push({ collectGaze: (addUi) => this.collectGaze(addUi, owner) });
+    // Debug handle for checks (scripts/tools-yard-playtest.mjs): what the pointer is on, what motion is live.
+    (window as unknown as { __yard?: unknown }).__yard = { hover: () => this.hoverId, gaze: () => this.gazeId, hold: () => this.hold, at: (id: TargetId) => this.at[id] };
     this.cleanupFuncs.push(
       this.world.visibilityState.subscribe((v) => {
         this.vr = v !== VisibilityState.NonImmersive;
@@ -284,8 +302,7 @@ export class ToolYardSystem extends createSystem({
   }
 
   private hit(id: TargetId, e: Entity, o: Object3D): void {
-    // Dedicated hit shapes draw nothing; the boulder and the stone are their own (visible) targets.
-    if ((o as Mesh).material === hitMat) o.visible = false;
+    if ((o as Mesh).material === hitMat) o.name = `YardHit_${id}`;
     e.addComponent(RayInteractable);
     this.hits.set(e, id);
     this.hitObj[id] = o;
@@ -310,12 +327,40 @@ export class ToolYardSystem extends createSystem({
     if (!this.vr) return;
     const g = getGame(this.world);
     if (!g.yard.near(g.player.x, g.player.z, YARD.r + 2)) return;
+    // In the headset the hand or controller ray picks targets (head gaze no longer presses 'ui' targets), and a
+    // ray needs a rectangle: each target offers one facing the viewer, the size of the object.
+    this.camera.getWorldPosition(this.head);
+    const r = this.rect;
     for (let i = 0; i < TARGETS.length; i++) {
       const id = TARGETS[i];
       if (!this.live(id)) continue;
       const p = this.at[id];
-      add('yard:', id, p.x, p.y, p.z, GAZE_R[id], owner, i);
+      const dx = p.x - this.head.x;
+      const dz = p.z - this.head.z;
+      const d = Math.hypot(dx, dz) || 1;
+      r.ux = -dz / d;
+      r.uy = 0;
+      r.uz = dx / d;
+      r.hw = r.hh = Math.max(0.12, GAZE_R[id]);
+      add('yard:', id, p.x, p.y, p.z, GAZE_R[id], owner, i, r);
     }
+  }
+
+  /** The hand whose pinch this is: the one that just closed, else the one held closed, else the right. */
+  private pinchHand(): 0 | 1 {
+    if (hands[1].gripDown) return 1;
+    if (hands[0].gripDown) return 0;
+    return hands[1].grip || !hands[0].grip ? 1 : 0;
+  }
+
+  /** A target you take hold of with the hand itself, if hand `h` is right at one. */
+  private nearHold(h: 0 | 1): TargetId | null {
+    const hand = hands[h];
+    if (!hand.tracked) return null;
+    // Tracked hands pinch between thumb and index; a controller grabs at its grip.
+    const at = hand.tipTracked ? hand.pinchPos : hand.pos;
+    for (const id of NEAR_TARGETS) if (this.live(id) && at.distanceTo(this.at[id]) < NEAR_GRAB) return id;
+    return null;
   }
 
   private closeEnough(id: TargetId): boolean {
@@ -332,7 +377,7 @@ export class ToolYardSystem extends createSystem({
     if (this.hold || now - this.lastActAt < 0.35 || interactionsPaused(this.world)) return;
     if (!this.live(id) || !this.closeEnough(id)) return;
     this.lastActAt = now;
-    const h: 0 | 1 = hand >= 0 ? (hand as 0 | 1) : hands[1].grip || !hands[0].grip ? 1 : 0;
+    const h: 0 | 1 = hand >= 0 ? (hand as 0 | 1) : this.pinchHand();
     if (this.vr) handClaims.actedAt[h] = now;
     const g = getGame(this.world);
     const yard = g.yard;
@@ -583,16 +628,9 @@ export class ToolYardSystem extends createSystem({
       if (!this.vr && mouse.pressed && this.hoverId) this.activate(this.hoverId, -1);
       if (this.vr) {
         for (const h of [0, 1] as const) {
-          const hand = hands[h];
-          if (!hand.tracked || !hand.gripDown || (g.held && handClaims.holdHand === h)) continue;
-          for (const id of ['poleEnd', 'stone', 'frame'] as const) {
-            // Tracked hands pinch between thumb and index; a controller grabs at its grip.
-            const at = hand.tipTracked ? hand.pinchPos : hand.pos;
-            if (this.live(id) && at.distanceTo(this.at[id]) < NEAR_GRAB) {
-              this.activate(id, h);
-              break;
-            }
-          }
+          if (!hands[h].gripDown || (g.held && handClaims.holdHand === h)) continue;
+          const id = this.nearHold(h);
+          if (id) this.activate(id, h);
         }
       }
     }

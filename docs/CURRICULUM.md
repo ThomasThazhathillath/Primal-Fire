@@ -94,7 +94,10 @@ Rock (`lessons/tools/yard.ts`, drawn and driven by `src/systems/tool-yard-system
 | `strikeAngle` | angle of the blow (angled, straight down) | `knap()` in `interact.ts`: above `KNAP_ANGLE[1]` (80 deg) the edge crushes | `CraftGestureSystem.resolveKnap` -> `yard.knapStrike` (only fair blows: firm, near the edge) |
 | `cordStrength` | the strand (loose fibres, twisted cord) | `tensileTest()`: strand strength vs the 20 N test stone | `yard.liftTestStone` (lifting the stone under the test bough) |
 | `frameBracing` | bracing (square, diagonal brace) | `rackTest()`: hinge-like joints let a square fold; a triangle holds | `yard.pushFrame` (pushing the frame top sideways) |
-| `leverPivot` | pivot position (close to the boulder, close to your hands) | `leverPush()`: effort x effort arm = load x load arm vs a 250 N best push | `yard.push` (pushing the pole end down) |
+| `leverPivot` | pivot position (close to the boulder, in the middle, close to your hands) | `leverPush()`: effort x effort arm = load x load arm vs a 250 N best push | `yard.push` (pushing the pole end down) |
+
+Each card's testing phase shows a live readout from the simulation (`ExperimentDef.readout`): the last blow's angle and
+speed, the strands' strengths against the stone's 20 N, the frame's bracing, and the push the current pivot needs.
 
 - **The lever** (`engineering.ts`): a 2 m pole, the pivot stone on one of three marks (load arm 0.3 / 1.0 /
   1.6 m), 700 N to tip the boulder. Only the near pivot (about 124 N) is within a person; the pole end
@@ -104,11 +107,21 @@ Rock (`lessons/tools/yard.ts`, drawn and driven by `src/systems/tool-yard-system
   be broken out with a hammer. A digging stick turned over a burning fire hardens (`t_harden`).
 - **Assessment**: each experiment ends with its check question; the lesson ends with a practical tool test
   (`toolCheck`: the knife cuts fibres, the axe chops wood, the hammer breaks flint from the seam).
-- **Controls**: VR touches a yard object by looking at it and pinching (or pinching right at it), and keeps
-  pinching to move it (push the pole end down, pull the stone up, push the frame sideways). Desktop clicks, and
-  presses and drags the same objects. `yardPointer` keeps those presses from also turning the camera or starting
-  a cord twist.
+- **Controls**: VR points the hand or controller ray at a yard object and pinches (each target offers the gaze
+  system a viewer-facing rectangle; head gaze no longer presses 'ui' targets), or pinches right at it with the hand
+  (a direct pinch wins over that hand's ray). Keep pinching and move the hand: push the pole end down, pull the
+  stone up, push the frame sideways. Desktop clicks, and presses and drags the same objects. `yardPointer` keeps
+  those presses from also turning the camera or starting a cord twist. Decorative yard meshes ignore raycasts so they
+  never hide a target; the hit shapes stay `visible` (IWSDK's pointer skips hidden meshes).
+- **Layout**: boulder at (-5.6, 22.3) with the lever pointing east, the test bough at (-5.5, 20), the frame ground at
+  (-3.6, 20.6). `tests/tools-lesson.test.ts` fails if a resource spot, tree, rock or log ever lands on the boulder's
+  roll path, the lever line, the bough or the frame (a loose stone there takes the clicks meant for the yard).
+- **Level 4** is in `setPlayableLessons` (src/index.ts) and follows Level 3 in the same game. Chosen from the title in
+  a fresh game, the steps say how to build a workbench and twist cord when the player has none (`find` lists the parts).
 - **Saves**: `SaveData.yard` (optional). Older saves load with the yard as the world made it.
+- **Live check**: `PHASE=knap|cord|frame|lever npx @iwsdk/cli browser run scripts/tools-yard-playtest.mjs --timeout
+  110000` (one phase per run: a browser run is capped at 110 s). `knap` starts a fresh game and picks Level 4 from
+  the title list; every mechanic is driven by real mouse input on the canvas. Debug handle: `window.__yard`.
 - **Crafting paths**: Lesson 04 adds no new crafting path (the tool kit is made at the workbench). The four
   existing paths (`Game.craft`/`RECIPES`, `HAND_RECIPES`, `BENCH_RECIPES`, `ACTIONS`) are left as they are; see
   the note in the coordinating session's notes folder for a proposed unification after the lesson merge.

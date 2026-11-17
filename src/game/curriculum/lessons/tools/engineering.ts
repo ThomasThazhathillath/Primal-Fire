@@ -15,12 +15,12 @@ export const YARD = { x: -4, z: 22.4, r: 6 };
 /** No building outlines start this close to the yard centre (a held pole is a lever here, not a lean-to). */
 export const YARD_NO_BUILD = 4.5;
 /** Where the boulder lies at first: on top of a seam of good flint. */
-export const BOULDER_START = { x: -5.6, z: 23 };
+export const BOULDER_START = { x: -5.6, z: 22.3 };
 export const BOULDER_R = 0.5;
 /** Unit vector from the boulder toward the free end of the lever (east). The boulder rolls the other way. */
 export const LEVER_DIR = { x: 1, z: 0 };
 /** The test bough (tensile test) and the frame-test ground. */
-export const BOUGH = { x: -1.7, z: 21.6 };
+export const BOUGH = { x: -5.5, z: 20 };
 export const FRAME_SPOT = { x: -3.6, z: 20.6 };
 
 // ------------------------------------------------------------- strike angle

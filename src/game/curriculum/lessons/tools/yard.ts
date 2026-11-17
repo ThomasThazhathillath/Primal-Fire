@@ -93,6 +93,9 @@ export class ToolYard {
   private hardenT = 0;
   /** This push of the lever already counted as a trial (one per push). */
   private pushCounted = false;
+  /** The last knapping blow and the last lift of the test stone, for the experiment cards' readouts (not saved). */
+  lastBlow: { angle: number; speed: number; outcome: KnapOutcome; fair: boolean } | null = null;
+  lastLift: { strand: Strand; result: 'holds' | 'snaps' } | null = null;
   /** Bumped on every visible change, so the renderer only redraws when something moved. */
   version = 0;
 
@@ -130,6 +133,7 @@ export class ToolYard {
   knapStrike(speed: number, edgeDistance: number, angleDeg: number, outcome: KnapOutcome): void {
     if (outcome === 'crushed') this.g.science('tool.knap.fail');
     const value = blowAngle(speed, edgeDistance, angleDeg);
+    this.lastBlow = { angle: angleDeg, speed, outcome, fair: !!value };
     if (value && outcome !== 'nothing') this.g.experiments.trial('strikeAngle', value, outcome === 'flake' ? 'flake' : 'crushed');
   }
 
@@ -155,6 +159,7 @@ export class ToolYard {
     const result = tensileTest(strand);
     const holds = Math.round(strandStrength(strand));
     this.g.experiments.trial('cordStrength', strand, result);
+    this.lastLift = { strand, result };
     if (result === 'snaps') {
       this.g.spendHeld();
       this.g.science('tool.cord.snapped');
@@ -291,7 +296,7 @@ export class ToolYard {
     const r = leverPush(this.pivot, handDrop);
     if (!this.pushCounted && handDrop >= LEVER_TRIAL) {
       this.pushCounted = true;
-      if (this.pivot !== 'middle') this.g.experiments.trial('leverPivot', this.pivot, r.moves ? 'moves' : 'stuck');
+      this.g.experiments.trial('leverPivot', this.pivot, r.moves ? 'moves' : 'stuck');
       if (!r.moves) {
         this.g.science('tool.lever.stuck');
         this.g.fx('strain', 1);

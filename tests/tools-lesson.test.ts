@@ -1,5 +1,6 @@
 // Lesson 04 (Tools): the Tool Yard's rules, its experiments fed by those rules, and the yard state.
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import { LESSON_IDS, setPlayableLessons } from '../src/game/curriculum/registry.js';
 import {
   blowAngle,
   BOULDER_START,
@@ -252,10 +253,50 @@ describe('the Tool Yard', () => {
     expect(TOOLS_EXPERIMENTS.map((e) => e.id)).toEqual(['strikeAngle', 'cordStrength', 'frameBracing', 'leverPivot']);
     for (const e of TOOLS_EXPERIMENTS) {
       expect(e.lesson).toBe('tools');
-      // The card shows two trial rows: every experiment has exactly two values.
-      expect(e.variable.values).toHaveLength(2);
+      // The card shows up to four trial rows.
+      expect(e.variable.values.length).toBeGreaterThanOrEqual(2);
+      expect(e.variable.values.length).toBeLessThanOrEqual(4);
       expect(e.predictions.length).toBeLessThanOrEqual(3);
       expect(e.check.options.length).toBeLessThanOrEqual(3);
     }
+  });
+});
+
+describe('Level 4 from the title list', () => {
+  afterEach(() => setPlayableLessons(LESSON_IDS));
+
+  it('a fresh game can choose Level 4, and the steps say how to make what earlier lessons made', () => {
+    setPlayableLessons(['shelter', 'fire', 'water', 'tools']);
+    const g = new Game();
+    g.lessons.setResume('tools');
+    expect(`${g.lessons.lesson?.id}/${g.focus()?.id}`).toBe('tools/stoneTools');
+    jumpTo(g, 'axe');
+    const view = g.steps.view()!;
+    expect(view.instruction).toMatch(/build a workbench/i);
+    expect(g.focus()!.find!(g)).toEqual(['slab', 'dryStone']);
+    jumpTo(g, 'cordTest');
+    expect(g.steps.view()!.tip).toMatch(/twist/i);
+  });
+
+  it('finishing Level 4 as the last playable level ends the guide', () => {
+    setPlayableLessons(['shelter', 'fire', 'water', 'tools']);
+    const g = new Game();
+    jumpTo(g, 'toolCheck');
+    for (const j of ['knife', 'axe', 'hammer'] as const) g.yard.jobs.add(j);
+    for (let t = 0; t < 1; t += 0.25) g.tick(0.25);
+    expect(g.lessons.lessonDone.has('tools')).toBe(true);
+    expect(g.guiding()).toBe(false);
+  });
+
+  it('the experiment cards read out what the simulation measured', () => {
+    const g = new Game();
+    const card = (id: string) => g.experiments.def(id)!.readout!(g);
+    expect(card('strikeAngle')).toBeNull();
+    g.yard.knapStrike(2, 0.01, 86, knap(2, 0.01, 86).outcome);
+    expect(card('strikeAngle')).toMatch(/86 degrees.*crushed/);
+    expect(card('leverPivot')).toMatch(/in the middle.*700 N/);
+    g.yard.setPivot('near');
+    expect(card('leverPivot')).toMatch(/close to the boulder.*124 N/);
+    expect(card('frameBracing')).toMatch(/0 of 2 posts/);
   });
 });

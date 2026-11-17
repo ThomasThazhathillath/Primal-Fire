@@ -9,6 +9,11 @@ import { TOOL_JOBS, type ToolJob } from './yard.js';
 const everHad = (g: Game, id: ItemId): boolean => g.gatheredCount(id) > 0 || g.count(id) > 0 || g.held === id;
 const has = (g: Game, id: ItemId): boolean => g.count(id) > 0 || g.held === id;
 const sub = (text: string, done: boolean) => ({ text, done });
+/** Level 4 can be chosen from the title list in a fresh game: say how to get what earlier lessons made. */
+const benchBuilt = (g: Game): boolean => g.hasStructure('workbench');
+const BUILD_BENCH = 'First build a workbench: tap the hammer icon, place the Workbench outline on open ground, set a stone on each of its three marks and lower a flat slab on top.';
+const benchParts = (g: Game): ItemId[] => (['slab', 'dryStone'] as ItemId[]).filter((id) => !has(g, id));
+const TWIST_CORD = 'No cord yet? Hold fibres and twist them: pull the bundle apart, then roll your wrists opposite ways (desktop: hold, drag sideways, scroll the wheel).';
 const JOB_TEXT: Record<ToolJob, string> = {
   knife: 'Cut fibres or grass with the knife',
   axe: 'Chop wood with the axe',
@@ -42,12 +47,13 @@ export const TOOLS_STEPS: Step[] = [
   {
     id: 'cordTest',
     place: 'splitRock',
-    find: (g) => (has(g, 'fibers') ? (has(g, 'cord') ? [] : ['fibers']) : ['fibers']),
+    find: (g) => (has(g, 'fibers') ? [] : ['fibers']),
     title: 'Test fibres against cord',
     short: 'Lift the stone with each',
     instruction: 'At the test bough by Split Rock, hold loose fibres and lift the test stone with them. Then do the same holding cord.',
     doneMessage: 'Twisting makes fibres share the pull: the same fibres become far stronger.',
-    howTo: () => 'Take fibres (or cord) out of your bag, then touch the test stone under the bough and pull it up. Desktop: press on the stone and drag up.',
+    howTo: (g) =>
+      `Take fibres (or cord) out of your bag, then touch the test stone under the bough and pull it up. Desktop: press on the stone and drag up.${has(g, 'cord') ? '' : ` ${TWIST_CORD}`}`,
     done: (g) => g.experiments.done('cordStrength'),
     hint: {
       ref: 'cord',
@@ -61,10 +67,11 @@ export const TOOLS_STEPS: Step[] = [
   },
   {
     id: 'axe',
-    find: (g) => (everHad(g, 'axe') ? [] : (['dryStone', 'spindle'] as ItemId[]).filter((id) => g.count(id) === 0)),
+    find: (g) => (everHad(g, 'axe') ? [] : benchBuilt(g) ? (['dryStone', 'spindle', 'fibers'] as ItemId[]).filter((id) => (id === 'fibers' ? g.count('cord') < 2 && !has(g, id) : g.count(id) === 0)) : benchParts(g)),
     title: 'Make a stone axe',
     short: 'Make an axe at the bench',
-    instruction: 'At your workbench, split a handle, seat a stone head in it and lash it tight with cord.',
+    instruction: (g) => (benchBuilt(g) ? 'At your workbench, split a handle, seat a stone head in it and lash it tight with cord.' : BUILD_BENCH),
+    howTo: (g) => (benchBuilt(g) ? (g.count('cord') < 2 ? `The axe takes a stone, a straight stick and 2 cords. ${TWIST_CORD}` : null) : BUILD_BENCH),
     doneMessage: 'A stone axe: a long handle makes the head move fast, and a fast head hits hard.',
     teach: 'bench',
     done: (g) => g.hasEvent('tool.axe.made') || everHad(g, 'axe'),
@@ -100,6 +107,7 @@ export const TOOLS_STEPS: Step[] = [
   {
     id: 'toolkit',
     find: (g) => {
+      if (!benchBuilt(g)) return benchParts(g);
       const need: ItemId[] = [];
       if (!everHad(g, 'knife') && !has(g, 'flake')) need.push('flint');
       if (!has(g, 'spindle')) need.push('spindle');
@@ -109,7 +117,8 @@ export const TOOLS_STEPS: Step[] = [
     },
     title: 'Haft a tool kit',
     short: 'Make a knife and a hammer',
-    instruction: 'At your workbench, make a flint knife and a stone hammer: split each handle along the grain, seat the stone, lash it tight.',
+    instruction: (g) =>
+      benchBuilt(g) ? 'At your workbench, make a flint knife and a stone hammer: split each handle along the grain, seat the stone, lash it tight.' : BUILD_BENCH,
     doneMessage: 'A tool for each job: flint for edges, a tough stone for blows, wood for reach, cord to bind.',
     teach: 'bench',
     howTo: () => 'Knife: a flake, a straight stick, a cord. Hammer: a stone, a straight stick, a cord. Tip: turn a digging stick over a fire to harden its point.',

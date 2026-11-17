@@ -117,6 +117,14 @@ async function play({ page }, results) {
     return true;
   };
   const g = (fn, arg) => P(fn, arg);
+  const waitFor = async (fn, ms, arg) => {
+    const end = Date.now() + ms;
+    while (Date.now() < end) {
+      if (await P(fn, arg).catch(() => false)) return true;
+      await wait(250);
+    }
+    return false;
+  };
   const jump = (step) =>
     g(
       ({ step, lessons }) => {
@@ -172,13 +180,20 @@ async function play({ page }, results) {
   }).catch(() => {});
   await wait(1500);
   app = await findApp();
-  await wait(3000);
-  await P(() => window.__primal.begin());
+  // Level 4 chosen from the title's level list by real clicks.
+  await waitFor(() => window.__title?.open?.() === true, 30000);
+  await wait(1000);
+  if (!(await clickEl('Welcome Panel', 'begin-button'))) await P(() => window.__title.tap('begin-button'));
+  check('Play opens the level list', await waitFor(() => window.__title.levels(), 5000));
   await wait(800);
+  check('Level 4 is on the list (real click)', await clickEl('Welcome Panel', 'lvl-tools'));
+  check(
+    'Level 4 (Tools) starts from the list at the first knapping step',
+    await waitFor(() => !window.__title.open() && `${window.__primal.game.lessons.lesson?.id}/${window.__primal.game.focus()?.id}` === 'tools/stoneTools', 8000),
+  );
+  await wait(1500);
 
   // ---------------------------------------------------------------- strike angle: real flicks on the core
-  await jump('stoneTools');
-  await wait(1200);
   check('strike-angle experiment opens with the knapping step', (await phase('strikeAngle')) === 'predict');
   // Predict through the real card: the first option is "an angled blow".
   const cardUp = await g(() => window.__experiment.state().opened);

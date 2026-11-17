@@ -9,6 +9,7 @@
 //   (effort x effort arm = load x load arm, leverPush).
 
 import type { ExperimentDef } from '../../../science/experiments.js';
+import { leverEffort, MAX_PUSH, pivotArm, PIVOTS, strandStrength, TEST_LOAD } from './engineering.js';
 
 /** "Both values tried: which prediction does the evidence support?" for a two-value experiment. */
 function compare(a: string, b: string, good: string, aWins: string, bWins: string, neither: string) {
@@ -45,6 +46,13 @@ export const STRIKE_ANGLE: ExperimentDef = {
     { id: 'crushed', text: 'the edge crushes' },
   ],
   howTo: 'Strike near the edge, firmly but not wildly: one blow at an angle (a diagonal flick), one straight down.',
+  // What the simulation measured on the last blow.
+  readout: (g) => {
+    const b = g.yard.lastBlow;
+    if (!b) return null;
+    const what = b.outcome === 'flake' ? 'a flake came off' : b.outcome === 'crushed' ? 'the edge crushed' : 'nothing came off';
+    return `Last blow: ${Math.round(b.angle)} degrees at ${b.speed.toFixed(1)} m/s - ${what}${b.fair ? '' : ' (too soft, too hard or off the edge: not a fair test)'}.`;
+  },
   conclude: compare('angled', 'square', 'flake', 'angled', 'square', 'same'),
   principle: 'Flint breaks in a cone that spreads from where it is hit (conchoidal fracture). Struck at an angle near the edge, the cone breaks out through the side and a thin flake comes away. Struck straight down, the force drives into the stone and crushes it.',
   apply: 'Glass breaks the same way: a pebble that hits a window knocks a small cone out of the far side.',
@@ -84,6 +92,12 @@ export const CORD_STRENGTH: ExperimentDef = {
     { id: 'holds', text: 'lifts the stone' },
   ],
   howTo: 'At the test bough by Split Rock, hold loose fibres and lift the test stone with them. Then do it holding cord.',
+  readout: (g) => {
+    const l = g.yard.lastLift;
+    if (!l) return `The test stone pulls about ${TEST_LOAD} N.`;
+    const name = l.strand === 'loose' ? 'Loose fibres' : 'Twisted cord';
+    return `${name} ${l.result === 'holds' ? 'held' : 'snapped'}: they take about ${Math.round(strandStrength(l.strand))} N; the stone pulls about ${TEST_LOAD} N.`;
+  },
   conclude: compare('twisted', 'loose', 'holds', 'twisted', 'loose', 'same'),
   principle: 'Loose fibres do not share the pull: the tightest take it first and snap one by one, and short fibres slide apart. Twisting presses them together, so friction passes the load between them and they act as one strong strand.',
   apply: 'Rope, thread and yarn are all twisted. A thick rope is several twisted strands twisted together again.',
@@ -122,6 +136,11 @@ export const FRAME_BRACING: ExperimentDef = {
     { id: 'holds', text: 'stands firm' },
   ],
   howTo: 'At the frame ground by Split Rock, build a square frame from straight sticks and push its top. Add a diagonal brace and push again.',
+  readout: (g) => {
+    const f = g.yard.frame;
+    if (f.posts < 2 || !f.bar) return `Frame: ${f.posts} of 2 posts${f.bar ? ', bar on' : ''}.`;
+    return `Frame: ${f.brace ? 'braced with a diagonal (two triangles)' : 'square, no brace'}${f.folded ? ', folded flat - touch it to stand it up' : ''}.`;
+  },
   conclude: (t) => {
     const none = t.get('none');
     const diag = t.get('diagonal');
@@ -159,6 +178,7 @@ export const LEVER_PIVOT: ExperimentDef = {
     name: 'Where the pivot stone is',
     values: [
       { id: 'near', text: 'Close to the boulder' },
+      { id: 'middle', text: 'In the middle' },
       { id: 'far', text: 'Close to your hands' },
     ],
   },
@@ -167,6 +187,12 @@ export const LEVER_PIVOT: ExperimentDef = {
     { id: 'stuck', text: 'nothing moves' },
   ],
   howTo: 'Lay a long pole under the boulder, set the pivot stone on a mark and push the pole end down. Try it close to the boulder and close to your hands.',
+  // The lever law for where the pivot stone sits now: effort = load x load arm / effort arm.
+  readout: (g) => {
+    const p = PIVOTS.find((x) => x.id === g.yard.pivot)!;
+    const need = Math.round(leverEffort(pivotArm(p.id)));
+    return `Pivot ${p.name}: the push needed is about ${need} N; your best push is about ${MAX_PUSH} N.`;
+  },
   conclude: compare('near', 'far', 'moves', 'near', 'far', 'middle'),
   principle: 'A lever turns about its pivot: effort x effort arm = load x load arm. With the pivot close to the boulder your side of the pole is long, so a small push lifts a big load. Close to your hands you would need several times the boulder\'s weight.',
   apply: 'Crowbars, bottle openers, wheelbarrows, scissors and oars are all levers.',

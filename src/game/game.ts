@@ -106,6 +106,8 @@ export type GameEvent =
 
 /** XP needed to reach each level (index = level − 1). */
 export const LEVELS = [0, 100, 250, 450, 700, 1000, 1400, 99999];
+/** Visible wrap steps while lashing a joint (BuildSystem redraws the joint once per step). */
+export const LASH_STEPS = 8;
 /** While building, refill your hand with the next part only within this distance (m) of the build. */
 export const REFILL_RANGE = 4;
 /** How close (m) you must stand to a workbench to craft at it. */
@@ -254,6 +256,8 @@ export class Game {
   private hintLevels = new Map<string, number>();
   private listeners = new Set<(e: GameEvent) => void>();
   private nextStructureId = 1;
+  /** Game time of the last "you need cord" toast while lashing (so it is not repeated every frame). */
+  private noCordToastAt = -99;
 
   /** Inside a tutorial lesson only the lesson's structure may be started (lessonStructure undefined = not in a lesson). */
   allowsBuild(kind: StructureKind): boolean {
@@ -649,6 +653,7 @@ export class Game {
     for (const [id, n] of Object.entries(a.outputs)) this.addItem(id as ItemId, n);
     this.log.add(`action ${a.id} done`, 'ok');
     this.toast(`${a.name}: you now have ${Object.entries(a.outputs).map(([id, n]) => `${n} ${itemName(id as ItemId).toLowerCase()}`).join(', ')}.`, 'good');
+    if (a.outputs.cord) this.setFlag('cordMade');
     if (a.observation) this.observe(a.observation);
     if (a.science) this.science(a.science);
     this.checkQuests();
@@ -1596,13 +1601,15 @@ export class Game {
         this.toast('Two cross-supports: the load now has more than one way to reach the ground.', 'note');
       }
     }
-    if (frameDone(s) && !this.hasEvent('shelter.frame.built')) {
+    if (frameDone(s) && !s.milestones?.includes('frame')) {
+      (s.milestones ??= []).push('frame');
       this.science('shelter.frame.built');
       this.addXp(60);
       this.toast('The frame is complete! Now the roof: bark, leaves, then grass.', 'good');
       this.emit({ type: 'shelterStage', stage: 6, id: s.id });
     } else if (c.done === c.total && stage < 7) this.emit({ type: 'shelterStage', stage, id: s.id });
-    if (stage === 7 && roofed(s) && !this.hasEvent('shelter.roof.covered')) {
+    if (stage === 7 && roofed(s) && !s.milestones?.includes('roof')) {
+      (s.milestones ??= []).push('roof');
       this.science('shelter.roof.covered');
       this.addXp(40);
       this.toast('The roof is on. Will it keep the rain out? We are about to find out.', 'good');
@@ -1640,13 +1647,18 @@ export class Game {
     const spot = BLUEPRINTS.leanTo.spots[index];
     if (!spot || spot.gesture !== 'lash' || s.spots[index] !== null || isSpotLocked(s, index)) return 0;
     if (this.count('cord') <= 0 && this.held !== 'cord') {
-      this.toast('You need cord to lash a joint: twist plant fibres into cord at the workbench.', 'bad');
+      if (this.time - this.noCordToastAt > 4) {
+        this.noCordToastAt = this.time;
+        this.toast('You need cord to lash a joint: twist plant fibres into cord at the workbench.', 'bad');
+      }
       return 0;
     }
     s.work ??= {};
-    const p = Math.min(1, (s.work[index] ?? 0) + Math.max(0, amount));
+    const before = s.work[index] ?? 0;
+    const p = Math.min(1, before + Math.max(0, amount));
     s.work[index] = p;
-    this.emit({ type: 'lash', id: s.id, index, progress: p });
+    // The wraps are drawn in LASH_STEPS steps: tell the view only when one more wrap shows (not every frame of twisting).
+    if (Math.floor(p * LASH_STEPS) !== Math.floor(before * LASH_STEPS)) this.emit({ type: 'lash', id: s.id, index, progress: p });
     if (p < 1) return p;
     if (this.held === 'cord') this.consumeHeld();
     else {
@@ -1989,6 +2001,7 @@ export class Game {
         keyPos: s.keyPos ? { ...s.keyPos } : undefined,
         store: s.store ? { ...s.store } : undefined,
         work: s.work ? { ...s.work } : undefined,
+        milestones: s.milestones ? [...s.milestones] : undefined,
       })),
       discovered: [...this.discovered],
       flags: [...this.flags],
@@ -2024,6 +2037,13 @@ export class Game {
     for (const q of LIVING_QUESTS) g['livingSteps'].set(q.id, q.steps.filter((st) => st.done(g)).length);
     if (data.guide) g.guide.restore(data.guide);
     g.structures.push(...data.structures);
+    // Lean-tos saved before per-structure milestones: what is already built has been celebrated.
+    for (const s of g.structures) {
+      if (s.kind !== 'leanTo' || s.milestones) continue;
+      s.milestones = [];
+      if (frameDone(s)) s.milestones.push('frame');
+      if (roofed(s)) s.milestones.push('roof');
+    }
     g.nextStructureId = Math.max(0, ...data.structures.map((s) => s.id)) + 1;
     for (const d of data.discovered) g.discovered.add(d);
     for (const f of data.flags) g.flags.add(f);

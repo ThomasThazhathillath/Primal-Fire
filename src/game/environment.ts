@@ -8,6 +8,8 @@
 
 import { clamp, lerp } from './rng.js';
 import { moonIllumination, moonPhase } from './sky.js';
+import type { PlacedStructure } from './blueprint.js';
+import { roofed } from './shelter.js';
 
 /** Real seconds per in-game day (24 h). */
 export const DAY_SECONDS = 20 * 60;
@@ -352,13 +354,15 @@ export class Environment {
 
 /** Is a fire at (x, z) out in the weather (no shelter roof within `r` m)? */
 export function fireExposed(
-  structures: ReadonlyArray<{ kind: string; x: number; z: number; complete: boolean }>,
+  structures: ReadonlyArray<{ kind: string; x: number; z: number; complete: boolean; spots?: ReadonlyArray<unknown> }>,
   x: number,
   z: number,
   r = 2.5,
 ): boolean {
   for (const s of structures) {
-    if (s.kind === 'shelter' && s.complete && Math.hypot(s.x - x, s.z - z) < r) return false;
+    if (Math.hypot(s.x - x, s.z - z) >= r) continue;
+    if (s.kind === 'shelter' && s.complete) return false;
+    if (s.kind === 'leanTo' && (s.complete || roofed(s as PlacedStructure))) return false;
   }
   return true;
 }

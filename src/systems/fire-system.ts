@@ -45,6 +45,14 @@ const WORK_RADIUS = 1.2;
 const TRANSFER_RADIUS = 0.45;
 
 const emberMat = new MeshBasicMaterial({ color: 0xff6a1a });
+// The fire lay's parts share these, created once: rebuilding the lay on every fuel change used to leak a
+// geometry and two materials per piece.
+const layBark = new MeshBasicMaterial({ color: 0x6b4a2b });
+const layGrass = new MeshBasicMaterial({ color: 0xd9c27a });
+const nestGeo = new SphereGeometry(0.1, 8, 6);
+const twigGeo = new ConeGeometry(0.015, 0.4, 4);
+const logGeo = new ConeGeometry(0.035, 0.5, 5);
+const emberGeo = new SphereGeometry(0.018, 8, 6);
 
 /** Seconds the first fire takes to grow from a flicker to full flame. */
 const FIRST_FIRE_GROW = 10;
@@ -197,24 +205,22 @@ export class FireSystem extends createSystem({
     if (key === this.shownLay) return;
     this.shownLay = key;
     this.lay.clear();
-    const bark = new MeshBasicMaterial({ color: 0x6b4a2b });
-    const grass = new MeshBasicMaterial({ color: 0xd9c27a });
     if (f.tinder > 0) {
-      const nest = new Mesh(new SphereGeometry(0.1, 8, 6), grass);
+      const nest = new Mesh(nestGeo, layGrass);
       nest.scale.y = 0.5;
       nest.position.y = 0.06;
       this.lay.add(nest);
     }
     for (let i = 0; i < Math.min(f.twigs, 6); i++) {
       const a = (i / 3) * Math.PI * 2;
-      const stick = new Mesh(new ConeGeometry(0.015, 0.4, 4), bark);
+      const stick = new Mesh(twigGeo, layBark);
       stick.position.set(Math.cos(a) * 0.08, 0.17, Math.sin(a) * 0.08);
       stick.rotation.set(Math.sin(a) * 0.5, 0, -Math.cos(a) * 0.5);
       this.lay.add(stick);
     }
     for (let i = 0; i < Math.min(f.logs, 4); i++) {
       const a = (i / 2) * Math.PI * 2 + 0.6;
-      const log = new Mesh(new ConeGeometry(0.035, 0.5, 5), bark);
+      const log = new Mesh(logGeo, layBark);
       log.position.set(Math.cos(a) * 0.18, 0.12, Math.sin(a) * 0.18);
       log.rotation.set(Math.sin(a) * 1.0, 0, -Math.cos(a) * 1.0);
       this.lay.add(log);
@@ -310,7 +316,7 @@ export class FireSystem extends createSystem({
 
   private setCarried(on: boolean): void {
     if (on && !this.carried) {
-      this.carried = new Mesh(new SphereGeometry(0.018, 8, 6), emberMat);
+      this.carried = new Mesh(emberGeo, emberMat);
       this.carried.position.set(0, 0, -0.08);
       (this.player.gripSpaces.right ?? this.camera).add(this.carried);
       if (!this.player.gripSpaces.right) this.carried.position.set(0.2, -0.25, -0.5);

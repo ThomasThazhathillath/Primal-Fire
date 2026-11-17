@@ -361,7 +361,8 @@ const LOOK_CHARGES: Partial<Record<ResourceLook, [number, number]>> = {
   wetStone: [1, 1200],
   slab: [1, 0],
   forkedStick: [1, 90],
-  diggingStick: [1, 0],
+  // A new digging stick turns up a few minutes after the last one is taken (the rain test and digging both need one).
+  diggingStick: [1, 240],
   cane: [2, 60],
   dryBranch: [2, 80],
   leafLitter: [2, 40],

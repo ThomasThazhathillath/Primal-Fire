@@ -411,7 +411,7 @@ export const OBJECTIVES: Objective[] = [
       sub(`Collect fibres (${capped(g.gatheredCount('fibers'), 3)} / 3)`, g.gatheredCount('fibers') >= 3 || g.flag('cordMade')),
       sub('Twist them at the workbench', g.flag('cordMade')),
     ],
-    done: (g) => g.flag('cordMade'),
+    done: (g) => g.flag('cordMade') || g.hasEvent('craft.cord'),
     implied: litFire,
     hint: {
       ref: 'fibers',
@@ -625,14 +625,6 @@ export const OBJECTIVES: Objective[] = [
     doneMessage: 'Clear is not the same as safe. Boiling did the real work.',
     teach: 'build',
     explains: true,
-    howTo: (g) => {
-      const stage = workbenchStage(g);
-      if (stage === 0) return 'HOW TO START: point a finger and tap the grid icon on your right to open the icons, then tap the hammer icon and tap Workbench. Its glowing outline appears on the ground in front of you.';
-      if (stage === 1) return TEACH.place;
-      if (stage === 2)
-        return 'HOW TO SET THE SLAB: 1. Tap the bag icon and tap the slab. 2. Pinch it with both hands and keep both pinches shut. 3. Hold it just above the three stones. 4. Open both hands wide. It drops into place.';
-      return null;
-    },
     done: cleanWater,
     hint: {
       ref: 'gravel',
@@ -654,14 +646,6 @@ export const OBJECTIVES: Objective[] = [
     doneMessage: 'A roof, a bed and a wall against the wind.',
     teach: 'build',
     explains: true,
-    howTo: (g) => {
-      const stage = workbenchStage(g);
-      if (stage === 0) return 'HOW TO START: point a finger and tap the grid icon on your right to open the icons, then tap the hammer icon and tap Workbench. Its glowing outline appears on the ground in front of you.';
-      if (stage === 1) return TEACH.place;
-      if (stage === 2)
-        return 'HOW TO SET THE SLAB: 1. Tap the bag icon and tap the slab. 2. Pinch it with both hands and keep both pinches shut. 3. Hold it just above the three stones. 4. Open both hands wide. It drops into place.';
-      return null;
-    },
     substeps: (g) => [
       sub('A safe, dry spot', g.hasEvent('shelter.site.chosen')),
       sub('A roof that keeps rain off', g.hasEvent('shelter.roof.covered')),

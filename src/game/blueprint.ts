@@ -318,6 +318,8 @@ export interface PlacedStructure {
   built?: boolean;
   /** Progress 0..1 of gesture spots (lashing a joint), by spot index. Saved with the structure. */
   work?: Record<number, number>;
+  /** Milestones already celebrated for THIS structure ('frame', 'roof'), so each is rewarded once per structure. */
+  milestones?: string[];
 }
 
 export type PlacementResult =

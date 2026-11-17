@@ -33,11 +33,21 @@ Add `?perf` to the URL for the developer performance overlay, or `?resdebug` for
 
 ## How to play
 
-1. **The First Steps** (tutorial, the story opening): wake in the clearing and learn look-and-pinch, gathering, the satchel, carrying, the workbench, cord and fire before nightfall. What you learn carries into the survival game.
-2. **Chapter 1 — First Fire:** quests say what you *need*, not where. Ask for a hint up to three times (science clue → kind of place → direction with a light pillar and ground glow). Build a workbench and fire pit by snap-to-blueprint, craft a bow drill, make fire, then pottery, charcoal and clean water, and establish your first camp. Story thoughts follow your discoveries and end with the ruins teaser.
-3. **Chapter 2 — The Living Camp:** gather poles, branches, cord, grass and bark; set the poles, add cross-supports, lash them with a twist, roof the frame in layers, then survive a rain test: find the leaks, patch them and dig a drainage channel.
-4. **Phase 3 — The Living World** (open from the start, in any order; branch `claude/phase3-living-world`): deer, rabbits and birds live in the forest and notice how loud you are. Look for **tracks** and read whose they are and how old; **plant** seeds, water them and watch them grow through sprout, young, mature and harvestable (keep some seed); **forage** only plants you have looked at closely, because some look-alikes are poisonous; **spear, gut, cook** a fish and **dry** food on a rack; build a **bed, firewood stack with a bark cover and a storage basket**. Seven field tasks (The Hidden Trail, The Living Forest, Seeds of Tomorrow, A Growing Future, From Stream to Fire, Preserving the Harvest, A Home That Provides) follow your progress on the quest card. Checked in the emulator only, not on a headset.
-5. Every outcome is recorded in the **Lab Notebook** as Observation → Principle → Real-world limit (92 observations), and big discoveries light nodes on the **Science Roadmap** wall in the ruins.
+The game is five lessons ([docs/CURRICULUM.md](docs/CURRICULUM.md)). **The First Steps** (the tutorial) teaches the
+controls first.
+
+1. **Lesson 01, Shelter:** night is coming. Gather stones and build a workbench, twist cord, raise and lash a lean-to,
+   roof it in layers, survive the rain test, find out by experiment how many layers keep rain out, and make a bed.
+2. **Lesson 02, Fire:** dead and green wood, tinder, a bow drill, a fire pit and fire lay, an ember, fire, charcoal.
+3. **Lesson 03, Water:** fire a clay pot, filter and boil stream water; clear is not the same as safe.
+4. **Lesson 04, Tools:** knap a flake, cut with it, make a stone axe and split wood.
+5. **Lesson 05, Food & Navigation:** spear and cook a fish, grow food, follow tracks, find your way to the Science
+   Roadmap.
+
+The objective card always says the next step and which lesson it belongs to; ask for a hint up to four times.
+Your body needs warmth, water, food and rest (gentle by default; Settings > Survival pressure). Every outcome goes
+in the **Lab Notebook** (Notes icon or N), organised by lesson and science concept, with your experiments and
+predictions. Big discoveries light nodes on the **Science Roadmap** wall in the ruins.
 
 **Resources:** stones, flint, sticks, bark, clay, sand and gravel now lie in natural deposits (rocky deposits beside outcrops and on the stream bank, sticks and bark round fallen trunks, clay/sand/gravel beds along the water), so you never walk far for a stone or a flint. Pick them one at a time. Used spots stay used after a reload; sticks and leaves regrow within minutes, stones and flint only very slowly, clay and sand are big finite beds. Large boulders and fallen trunks stay scenery (see `src/game/resource-class.ts`).
 

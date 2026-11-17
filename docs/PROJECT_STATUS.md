@@ -4,7 +4,31 @@ Meta VR Start Developer Competition 2026 · Gaming track · New Experience divis
 **Deadline:** Nov 19, 01:30 IST (treat as end of **Nov 18**)
 **Engine:** **Immersive Web SDK (IWSDK)**, confirmed Oct 27. The official rules explicitly accept IWSDK/WebXR entries, which are submitted as a hosted link. The Unity guide ([SETUP_UNITY.md](SETUP_UNITY.md)) is kept for reference only.
 
-## Current state (Nov 11, main `3763eca`)
+## Current state (Nov 17): Survive through Science, Phase 1 done
+
+The game is now a five-lesson science curriculum (see [CURRICULUM.md](CURRICULUM.md)):
+01 Shelter, 02 Fire, 03 Water, 04 Tools, 05 Food & Navigation. Phase 1 (on main, commits "Curriculum C0" to "C12"):
+
+- **Lessons drive play.** One LessonTracker replaces the beginner objectives and the quest chain; the objective
+  card shows "LESSON 01 SHELTER - 7/12"; lesson cards open and close each lesson. Version-1 saves migrate (backed up
+  once) to where the player was.
+- **Survival simulation:** warmth, water, food, rest and wetness interact (wind, wet, cold ground, a fire, shelter);
+  gentle by default, nothing kills you; Settings: Survival pressure Off / Gentle / Realistic. A small status card
+  shows only low needs (bottom-right on desktop, the left wrist in VR) and a frost ring when cold.
+- **Experiments:** question, prediction, trials from the real simulation, result, principle, check question. First:
+  Lesson 01's roof-layer test. Roof layers can now be taken back to set up the comparison.
+- **Lab Notebook:** lesson tabs, 36 concepts (discovered or a clue), experiments, what is left, concept pages in
+  short sections; "Work on this lesson" picks the lesson to follow.
+- **Fixes:** lean-to milestones after an old shelter, hand-made cord, lashing redraws, fire geometry leaks, beds
+  under the shelter, fire implying knapping, pause freezing hand interactions, one pinch one action, haptics on the
+  holding hand, dropped items and dragged logs stay where they are left.
+- **Checked:** 868 unit tests, the production build, the browser play-test (20/20) and real-mouse checks of every
+  new card in the emulator. **Not checked on a real Quest** (frame rate, hand feel, readability of the new cards).
+
+Next: Phases 2 to 6 build each lesson out in full (insulation, filters, combustion, levers, navigation...), then
+Phase 7 joins them into one continuous game.
+
+## Earlier state (Nov 11, main `3763eca`)
 
 **Built and merged:** Chapter 1 end to end, the tutorial, the Chapter 1 story and Chapter 2's shelter. Checked in the IWER emulator: typecheck, 597 unit tests, the production build and emulated-hand play-tests.
 

@@ -37,7 +37,7 @@ Quests (`src/game/quests.ts`) wait on events and give recaps when they finish.
 | Disinfection | Boiling | Boiling kills most pathogens but does not remove chemicals | `water.boil.*` | `w_boilmurky`, `w_boil` | ✅ |
 | Pyrolysis | Charcoal mound | Heating wood with limited oxygen leaves carbon | `charcoal.*` | `c_ash`, `c_early`, `c_success` | ✅ |
 | Clay and ceramics | Pottery | Clay is plastic when wet; grit prevents cracks; steam bursts damp pots; firing fuses minerals | `pottery.*` | `p_temper`, `p_dry`, `p_ceramic` | ✅ |
-| Hydration | Thirst meter | Water is essential; thirst is a late signal; bad water can worsen dehydration | `body.thirst.warning`, `body.drink` | `y_thirst`, `y_drink` | ✅ |
+| Hydration | Water need (survival/body.ts), drinking at the stream or from the pot | Water is essential; thirst is a late signal; untreated water can carry germs | `body.thirst.warning`, `body.drink` | `y_thirst`, `y_drink` | ✅ |
 | Energy and nutrition | Hunger, cooking | Calories are energy; cooking kills microbes and aids digestion | `body.eat`, `food.cooked` | `y_eat`, `y_cook` | ✅ |
 | Biomechanics | Carrying | Work against gravity = m g h | `body.carry.heavy` | `y_carry` | ✅ |
 | Heat loss | Cold, wet, wind | Conduction, convection and evaporation carry heat away; water conducts far faster than air | `body.cold.wet`, `shelter.wind.blocked` | `y_wet`, `s_wind` | ✅ |
@@ -51,15 +51,20 @@ Quests (`src/game/quests.ts`) wait on events and give recaps when they finish.
 | Radiative cooling | Clear nights | Clear skies let the ground lose heat to space; clouds slow it | `weather.night.clear` | `x_night` | ✅ |
 | Smoke | Signal fire | Damp fuel gives steam and unburned particles; thick pale smoke | `fire.signal.smoke` | `f_smoke` | ✅ |
 
-## Levels
+## Lessons
 
-| Level | Ends when | What it teaches |
-|---|---|---|
-| 1 First Fire | the fire is lit | friction, fire triangle, fuel ladder, tripod stability, cordage |
-| 2 Clean Water | filtered water is boiled in the fired pot | clay → ceramic, pyrolysis, filtration vs disinfection |
-| 3 Camp | food has been grown and harvested | refraction, cooking and food safety, plant needs, propagation |
+The game is played as five lessons (see [CURRICULUM.md](CURRICULUM.md)): 01 Shelter, 02 Fire, 03 Water,
+04 Tools, 05 Food & Navigation. Every notebook entry belongs to one science concept
+(`src/game/science/concepts.ts`), and the Lab Notebook is organised lesson -> concept -> entries.
 
-Level 2 and 3 rules live in `src/game/water.ts` and `src/game/food.ts`; level data in `src/game/levels.ts`.
+**Experiments** (`src/game/science/experiments.ts`) are fed by the real simulation. The first is Lesson 01's
+"How many roof layers keep the rain out?": each roof panel under rain is a trial, with the shelter rules
+deciding whether it leaks (one layer of bark, leaves or grass leaks; two or more overlapping layers hold).
+
+**The body** (`src/game/survival/`) is a simplified teaching model: heat in (metabolism, a fire) minus heat out
+(cold air, faster in wind, much faster when wet, and into the ground when resting without a bed). The game shows
+"warmth", never a body temperature, so it states no hypothermia figures. Water conducts heat "more than twenty
+times" better than air (about 0.6 vs 0.026 W/m K) ✅.
 
 | Topic | Mechanic | Core idea | Events | Entries | Conf. |
 |---|---|---|---|---|---|
@@ -87,10 +92,12 @@ Level 2 and 3 rules live in `src/game/water.ts` and `src/game/food.ts`; level da
 - ⚠️ Whether a given real stone is good for knapping: depends on local geology. The game uses an abstract "fine-grained, dark, glassy" tell.
 - ⚠️ Edible plants and wild foods: the game does not teach foraging for specific species.
 
-## Adding a new lesson
+## Adding science
 
 1. Add the event id and a one-line description to `science-events.ts`.
 2. Add an entry to `observations.ts` (`trigger`, three-part text, `why`). Keep it short.
-3. Emit `game.science('<id>')` from the system where it happens.
-4. If a quest should wait for it, use `onEvent('<id>')` in `quests.ts`.
-5. `npm test`: `tests/science.test.ts` checks events exist, text is non-empty and entries stay short.
+3. Put the entry in a concept in `src/game/science/concepts.ts` (every entry belongs to exactly one).
+4. Emit `game.science('<id>')` from the system where it happens.
+5. For a lesson step, an experiment or a check question, see [CURRICULUM.md](CURRICULUM.md).
+6. `npm test`: `science.test.ts`, `concepts.test.ts` and `reachability.test.ts` check events exist, text is short,
+   every entry has a concept and an emitter.

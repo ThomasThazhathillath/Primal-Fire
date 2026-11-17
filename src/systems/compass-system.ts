@@ -86,6 +86,8 @@ export class CompassSystem extends createSystem({}) {
     if (!on) {
       if (this.mesh.visible) this.mesh.visible = false;
       if (this.dom && this.dom.style.display !== 'none') this.dom.style.display = 'none';
+      // Redraw as soon as it is shown again (uncovered after the trek), even if you have not turned or moved.
+      this.lastSig = '';
       return;
     }
     if (this.vr) {

@@ -81,10 +81,16 @@ async function play({ page }, results) {
       g.lessons.load({ completed: [...done], resume: null, bases: {}, learned: g.learnedControls(), hints: {}, closed: false });
     }
     g.lessons.load({ completed: [...done, ...before], resume: 'food', bases: {}, learned: g.learnedControls(), hints: {}, closed: false });
+    // Earlier lessons' experiments count as done (a player who got here ran them).
+    const states = {};
+    for (const d of g.experiments['defs']) if (d.lesson !== 'food') states[d.id] = { phase: 'done', prediction: null, trials: {}, supported: null, answers: [] };
+    g.experiments.restore({ v: 1, states });
     g.env.skipTo(g.time, 8);
     return `${g.lessons.lesson?.id}/${g.focus()?.id}`;
   });
-  await wait(1500);
+  await wait(2000);
+  const camp = await P(() => ({ kinds: window.__primal.game.structures.map((s) => s.kind), fire: window.__primal.game.fire.stage, pressure: window.__primal.game.body.pressure }));
+  check('a fresh Level 5 start gets a working camp', ['workbench', 'firePit', 'dryingRack', 'bedding'].every((k) => camp.kinds.includes(k)) && camp.fire === 'burning', camp);
   check('Lesson 05 at "Judge a wild plant"', jumped === 'food/plantId', jumped);
   const expOpen = await P(() => window.__experiment?.state());
   check('the plant experiment card opens by itself (predict)', expOpen?.opened === 'plantId' && expOpen?.phase === 'predict', expOpen);
@@ -130,6 +136,7 @@ async function play({ page }, results) {
   ch = await P(() => window.__choice?.state());
   check('a look-alike judged "Not safe" is explained', /look-alike/.test(ch?.prompt?.note ?? ''), ch?.prompt?.note);
   await click('ChoiceCard', 'ch-action');
+  await wait(1500); // the experiment card waits until the choice card has closed, then shows the result
   const plantExp = await P(() => ({ phase: window.__primal.game.experiments.phase('plantId'), card: window.__experiment?.state() }));
   check('the plant experiment reaches its result from the real plants', plantExp.phase === 'result', plantExp);
   await shot('l5-04-plant-result');
@@ -171,7 +178,7 @@ async function play({ page }, results) {
   const sky = await P(async () => {
     const p = window.__primal;
     const g = p.game;
-    g.lessons.load({ ...g.lessons.snapshot(), completed: [...g.lessons.completed, 'nutrition', 'grow', 'basket', 'dryingTest', 'trail', 'overharvest'], resume: 'food' });
+    g.lessons.load({ ...g.lessons.snapshot(), completed: [...g.lessons.completed, 'plantId', 'nutrition', 'grow', 'basket', 'dryingTest', 'trail', 'overharvest'], resume: 'food' });
     await new Promise((r) => setTimeout(r, 1500));
     g.experiments.predict('skyTest', 'clouds');
     p.goTo(2, 9);
@@ -192,7 +199,7 @@ async function play({ page }, results) {
     const d = g.env.sunDir;
     p.face(g.player.x + d[0] * 10, g.player.z + d[2] * 10, 0.2);
     await new Promise((r) => setTimeout(r, 2500));
-    return { trials: Object.fromEntries(g.experiments.state('sunPath').trials), hour: g.env.hour };
+    return { trials: Object.fromEntries(g.experiments.state('sunPath').trials), hour: g.env.hour, step: g.focus()?.id, phase: g.experiments.phase('sunPath'), cloud: g.env.cloud };
   });
   check('facing the morning sun with the camera reads "east"', sun.trials.morning === 'east', sun);
 
@@ -205,10 +212,16 @@ async function play({ page }, results) {
     await new Promise((r) => setTimeout(r, 1500));
     const brief = window.__choice.state().prompt?.key;
     window.__choice.act();
+    // Set out from camp: go there first.
+    const home = g.structures.find((s) => s.kind === 'workbench');
+    p.goTo(home.x + 1, home.z + 1);
+    g.setPlayerPosition(home.x + 1, home.z + 1);
+    await new Promise((r) => setTimeout(r, 1000));
+    await new Promise((r) => setTimeout(r, 800));
     const strip = () => [...document.querySelectorAll('div')].find((d) => d.style.top === '6px' && d.style.left === '50%');
     const before = strip()?.style.display;
-    p.goTo(14, 0);
-    g.setPlayerPosition(14, 0);
+    p.goTo(home.x + 13, home.z);
+    g.setPlayerPosition(home.x + 13, home.z);
     await new Promise((r) => setTimeout(r, 1500));
     return { brief, phase: g.field.trek.phase, before, after: strip()?.style.display };
   });

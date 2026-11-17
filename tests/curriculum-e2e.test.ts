@@ -829,6 +829,8 @@ describe('a fresh game through the curriculum', () => {
     expect(g.field.prompt?.key).toBe('trek');
     g.field.act();
     const home = campOf(g);
+    g.setPlayerPosition(home.x, home.z); // the trek starts from camp
+    live(0.5);
     g.setPlayerPosition(home.x + 12, home.z);
     live(0.5);
     expect(g.field.compassCovered()).toBe(true);

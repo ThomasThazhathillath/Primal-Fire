@@ -9,6 +9,7 @@ import { Game } from '../src/game/game.js';
 import type { ItemId } from '../src/game/items.js';
 import { Body } from '../src/game/survival/body.js';
 import { LANDMARK_BY_ID } from '../src/game/world-layout.js';
+import { campOf } from '../src/game/directions.js';
 import { jumpTo } from './helpers/lessons.js';
 
 // Several tests simulate minutes of game time (digestion, spoilage, regrowth, weather).
@@ -300,6 +301,20 @@ describe('weather: clouds before rain', () => {
     expect(g.experiments.state('skyTest').supported).toBe('clouds');
     expect(g.notebook).toContain('x_sky');
   });
+
+  it('each kind of sky is read once: looking up again at a clear sky does not overwrite the evidence', () => {
+    const g = new Game();
+    start(g, 'skyTest', 'clouds');
+    look(g, 0, 1.0, 2);
+    run(g, 65);
+    expect(g.experiments.state('skyTest').trials.get('clear')).toBe('dry');
+    const toasts: string[] = [];
+    g.on((e) => e.type === 'toast' && toasts.push(e.text));
+    run(g, 21);
+    look(g, 0, 1.0, 2);
+    expect(toasts.some((t) => t.includes('Now read dark'))).toBe(true);
+    expect(g.experiments.state('skyTest').trials.get('clear')).toBe('dry');
+  });
 });
 
 describe('navigation by the sun', () => {
@@ -335,8 +350,16 @@ describe('the long trek', () => {
     g.env.skipTo(g.time, 8);
     run(g, 0.5);
     expect(g.field.prompt?.key).toBe('trek');
+    // Far from camp, nothing starts: the trek sets out from camp.
+    g.setPlayerPosition(0, -14);
+    run(g, 0.5);
     g.field.act();
-    g.setPlayerPosition(0, -12);
+    run(g, 0.5);
+    expect(g.field.trek.phase).toBe('idle');
+    const home = campOf(g);
+    g.setPlayerPosition(home.x, home.z);
+    run(g, 0.5);
+    g.setPlayerPosition(home.x, home.z - 12);
     run(g, 0.5);
   };
 
@@ -353,7 +376,7 @@ describe('the long trek', () => {
     expect(g.field.trek.gathered).toBeGreaterThanOrEqual(TREK_FOOD);
     eat(g, 'nuts');
     expect(g.field.trek.ate).toBe(true);
-    g.setPlayerPosition(0, 0);
+    g.setPlayerPosition(campOf(g).x, campOf(g).z);
     run(g, 0.5);
     expect(g.field.trek.phase).toBe('done');
     expect(g.field.compassCovered()).toBe(false);
@@ -364,10 +387,11 @@ describe('the long trek', () => {
   it('is gentle: coming home unfinished or nightfall uncovers the compass and lets you try again', () => {
     const g = new Game();
     setOut(g);
-    g.setPlayerPosition(0, 0);
+    const home = campOf(g);
+    g.setPlayerPosition(home.x, home.z);
     run(g, 0.5);
     expect(g.field.trek.phase).toBe('idle');
-    g.setPlayerPosition(0, -12);
+    g.setPlayerPosition(home.x, home.z - 12);
     run(g, 0.5);
     expect(g.field.trek.phase).toBe('active');
     g.env.skipTo(g.time, 21);

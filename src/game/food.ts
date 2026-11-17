@@ -580,7 +580,8 @@ export class FoodState {
     if (held === 'diggingStick' && this.canDig(at)) return { id: 'digPlot', label: 'Dig a planting plot', at };
     const wi = WILD_TUBERS.findIndex((w, i) => this.wild[i] === 0 && near(w, at, USE_RADIUS));
     if (wi >= 0) return { id: 'gatherWild', label: 'Dig up the wild tuber plant', at: WILD_TUBERS[wi], wildIndex: wi };
-    if (!held) {
+    // Looking closely and picking need no free hand (picked food goes in the bag), so they work while you hold a tool.
+    {
       const fp = FORAGE_PATCHES.find((q) => this.stock[q.id] > 0 && near(q, at, USE_RADIUS));
       if (fp) {
         return this.judged.has(fp.id)

@@ -78,7 +78,10 @@ export class ExperimentSystem extends createSystem({}) {
         // A new experiment never covers another one the player is still reading: it waits until that card closes.
         // A lesson's closing question (kind 'check') opens straight to its question.
         const check = e.phase === 'check' && game.experiments.def(e.id)?.kind === 'check';
-        if ((e.phase === 'predict' || check) && this.opened && this.opened !== e.id) this.pending = e.id;
+        // Lesson 05's choice card (a plant judgement whose answer just produced a result) is not covered either:
+        // the result waits until you have read the judgement and closed it.
+        if ((e.phase === 'predict' || e.phase === 'result' || check) && menu.current === 'choice') this.pending = e.id;
+        else if ((e.phase === 'predict' || check) && this.opened && this.opened !== e.id) this.pending = e.id;
         else if (e.phase === 'predict' || e.phase === 'result' || check) this.open(e.id);
         else if (this.opened === e.id) this.render();
       }),
@@ -248,7 +251,7 @@ export class ExperimentSystem extends createSystem({}) {
   private waiting(id: string): boolean {
     const g = getGame(this.world);
     const p = g.experiments.phase(id);
-    return p === 'predict' || (p === 'check' && g.experiments.def(id)?.kind === 'check');
+    return p === 'predict' || p === 'result' || (p === 'check' && g.experiments.def(id)?.kind === 'check');
   }
 
   update(delta: number): void {

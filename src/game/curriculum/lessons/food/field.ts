@@ -62,7 +62,7 @@ export const TREK_HOURS: [number, number] = [6, 16];
 export const SKY_LOOK = 1.5;
 export const SUN_LOOK = 1;
 /** After reading the sky, the game watches this long (s) for rain. */
-export const SKY_WATCH = 90;
+export const SKY_WATCH = 60;
 
 const DIRS = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
 /** Compass bearing (deg, 0 = north = -Z, 90 = east = +X) of a direction on the ground. */
@@ -137,6 +137,9 @@ export class FieldLesson {
   private cloudT = 0;
   private cloudRising = false;
   private daylightToast = -999;
+  /** You have been at camp since the trek was briefed: leaving camp now sets out (not saved). */
+  private atCamp = false;
+  private campToast = -999;
   private sunRead = '';
   private sunReadAt = -999;
 
@@ -303,12 +306,19 @@ export class FieldLesson {
       return;
     }
     const dark = env.cloud >= 0.7 && (this.cloudRising || env.cloud >= 0.85);
-    const clear = env.cloud < 0.3;
+    // Clear and staying clear: thin cloud that is already thickening is the start of a build-up, not a clear sky.
+    const clear = env.cloud < 0.3 && !this.cloudRising;
     if (!dark && !clear) {
-      this.g.toast('Grey, even cloud: hard to read. Look again when it changes.', 'info');
+      this.g.toast(env.cloud < 0.3 ? 'Thin cloud, but it is thickening. Watch it build, then look again.' : 'Grey, even cloud: hard to read. Look again when it changes.', 'info');
       return;
     }
-    this.skyWatch = { kind: dark ? 'dark' : 'clear', t: 0 };
+    const kind = dark ? 'dark' : 'clear';
+    // The first reading of each kind of sky is the evidence; looking at the same kind again adds nothing.
+    if (this.g.experiments.state('skyTest').trials.has(kind)) {
+      this.g.toast(dark ? 'You have seen what dark clouds bring. Now read a clear sky.' : 'You have seen what a clear sky brings. Now read dark, building clouds.', 'info');
+      return;
+    }
+    this.skyWatch = { kind, t: 0 };
     this.g.science('weather.sky.looked');
     this.g.toast(dark ? 'Dark clouds are piling up and thickening. Remember this sky, and watch what comes.' : 'A clear sky, only thin wisps. Remember it, and watch what comes.', 'note');
   }
@@ -388,7 +398,19 @@ export class FieldLesson {
     const fromCamp = Math.hypot(g.player.x - camp.x, g.player.z - camp.z);
     const hour = g.env.hour;
     if (t.phase === 'idle') {
-      if (fromCamp <= TREK_START_RADIUS) return;
+      // The trek starts when you set out from camp, after reading the briefing.
+      if (this.prompt?.key === 'trek') return;
+      if (fromCamp <= TREK_START_RADIUS) {
+        this.atCamp = true;
+        return;
+      }
+      if (!this.atCamp) {
+        if (g.time - this.campToast > 60) {
+          this.campToast = g.time;
+          g.toast('The long trek starts from camp: go back to camp, then set out.', 'info');
+        }
+        return;
+      }
       if (hour < TREK_HOURS[0] || hour >= TREK_HOURS[1] || g.env.night > 0.4) {
         if (g.time - this.daylightToast > 60) {
           this.daylightToast = g.time;
@@ -397,6 +419,7 @@ export class FieldLesson {
         return;
       }
       t.phase = 'active';
+      this.atCamp = false;
       t.reached = false;
       t.gathered = 0;
       t.ate = false;
@@ -426,6 +449,7 @@ export class FieldLesson {
         g.checkProgress();
       } else {
         t.phase = 'idle';
+        this.atCamp = true;
         const missing = this.trekGoals()
           .slice(0, 3)
           .filter((x) => !x.done)

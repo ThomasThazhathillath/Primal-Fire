@@ -213,7 +213,7 @@ export const SKY_TEST: ExperimentDef = {
     ],
   },
   outcomes: [
-    { id: 'rain', text: 'rain soon after' },
+    { id: 'rain', text: 'rain within a minute' },
     { id: 'dry', text: 'stayed dry' },
   ],
   howTo: 'Look up at the open sky for a moment, once when it is clear and once when dark clouds are building, then watch.',

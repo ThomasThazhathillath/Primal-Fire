@@ -6,7 +6,7 @@ objective card, experiments the player runs with real variables, and a short che
 | # | Lesson | Survival goal | Steps today |
 |---|---|---|---|
 | 01 | Shelter | protection from wind, rain and the cold ground before night | stones, workbench, explore the bench, cord, start the lean-to (site check), frame, **push test**, roof, rain test, **roof-layer experiment**, bed, **bed test**, **a night in it** |
-| 02 | Fire | warmth, cooking, heat for materials | wood, tinder, bow-drill parts, bow drill, fire pit, fire lay, ember, fire, charcoal |
+| 02 | Fire | warmth, cooking, heat for materials | wood, tinder, bow-drill parts, bow drill, fire pit, fire lay, ember, fire, **stroke-speed**, **pressure**, **damp-or-dry**, **twig-or-log**, **dead-or-green-wood** experiments, charcoal, **air-and-charcoal** and **air-on-the-fire** experiments, the **practical** (light and keep your own fire) |
 | 03 | Water | a safe water supply | clay pot, filter + boil ("clear is not safe") |
 | 04 | Tools | make tools | sharp flake, cut with it, stone axe, split a log |
 | 05 | Food & Navigation | self-sufficiency | fishing spear, catch a fish, cook it, grow food, follow a trail, reach the Science Roadmap |
@@ -92,6 +92,54 @@ src/systems/          experiment-system, notebook-system, body-system, level-sys
    [SCIENCE.md](SCIENCE.md). Never claim filtering makes water safe; no specific hypothermia or edible-plant
    claims.
 
+## Lesson 02: Fire
+
+The fire is simulated, so every experiment is a real outcome of the rules (`src/game/combustion.ts`,
+`src/game/fire.ts`, `src/game/fuel-moisture.ts`; the experiments are in `lessons/fire/experiments.ts`).
+
+- **The bow drill.** Friction heat per second = gain x stroke speed x downward pressure (x stroke rhythm); the dust
+  cools all the time, faster the hotter it is. So slow strokes (< 0.5 m/s) and a light touch both level off below
+  smoking, and fast, firm strokes make an ember in a few seconds. VR: the bow hand's motion is the stroke, the other
+  hand held still on top of the spindle is the firm press. Browser: hold the mouse button at the pit and drag left
+  and right (drag speed = stroke speed, 700 px/s = 1 m/s, measured from the pointer's travel each frame), hold Shift
+  to press down. A click alone does not saw. Clicking the pit with fuel in hand feeds the fire (it never starts a bed
+  or snaps the branch there); with an empty hand it fans a burning fire; with the digging stick it smothers it.
+  The drill also saws beside a burning fire (no second ember), so its experiments can be finished any time.
+- **Fuel.** The pit holds up to 16 pieces (tinder, twigs, branch, logs, charcoal). Each piece first dries (water must
+  boil off, which takes the fire's heat and makes smoke), then needs the fire hot enough for its size (thin fuel
+  catches from a small flame, a log only on a hot fire), then burns and leaves coals. Damp moss and green wood hold
+  water by nature; green wood dries three times slower and gives less heat; charcoal is hot and nearly smokeless.
+- **Moisture.** Fuel picked up out in the open is as wet as the world (`env.wet`, which rain raises); under a roof it
+  is dry. Carried fuel soaks in rain with no roof over you and dries beside a burning fire (fast), under your roof
+  (slow) or in the open (slowest). Kept per item type, saved in `fuelWet`.
+- **Air.** Wind on an open pit and fanning add air (more heat, faster burning; a fanning run is judged against the
+  same fire in still air at that moment); unlit logs crowding a small fire take
+  air away; earth scraped over the fire with the digging stick smothers it (`smotherFire`). The ember needs air too:
+  fanning, or wind across an open pit; damp tinder needs up to three times the air, wet tinder kills the ember.
+  The ember has no time limit: carried, it glows until it goes into the tinder (and survives a reload); in the
+  tinder without air it only smoulders and dims, and after 12 s the game says it needs air (the `f_oxygen` entry).
+- **Rain** on an exposed pit wets the fuel: light rain only slows a fire that has caught; heavy rain can put an
+  unsheltered fire out. A roof over the pit keeps it dry.
+- **Experiment cards** show live readouts (dust heat and stroke, the last piece fed, the fire's air, the mound's
+  smoke). A card waiting for a prediction comes up by itself once per session when nothing else is open.
+- **Keeping a fire.** Unfed, the standard lay burns about two minutes, then coals, then nothing. The practical
+  (`fireOnOwn`) asks for a fire lit from a new ember (not the first, guided one) kept burning 150 s with at least two
+  pieces fed. Fire rules run at the 4 Hz slow step and cost a few microseconds a frame.
+
+| Experiment (step) | Variable (held constant) | Reported from |
+|---|---|---|
+| `drillSpeed` | slow / fast strokes (firm press) | the end of each 4 s stroke run, `fire.ts` |
+| `drillPressure` | light / firm press (fast strokes) | same |
+| `tinderDamp` | dry / damp fine fuel fed to the fire | when the piece catches, or is still unlit after 15 s |
+| `fuelSize` | dry twig / dry log | same |
+| `woodType` | dry dead branch / green branch | same |
+| `charcoalAir` | open fire (a log burns through) / sealed mound | `fire.ts` and the mound in `water.ts` |
+| `airflow` | fanned / covered with earth | a fanning run, the fire going out |
+
+Experiments open when their step is on the card (the stroke-speed test at the ember step), one card at a time: a
+new one waits until the card in view is closed. An old save that finished the old fire chain (charcoal made, no
+fire experiment ever offered) has the new steps recognised as done (`legacyFireDone`).
+
 ## Checks
 
 ```bash
@@ -106,7 +154,8 @@ npm test
 npm run build
 ```
 
-`tests/curriculum-e2e.test.ts` plays a fresh game through all five lessons (Lesson 01 by real actions).
+`tests/curriculum-e2e.test.ts` plays a fresh game through all five lessons (Lessons 01 and 02 by real actions).
+`tests/fire-lesson.test.ts` covers the Lesson 02 rules and runs every fire experiment through the real fire.
 In the running game (`npx @iwsdk/cli dev up --headless --allow-browser-automation`):
 
 - `scripts/playtest.mjs`: the survival opening, 20 checks.

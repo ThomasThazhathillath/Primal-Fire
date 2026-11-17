@@ -15,6 +15,7 @@ export type IntentAction =
   | 'feedFire'
   | 'sawDrill'
   | 'carryEmber'
+  | 'smotherFire'
   | 'firePot'
   | 'boilPot'
   | 'cookFish'
@@ -69,7 +70,10 @@ export function resolveIntent(held: ItemId | null, t: IntentTarget): IntentActio
       const f = t.fire;
       if (!f) return null;
       if (held === null) return f.carrying ? 'carryEmber' : null;
-      if (held === 'bowDrill') return f.layBuilt && f.stage === 'lay' && !f.carrying ? 'sawDrill' : null;
+      // The drill saws at the pit whenever no ember is out (beside a burning fire too: the drill experiments).
+      if (held === 'bowDrill') return !f.carrying && !f.embedded && ((f.layBuilt && f.stage === 'lay') || f.burning) ? 'sawDrill' : null;
+      // Earth scraped over a burning fire smothers it (the airflow experiment; putting a fire out safely).
+      if (held === 'diggingStick' && f.burning) return 'smotherFire';
       if (FUEL_ITEMS[held] && !f.embedded) return 'feedFire';
       if (held === 'pot' && t.pot?.fired === false && f.burning) return 'firePot';
       if (held === 'pot' && t.pot?.fired && f.burning && (t.pot.water === 'raw' || t.pot.water === 'filtered')) return 'boilPot';

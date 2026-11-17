@@ -34,6 +34,7 @@ import {
   VisibilityState,
 } from '@iwsdk/core';
 import { actionFor } from '../game/actions.js';
+import { FUEL_ITEMS } from '../game/fire.js';
 import {
   BendState,
   DragState,
@@ -595,6 +596,14 @@ export class InteractionSystem extends createSystem({
   }
 
   /** Where the pointer (mouse ray, or right-hand ray in VR) meets the ground (or the plane at `planeY`). */
+  /** Desktop: is the pointer on the finished fire pit? */
+  private pointerOnFirePit(): boolean {
+    const pit = getGame(this.world).structures.find((s) => s.kind === 'firePit' && s.complete);
+    if (!pit) return false;
+    this.viaVR = false;
+    return this.groundPoint(this.tmp, 0) && Math.hypot(this.tmp.x - pit.x, this.tmp.z - pit.z) < 0.8;
+  }
+
   private groundPoint(out: Vector3, planeY = 0): boolean {
     if (this.viaVR) {
       const sp = this.player.raySpaces.right;
@@ -799,14 +808,17 @@ export class InteractionSystem extends createSystem({
     const action = actionFor(game.held);
     const vr = this.immersive();
 
+    // Desktop: fuel in hand clicked on the fire pit goes in the fire (FireSystem); it never starts a build there
+    // or snaps the branch (dry grass and moss are bed materials, a dry branch snaps into twigs).
+    const overFire = !vr && this.mode === 'none' && mouse.pressed && !!game.held && !!FUEL_ITEMS[game.held] && this.pointerOnFirePit();
     // Holding a part an unfinished build nearby needs: set it down by hand.
-    const wanted = !!game.held && game.wantsItem(game.held, game.player.x, game.player.z);
+    const wanted = !overFire && !!game.held && game.wantsItem(game.held, game.player.x, game.player.z);
     if (this.mode === 'none' && wanted) {
       if (vr ? hands[1].gripDown && !grabbedJustNow() : mouse.pressed && this.queries.hoverGather.entities.size === 0) this.startPlace(vr);
     }
     if (this.mode === 'place') this.updatePlace();
 
-    if (this.mode === 'none' && !wanted && this.fallT < 0 && action?.motion === 'snap') {
+    if (this.mode === 'none' && !wanted && !overFire && this.fallT < 0 && action?.motion === 'snap') {
       if (vr) {
         const l = hands[0];
         const r = hands[1];

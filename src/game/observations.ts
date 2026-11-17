@@ -5,6 +5,7 @@
 // curriculum notes and confidence flags live in docs/SCIENCE.md.
 
 import type { ScienceEventId } from './science-events.js';
+import { FIRE_LESSON_OBSERVATIONS } from './curriculum/lessons/fire/observations.js';
 
 export type ObservationGroup =
   | 'living'
@@ -147,7 +148,7 @@ const BASE_OBSERVATIONS: Record<string, Observation> = {
   f_oxygen: {
     group: 'fire',
     title: 'Fire breathes',
-    obs: 'Left alone, the ember glowed, dimmed and went dark.',
+    obs: 'Left alone in the tinder, the ember only smouldered and dimmed. It brightened again as soon as air reached it.',
     pri: 'Burning is rapid oxidation — fuel reacting with oxygen. Gentle airflow delivers fresh O₂ to the glowing ember.',
     lim: 'Blow too hard on a weak ember and you can cool it or scatter it.',
   },
@@ -776,8 +777,8 @@ const SURVIVAL_OBSERVATIONS: Record<string, Observation> = {
   f_smoke: {
     group: 'fire',
     trigger: 'fire.signal.smoke',
-    title: 'Green leaves make white smoke',
-    obs: 'Adding green leaves to the fire sent up a thick, pale column of smoke.',
+    title: 'Green wood makes white smoke',
+    obs: 'A green, living branch on the fire sent up a thick, pale column of smoke.',
     pri: 'Damp fuel makes steam and unburned particles. The thick, pale smoke is easy to see against dark trees.',
     lim: 'It also smells and stings your eyes, and a signal fire can spread. Keep it small and watched.',
     why: 'Why is thick white smoke easier to see than clear heat?',
@@ -786,7 +787,7 @@ const SURVIVAL_OBSERVATIONS: Record<string, Observation> = {
     group: 'fire',
     trigger: 'fire.night.kept',
     title: 'A fire is a chore',
-    obs: 'Through the night the fire needed fuel and attention several times.',
+    obs: 'To keep the fire going for minutes it needed fuel and attention again and again.',
     pri: 'Fire keeps burning only while it has fuel, air and heat. Large, dense logs burn slowly and keep going far longer than twigs.',
     lim: '',
     why: 'Which fuel would last the night, twigs or thick logs?',
@@ -987,6 +988,7 @@ for (const [id, o] of Object.entries(BASE_OBSERVATIONS)) {
 }
 Object.assign(OBSERVATIONS, SURVIVAL_OBSERVATIONS, LIVING_OBSERVATIONS);
 Object.assign(OBSERVATIONS, SHELTER_LESSON_OBSERVATIONS);
+Object.assign(OBSERVATIONS, FIRE_LESSON_OBSERVATIONS);
 
 export const OBSERVATION_COUNT = Object.keys(OBSERVATIONS).length;
 

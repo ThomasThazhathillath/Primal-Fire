@@ -5,7 +5,7 @@
 // mouse. VR: a world panel held by StaticAnchor, pressed by fingertip, hand ray or gaze + pinch (PanelTouch).
 
 import { createSystem, type Entity, RayInteractable, type UIKit, type UIKitMLAsset, VisibilityState } from '@iwsdk/core';
-import { lessonById } from '../game/curriculum/registry.js';
+import { EXPERIMENTS, lessonById } from '../game/curriculum/registry.js';
 import type { ExperimentDef } from '../game/science/experiments.js';
 import { currentMode } from '../game/tutorial-mode.js';
 import { PanelTouch } from './panel-touch.js';
@@ -29,6 +29,12 @@ export class ExperimentSystem extends createSystem({}) {
   private opened: string | null = null;
   /** The check question's last answer feedback ("Right: ..." / "Not quite: ..."). */
   private feedback: string | null = null;
+  /** An experiment that opened while the card was showing another: shown when that one is closed. */
+  private pending: string | null = null;
+  /** Experiments shown this session: one still waiting for a prediction (missed at a reload, a title screen or a
+   * game start) comes up by itself once, when nothing else is in the way. */
+  private shown = new Set<string>();
+  private waitT = 0;
   /** The live readout line shown in the note while testing (refreshed twice a second, set only when it changes). */
   private shownNote = '';
   private noteT = 0;
@@ -69,7 +75,9 @@ export class ExperimentSystem extends createSystem({}) {
       game.on((e) => {
         if (e.type !== 'experiment' || currentMode() === 'tutorial') return;
         // Something to do: the card comes up by itself. Otherwise just refresh it if it is open.
-        if (e.phase === 'predict' || e.phase === 'result') this.open(e.id);
+        // A new experiment never covers another one the player is still reading: it waits until that card closes.
+        if (e.phase === 'predict' && this.opened && this.opened !== e.id) this.pending = e.id;
+        else if (e.phase === 'predict' || e.phase === 'result') this.open(e.id);
         else if (this.opened === e.id) this.render();
       }),
     );
@@ -90,6 +98,7 @@ export class ExperimentSystem extends createSystem({}) {
   open(id: string): void {
     if (!this.ready || !getGame(this.world).experiments.def(id)) return;
     this.opened = id;
+    this.shown.add(id);
     this.feedback = null;
     menu.open('experiment');
     this.render();
@@ -235,6 +244,20 @@ export class ExperimentSystem extends createSystem({}) {
 
   update(delta: number): void {
     if (this.pop?.busy) this.pop.update(delta);
+    // The experiment that waited for the last card: open it once no panel is in the way.
+    if (this.pending && !this.opened && !this.pop?.busy && menu.current === null) {
+      const next = this.pending;
+      this.pending = null;
+      if (getGame(this.world).experiments.phase(next) === 'predict') this.open(next);
+    }
+    if (this.ready && !this.opened && !this.pending && (this.waitT += delta) >= 1) {
+      this.waitT = 0;
+      const ui = getUi(this.world);
+      const g = getGame(this.world);
+      const lesson = g.lessons.lesson?.id;
+      const id = EXPERIMENTS.find((d) => d.lesson === lesson && g.experiments.phase(d.id) === 'predict' && !this.shown.has(d.id))?.id;
+      if (id && menu.current === null && !this.pop?.busy && !ui.titleOpen?.() && !ui.paused?.() && currentMode() !== 'tutorial') this.open(id);
+    }
     if (!this.ready || !this.opened) return;
     this.place();
     if (this.vr) this.touch.update(delta);

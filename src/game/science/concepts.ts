@@ -112,7 +112,7 @@ export const CONCEPTS: Concept[] = [
     idea: 'Rubbing surfaces together turns motion into heat; fast, steady friction can heat wood dust until it glows.',
     apply: 'Rubbing your hands warms them, and a car’s brakes turn its motion into heat.',
     discover: 'Make and use a bow drill.',
-    entries: ['f_drill', 'g_bow'],
+    entries: ['f_drill', 'g_bow', 'f_speed', 'f_pressure'],
   },
   {
     id: 'fire_triangle',
@@ -140,6 +140,24 @@ export const CONCEPTS: Concept[] = [
     apply: 'Barbecue charcoal is made this way; early metalworkers needed its hotter, cleaner heat.',
     discover: 'Heat wood under earth, with the vents open and with them sealed.',
     entries: ['c_ash', 'c_early', 'c_success', 'f_charcoal', 'c_watertable'],
+  },
+  {
+    id: 'ignition',
+    lesson: 'fire',
+    name: 'Ignition temperature',
+    idea: 'Fuel only burns once it is hot enough. Water and thickness both delay it: the heat goes into them first.',
+    apply: 'Dry, split firewood lights easily; a match lights a twig but not a log.',
+    discover: 'Feed the fire wet and dry fuel, thin twigs and a thick log.',
+    entries: ['f_steam', 'f_ladder', 'f_dried'],
+  },
+  {
+    id: 'oxygen',
+    lesson: 'fire',
+    name: 'Oxygen and airflow',
+    idea: 'Burning is fast oxidation, fuel joining with oxygen. More air makes a fire hotter; no air puts it out.',
+    apply: 'Bellows make a forge hotter; a lid or a fire blanket smothers a fire.',
+    discover: 'Fan a burning fire, then cover it with earth.',
+    entries: ['f_fanned', 'f_wind', 'f_smother'],
   },
   {
     id: 'fire_safety',

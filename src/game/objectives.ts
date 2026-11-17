@@ -524,10 +524,10 @@ export const OBJECTIVES: Objective[] = [
     title: 'Make an ember',
     short: 'Saw the drill at the pit',
     instruction: 'Hold the bow drill at your fire pit and saw it back and forth until an ember glows. You do not put it down.',
-    doneMessage: 'A glowing ember! Now keep it alive.',
+    doneMessage: 'A glowing ember! Now give it tinder and air.',
     teach: 'fire',
     howTo: () =>
-      'HOW TO MAKE AN EMBER: 1. Take the bow drill out of your bag: it stays in your hand (Menu > Put away to let go). 2. Kneel or reach down to the fire pit so your hand is just above it. 3. Put your other hand near the pit too (it steadies the spindle). 4. Move the bow hand back and forth, steadily, for several seconds until smoke and an ember appear. In the browser: hold it and click the fire pit again and again.',
+      'HOW TO MAKE AN EMBER: 1. Take the bow drill out of your bag: it stays in your hand (Menu > Put away to let go). 2. Kneel or reach down to the fire pit so your hand is just above it. 3. Put your other hand near the pit too (it steadies the spindle). 4. Press your other hand down on top of the spindle and move the bow hand back and forth, fast and steadily, until smoke and an ember appear. In the browser: stand at the pit, hold the mouse button and drag left and right quickly, holding Shift to press down.',
     done: (g) => g.flag('emberMade') || litFire(g),
     implied: litFire,
     hint: {
@@ -536,7 +536,7 @@ export const OBJECTIVES: Objective[] = [
         'Friction makes heat.',
         'Smooth, steady strokes, not wild ones.',
         'Do it over the fire pit you built.',
-        'Hold the drill, saw with a rhythm and keep your other hand still near the spindle.',
+        'Hold the drill, saw fast with a rhythm and press your other hand on top of the spindle (browser: drag left and right holding Shift).',
       ],
     },
   },
@@ -593,6 +593,17 @@ export const OBJECTIVES: Objective[] = [
   },
   {
     id: 'charcoal',
+    // What the mound still needs: a digging stick and two logs to dig it, clay to seal it.
+    find: (g) =>
+      g.flag('charcoalMade')
+        ? []
+        : g.count('diggingStick') === 0 && g.held !== 'diggingStick' && !g.flag('moundBuilt')
+          ? ['diggingStick']
+          : !g.flag('moundBuilt') && g.count('logs') + (g.held === 'logs' ? 1 : 0) < 2
+            ? ['logs']
+            : g.water.mound && !g.water.mound.sealed && g.count('clay') === 0 && g.held !== 'clay'
+              ? ['clay']
+              : [],
     title: 'Make charcoal',
     short: 'Make charcoal',
     instruction: 'Dig a pit, stack wood in it, cover it with earth and watch the smoke.',

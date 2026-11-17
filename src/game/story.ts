@@ -121,7 +121,7 @@ export const STORY_BEATS: StoryBeat[] = [
   },
   { id: 'tinder', act: 'fire', lines: ['Something dry and fine. This should catch.'], on: (e) => gotOne(e, ['dryGrass', 'leafLitter', 'bark']), after: 'fireIntro', past: fireLit },
   { id: 'bowDrill', act: 'fire', lines: ['Friction...', 'Perhaps I can make enough heat with this.'], when: (g) => g.held === 'bowDrill', past: fireLit },
-  { id: 'ember', act: 'fire', lines: ["There's an ember! Don't let it die."], when: (g) => g.flag('emberMade'), past: fireLit },
+  { id: 'ember', act: 'fire', lines: ["There's an ember! Now it needs tinder and air."], when: (g) => g.flag('emberMade'), past: fireLit },
   { id: 'fireLit', act: 'fire', lines: ['Fire.', 'Finally.'], when: fireLit, past: (g) => fireLit(g) && g.time > 120 },
   // Act 5: the first camp, from structures the game supports (fire pit + workbench + your satchel).
   {

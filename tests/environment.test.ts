@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DAY_SECONDS, Environment, fireExposed, START_HOUR, TRANSITION, WEATHER } from '../src/game/environment.js';
+import { RAIN_WET } from '../src/game/fire.js';
 import { Game } from '../src/game/game.js';
 
 const hourTime = (h: number) => ((h - START_HOUR) / 24) * DAY_SECONDS;
@@ -145,7 +146,7 @@ describe('rain and fire', () => {
     const log = g.fire.hearth.add('logs', 0, false)!;
     g.fire.hearth.ignite(log);
     g.fire.weather(2, 5);
-    expect(log.wet).toBeCloseTo(0.2);
+    expect(log.wet).toBeCloseTo(2 * RAIN_WET * 5);
     g.fire.weather(2, 100);
     expect(log.wet).toBe(1);
     expect(g.fire.stage).toBe('burning');

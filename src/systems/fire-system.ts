@@ -111,6 +111,7 @@ export class FireSystem extends createSystem({
   private deskSaw = false;
   private deskStrokes = new Reciprocation();
   private deskBow = 0;
+  private deskX = 0;
   private deskTip = -10;
   private capWrapped = false;
 
@@ -439,10 +440,13 @@ export class FireSystem extends createSystem({
       if (mouse.pressed && this.deskCanSaw()) {
         this.deskSaw = true;
         this.deskStrokes.reset();
+        this.deskX = mouse.x;
       }
       if (!mouse.down || !driving) this.deskSaw = false;
       if (this.deskSaw) {
-        const vx = mouse.vx / PX_PER_M;
+        // The pointer's real travel this frame (not a smoothed velocity, which averages quick strokes away).
+        const vx = (mouse.x - this.deskX) / delta / PX_PER_M;
+        this.deskX = mouse.x;
         const rhythm = this.deskStrokes.update(delta, vx, 0, 0);
         const speed = Math.min(Math.abs(vx), DRILL.maxSpeed);
         fire.saw(speed * delta, delta, mouse.shift ? PRESSURE.firm : PRESSURE.light, rhythm);

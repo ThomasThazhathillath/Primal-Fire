@@ -133,6 +133,8 @@ export class Hearth {
   heat = 0;
   /** Heat the burning fuel gives with this air, not capped (fanning shows up here even in a roaring fire). */
   power = 0;
+  /** What the same fuel would give right now without the fanning (to judge what fanning does). */
+  stillPower = 0;
   /** The coal bed 0..1. */
   coals = 0;
   /** Air factor this step: 1 = still air. */
@@ -246,6 +248,8 @@ export class Hearth {
       } else if (p.catch > 0) smoke += 0.15;
     }
     this.power = power;
+    const stillAir = this.smothered ? 0 : Math.max(0.2, Math.min(1.8, 1 + wind * WIND_AIR - crowd));
+    this.stillPower = airHeat > 0 ? (power * Math.min(stillAir, AIR_HEAT_CAP)) / airHeat : 0;
     this.steam = Math.min(1, steam * 3);
     this.smoke = Math.min(1, smoke);
     const target = Math.max(0, Math.min(1, power - steam));

@@ -62,11 +62,11 @@ const SESSION_GAP = 0.6;
 export const HEAT_DECAY = DRILL_COOL_BASE;
 
 // ------------------------------------------------------------ the ember
-/** Seconds a carried ember survives. */
-export const EMBER_CARRY_SECONDS = 20;
+// The ember has no time limit: carried, it glows until you put it in the tinder; in the tinder without air it only
+// smoulders and dims (the card says it needs air) until you fan it or the wind does.
 /** Fan strength (0..1) is air per second; dry tinder catches at this much air. Damp tinder needs more. */
 export const AIR_TO_IGNITE = 1;
-/** Seconds an unfanned ember in the tinder lasts. */
+/** Seconds an unfanned ember smoulders in the tinder before the game points out that it needs air. */
 export const EMBER_REST_SECONDS = 12;
 /** Tinder this wet kills the ember outright (the water takes its heat). */
 export const TINDER_KILLS = 0.6;
@@ -74,8 +74,11 @@ export const TINDER_KILLS = 0.6;
 export const EMBER_WIND = 0.12;
 
 // ------------------------------------------------------------ the burning fire
-/** Water per second rain puts on exposed fuel, per unit of rain loss (EnvironmentSystem's RAIN_BURN_LOSS scale). */
-export const RAIN_WET = 0.02;
+/**
+ * Water per second rain puts on exposed fuel, per unit of rain loss (EnvironmentSystem's RAIN_BURN_LOSS scale):
+ * light rain only slows a fire that has caught; heavy rain on an unsheltered fire can put it out.
+ */
+export const RAIN_WET = 0.008;
 /** The fire's own rules run at this step (the 4 Hz slow step), whatever the frame rate. */
 const SIM_STEP = 0.25;
 /** The practical: keep a fire you lit yourself burning this long (s), feeding it at least this often. */
@@ -115,6 +118,8 @@ export interface FireSave {
   feeds?: number;
   /** The practical was passed: a fire lit on your own, kept burning and fed. */
   kept?: boolean;
+  /** An ember in your hand or in the tinder (it has no time limit, so it is kept across a reload). */
+  ember?: 'carried' | 'tinder';
 }
 
 export class FireState implements HearthListener {
@@ -126,11 +131,11 @@ export class FireState implements HearthListener {
   stage: FireStage = 'cold';
   /** Bow-drill heat 0..1. */
   heat = 0;
-  /** True while you carry a glowing ember in your hand. */
+  /** True while you carry a glowing ember in your hand (it does not go out). */
   carrying = false;
-  carryLeft = 0;
   /** An ember sits in the tinder, waiting for air. */
   embedded = false;
+  /** Seconds it has smouldered there without enough air. */
   restLeft = 0;
   air = 0;
   /** Seconds of fuel left in the burning fire (kept up to date by the fire's rules). */
@@ -147,12 +152,17 @@ export class FireState implements HearthListener {
   kept = false;
   /** Wind reaching the pit (0..1), from the weather and whether a roof shelters the pit. */
   wind = 0;
+  /** What the bow drill is doing right now (for the experiment card's readout): stroke speed (m/s) and press. */
+  strokeSpeed = 0;
+  strokePress: number = PRESSURE.firm;
+  /** The last piece put on the burning fire (its slot is reused once it has burned away). */
+  lastFed: Piece | null = null;
 
   private simT = 0;
   /** The current stroke run of the bow drill (for the drill experiments). */
   private strokes = { t: 0, dist: 0, firm: 0, light: 0, idle: 0, trend: 0, lastHeat: 0, noLay: false };
   /** The current fanning run of a burning fire (for the airflow experiment). */
-  private fanRun = { air: 0, idle: 0, start: 0 };
+  private fanRun = { air: 0, idle: 0 };
   /** Seconds the wind has been fanning an open fire. */
   private windT = 0;
 
@@ -236,6 +246,7 @@ export class FireState implements HearthListener {
     const name = itemName(item).toLowerCase();
     if (burning) {
       this.feeds++;
+      this.lastFed = piece;
       this.updateBurnLeft();
       if (piece.wet >= DAMP) {
         g.science('fire.fuel.wet');
@@ -272,7 +283,6 @@ export class FireState implements HearthListener {
   weather(loss: number, dt: number): void {
     if (loss <= 0 || dt <= 0) return;
     if (this.stage === 'burning' || this.stage === 'lay') this.hearth.rain(loss * RAIN_WET, dt);
-    if (this.embedded) this.restLeft -= loss * dt;
   }
 
   // ----------------------------------------------------------- the ember
@@ -285,6 +295,8 @@ export class FireState implements HearthListener {
     if (!this.canDrill || dt <= 0) return;
     const speed = distance / dt;
     const r = this.strokes;
+    this.strokeSpeed += (speed - this.strokeSpeed) * Math.min(1, dt * 4);
+    this.strokePress = pressure;
     if (speed >= 0.1) {
       r.t += dt;
       r.dist += distance;
@@ -343,12 +355,11 @@ export class FireState implements HearthListener {
     const g = this.game;
     this.heat = 0;
     this.carrying = true;
-    this.carryLeft = EMBER_CARRY_SECONDS;
     this.endRun();
     g.setFlag('emberMade');
     g.observe('f_drill');
     g.science('fire.drill.ember');
-    g.toast('An ember! Carry it to the tinder before it dies.', 'good');
+    g.toast('An ember! Carry it to the tinder in your fire lay.', 'good');
     g.checkProgress();
     g.notifyFire();
   }
@@ -373,7 +384,7 @@ export class FireState implements HearthListener {
       return true;
     }
     this.embedded = true;
-    this.restLeft = EMBER_REST_SECONDS;
+    this.restLeft = 0;
     this.air = 0.1;
     g.toast(wet >= DAMP ? 'The tinder is damp: it smokes. Fan it hard and long!' : 'Fan it with an open palm!', 'note');
     g.notifyFire();
@@ -384,7 +395,6 @@ export class FireState implements HearthListener {
   fan(strength: number, dt: number): void {
     if (strength <= 0 || dt <= 0) return;
     if (this.stage === 'burning') {
-      if (this.fanRun.air === 0) this.fanRun.start = this.hearth.power;
       this.fanRun.air += strength * dt;
       this.fanRun.idle = 0;
       this.hearth.fanned(strength, dt);
@@ -392,7 +402,7 @@ export class FireState implements HearthListener {
     }
     if (!this.embedded) return;
     this.air = Math.min(this.airNeeded(), this.air + strength * dt);
-    this.restLeft = Math.min(EMBER_REST_SECONDS, this.restLeft + dt * 2 * strength);
+    this.restLeft = 0;
     if (this.air >= this.airNeeded()) this.ignite();
   }
 
@@ -527,16 +537,7 @@ export class FireState implements HearthListener {
     // The drill dust cools all the time, faster the hotter it is.
     if (this.heat > 0 && !this.carrying) this.heat = Math.max(0, this.heat - (DRILL_COOL_BASE + DRILL_COOL_K * this.heat) * dt);
     if (this.strokes.t > 0 && (this.strokes.idle += dt) > SESSION_GAP) this.endRun();
-    if (this.carrying) {
-      this.carryLeft -= dt;
-      if (this.carryLeft <= 0) {
-        this.carrying = false;
-        g.observe('f_oxygen');
-        g.science('fire.ember.unfed');
-        g.toast('The ember went dark. Saw again.', 'bad');
-        g.notifyFire();
-      }
-    }
+    if (this.strokes.t === 0 && this.strokeSpeed > 0) this.strokeSpeed = this.strokeSpeed < 0.01 ? 0 : this.strokeSpeed * Math.max(0, 1 - dt * 3);
     if (this.embedded) {
       // Wind across an open pit feeds the ember too.
       const breeze = this.wind * EMBER_WIND * dt;
@@ -547,16 +548,14 @@ export class FireState implements HearthListener {
           return;
         }
       }
-      this.restLeft -= dt;
+      // Without air it only smoulders and dims; it never goes out by itself, and the first time it is pointed out.
       this.air = Math.max(0.1, this.air - 0.04 * dt);
-      if (this.restLeft <= 0) {
-        this.embedded = false;
-        this.stage = 'lay';
-        this.air = 0;
+      const was = this.restLeft;
+      this.restLeft += dt;
+      if (was < EMBER_REST_SECONDS && this.restLeft >= EMBER_REST_SECONDS) {
         g.observe('f_oxygen');
         g.science('fire.ember.unfed');
-        g.toast('The ember faded. It needs air: saw a new one.', 'bad');
-        g.notifyFire();
+        g.toast('The ember only smoulders and dims: it needs air. Fan it with an open palm.', 'note');
       }
     }
     // The burning fire's rules run at the slow step.
@@ -600,7 +599,8 @@ export class FireState implements HearthListener {
     if (f.air > 0) {
       f.idle += dt;
       if (f.air >= FAN_JUDGE_AIR) {
-        const grows = h.power >= f.start * FAN_GROWS + 0.02;
+        // Compared with the same fire in still air at this moment: fanning longer never undoes the result.
+        const grows = h.power > 0.01 && h.power >= h.stillPower * FAN_GROWS;
         g.experiments.trial('airflow', 'fanned', grows ? 'grows' : 'same');
         if (grows) {
           g.science('fire.air.fanned');
@@ -659,6 +659,7 @@ export class FireState implements HearthListener {
       keepT: this.keepT,
       feeds: this.feeds,
       kept: this.kept,
+      ...(this.carrying ? { ember: 'carried' as const } : this.embedded ? { ember: 'tinder' as const } : {}),
     };
   }
 
@@ -709,5 +710,8 @@ export class FireState implements HearthListener {
     this.keepT = s.keepT ?? 0;
     this.feeds = s.feeds ?? 0;
     this.kept = s.kept ?? false;
+    this.carrying = s.ember === 'carried';
+    this.embedded = s.ember === 'tinder' && this.stage === 'lay';
+    this.air = this.embedded ? 0.1 : 0;
   }
 }

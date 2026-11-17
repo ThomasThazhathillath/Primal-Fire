@@ -524,7 +524,7 @@ export const OBJECTIVES: Objective[] = [
     title: 'Make an ember',
     short: 'Saw the drill at the pit',
     instruction: 'Hold the bow drill at your fire pit and saw it back and forth until an ember glows. You do not put it down.',
-    doneMessage: 'A glowing ember! Now keep it alive.',
+    doneMessage: 'A glowing ember! Now give it tinder and air.',
     teach: 'fire',
     howTo: () =>
       'HOW TO MAKE AN EMBER: 1. Take the bow drill out of your bag: it stays in your hand (Menu > Put away to let go). 2. Kneel or reach down to the fire pit so your hand is just above it. 3. Put your other hand near the pit too (it steadies the spindle). 4. Press your other hand down on top of the spindle and move the bow hand back and forth, fast and steadily, until smoke and an ember appear. In the browser: stand at the pit, hold the mouse button and drag left and right quickly, holding Shift to press down.',

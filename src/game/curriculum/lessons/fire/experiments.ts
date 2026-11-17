@@ -6,10 +6,47 @@
 // Each opens when its step is on the card (the drill-speed test opens as you make your first ember), so a
 // player who finished the old fire chain before experiments existed is never shown stale cards.
 
+import { DAMP, WET_IGNITE } from '../../../combustion.js';
+import { SMOKE_HEAT } from '../../../fire.js';
 import type { Game } from '../../../game.js';
+import { itemName } from '../../../items.js';
 import type { ExperimentDef } from '../../../science/experiments.js';
 
 type Trials = ReadonlyMap<string, string>;
+
+// Live readouts for the card: what the simulation measures right now, in plain numbers.
+const pct = (v: number) => `${Math.round(v * 100)}%`;
+
+function drillReadout(g: Game): string {
+  const f = g.fire;
+  if (!f.canDrill && f.heat < 0.05) return 'Hold the bow drill at your fire pit to measure.';
+  return `Dust heat ${pct(f.heat)} (it smokes at ${pct(SMOKE_HEAT)}). Stroke ${f.strokeSpeed.toFixed(1)} m/s, press ${f.strokePress >= 0.6 ? 'firm' : 'light'}.`;
+}
+
+function fedReadout(g: Game): string {
+  const f = g.fire;
+  if (f.stage !== 'burning') return 'Your fire is out.';
+  const p = f.lastFed;
+  let last = '';
+  if (p?.used) {
+    const state = p.burning ? `caught after ${Math.round(p.caughtAt)} s` : p.wet > WET_IGNITE ? `steaming for ${Math.round(p.age)} s` : `heating for ${Math.round(p.age)} s`;
+    last = ` Last piece: ${itemName(p.item).toLowerCase()}, ${p.wet0 >= DAMP ? 'damp' : 'dry'}, ${state}.`;
+  }
+  return `Fire heat ${pct(f.flame)}, smoke ${pct(f.smoke)}.${last}`;
+}
+
+function airReadout(g: Game): string {
+  const f = g.fire;
+  if (f.stage !== 'burning') return 'The fire is out.';
+  return `Fire heat ${pct(f.flame)}, air x${f.hearth.air.toFixed(1)}${f.hearth.smothered ? ' (covered: no air gets in)' : ''}.`;
+}
+
+function charcoalReadout(g: Game): string {
+  const m = g.water.mound;
+  const mound = !m ? 'none yet' : m.burn < 0 ? (m.sealed ? 'sealed, not lit' : 'vents open, not lit') : `smoke ${g.water.smoke()}`;
+  const logs = g.fire.stage === 'burning' ? g.fire.hearth.pieces.filter((p) => p.used && p.burning && p.kind === 'logs').length : 0;
+  return `Mound: ${mound}. Open fire: ${logs} log${logs === 1 ? '' : 's'} burning.`;
+}
 
 /** a -> the first prediction when value `x` gave `good` and `y` did not; the reverse -> the second; else the third. */
 function compare(t: Trials, x: string, y: string, good: string, ids: [string, string, string]): string | null {
@@ -57,6 +94,7 @@ export const DRILL_SPEED: ExperimentDef = {
     ],
   },
   opens: (g: Game) => g.focusIs('ember', 'fireLit', 'drillSpeed'),
+  readout: drillReadout,
 };
 
 export const DRILL_PRESSURE: ExperimentDef = {
@@ -95,6 +133,7 @@ export const DRILL_PRESSURE: ExperimentDef = {
     ],
   },
   opens: (g: Game) => g.focusIs('drillPressure'),
+  readout: drillReadout,
 };
 
 export const TINDER_DAMP: ExperimentDef = {
@@ -133,6 +172,7 @@ export const TINDER_DAMP: ExperimentDef = {
     ],
   },
   opens: (g: Game) => g.focusIs('tinderDamp'),
+  readout: fedReadout,
 };
 
 export const FUEL_SIZE: ExperimentDef = {
@@ -171,6 +211,7 @@ export const FUEL_SIZE: ExperimentDef = {
     ],
   },
   opens: (g: Game) => g.focusIs('fuelSize'),
+  readout: fedReadout,
 };
 
 export const WOOD_TYPE: ExperimentDef = {
@@ -209,6 +250,7 @@ export const WOOD_TYPE: ExperimentDef = {
     ],
   },
   opens: (g: Game) => g.focusIs('woodType'),
+  readout: fedReadout,
 };
 
 export const CHARCOAL_AIR: ExperimentDef = {
@@ -256,6 +298,7 @@ export const CHARCOAL_AIR: ExperimentDef = {
     ],
   },
   opens: (g: Game) => g.focusIs('charcoal', 'charcoalAir'),
+  readout: charcoalReadout,
 };
 
 export const AIRFLOW: ExperimentDef = {
@@ -302,6 +345,7 @@ export const AIRFLOW: ExperimentDef = {
     ],
   },
   opens: (g: Game) => g.focusIs('airflow'),
+  readout: airReadout,
 };
 
 export const FIRE_EXPERIMENTS: ExperimentDef[] = [DRILL_SPEED, DRILL_PRESSURE, TINDER_DAMP, FUEL_SIZE, WOOD_TYPE, CHARCOAL_AIR, AIRFLOW];

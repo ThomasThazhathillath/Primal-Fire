@@ -60,23 +60,28 @@ describe('fire', () => {
     expect(g.fire.carrying).toBe(false);
   });
 
-  it('a carried ember dies if not transferred', () => {
+  it('a carried ember has no time limit, and survives a reload', () => {
     const g = withPit();
     layFire(g);
     sawEmber(g);
-    g.tick(25);
-    expect(g.fire.carrying).toBe(false);
-    expect(g.notebook).toContain('f_oxygen');
+    for (let i = 0; i < 40; i++) g.tick(15);
+    expect(g.fire.carrying).toBe(true);
+    const back = Game.restore(JSON.parse(JSON.stringify(g.snapshot())));
+    expect(back.fire.carrying).toBe(true);
+    expect(back.fire.transferEmber()).toBe(true);
+    expect(back.fire.embedded).toBe(true);
   });
 
-  it('an unfanned ember fades', () => {
+  it('an unfanned ember only smoulders: it needs air (notebook) but never goes out by itself', () => {
     const g = withPit();
     layFire(g);
     sawEmber(g);
     g.fire.transferEmber();
-    g.tick(20);
-    expect(g.fire.embedded).toBe(false);
-    expect(g.fire.stage).toBe('lay');
+    for (let i = 0; i < 40; i++) g.tick(5);
+    expect(g.fire.embedded).toBe(true);
+    expect(g.notebook).toContain('f_oxygen');
+    for (let i = 0; i < 20; i++) g.fire.fan(0.6, 0.25);
+    expect(g.fire.stage).toBe('burning');
   });
 
   it('logs before kindling starve the fire', () => {

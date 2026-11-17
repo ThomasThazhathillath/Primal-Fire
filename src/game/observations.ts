@@ -148,7 +148,7 @@ const BASE_OBSERVATIONS: Record<string, Observation> = {
   f_oxygen: {
     group: 'fire',
     title: 'Fire breathes',
-    obs: 'Left alone, the ember glowed, dimmed and went dark.',
+    obs: 'Left alone in the tinder, the ember only smouldered and dimmed. It brightened again as soon as air reached it.',
     pri: 'Burning is rapid oxidation — fuel reacting with oxygen. Gentle airflow delivers fresh O₂ to the glowing ember.',
     lim: 'Blow too hard on a weak ember and you can cool it or scatter it.',
   },

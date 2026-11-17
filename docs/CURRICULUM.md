@@ -101,7 +101,9 @@ The fire is simulated, so every experiment is a real outcome of the rules (`src/
   cools all the time, faster the hotter it is. So slow strokes (< 0.5 m/s) and a light touch both level off below
   smoking, and fast, firm strokes make an ember in a few seconds. VR: the bow hand's motion is the stroke, the other
   hand held still on top of the spindle is the firm press. Browser: hold the mouse button at the pit and drag left
-  and right (drag speed = stroke speed, 700 px/s = 1 m/s), hold Shift to press down. A click alone does not saw.
+  and right (drag speed = stroke speed, 700 px/s = 1 m/s, measured from the pointer's travel each frame), hold Shift
+  to press down. A click alone does not saw. Clicking the pit with fuel in hand feeds the fire (it never starts a bed
+  or snaps the branch there); with an empty hand it fans a burning fire; with the digging stick it smothers it.
   The drill also saws beside a burning fire (no second ember), so its experiments can be finished any time.
 - **Fuel.** The pit holds up to 16 pieces (tinder, twigs, branch, logs, charcoal). Each piece first dries (water must
   boil off, which takes the fire's heat and makes smoke), then needs the fire hot enough for its size (thin fuel
@@ -110,10 +112,16 @@ The fire is simulated, so every experiment is a real outcome of the rules (`src/
 - **Moisture.** Fuel picked up out in the open is as wet as the world (`env.wet`, which rain raises); under a roof it
   is dry. Carried fuel soaks in rain with no roof over you and dries beside a burning fire (fast), under your roof
   (slow) or in the open (slowest). Kept per item type, saved in `fuelWet`.
-- **Air.** Wind on an open pit and fanning add air (more heat, faster burning); unlit logs crowding a small fire take
+- **Air.** Wind on an open pit and fanning add air (more heat, faster burning; a fanning run is judged against the
+  same fire in still air at that moment); unlit logs crowding a small fire take
   air away; earth scraped over the fire with the digging stick smothers it (`smotherFire`). The ember needs air too:
   fanning, or wind across an open pit; damp tinder needs up to three times the air, wet tinder kills the ember.
-- **Rain** on an exposed pit wets the fuel; burning pieces that get too wet go out.
+  The ember has no time limit: carried, it glows until it goes into the tinder (and survives a reload); in the
+  tinder without air it only smoulders and dims, and after 12 s the game says it needs air (the `f_oxygen` entry).
+- **Rain** on an exposed pit wets the fuel: light rain only slows a fire that has caught; heavy rain can put an
+  unsheltered fire out. A roof over the pit keeps it dry.
+- **Experiment cards** show live readouts (dust heat and stroke, the last piece fed, the fire's air, the mound's
+  smoke). A card waiting for a prediction comes up by itself once per session when nothing else is open.
 - **Keeping a fire.** Unfed, the standard lay burns about two minutes, then coals, then nothing. The practical
   (`fireOnOwn`) asks for a fire lit from a new ember (not the first, guided one) kept burning 150 s with at least two
   pieces fed. Fire rules run at the 4 Hz slow step and cost a few microseconds a frame.

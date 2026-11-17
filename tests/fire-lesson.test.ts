@@ -401,6 +401,10 @@ describe('Lesson 02 experiments, run by the real fire', () => {
     for (let i = 0; i < 8; i++) g.fire.fan(1, 0.2);
     run(g, 0.5);
     expect(g.experiments.state('airflow').trials.get('fanned')).toBe('grows');
+    // Fanning again (a second run, the fire already roaring) is still judged against still air: still grows.
+    for (let i = 0; i < 8; i++) g.fire.fan(1, 0.2);
+    run(g, 0.5);
+    expect(g.experiments.state('airflow').trials.get('fanned')).toBe('grows');
     g.addItem('diggingStick');
     g.takeOut('diggingStick');
     expect(g.runIntent('diggingStick', 0, 0, 'touch')).toBe('smotherFire');
@@ -409,6 +413,18 @@ describe('Lesson 02 experiments, run by the real fire', () => {
     expect(g.experiments.state('airflow').trials.get('smothered')).toBe('dies');
     expect(g.experiments.predictedRight('airflow')).toBe(true);
     expect(g.notebook).toEqual(expect.arrayContaining(['f_fanned', 'f_smother']));
+  });
+
+  it('fanning a fire burned down to glowing coals also makes it grow', () => {
+    const g = withPit();
+    light(g);
+    openAt(g, 'airflow', 'air');
+    for (let t = 0; t < 200 && g.fire.hearth.burningCount > 0; t += 1) run(g, 1);
+    expect(g.fire.stage).toBe('burning');
+    expect(g.fire.hearth.coals).toBeGreaterThan(0.05);
+    for (let i = 0; i < 8; i++) g.fire.fan(1, 0.2);
+    run(g, 0.5);
+    expect(g.experiments.state('airflow').trials.get('fanned')).toBe('grows');
   });
 
   it('charcoal: a log burned in the open fire is ash, logs in a sealed mound are charcoal', () => {
@@ -435,6 +451,50 @@ describe('Lesson 02 experiments, run by the real fire', () => {
     feed(g, 'charcoal');
     run(g, 10);
     expect(g.notebook).toContain('f_charcoal');
+  });
+});
+
+describe('rain on an open fire', () => {
+  const rained = (rain: number, seconds: number) => {
+    const g = withPit();
+    light(g);
+    for (let t = 0; t < seconds; t += 0.25) {
+      g.fire.weather(rain * 1.5, 0.25); // EnvironmentSystem: rain x RAIN_BURN_LOSS on an exposed pit
+      g.fire.tick(0.25);
+    }
+    return g;
+  };
+  it('light rain only slows a fire that has caught', () => {
+    const g = rained(0.4, 60);
+    expect(g.fire.stage).toBe('burning');
+    expect(g.fire.hearth.pieces.some((p) => p.used && p.burning && p.kind === 'logs')).toBe(true);
+  });
+  it('heavy rain on an unsheltered fire puts it out in the end', () => {
+    expect(rained(1, 400).fire.stage).toBe('out');
+  });
+});
+
+describe('experiment card readouts', () => {
+  it('show what the fire really measures: dust heat and stroke, the last piece fed, the air', () => {
+    const g = withPit();
+    layFire(g);
+    g.addItem('bowDrill');
+    g.takeOut('bowDrill');
+    const drill = FIRE_EXPERIMENTS.find((e) => e.id === 'drillSpeed')!;
+    for (let t = 0; t < 2; t += 0.05) {
+      g.fire.saw(1.2 * 0.05, 0.05, PRESSURE.light, 1);
+      g.fire.tick(0.05);
+    }
+    expect(drill.readout!(g)).toMatch(/Dust heat \d+% .*Stroke 1\.\d m\/s, press light/);
+    g.stow();
+    light(g);
+    run(g, 20);
+    feed(g, 'dampMoss');
+    run(g, 2);
+    expect(FIRE_EXPERIMENTS.find((e) => e.id === 'tinderDamp')!.readout!(g)).toMatch(/Last piece: damp moss, damp, steaming for \d+ s/);
+    g.fire.smother();
+    run(g, 0.5);
+    expect(FIRE_EXPERIMENTS.find((e) => e.id === 'airflow')!.readout!(g)).toMatch(/covered: no air|fire is out/);
   });
 });
 

@@ -5,6 +5,7 @@ import { setEasyCarry } from './game/items.js';
 // Play-testing: no pocket limit, no weight, everything goes in the bag. Set to false to test the real carry rules.
 setEasyCarry(true);
 import { installDebugHooks, streamPlaytestLog } from './debug-hooks.js';
+import { guardSystems } from './system-guard.js';
 import { AudioSystem } from './systems/audio-system.js';
 import { CraftGestureSystem } from './systems/craft-gesture-system.js';
 import { BenchSystem } from './systems/bench-system.js';
@@ -147,4 +148,10 @@ World.create(
     .registerSystem(StorySystem, { configData: { tutorial: mode === 'tutorial' } });
   installDebugHooks(world);
   streamPlaytestLog(world);
+  // Last, so it covers every system above: a throw in one system is logged, not a frozen headset.
+  guardSystems(world.getSystems(), (msg, error) => {
+    console.error('[EUREKA] system error', error);
+    const at = error instanceof Error ? (error.stack?.split('\n').find((l) => l.includes('/src/')) ?? '').trim() : '';
+    game.log.add(`ERROR ${msg}${at ? ` ${at}` : ''}`, 'bad');
+  });
 });

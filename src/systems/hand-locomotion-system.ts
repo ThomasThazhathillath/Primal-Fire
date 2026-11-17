@@ -22,6 +22,7 @@ import {
 import { actionFor } from '../game/actions.js';
 import { collisionWorld } from '../game/collision.js';
 import { SWING_TOOLS } from '../game/interact.js';
+import { SmoothTurn } from '../game/smooth-turn.js';
 import { groundHeight, WORLD_RADIUS } from '../game/world-layout.js';
 import { DesktopControlsSystem } from './desktop-controls-system.js';
 import { hands } from './hand-input-system.js';
@@ -52,6 +53,8 @@ export class HandLocomotionSystem extends createSystem({
   private dir = new Vector3();
   private target = new Vector3();
   private head = new Vector3();
+  /** The Left / Right turn in progress (a short eased pan, not a jump). */
+  private turning = new SmoothTurn();
 
   init(): void {
     getUi(this.world).snapTurn = (deg) => this.snapTurn(deg);
@@ -74,6 +77,7 @@ export class HandLocomotionSystem extends createSystem({
   }
 
   update(delta: number): void {
+    if (this.turning.active) this.turnBy(this.turning.step(delta));
     if (this.world.visibilityState.peek() === VisibilityState.NonImmersive) return;
     this.enableMicroGestures();
     this.updatePinchTeleport(delta);
@@ -167,9 +171,14 @@ export class HandLocomotionSystem extends createSystem({
     getGame(this.world).log.add(`hand teleport to ${this.target.x.toFixed(1)},${this.target.z.toFixed(1)}`);
   }
 
-  /** Snap turn (HUD buttons): rotate the rig about your head, so you turn in place. */
+  /** Left / Right turn (HUD buttons): a short eased pan by `deg` degrees (game/smooth-turn.ts), stepped in update. */
   snapTurn(deg: number): void {
-    const a = (deg * Math.PI) / 180;
+    this.turning.start((deg * Math.PI) / 180);
+  }
+
+  /** Turn by `a` radians now: in the headset the rig turns about your head, so you turn in place. */
+  private turnBy(a: number): void {
+    if (a === 0) return;
     if (this.world.visibilityState.peek() === VisibilityState.NonImmersive) {
       this.world.getSystem(DesktopControlsSystem)?.turn(a);
       return;

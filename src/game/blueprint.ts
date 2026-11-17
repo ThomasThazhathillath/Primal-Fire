@@ -406,5 +406,26 @@ export function spotWorldPosition(
   };
 }
 
+/** What a glowing mark asks for, by its index; -1 is the top of a keyLast structure (a workbench slab). */
+export interface MarkDef {
+  label: string;
+  accepts: ItemId[];
+}
+
+const TOP_MARKS = new Map<StructureKind, MarkDef>();
+
+/**
+ * The mark at `index` of a `kind` blueprint: a snap spot, or the top (index -1), which goes on with one press from
+ * your bag. Null for an index the blueprint does not have. Never index `spots` with a mark's index directly:
+ * `spots[-1]` is undefined, and reading it inside a system's update stops the frame loop (the headset freezes).
+ */
+export function markDef(kind: StructureKind, index: number): MarkDef | null {
+  const def = BLUEPRINTS[kind];
+  if (index >= 0) return def.spots[index] ?? null;
+  let top = TOP_MARKS.get(kind);
+  if (!top) TOP_MARKS.set(kind, (top = { label: 'Top', accepts: def.keyAccepts }));
+  return top;
+}
+
 /** Default distance (m) a released part may land from its spot and still seat. */
 export const DEFAULT_SPOT_TOLERANCE = 0.3;

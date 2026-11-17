@@ -39,7 +39,7 @@ export interface UiHooks {
   questOpen(): boolean;
   /** Notebook entries recorded since it was last opened. */
   newNotes(): number;
-  /** Snap-turn the view by `deg` degrees (positive = left), pivoting on your head. */
+  /** Turn the view by `deg` degrees (positive = left) in a short eased pan, pivoting on your head. */
   snapTurn(deg: number): void;
   /** Write the save now (before a reload). */
   saveNow(): void;

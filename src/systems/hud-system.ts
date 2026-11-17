@@ -22,7 +22,7 @@ import {
   findUIKitDocument,
   type Object3D,
 } from '@iwsdk/core';
-import { spotWorldPosition, BLUEPRINTS } from '../game/blueprint.js';
+import { markDef, spotWorldPosition } from '../game/blueprint.js';
 import type { GameEvent } from '../game/game.js';
 import { itemName } from '../game/items.js';
 import { bagPrompt, gatherPrompt } from '../game/prompts.js';
@@ -311,10 +311,19 @@ export class HudSystem extends createSystem({
     } else {
       const s = game.structures.find((t) => t.id === e.getValue(SnapSpot, 'structureId'));
       if (!s) return;
-      const spotDef = BLUEPRINTS[s.kind].spots[e.getValue(SnapSpot, 'index') ?? 0];
-      title = spotDef.label;
-      sub = `Hold ${spotDef.accepts.map((id) => itemName(id).toLowerCase()).join(' or ')} and set it down on the glow`;
-      const p = spotWorldPosition(s, e.getValue(SnapSpot, 'index') ?? 0);
+      const index = e.getValue(SnapSpot, 'index') ?? 0;
+      const mark = markDef(s.kind, index);
+      if (!mark) return;
+      if (index < 0) {
+        // The top (a workbench slab): one press on its glow lays it on from your bag.
+        const vr = this.world.visibilityState.peek() !== VisibilityState.NonImmersive;
+        title = itemName(s.key);
+        sub = `${vr ? 'Pinch' : 'Click'} the glow to lay it on top`;
+      } else {
+        title = mark.label;
+        sub = `Hold ${mark.accepts.map((id) => itemName(id).toLowerCase()).join(' or ')} and set it down on the glow`;
+      }
+      const p = spotWorldPosition(s, index);
       this.tmp.set(p.x, p.y + 0.35, p.z);
     }
     // Shown on the HUD's hover line, not as a card floating over the object.

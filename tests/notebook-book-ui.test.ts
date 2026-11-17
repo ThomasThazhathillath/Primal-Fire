@@ -6,10 +6,10 @@ const read = (p: string) => readFileSync(p, 'utf8');
 describe('notebook and build book UI', () => {
   it('the objective card hides while the notebook is open', () => {
     expect(read('src/systems/objective-card-system.ts')).toMatch(/notebookOpen\?\.\(\)/);
-    expect(read('src/systems/hud-system.ts')).toMatch(/ui\.notebookOpen = \(\) => this\.card\.visible/);
+    expect(read('src/systems/notebook-system.ts')).toMatch(/ui\.notebookOpen = \(\) => this\.open/);
   });
   it('the flat notebook is centred (no side offset)', () => {
-    expect(read('src/systems/hud-system.ts')).toMatch(/placeInFront\(this\.card, this\.camera, 0\.75, 0, /);
+    expect(read('src/systems/notebook-system.ts')).toMatch(/placeInFront\(this\.panel, this\.camera, 0\.6, 0, /);
   });
   it('build book row text matches the bag on screen (px * scale)', () => {
     const px = Number(/\.bagtext \{ font-size: (\d+)px/.exec(read('public/ui/buildbook.uikitml'))![1]);

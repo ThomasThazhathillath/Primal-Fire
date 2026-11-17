@@ -1,0 +1,97 @@
+<!--
+  The Lab Notebook (curriculum Phase 1, C10). NotebookSystem fills it in two modes:
+  - list: the five lesson tabs, the lesson's concepts (discovered, or a clue), experiments and what is left;
+  - page: one concept in short labelled sections, two at a time, with Previous / Next.
+  Fixed width; short sections and paging keep it from growing taller than the view in the headset.
+-->
+<style>
+  .theme-begin { display: flex; }
+  .t-root { background-color: rgba(24, 16, 10, 0.98); border-radius: 18px; border-width: 8px; border-color: #6b4524; }
+  .t-banner { flex-direction: row; align-items: center; justify-content: space-between; background-color: #5a2f16; border-radius: 12px; border-bottom-width: 4px; border-color: #c4893f; padding-top: 8px; padding-bottom: 8px; padding-left: 14px; padding-right: 10px; flex-shrink: 0; }
+  .t-bannertext { color: #fbf0d6; font-size: 24px; font-weight: 700; letter-spacing: 1px; }
+  .t-head { background-color: #5e6e34; border-radius: 12px; padding: 8px; }
+  .t-headtext { color: #fbf0d6; font-size: 20px; font-weight: 700; }
+  .t-title { color: #f3e6cc; font-size: 24px; font-weight: 700; line-height: 1.15; }
+  .t-name { color: #f3e6cc; font-size: 20px; font-weight: 700; }
+  .t-lead { color: #f3e6cc; font-size: 20px; line-height: 1.25; }
+  .t-body { color: #f3e6cc; font-size: 19px; line-height: 1.3; }
+  .t-muted { color: #cdb894; font-size: 18px; line-height: 1.3; }
+  .t-small { color: #f3e6cc; font-size: 15px; font-weight: 700; }
+  .t-label { color: #f0a54e; font-size: 13px; font-weight: 700; letter-spacing: 1.5px; }
+  .t-accent { color: #f0a54e; font-size: 20px; font-weight: 700; }
+  .t-note { color: #e2b77a; font-size: 17px; line-height: 1.25; }
+  .t-ok { color: #8fd49b; font-size: 18px; font-weight: 700; line-height: 1.25; }
+  .t-bad { color: #ff8f73; font-size: 18px; font-weight: 700; line-height: 1.25; }
+  .t-row { background-color: #3a2716; border-radius: 12px; border-width: 2px; border-color: #86643c; }
+  .t-slot { background-color: #3a2716; border-radius: 12px; border-width: 2px; border-color: #86643c; }
+  .t-slottext { color: #f3e6cc; font-weight: 600; }
+  .t-tile { flex-direction: column; align-items: center; justify-content: flex-end; background-color: #3a2716; border-radius: 12px; padding-bottom: 8px; padding-left: 6px; padding-right: 6px; }
+  .t-tiletext { color: #f3e6cc; font-size: 15px; font-weight: 700; line-height: 1.2; text-align: center; }
+  .t-detail { background-color: rgba(255, 220, 170, 0.08); border-radius: 12px; padding: 10px; color: #f3e6cc; font-size: 18px; line-height: 1.3; flex-shrink: 0; }
+  .t-rule { height: 2px; background-color: rgba(196, 137, 63, 0.55); flex-shrink: 0; }
+  .t-btn { background-color: #5e6e34; border-radius: 12px; }
+  .t-go { background-color: #f0a54e; border-radius: 12px; }
+  .t-track { background-color: rgba(255, 225, 180, 0.16); border-radius: 4px; }
+  .t-fill { background-color: #f0a54e; border-radius: 4px; }
+.theme-end { display: flex; }
+  .root { flex-direction: column; width: 620px; padding-top: 16px; padding-bottom: 16px; padding-left: 20px; padding-right: 20px; gap: 8px; }
+  .head { flex-direction: row; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  .titlebox { flex-direction: column; width: 450px; gap: 2px; }
+  .tabs { flex-direction: row; gap: 8px; flex-shrink: 0; }
+  .tab { width: 108px; height: 52px; justify-content: center; }
+  .tabtext { color: #fbf0d6; font-size: 17px; font-weight: 700; }
+  .list { flex-direction: column; gap: 6px; flex-shrink: 0; }
+  .rowbtn { width: 580px; height: 56px; justify-content: flex-start; padding-left: 14px; padding-right: 14px; }
+  .rowtext { color: #fbf0d6; font-size: 17px; font-weight: 600; }
+  .foot { width: 580px; line-height: 1.3; flex-shrink: 0; }
+  .detail { flex-direction: column; gap: 6px; flex-shrink: 0; }
+  .sec { flex-direction: column; gap: 4px; width: 580px; padding: 10px; }
+  .sectext { width: 556px; line-height: 1.3; }
+  .nav { flex-direction: row; align-items: center; justify-content: space-between; width: 580px; flex-shrink: 0; }
+  .navbtn { width: 150px; height: 54px; }
+  .navtext { color: #fbf0d6; font-size: 17px; font-weight: 700; }
+  .close { width: 120px; height: 52px; }
+  .resume { width: 300px; height: 54px; }
+</style>
+<div class="root t-root">
+  <div class="head">
+    <div class="titlebox">
+      <div id="nb-label" class="t-label">LAB NOTEBOOK</div>
+      <div id="nb-title" class="t-title">-</div>
+    </div>
+    <Button id="nb-close" class="close t-btn" size="lg" variant="secondary"><ButtonIcon><X></X></ButtonIcon><ButtonLabel>Close</ButtonLabel></Button>
+  </div>
+  <div class="tabs">
+    <Button id="nb-tab-0" class="tab t-btn" size="sm"><ButtonLabel id="nb-tab-0-label" class="tabtext">01</ButtonLabel></Button>
+    <Button id="nb-tab-1" class="tab t-btn" size="sm"><ButtonLabel id="nb-tab-1-label" class="tabtext">02</ButtonLabel></Button>
+    <Button id="nb-tab-2" class="tab t-btn" size="sm"><ButtonLabel id="nb-tab-2-label" class="tabtext">03</ButtonLabel></Button>
+    <Button id="nb-tab-3" class="tab t-btn" size="sm"><ButtonLabel id="nb-tab-3-label" class="tabtext">04</ButtonLabel></Button>
+    <Button id="nb-tab-4" class="tab t-btn" size="sm"><ButtonLabel id="nb-tab-4-label" class="tabtext">05</ButtonLabel></Button>
+  </div>
+  <div class="t-rule"></div>
+  <div id="nb-list" class="list">
+    <Button id="nb-row-0" class="rowbtn t-row" size="lg"><ButtonLabel id="nb-row-0-label" class="rowtext">-</ButtonLabel></Button>
+    <Button id="nb-row-1" class="rowbtn t-row" size="lg"><ButtonLabel id="nb-row-1-label" class="rowtext">-</ButtonLabel></Button>
+    <Button id="nb-row-2" class="rowbtn t-row" size="lg"><ButtonLabel id="nb-row-2-label" class="rowtext">-</ButtonLabel></Button>
+    <Button id="nb-row-3" class="rowbtn t-row" size="lg"><ButtonLabel id="nb-row-3-label" class="rowtext">-</ButtonLabel></Button>
+    <Button id="nb-row-4" class="rowbtn t-row" size="lg"><ButtonLabel id="nb-row-4-label" class="rowtext">-</ButtonLabel></Button>
+    <Button id="nb-row-5" class="rowbtn t-row" size="lg"><ButtonLabel id="nb-row-5-label" class="rowtext">-</ButtonLabel></Button>
+    <div id="nb-foot" class="foot t-note">-</div>
+  </div>
+  <div id="nb-detail" class="detail">
+    <div class="sec t-detail">
+      <div id="nb-sec-0-label" class="t-label">-</div>
+      <div id="nb-sec-0-text" class="sectext t-body">-</div>
+    </div>
+    <div id="nb-sec-1" class="sec t-detail">
+      <div id="nb-sec-1-label" class="t-label">-</div>
+      <div id="nb-sec-1-text" class="sectext t-body">-</div>
+    </div>
+  </div>
+  <div class="nav">
+    <Button id="nb-prev" class="navbtn t-btn" size="lg" variant="secondary"><ButtonIcon><ArrowLeft></ArrowLeft></ButtonIcon><ButtonLabel id="nb-prev-label" class="navtext">Back</ButtonLabel></Button>
+    <div id="nb-page" class="t-muted">1 / 1</div>
+    <Button id="nb-next" class="navbtn t-go" size="lg"><ButtonLabel class="navtext">Next</ButtonLabel><ButtonIcon><ArrowRight></ArrowRight></ButtonIcon></Button>
+  </div>
+  <Button id="nb-resume" class="resume t-go" size="lg"><ButtonLabel id="nb-resume-label" class="navtext">Work on this lesson</ButtonLabel></Button>
+</div>

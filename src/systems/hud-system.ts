@@ -48,20 +48,10 @@ export class HudSystem extends createSystem({
 }) {
   private hud!: UIKitMLAsset;
   private hudEntity!: Entity;
-  private cardEntity!: Entity;
-  private cardTouch!: PanelTouch;
-  private cardPop!: PopIn;
-  private cardScale = 0.09;
   private vrNow = false;
   /** VR: low and to the left, out of the way of rays aimed at the ground; it never drifts. */
   private hudAnchor = StaticAnchor.slot('hud', 1.05, 1.2);
-  private card!: UIKitMLAsset;
   private tip!: UIKitMLAsset;
-  private cardQueue: string[] = [];
-  /** Notebook entries recorded since you last opened it (shown on the notebook icon). */
-  private newNotes = 0;
-  private notebookIndex = 0;
-  private browsing = false;
   private toastTimer = 0;
   private beacon!: Mesh;
   private beaconTimer = 0;
@@ -74,16 +64,13 @@ export class HudSystem extends createSystem({
 
   async init(): Promise<void> {
     const game = getGame(this.world);
-    const [hud, card, tip] = await Promise.all([
+    const [hud, tip] = await Promise.all([
       this.world.assets.instantiate<UIKitMLAsset>('hud-panel'),
-      this.world.assets.instantiate<UIKitMLAsset>('card-panel'),
       this.world.assets.instantiate<UIKitMLAsset>('tip-panel'),
     ]);
     this.hud = hud;
-    this.card = card;
     this.tip = tip;
     hud.name = 'QuestHud';
-    card.name = 'NotebookCard';
     tip.name = 'Tooltip';
 
     // UIKit units here are ~1 cm, so 0.09 makes the 400-wide HUD ~36 cm in VR.
@@ -92,10 +79,6 @@ export class HudSystem extends createSystem({
     this.hudEntity.addComponent(RayInteractable);
     hidePanel(hud); // shown when you wake up
 
-    this.cardEntity = this.world.createTransformEntity(card);
-    this.cardEntity.addComponent(RayInteractable);
-    card.scale.setScalar(0.09);
-    hidePanel(card);
     this.world.createTransformEntity(tip);
     tip.scale.setScalar(0.085);
     hidePanel(tip);
@@ -120,23 +103,11 @@ export class HudSystem extends createSystem({
         enterVr.setProperties({ display: this.world.xrEnabled && v === VisibilityState.NonImmersive ? 'flex' : 'none' });
       }),
     );
-    wire(card, 'card-ok', () => this.nextCard());
-    wire(card, 'card-back', () => menu.back());
-    // The notebook is a fingertip panel in VR: Back / Next are targets, never a ray or pinch click.
-    this.cardTouch = new PanelTouch(this.world, card, 0.09, 'notebook');
-    this.cardPop = new PopIn(card, () => this.cardScale);
-    this.cardTouch.add('card-ok', () => this.nextCard());
-    this.cardTouch.add('card-back', () => menu.back());
     this.cleanupFuncs.push(
       this.world.visibilityState.subscribe((v) => {
         this.vrNow = v !== VisibilityState.NonImmersive;
-        PanelTouch.setRay(this.world, this.cardEntity, this.vrNow);
       }),
     );
-    menu.register('notebook', () => {
-      this.browsing = false;
-      this.cardPop.close(() => hidePanel(this.card));
-    });
     const ui = getUi(this.world);
     ui.showHint = () => this.showHint();
     // A hint-driven pillar stays until it is cleared (not on the old 45 s timer), tall and gently pulsing.
@@ -152,10 +123,8 @@ export class HudSystem extends createSystem({
         this.beacon.scale.set(1, 1, 1);
       }
     };
-    ui.openNotebook = () => this.openNotebook();
-    ui.notebookOpen = () => this.card.visible;
-    // The quest icon now opens the objective card (ObjectiveCardSystem); this strip keeps XP and toasts.
-    ui.newNotes = () => this.newNotes;
+    // The quest icon opens the objective card (ObjectiveCardSystem) and Notes the Lab Notebook (NotebookSystem);
+    // this strip keeps XP and toasts.
 
     this.cleanupFuncs.push(
       game.on((e: GameEvent) => this.onGameEvent(e)),
@@ -200,9 +169,8 @@ export class HudSystem extends createSystem({
         this.setToast(e.text);
         break;
       case 'observation':
-        // No pop-up card: the notebook icon counts it, and it opens when you choose.
-        this.newNotes++;
-        this.setToast(`New notebook entry: ${OBSERVATIONS[e.id]?.title ?? ''}. Open the book to read it.`);
+        // No pop-up card: the Notes icon counts it (Game.notebookSeen), and the notebook opens when you choose.
+        this.setToast(`New notebook entry: ${OBSERVATIONS[e.id]?.title ?? ''}. Open the notebook to read it.`);
         this.renderQuest();
         break;
       case 'xp':
@@ -226,7 +194,7 @@ export class HudSystem extends createSystem({
     const text = (id: string, t: string) => this.hud.requireElementById<UIKit.Text>(id).setProperties({ text: uiText(t) });
     const lesson = game.lessons.lesson;
     // While the beginner objectives run, the objective card is the one place that names the task.
-    const tutorial = !game.guiding();
+    const tutorial = game.guiding();
     this.hud.requireElementById('quest-num').setProperties({ display: tutorial ? 'none' : 'flex' });
     text('quest-num', lesson ? `LESSON ${String(lesson.n).padStart(2, '0')} OF ${String(LESSONS.length).padStart(2, '0')}` : 'ALL LESSONS COMPLETE');
     text('level', `Rank ${game.level}   ${game.xp} XP`);
@@ -279,81 +247,6 @@ export class HudSystem extends createSystem({
       this.beacon.visible = true;
       this.beaconTimer = BEACON_SECONDS;
     }
-  }
-
-  /** "Got it" / "Next": shows the next queued observation or notebook page. */
-  private nextCard(): void {
-    const game = getGame(this.world);
-    let id: string | undefined;
-    if (this.browsing) {
-      this.notebookIndex++;
-      id = game.notebook[this.notebookIndex];
-      if (!id) this.browsing = false;
-    } else {
-      id = this.cardQueue.shift();
-    }
-    if (id) this.showCard(id);
-    else {
-      this.cardPop.close(() => hidePanel(this.card));
-      menu.closed('notebook');
-    }
-  }
-
-  private showCard(id: string): void {
-    const game = getGame(this.world);
-    const o = OBSERVATIONS[id];
-    const set = (el: string, t: string) => this.card.requireElementById<UIKit.Text>(el).setProperties({ text: uiText(t) });
-    // An optional short context line (where / why), never a diary: Observation, Principle, Real-world limit stay as they are.
-    const where = game.story.notes.get(id);
-    set('card-eyebrow', (this.browsing ? `LAB NOTEBOOK ${this.notebookIndex + 1} / ${game.notebook.length}` : 'NEW OBSERVATION') + (where ? ` - ${where}` : ''));
-    set('card-title', o.title);
-    set('card-obs', o.obs);
-    set('card-pri', o.pri);
-    set('card-lim', o.lim || '-');
-    this.card.requireElementById('card-lim-label').setProperties({ display: o.lim ? 'flex' : 'none' });
-    this.card.requireElementById('card-lim').setProperties({ display: o.lim ? 'flex' : 'none' });
-    set('card-why', o.why ?? '-');
-    this.card.requireElementById('card-why-label').setProperties({ display: o.why ? 'flex' : 'none' });
-    this.card.requireElementById('card-why').setProperties({ display: o.why ? 'flex' : 'none' });
-    const wasVisible = this.card.visible;
-    this.card.visible = true;
-    menu.open('notebook');
-    if (this.vrNow) {
-      // Smaller in VR so the whole card and its Back / Next buttons fit the view at arm's length.
-      this.card.scale.setScalar(0.07);
-      this.cardTouch.setScale(0.07);
-      this.cardAnchor.reset();
-      this.cardAnchor.update(this.card, this.camera);
-    }
-    else {
-      this.card.scale.setScalar(0.08);
-      placeInFront(this.card, this.camera, 0.75, 0, 0.04); // centred, below the top HUD, clear of the hands
-    }
-    this.cardTouch.reset();
-    this.cardScale = this.card.scale.x;
-    if (!wasVisible) this.cardPop.open();
-  }
-
-  /** Pages through every observation you have recorded, oldest first. */
-  openNotebook(): void {
-    const game = getGame(this.world);
-    // A second press closes it.
-    if (this.card.visible) {
-      menu.back();
-      return;
-    }
-    if (!game.notebook.length) {
-      game.toast('Your notebook is empty. Every outcome you witness is recorded here.');
-      return;
-    }
-    this.cardQueue.length = 0;
-    this.browsing = true;
-    // Start at the first entry you haven't read yet.
-    this.notebookIndex = Math.max(0, game.notebook.length - this.newNotes);
-    if (this.notebookIndex >= game.notebook.length) this.notebookIndex = 0;
-    this.newNotes = 0;
-    this.renderQuest();
-    this.showCard(game.notebook[this.notebookIndex]);
   }
 
   private clearTip(e: Entity): void {
@@ -452,17 +345,14 @@ export class HudSystem extends createSystem({
     }
   }
 
-  private cardAnchor = StaticAnchor.slot('panel').movable('notebook', 440, 500);
-
   update(delta: number): void {
-    if (this.vrNow && this.card?.visible) this.cardAnchor.update(this.card, this.camera);
     if (!this.ready) return;
     if (this.shown) {
       const vr = this.world.visibilityState.peek() !== VisibilityState.NonImmersive;
       // VR during the tutorial: never shown (the objective card carries the task and the
       // failure reasons; a strip that flickers in for each message read as an empty floating box).
       // The flat view keeps it for messages and the Enter VR button.
-      const tutorial = !getGame(this.world).guiding();
+      const tutorial = getGame(this.world).guiding();
       this.setIdle(tutorial && (vr || (this.toastTimer <= 0 && !this.hoverShown && !this.world.xrEnabled)));
       if (!this.idle && vr) this.hudAnchor.update(this.hud, this.camera);
     }
@@ -474,8 +364,6 @@ export class HudSystem extends createSystem({
       this.beaconT += delta;
       (this.beacon.material as MeshBasicMaterial).opacity = 0.3 + 0.14 * Math.sin(this.beaconT * 2.4);
     }
-    if (this.cardPop?.busy) this.cardPop.update(delta);
-    if (this.card.visible && this.vrNow) this.cardTouch.update(delta);
     this.updateTip();
   }
 }

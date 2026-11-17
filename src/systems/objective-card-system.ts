@@ -181,7 +181,9 @@ export class ObjectiveCardSystem extends createSystem({}) {
     const text = (id: string, t: string) => this.panel.requireElementById<UIKit.Text>(id).setProperties({ text: uiText(t || ' ') });
     const show = (id: string, on: boolean) => this.panel.requireElementById(id).setProperties({ display: on ? 'flex' : 'none' });
     const cele = !!v.celebrating;
-    text('obj-step', cele ? 'DONE' : v.id === 'quest' ? 'QUEST' : `GOAL ${v.step}`);
+    // The lesson this step belongs to, and where it is in that lesson: "LESSON 01 SHELTER - 7/12".
+    const lesson = v.lesson ? `LESSON ${String(v.lesson.n).padStart(2, '0')} ${v.lesson.name.split(' ')[0].toUpperCase()} - ` : '';
+    text('obj-step', cele ? `${lesson}DONE` : `${lesson}${v.step}/${v.total}`);
     // One instruction, verb first (NPE simplicity round). Everything else waits behind 'Why?'.
     text('obj-title', cele ? v.title : (v.short ?? v.title));
     show('obj-body', !cele);

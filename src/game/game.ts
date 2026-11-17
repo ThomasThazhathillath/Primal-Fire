@@ -248,6 +248,8 @@ export class Game {
   readonly fire = new FireState(this);
   /** The five-lesson curriculum: the one progression driver (curriculum/tracker.ts). */
   readonly lessons: LessonTracker = new LessonTracker(this, (e) => this.emit(e));
+  /** How many notebook entries the player has seen (the rest are new: the badge on the Notes icon). */
+  notebookSeen = 0;
   /** A message to show once play starts (e.g. after an old save was moved into lessons). */
   startupNotice: string | null = null;
   /** Warmth, water, food, rest and wetness (survival/body.ts), stepped in the 4 Hz slow tick. */
@@ -2112,6 +2114,7 @@ export class Game {
       lessons: this.lessons.snapshot(),
       body: this.body.snapshot(),
       experiments: this.experiments.snapshot(),
+      notebookSeen: this.notebookSeen,
       story: this.story.snapshot(),
       assist: this.assist.snapshot(),
       shelterTest: this.shelterTest.snapshot(),
@@ -2162,6 +2165,8 @@ export class Game {
     g.held = data.held && data.held in ITEMS ? data.held : null;
     g.body.restore(data.body);
     g.experiments.restore(data.experiments);
+    // Older saves did not track it: treat what they had as read.
+    g.notebookSeen = Math.min(g.notebook.length, data.notebookSeen ?? g.notebook.length);
     if (data.lessons) g.lessons.restore(data.lessons);
     else {
       // A version-1 save: work out lesson progress from what it holds (curriculum/migrate.ts).
@@ -2184,6 +2189,8 @@ export interface SaveData {
   body?: BodySave;
   /** Experiments run so far (predictions, trials, results). */
   experiments?: ExperimentsSave;
+  /** Notebook entries already seen (absent in older saves: all of them). */
+  notebookSeen?: number;
   fire?: FireSave;
   /** Version-1 beginner objectives (read only, for migration; no longer written). */
   objectives?: ObjectivesSave;

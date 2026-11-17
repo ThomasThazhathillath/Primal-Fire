@@ -12,7 +12,8 @@ import { PanelTouch } from './panel-touch.js';
 import { PopIn } from './ui-fx.js';
 import { getGame, getUi, hidePanel, menu, placeInFront, StaticAnchor, uiText } from './shared.js';
 
-const SCALE = 0.047;
+/** Desktop: readable at 0.5 m; VR uses the same card at arm's length through StaticAnchor. */
+const SCALE = 0.06;
 const OPTS = 3;
 
 export class ExperimentSystem extends createSystem({}) {

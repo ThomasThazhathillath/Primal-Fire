@@ -66,7 +66,6 @@ export default defineAssets({
   'satchel-panel': uikitml('satchel.uikitml', 'Satchel'),
   'book-panel': uikitml('buildbook.uikitml', 'Build Book'),
   'objective-panel': uikitml('objective.uikitml', 'Objective Card'),
-  'card-panel': uikitml('card.uikitml', 'Notebook Card'),
   'tip-panel': uikitml('tip.uikitml', 'Tooltip'),
   'guide-panel': uikitml('guide.uikitml', 'Guide Card'),
   'level-panel': uikitml('level.uikitml', 'Level Card'),
@@ -79,4 +78,5 @@ export default defineAssets({
   'tutorial-panel': uikitml('tutorial.uikitml', 'Tutorial Tracker'),
   'body-panel': uikitml('body.uikitml', 'Body Status'),
   'experiment-panel': uikitml('experiment.uikitml', 'Experiment Card'),
+  'notebook-panel': uikitml('notebook.uikitml', 'Lab Notebook'),
 });
